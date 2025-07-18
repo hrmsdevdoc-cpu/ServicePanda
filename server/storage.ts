@@ -4,6 +4,7 @@ import {
   serviceCategories,
   providerServices,
   australianStates,
+  australianRegions,
   australianSuburbs,
   providerServiceAreas,
   providerDocuments,
@@ -36,6 +37,7 @@ import {
   type InsertSystemSetting,
   type SystemSetting,
   type AustralianState,
+  type AustralianRegion,
   type AustralianSuburb,
 } from "@shared/schema";
 import { db } from "./db";
@@ -247,10 +249,26 @@ export class DatabaseStorage implements IStorage {
         postcode: australianSuburbs.postcode,
         suburb: australianSuburbs.suburb,
         stateId: australianSuburbs.stateId,
+        regionId: australianSuburbs.regionId,
       })
       .from(providerServiceAreas)
       .innerJoin(australianSuburbs, eq(providerServiceAreas.suburbId, australianSuburbs.id))
       .where(eq(providerServiceAreas.providerId, providerId));
+  }
+
+  async getRegionsByStateId(stateId: number): Promise<AustralianRegion[]> {
+    return await db
+      .select()
+      .from(australianRegions)
+      .where(eq(australianRegions.stateId, stateId))
+      .orderBy(asc(australianRegions.name));
+  }
+
+  async getAllRegions(): Promise<AustralianRegion[]> {
+    return await db
+      .select()
+      .from(australianRegions)
+      .orderBy(asc(australianRegions.name));
   }
 
   // Document operations

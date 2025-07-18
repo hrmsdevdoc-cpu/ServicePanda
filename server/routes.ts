@@ -510,6 +510,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Regional API endpoints
+  app.get("/api/regions", async (req, res) => {
+    try {
+      const regions = await storage.getAllRegions();
+      res.json(regions);
+    } catch (error) {
+      console.error("Error fetching regions:", error);
+      res.status(500).json({ message: "Failed to fetch regions" });
+    }
+  });
+
+  app.get("/api/regions/state/:stateId", async (req, res) => {
+    try {
+      const { stateId } = req.params;
+      const regions = await storage.getRegionsByStateId(parseInt(stateId));
+      res.json(regions);
+    } catch (error) {
+      console.error("Error fetching regions by state:", error);
+      res.status(500).json({ message: "Failed to fetch regions" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

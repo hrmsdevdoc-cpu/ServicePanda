@@ -85,12 +85,22 @@ export const australianStates = pgTable("australian_states", {
   abbreviation: varchar("abbreviation").notNull(),
 });
 
+// SA4 Regions - Statistical Area Level 4 (ABS standard)
+export const australianRegions = pgTable("australian_regions", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(), // e.g., "Gold Coast", "Newcastle and Lake Macquarie"
+  code: varchar("code").notNull(), // SA4 code e.g., "30504"
+  stateId: integer("state_id").references(() => australianStates.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Australian postcodes and suburbs
 export const australianSuburbs = pgTable("australian_suburbs", {
   id: serial("id").primaryKey(),
   postcode: varchar("postcode").notNull(),
   suburb: varchar("suburb").notNull(),
   stateId: integer("state_id").references(() => australianStates.id).notNull(),
+  regionId: integer("region_id").references(() => australianRegions.id), // Link to SA4 region
 });
 
 // Provider service areas
@@ -214,11 +224,18 @@ export const providerServicesRelations = relations(providerServices, ({ one }) =
 }));
 
 export const australianStatesRelations = relations(australianStates, ({ many }) => ({
+  regions: many(australianRegions),
+  suburbs: many(australianSuburbs),
+}));
+
+export const australianRegionsRelations = relations(australianRegions, ({ one, many }) => ({
+  state: one(australianStates, { fields: [australianRegions.stateId], references: [australianStates.id] }),
   suburbs: many(australianSuburbs),
 }));
 
 export const australianSuburbsRelations = relations(australianSuburbs, ({ one, many }) => ({
   state: one(australianStates, { fields: [australianSuburbs.stateId], references: [australianStates.id] }),
+  region: one(australianRegions, { fields: [australianSuburbs.regionId], references: [australianRegions.id] }),
   providerServiceAreas: many(providerServiceAreas),
 }));
 
@@ -331,4 +348,5 @@ export type UserActivityLog = typeof userActivityLogs.$inferSelect;
 export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
 export type SystemSetting = typeof systemSettings.$inferSelect;
 export type AustralianState = typeof australianStates.$inferSelect;
+export type AustralianRegion = typeof australianRegions.$inferSelect;
 export type AustralianSuburb = typeof australianSuburbs.$inferSelect;
