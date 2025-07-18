@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   Home, 
   ClipboardList, 
@@ -36,6 +40,13 @@ export default function CustomerDashboard() {
   const { user, logoutMutation } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  
+  // Profile form state
+  const [profileData, setProfileData] = useState({
+    firstName: "",
+    lastName: "",
+  });
 
   const { data: categories = [] } = useQuery({
     queryKey: ["/api/service-categories"],
@@ -45,8 +56,44 @@ export default function CustomerDashboard() {
     queryKey: ["/api/service-requests/my-requests"],
   });
 
+  // Profile update mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: { firstName: string; lastName: string }) => {
+      const response = await apiRequest("PUT", "/api/auth/user", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update profile.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogout = () => {
     logoutMutation.mutate();
+  };
+
+  const handleProfileUpdate = () => {
+    if (!profileData.firstName.trim() || !profileData.lastName.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in both first and last name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updateProfileMutation.mutate(profileData);
   };
 
   return (
@@ -296,37 +343,41 @@ export default function CustomerDashboard() {
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        First Name
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        defaultValue={user?.firstName || ""}
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        value={profileData.firstName || user?.firstName || ""}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
+                        placeholder="Enter your first name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Last Name
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        defaultValue={user?.lastName || ""}
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        value={profileData.lastName || user?.lastName || ""}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
+                        placeholder="Enter your last name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email
-                      </label>
-                      <input
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
                         type="email"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        defaultValue={user?.email || ""}
+                        value={user?.email || ""}
                         disabled
+                        className="bg-gray-50"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
                     </div>
-                    <Button>Update Profile</Button>
+                    <Button 
+                      onClick={handleProfileUpdate}
+                      disabled={updateProfileMutation.isPending}
+                      className="w-full"
+                    >
+                      {updateProfileMutation.isPending ? "Updating..." : "Update Profile"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

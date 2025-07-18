@@ -375,6 +375,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user profile
+  app.put('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { firstName, lastName } = req.body;
+      
+      if (!firstName || !lastName) {
+        return res.status(400).json({ message: "First name and last name are required" });
+      }
+      
+      const updatedUser = await storage.updateUser(userId, { firstName, lastName });
+      
+      // Log user activity
+      await storage.logUserActivity({
+        userId,
+        userType: "customer",
+        action: "profile_updated",
+        details: { firstName, lastName },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+      });
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      res.status(500).json({ message: "Failed to update user profile" });
+    }
+  });
+
   // Log user activity endpoint
   app.post('/api/user-activity', isAuthenticated, async (req: any, res) => {
     try {
