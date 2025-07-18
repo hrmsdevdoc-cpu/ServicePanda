@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, ArrowLeft, MapPin, Calendar as CalendarIconLucide, FileText, Search } from "lucide-react";
+import { CalendarIcon, ArrowLeft, MapPin, Calendar as CalendarIconLucide, FileText, Search, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -216,40 +216,68 @@ export default function RequestService() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="postcode">Postcode *</Label>
-                  <Input
-                    id="postcode"
-                    value={postcodeSearch}
-                    onChange={(e) => {
-                      setPostcodeSearch(e.target.value);
-                      setFormData({ ...formData, postcode: e.target.value, suburb: "" });
-                    }}
-                    placeholder="Enter postcode (e.g., 2000)"
-                    maxLength={4}
-                  />
-                </div>
-                
-                {suburbs.length > 0 && (
-                  <div>
-                    <Label htmlFor="suburb">Suburb *</Label>
-                    <Select
-                      value={formData.suburb}
-                      onValueChange={(value) => setFormData({ ...formData, suburb: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select suburb" />
-                      </SelectTrigger>
-                      <SelectContent>
+                <div className="relative">
+                  <Label htmlFor="postcode">Postcode and Suburb *</Label>
+                  <div className="relative">
+                    <Input
+                      id="postcode"
+                      value={postcodeSearch}
+                      onChange={(e) => {
+                        setPostcodeSearch(e.target.value);
+                        setFormData({ ...formData, postcode: e.target.value, suburb: "" });
+                      }}
+                      placeholder="Enter postcode (e.g., 2000, 3000, 4000)"
+                      maxLength={4}
+                      className={cn(
+                        suburbs.length > 0 && "rounded-b-none border-b-0"
+                      )}
+                    />
+                    
+                    {suburbs.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 z-50 max-h-48 overflow-y-auto border border-t-0 rounded-b-md bg-white shadow-lg">
                         {suburbs.map((suburb: any) => (
-                          <SelectItem key={suburb.id} value={suburb.suburb}>
-                            {suburb.suburb}
-                          </SelectItem>
+                          <button
+                            key={suburb.id}
+                            type="button"
+                            className={cn(
+                              "w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0",
+                              formData.suburb === suburb.suburb && "bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}
+                            onClick={() => {
+                              setFormData({ ...formData, suburb: suburb.suburb });
+                              setPostcodeSearch(""); // Clear search to hide dropdown
+                            }}
+                          >
+                            <div className="font-medium">{suburb.suburb}</div>
+                            <div className="text-xs text-gray-500">
+                              {suburb.postcode}
+                            </div>
+                          </button>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </div>
+                    )}
                   </div>
-                )}
+                  
+                  {formData.suburb && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-green-800">
+                          Selected: {formData.suburb}, {formData.postcode}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, suburb: "", postcode: "" });
+                            setPostcodeSearch("");
+                          }}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
