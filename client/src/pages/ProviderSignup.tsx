@@ -251,9 +251,11 @@ export default function ProviderSignup() {
     // Check authentication only after validation passes
     if (!isAuthenticated && !isLoading) {
       console.log('User not authenticated, redirecting to login...');
-      // Store current path so we can return here after login
-      sessionStorage.setItem('returnTo', '/provider-signup');
-      window.location.href = "/api/login";
+      console.log('Current URL:', window.location.pathname + window.location.search);
+      // Redirect to login with return URL parameter
+      const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+      console.log('Redirecting to login with returnTo:', returnUrl);
+      window.location.href = "/api/login?returnTo=" + returnUrl;
       return;
     }
 
