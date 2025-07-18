@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 type User = {
@@ -25,29 +24,16 @@ type RegisterData = {
 
 export function useAuth() {
   const { toast } = useToast();
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   
-  // Check authentication status on mount only
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/user", {
-          credentials: 'include'
-        });
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        }
-      } catch (error) {
-        // User not authenticated, which is fine
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    checkAuth();
-  }, []);
+  // Use React Query to fetch user data - this will stay in sync with cache updates
+  const { data: user, isLoading, error } = useQuery({
+    queryKey: ["/api/auth/user"],
+    retry: false, // Don't retry on 401 errors
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    // Handle 401 errors gracefully (user not authenticated)
+    throwOnError: false,
+  });
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
@@ -55,7 +41,7 @@ export function useAuth() {
       return await res.json();
     },
     onSuccess: (userData: User) => {
-      setUser(userData);
+      queryClient.setQueryData(["/api/auth/user"], userData);
       toast({
         title: "Welcome back!",
         description: "You have successfully logged in.",
@@ -76,7 +62,7 @@ export function useAuth() {
       return await res.json();
     },
     onSuccess: (userData: User) => {
-      setUser(userData);
+      queryClient.setQueryData(["/api/auth/user"], userData);
       toast({
         title: "Welcome to ServicePanda!",
         description: "Your account has been created successfully.",
@@ -100,7 +86,8 @@ export function useAuth() {
       if (!res.ok) throw new Error("Logout failed");
     },
     onSuccess: () => {
-      setUser(null);
+      queryClient.setQueryData(["/api/auth/user"], null);
+      queryClient.clear(); // Clear all cached data on logout
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
