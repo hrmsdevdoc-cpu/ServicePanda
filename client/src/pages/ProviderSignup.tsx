@@ -66,6 +66,13 @@ export default function ProviderSignup() {
     selectedSuburbs: [] as number[],
   });
 
+  const [locationData, setLocationData] = useState({
+    selectedStateForLocation: "",
+    postcodeForLocation: "",
+    availableSuburbs: [] as any[],
+    isLoadingSuburbs: false,
+  });
+
   const { data: categories = [] } = useQuery({
     queryKey: ["/api/service-categories"],
   });
@@ -74,10 +81,35 @@ export default function ProviderSignup() {
     queryKey: ["/api/australian-states"],
   });
 
-  const { data: suburbs = [] } = useQuery({
-    queryKey: ["/api/suburbs", formData.postcode],
-    enabled: formData.postcode.length >= 4,
-  });
+  // Fetch suburbs when postcode changes
+  useEffect(() => {
+    const fetchSuburbs = async () => {
+      if (locationData.postcodeForLocation.length >= 4) {
+        setLocationData(prev => ({ ...prev, isLoadingSuburbs: true }));
+        try {
+          const response = await fetch(`/api/suburbs/${locationData.postcodeForLocation}`);
+          const suburbs = await response.json();
+          setLocationData(prev => ({ 
+            ...prev, 
+            availableSuburbs: suburbs,
+            isLoadingSuburbs: false 
+          }));
+        } catch (error) {
+          console.error("Error fetching suburbs:", error);
+          setLocationData(prev => ({ 
+            ...prev, 
+            availableSuburbs: [],
+            isLoadingSuburbs: false 
+          }));
+        }
+      } else {
+        setLocationData(prev => ({ ...prev, availableSuburbs: [] }));
+      }
+    };
+
+    const timeoutId = setTimeout(fetchSuburbs, 300);
+    return () => clearTimeout(timeoutId);
+  }, [locationData.postcodeForLocation]);
 
   const createProviderMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -224,10 +256,13 @@ export default function ProviderSignup() {
   };
 
   const handleStep3Submit = () => {
+    // Mark that form submission was attempted
+    setHasAttemptedSubmit(true);
+
     if (formData.selectedSuburbs.length === 0) {
       toast({
-        title: "Error",
-        description: "Please select at least one suburb",
+        title: "Please select your service areas",
+        description: "You must select at least one area where you provide services",
         variant: "destructive",
       });
       return;
@@ -469,62 +504,160 @@ export default function ProviderSignup() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <Label>State</Label>
-                  <Select
-                    value={formData.selectedState}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, selectedState: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select State" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {states.map((state: any) => (
-                        <SelectItem key={state.id} value={state.name}>
-                          {state.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {/* Location Selection Table */}
+              <div className="border border-gray-300 rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
+                  <h3 className="font-semibold text-gray-900">Location Selection</h3>
                 </div>
-                <div>
-                  <Label htmlFor="postcode">Postcode</Label>
-                  <Input
-                    id="postcode"
-                    value={formData.postcode}
-                    onChange={(e) => setFormData(prev => ({ ...prev, postcode: e.target.value }))}
-                    placeholder="Enter postcode"
-                  />
-                </div>
-              </div>
-              
-              {suburbs.length > 0 && (
-                <div>
-                  <Label>Select Suburbs</Label>
-                  <div className="border border-gray-300 rounded-lg p-4 max-h-48 overflow-y-auto">
-                    <div className="space-y-2">
-                      {suburbs.map((suburb: any) => (
-                        <div key={suburb.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`suburb-${suburb.id}`}
-                            checked={formData.selectedSuburbs.includes(suburb.id)}
-                            onCheckedChange={(checked) => {
-                              setFormData(prev => ({
-                                ...prev,
-                                selectedSuburbs: checked
-                                  ? [...prev.selectedSuburbs, suburb.id]
-                                  : prev.selectedSuburbs.filter(id => id !== suburb.id)
-                              }));
-                            }}
-                          />
-                          <Label htmlFor={`suburb-${suburb.id}`} className="text-sm">
-                            {suburb.suburb}
-                          </Label>
-                        </div>
-                      ))}
+                <div className="p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Australian State *</Label>
+                      <Select
+                        value={locationData.selectedStateForLocation}
+                        onValueChange={(value) => setLocationData(prev => ({ 
+                          ...prev, 
+                          selectedStateForLocation: value,
+                          postcodeForLocation: "", // Reset postcode when state changes
+                          availableSuburbs: []
+                        }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select State" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {states.map((state: any) => (
+                            <SelectItem key={state.id} value={state.name}>
+                              {state.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="location-postcode" className="text-sm font-medium">Postcode *</Label>
+                      <Input
+                        id="location-postcode"
+                        type="text"
+                        value={locationData.postcodeForLocation}
+                        onChange={(e) => setLocationData(prev => ({ 
+                          ...prev, 
+                          postcodeForLocation: e.target.value.replace(/\D/g, '').slice(0, 4) // Only numbers, max 4 digits
+                        }))}
+                        placeholder="Enter postcode (e.g., 3000)"
+                        className="mt-1"
+                        maxLength={4}
+                      />
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Suburb Selection */}
+              {locationData.postcodeForLocation.length >= 4 && (
+                <div className="border border-gray-300 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
+                    <h3 className="font-semibold text-gray-900">
+                      Available Suburbs in {locationData.postcodeForLocation}
+                      {locationData.selectedStateForLocation && ` (${locationData.selectedStateForLocation})`}
+                    </h3>
+                  </div>
+                  <div className="p-4">
+                    {locationData.isLoadingSuburbs ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="text-gray-600 mt-2">Loading suburbs...</p>
+                      </div>
+                    ) : locationData.availableSuburbs.length > 0 ? (
+                      <div className="space-y-4">
+                        {/* Select All Option */}
+                        <div className="flex items-center space-x-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <Checkbox
+                            id="select-all-suburbs"
+                            checked={
+                              locationData.availableSuburbs.length > 0 &&
+                              locationData.availableSuburbs.every((suburb: any) => 
+                                formData.selectedSuburbs.includes(suburb.id)
+                              )
+                            }
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                // Add all suburbs
+                                const allSuburbIds = locationData.availableSuburbs.map((s: any) => s.id);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  selectedSuburbs: [...new Set([...prev.selectedSuburbs, ...allSuburbIds])]
+                                }));
+                              } else {
+                                // Remove all suburbs from this postcode
+                                const suburbIdsToRemove = locationData.availableSuburbs.map((s: any) => s.id);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  selectedSuburbs: prev.selectedSuburbs.filter(id => !suburbIdsToRemove.includes(id))
+                                }));
+                              }
+                            }}
+                          />
+                          <Label htmlFor="select-all-suburbs" className="font-medium text-blue-700 cursor-pointer">
+                            Select All ({locationData.availableSuburbs.length} suburbs)
+                          </Label>
+                        </div>
+
+                        {/* Individual Suburbs */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
+                          {locationData.availableSuburbs.map((suburb: any) => (
+                            <div key={suburb.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                              <Checkbox
+                                id={`suburb-${suburb.id}`}
+                                checked={formData.selectedSuburbs.includes(suburb.id)}
+                                onCheckedChange={(checked) => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    selectedSuburbs: checked
+                                      ? [...prev.selectedSuburbs, suburb.id]
+                                      : prev.selectedSuburbs.filter(id => id !== suburb.id)
+                                  }));
+                                }}
+                              />
+                              <Label htmlFor={`suburb-${suburb.id}`} className="text-sm cursor-pointer">
+                                {suburb.suburb}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-gray-600">No suburbs found for postcode {locationData.postcodeForLocation}</p>
+                        <p className="text-sm text-gray-500 mt-1">Please check the postcode and try again</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Selected Service Areas Summary */}
+              {formData.selectedSuburbs.length > 0 && (
+                <div className="border border-green-300 rounded-lg overflow-hidden">
+                  <div className="bg-green-50 px-4 py-3 border-b border-green-300">
+                    <h3 className="font-semibold text-green-900">
+                      Selected Service Areas ({formData.selectedSuburbs.length})
+                    </h3>
+                  </div>
+                  <div className="p-4">
+                    <div className="text-sm text-gray-600">
+                      You have selected {formData.selectedSuburbs.length} suburb{formData.selectedSuburbs.length !== 1 ? 's' : ''} for your service areas.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Validation message */}
+              {hasAttemptedSubmit && formData.selectedSuburbs.length === 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-600 text-sm font-medium">
+                    Please select at least one service area to continue
+                  </p>
                 </div>
               )}
               
