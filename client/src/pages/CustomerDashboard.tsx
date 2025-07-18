@@ -71,8 +71,7 @@ export default function CustomerDashboard() {
       // Update the auth cache with the new user data
       queryClient.setQueryData(["/api/auth/user"], updatedUser);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      // Reset form data
-      setProfileData({ firstName: "", lastName: "" });
+      // Don't reset form data - let user continue editing if they want
     },
     onError: (error: any) => {
       toast({
@@ -350,7 +349,7 @@ export default function CustomerDashboard() {
                       <Label htmlFor="firstName">First Name</Label>
                       <Input
                         id="firstName"
-                        value={profileData.firstName || user?.firstName || ""}
+                        value={profileData.firstName !== "" ? profileData.firstName : (user?.firstName || "")}
                         onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
                         placeholder="Enter your first name"
                       />
@@ -359,7 +358,7 @@ export default function CustomerDashboard() {
                       <Label htmlFor="lastName">Last Name</Label>
                       <Input
                         id="lastName"
-                        value={profileData.lastName || user?.lastName || ""}
+                        value={profileData.lastName !== "" ? profileData.lastName : (user?.lastName || "")}
                         onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
                         placeholder="Enter your last name"
                       />
