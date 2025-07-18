@@ -140,6 +140,24 @@ export function setupProviderAuth(app: Express) {
       res.status(500).json({ message: "Failed to fetch services" });
     }
   });
+
+  // Provider service areas endpoint
+  app.get('/api/provider/:id/service-areas', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      
+      // Ensure provider can only access their own data
+      if (providerId !== req.provider.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const areas = await storage.getProviderServiceAreas(providerId);
+      res.json(areas);
+    } catch (error) {
+      console.error("Error fetching provider service areas:", error);
+      res.status(500).json({ message: "Failed to fetch service areas" });
+    }
+  });
 }
 
 // Middleware to check if provider is authenticated

@@ -50,23 +50,90 @@ export default function ProviderSignup() {
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [isExistingProvider, setIsExistingProvider] = useState(false);
   
-  // Check for existing provider and URL parameters
+  // Check for existing provider and determine current step
   useEffect(() => {
-    const providerId = localStorage.getItem('providerId');
-    const urlParams = new URLSearchParams(window.location.search);
-    const stepParam = urlParams.get('step');
-    
-    if (providerId) {
-      setIsExistingProvider(true);
-      // If provider is logged in and step is specified, go to that step
-      if (stepParam) {
-        setCurrentStep(parseInt(stepParam));
-      } else {
-        // Default to step 2 for existing providers
-        setCurrentStep(2);
+    const checkProviderProgress = async () => {
+      try {
+        // Check if provider is logged in via API
+        const storedProviderId = localStorage.getItem('providerId');
+        if (!storedProviderId) {
+          throw new Error('No provider session');
+        }
+        
+        const response = await fetch('/api/provider/profile', {
+          credentials: 'include',
+          headers: {
+            'X-Provider-Id': storedProviderId
+          }
+        });
+        
+        if (response.ok) {
+          const provider = await response.json();
+          setIsExistingProvider(true);
+          setProviderId(provider.id);
+          localStorage.setItem('providerId', provider.id.toString());
+          
+          // Determine current step based on completed data
+          let targetStep = 1;
+          
+          // Step 1: Basic info (always completed if provider exists)
+          if (provider.firstName && provider.lastName && provider.email) {
+            targetStep = 2;
+            
+            // Check if services are selected (Step 2)
+            const servicesResponse = await fetch('/api/provider/services', {
+              credentials: 'include',
+              headers: {
+                'X-Provider-Id': provider.id.toString()
+              }
+            });
+            if (servicesResponse.ok) {
+              const services = await servicesResponse.json();
+              if (services && services.length > 0) {
+                targetStep = 3;
+                
+                // Check if service areas are set (Step 3)
+                const areasResponse = await fetch(`/api/provider/${provider.id}/service-areas`, {
+                  credentials: 'include',
+                  headers: {
+                    'X-Provider-Id': provider.id.toString()
+                  }
+                });
+                if (areasResponse.ok) {
+                  const areas = await areasResponse.json();
+                  if (areas && areas.length > 0) {
+                    targetStep = 4; // Documents step
+                    
+                    // Check if documents are uploaded (Step 4)
+                    if (provider.documentsUploaded) {
+                      // All steps complete, redirect to dashboard
+                      navigate('/provider-dashboard');
+                      return;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // Check URL parameter override
+          const urlParams = new URLSearchParams(window.location.search);
+          const stepParam = urlParams.get('step');
+          if (stepParam && parseInt(stepParam) >= targetStep) {
+            setCurrentStep(parseInt(stepParam));
+          } else {
+            setCurrentStep(targetStep);
+          }
+        }
+      } catch (error) {
+        console.log('No existing provider session, starting fresh');
+        // No existing provider, start from step 1
+        setCurrentStep(1);
       }
-    }
-  }, []);
+    };
+
+    checkProviderProgress();
+  }, [navigate]);
   
   // Reset validation state when moving between steps
   useEffect(() => {
