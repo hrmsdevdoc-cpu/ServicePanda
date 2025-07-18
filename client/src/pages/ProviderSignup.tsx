@@ -529,7 +529,7 @@ export default function ProviderSignup() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                 {categories.map((category: any) => {
                   const IconComponent = serviceIcons[category.name as keyof typeof serviceIcons] || Home;
                   const isSelected = formData.selectedServices.includes(category.id);
@@ -537,9 +537,9 @@ export default function ProviderSignup() {
                   return (
                     <div
                       key={category.id}
-                      className={`border-2 rounded-xl p-6 text-center cursor-pointer transition-all duration-200 ${
+                      className={`relative border-2 rounded-lg p-3 text-center cursor-pointer transition-all duration-200 ${
                         isSelected 
-                          ? "border-primary bg-blue-50 shadow-md scale-105" 
+                          ? "border-primary bg-blue-50 shadow-md" 
                           : "border-gray-300 hover:border-primary hover:shadow-sm"
                       }`}
                       onClick={() => {
@@ -551,14 +551,14 @@ export default function ProviderSignup() {
                         }));
                       }}
                     >
-                      <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 ${
                         isSelected ? "bg-primary text-white" : "bg-blue-100"
                       }`}>
-                        <IconComponent className={`h-8 w-8 ${isSelected ? "text-white" : "text-primary"}`} />
+                        <IconComponent className={`h-5 w-5 ${isSelected ? "text-white" : "text-primary"}`} />
                       </div>
-                      <h3 className="font-semibold text-gray-900">{category.name}</h3>
+                      <h3 className="text-xs font-medium text-gray-900 leading-tight">{category.name}</h3>
                       {isSelected && (
-                        <Check className="h-5 w-5 text-primary mx-auto mt-2" />
+                        <Check className="absolute top-1 right-1 h-4 w-4 text-primary bg-white rounded-full p-0.5" />
                       )}
                     </div>
                   );
