@@ -296,6 +296,43 @@ export class DatabaseStorage implements IStorage {
     return leadAssignment;
   }
 
+  async findProvidersInArea(postcode: string, categoryId: number): Promise<ServiceProvider[]> {
+    // Find all providers who service the given postcode and category
+    return await db
+      .select()
+      .from(serviceProviders)
+      .innerJoin(providerServices, eq(serviceProviders.id, providerServices.providerId))
+      .innerJoin(providerServiceAreas, eq(serviceProviders.id, providerServiceAreas.providerId))
+      .innerJoin(australianSuburbs, eq(providerServiceAreas.suburbId, australianSuburbs.id))
+      .where(
+        and(
+          eq(providerServices.categoryId, categoryId),
+          eq(australianSuburbs.postcode, postcode),
+          eq(serviceProviders.status, "approved")
+        )
+      )
+      .groupBy(serviceProviders.id)
+      .then(results => results.map(r => r.service_providers));
+  }
+
+  async createLeadsForRequest(requestId: number, postcode: string, categoryId: number): Promise<LeadAssignment[]> {
+    // Find all eligible providers
+    const providers = await this.findProvidersInArea(postcode, categoryId);
+    
+    // Create lead assignments for each provider
+    const leads: LeadAssignment[] = [];
+    for (const provider of providers) {
+      const lead = await this.createLeadAssignment({
+        requestId,
+        providerId: provider.id,
+        status: "pending",
+      });
+      leads.push(lead);
+    }
+    
+    return leads;
+  }
+
   async getProviderLeads(providerId: number, status?: string): Promise<LeadAssignment[]> {
     const query = db.select().from(leadAssignments);
     

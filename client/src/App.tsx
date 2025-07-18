@@ -11,6 +11,7 @@ import CustomerDashboard from "@/pages/CustomerDashboard";
 import ProviderSignup from "@/pages/ProviderSignup";
 import ProviderDashboard from "@/pages/ProviderDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
+import RequestService from "@/pages/RequestService";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -35,6 +36,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={CustomerDashboard} />
+          <Route path="/request-service" component={RequestService} />
           <Route path="/provider-dashboard" component={ProviderDashboard} />
           <Route path="/admin" component={AdminDashboard} />
         </>

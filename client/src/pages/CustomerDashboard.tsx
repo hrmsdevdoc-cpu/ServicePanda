@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { 
   Home, 
   ClipboardList, 
@@ -34,6 +35,7 @@ const serviceIcons = {
 export default function CustomerDashboard() {
   const { user, logoutMutation } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [, navigate] = useLocation();
 
   const { data: categories = [] } = useQuery({
     queryKey: ["/api/service-categories"],
@@ -150,7 +152,11 @@ export default function CustomerDashboard() {
                       <CardTitle>Quick Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <Button className="w-full" size="lg">
+                      <Button 
+                        className="w-full" 
+                        size="lg"
+                        onClick={() => navigate("/request-service")}
+                      >
                         Request New Service
                       </Button>
                       <Button variant="outline" className="w-full" size="lg">
@@ -216,7 +222,12 @@ export default function CustomerDashboard() {
                   {myRequests.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-gray-500">No bookings yet. Start by requesting a service!</p>
-                      <Button className="mt-4">Request Service</Button>
+                      <Button 
+                        className="mt-4"
+                        onClick={() => navigate("/request-service")}
+                      >
+                        Request Service
+                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-4">

@@ -250,17 +250,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const request = await storage.createServiceRequest(requestData);
       
+      // Automatically create leads for providers in the area
+      const leads = await storage.createLeadsForRequest(
+        request.id,
+        request.postcode,
+        request.categoryId
+      );
+      
       // Log user activity
       await storage.logUserActivity({
         userId,
         userType: "customer",
         action: "service_request_created",
-        details: { requestId: request.id },
+        details: { 
+          requestId: request.id,
+          providersMatched: leads.length,
+          postcode: request.postcode,
+          categoryId: request.categoryId
+        },
         ipAddress: req.ip,
         userAgent: req.get('User-Agent') || '',
       });
       
-      res.json(request);
+      res.json({ 
+        request, 
+        providersMatched: leads.length,
+        message: `Service request created! ${leads.length} providers found in your area.`
+      });
     } catch (error) {
       console.error("Error creating service request:", error);
       res.status(500).json({ message: "Failed to create service request" });
