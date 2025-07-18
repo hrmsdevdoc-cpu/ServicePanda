@@ -49,10 +49,13 @@ export default function ProviderSignup() {
   const [currentStep, setCurrentStep] = useState(1);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [isExistingProvider, setIsExistingProvider] = useState(false);
+  const [isCheckingProgress, setIsCheckingProgress] = useState(true);
   
   // Check for existing provider and determine current step
   useEffect(() => {
     const checkProviderProgress = async () => {
+      setIsCheckingProgress(true);
+      
       try {
         // Check if provider is logged in via API
         const storedProviderId = localStorage.getItem('providerId');
@@ -108,6 +111,7 @@ export default function ProviderSignup() {
                     if (provider.documentsUploaded) {
                       // All steps complete, redirect to dashboard
                       navigate('/provider-dashboard');
+                      setIsCheckingProgress(false);
                       return;
                     }
                   }
@@ -129,6 +133,8 @@ export default function ProviderSignup() {
         console.log('No existing provider session, starting fresh');
         // No existing provider, start from step 1
         setCurrentStep(1);
+      } finally {
+        setIsCheckingProgress(false);
       }
     };
 
@@ -473,6 +479,18 @@ export default function ProviderSignup() {
   };
 
   const progressPercent = (currentStep / 5) * 100;
+
+  // Show loading screen while checking progress
+  if (isCheckingProgress) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking your progress...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
