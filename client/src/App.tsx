@@ -10,8 +10,10 @@ import AuthPage from "@/pages/AuthPage";
 import CustomerDashboard from "@/pages/CustomerDashboard";
 import ProviderSignup from "@/pages/ProviderSignup";
 import ProviderLogin from "@/pages/ProviderLogin";
+import AdminLogin from "@/pages/AdminLogin";
 import ProviderDashboard from "@/pages/ProviderDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
+import SimpleAdminDashboard from "@/pages/SimpleAdminDashboard";
 import RequestService from "@/pages/RequestService";
 
 function Router() {
@@ -31,6 +33,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/provider-signup" component={ProviderSignup} />
       <Route path="/provider-login" component={ProviderLogin} />
+      <Route path="/admin-login" component={AdminLogin} />
       
       {/* Conditional routes based on authentication */}
       {!isAuthenticated ? (
@@ -41,6 +44,13 @@ function Router() {
           <Route path="/request-service" component={RequestService} />
           <Route path="/provider-dashboard" component={ProviderDashboard} />
           <Route path="/admin" component={AdminDashboard} />
+        </>
+      )}
+      
+      {/* Admin routes - accessible regardless of customer auth */}
+      {localStorage.getItem('adminToken') && (
+        <>
+          <Route path="/admin" component={SimpleAdminDashboard} />
         </>
       )}
       
