@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { ServiceCard } from "@/components/ServiceCard";
 import { useQuery } from "@tanstack/react-query";
@@ -18,27 +20,59 @@ import {
   Clock, 
   Star,
   Menu,
-  X
+  X,
+  Search,
+  Snowflake,
+  Paintbrush,
+  ShieldCheck,
+  Waves,
+  Square,
+  Settings,
+  Sun,
+  TreePine
 } from "lucide-react";
 
 const serviceIcons = {
-  "domestic-cleaning": Home,
-  "bond-cleaning": Key,
-  "carpet-cleaning": Sofa,
-  "pest-control": Bug,
-  "gardening": Sprout,
-  "removals": Truck,
-  "handyman": Wrench,
-  "electrician": Zap,
+  "home": Home,
+  "key": Key,
+  "sofa": Sofa,
+  "bug": Bug,
+  "sprout": Sprout,
+  "truck": Truck,
+  "wrench": Wrench,
+  "zap": Zap,
+  "snowflake": Snowflake,
+  "paintbrush": Paintbrush,
+  "shield-check": ShieldCheck,
+  "waves": Waves,
+  "square": Square,
+  "settings": Settings,
+  "sun": Sun,
+  "tree-pine": TreePine,
 };
 
 export default function Landing() {
   const [, navigate] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAllServices, setShowAllServices] = useState(false);
 
   const { data: categories = [] } = useQuery({
     queryKey: ["/api/service-categories"],
   });
+
+  // Filter categories based on search term
+  const filteredCategories = categories.filter((category: any) =>
+    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    category.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Split categories into popular and others
+  const popularCategories = filteredCategories.filter((cat: any) => cat.popular);
+  const otherCategories = filteredCategories.filter((cat: any) => !cat.popular);
+  
+  // Determine which categories to show
+  const categoriesToShow = showAllServices ? filteredCategories : popularCategories;
 
   const handleSignIn = () => {
     navigate("/auth");
@@ -151,22 +185,85 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Our Services</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
               Professional services delivered by verified providers across Australia
             </p>
+            
+            {/* Search Bar */}
+            <div className="max-w-md mx-auto mb-8">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Input
+                  type="text"
+                  placeholder="Search for services..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 py-3 text-lg"
+                />
+              </div>
+            </div>
+            
+            {/* Service Type Toggle */}
+            <div className="flex justify-center gap-2 mb-8">
+              <Badge 
+                variant={!showAllServices ? "default" : "outline"}
+                className="cursor-pointer px-4 py-2"
+                onClick={() => setShowAllServices(false)}
+              >
+                Most Popular ({popularCategories.length})
+              </Badge>
+              <Badge 
+                variant={showAllServices ? "default" : "outline"}
+                className="cursor-pointer px-4 py-2"
+                onClick={() => setShowAllServices(true)}
+              >
+                All Services ({filteredCategories.length})
+              </Badge>
+            </div>
           </div>
           
+          {/* Categories Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {categories.map((category: any) => (
+            {categoriesToShow.map((category: any) => (
               <ServiceCard
                 key={category.id}
                 title={category.name}
                 description={category.description}
-                icon={serviceIcons[category.name.toLowerCase().replace(' ', '-')] || Home}
+                icon={serviceIcons[category.icon] || Home}
                 onClick={() => handleSignIn()}
               />
             ))}
           </div>
+          
+          {/* No Results Message */}
+          {filteredCategories.length === 0 && searchTerm && (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No services found for "{searchTerm}"</p>
+              <Button 
+                variant="link" 
+                onClick={() => setSearchTerm("")}
+                className="mt-2"
+              >
+                Clear search
+              </Button>
+            </div>
+          )}
+          
+          {/* Other Categories Section */}
+          {!showAllServices && otherCategories.length > 0 && !searchTerm && (
+            <div className="mt-16">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">More Services</h3>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowAllServices(true)}
+                  className="mb-8"
+                >
+                  View All {categories.length} Services
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

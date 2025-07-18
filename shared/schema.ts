@@ -66,6 +66,7 @@ export const serviceCategories = pgTable("service_categories", {
   icon: varchar("icon").notNull(),
   description: text("description"),
   active: boolean("active").default(true),
+  popular: boolean("popular").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
