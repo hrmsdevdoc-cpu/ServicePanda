@@ -91,25 +91,76 @@ export function setupProviderAuth(app: Express) {
       res.status(500).json({ message: "Login failed" });
     }
   });
+
+  // Provider logout endpoint
+  app.post("/api/provider/logout", (req, res) => {
+    res.json({ message: "Logged out successfully" });
+  });
+
+  // Provider profile endpoint
+  app.get('/api/provider/profile', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = req.provider.id;
+      const provider = await storage.getServiceProviderById(providerId);
+      
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+
+      // Return provider profile without password
+      const { password, ...providerProfile } = provider;
+      res.json(providerProfile);
+    } catch (error) {
+      console.error("Error fetching provider profile:", error);
+      res.status(500).json({ message: "Failed to fetch provider profile" });
+    }
+  });
+
+  // Provider leads endpoint
+  app.get('/api/provider/leads', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = req.provider.id;
+      // For now return empty array - will implement lead matching later
+      const leads: any[] = [];
+      res.json(leads);
+    } catch (error) {
+      console.error("Error fetching provider leads:", error);
+      res.status(500).json({ message: "Failed to fetch leads" });
+    }
+  });
+
+  // Provider services endpoint
+  app.get('/api/provider/services', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = req.provider.id;
+      const services = await storage.getProviderServices(providerId);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching provider services:", error);
+      res.status(500).json({ message: "Failed to fetch services" });
+    }
+  });
 }
 
 // Middleware to check if provider is authenticated
 export async function isProviderAuthenticated(req: any, res: any, next: any) {
+  // Check for provider ID in headers (set by frontend after login)
   const providerId = req.headers['x-provider-id'];
   
   if (!providerId) {
-    return res.status(401).json({ message: "Provider authentication required" });
+    return res.status(401).json({ message: "Provider authentication required. Please log in again." });
   }
 
   try {
-    const provider = await storage.getServiceProvider(parseInt(providerId));
+    const provider = await storage.getServiceProviderById(parseInt(providerId));
     if (!provider) {
-      return res.status(401).json({ message: "Invalid provider" });
+      return res.status(401).json({ message: "Invalid provider credentials" });
     }
     
     req.provider = provider;
     next();
   } catch (error) {
+    console.error("Provider authentication error:", error);
     res.status(401).json({ message: "Authentication failed" });
   }
 }

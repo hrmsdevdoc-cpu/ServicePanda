@@ -1,470 +1,482 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/useAuth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { LeadCard } from "@/components/LeadCard";
 import { 
-  PawPrint,
-  User,
-  Star,
-  CheckCircle,
-  CreditCard,
-  Settings,
-  UserCog,
-  LogOut,
-  Gauge,
-  Briefcase,
-  DollarSign,
-  Eye,
+  LogOut, 
+  Bell, 
+  DollarSign, 
+  Users, 
   Calendar,
-  MapPin
+  FileText,
+  Settings,
+  Star,
+  MapPin,
+  Phone,
+  Mail,
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertCircle,
+  Briefcase,
+  Upload,
+  Eye
 } from "lucide-react";
 
 export default function ProviderDashboard() {
-  const { user } = useAuth();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("overview");
 
-  const { data: provider } = useQuery({
-    queryKey: ["/api/service-providers/me"],
+  // Fetch provider profile
+  const { data: provider, isLoading: providerLoading } = useQuery({
+    queryKey: ["/api/provider/profile"],
+    retry: false,
   });
 
-  const { data: newLeads = [] } = useQuery({
-    queryKey: ["/api/leads/new"],
+  // Fetch provider leads/jobs
+  const { data: leads = [], isLoading: leadsLoading } = useQuery({
+    queryKey: ["/api/provider/leads"],
+    retry: false,
   });
 
-  const acceptLeadMutation = useMutation({
-    mutationFn: async (leadId: number) => {
-      await apiRequest("POST", `/api/leads/${leadId}/accept`);
+  // Fetch provider services
+  const { data: services = [], isLoading: servicesLoading } = useQuery({
+    queryKey: ["/api/provider/services"],
+    retry: false,
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/provider/logout");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads/new"] });
+      // Clear stored provider ID
+      localStorage.removeItem('providerId');
+      
       toast({
-        title: "Success",
-        description: "Lead accepted successfully",
+        title: "Logged Out",
+        description: "You have been logged out successfully.",
       });
+      navigate("/");
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      // Clear stored provider ID even on error
+      localStorage.removeItem('providerId');
+      
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Logout Failed", 
+        description: error.message || "Failed to logout.",
         variant: "destructive",
       });
+      navigate("/");
     },
   });
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    logoutMutation.mutate();
   };
 
-  const handleAcceptLead = (leadId: number) => {
-    acceptLeadMutation.mutate(leadId);
-  };
-
-  if (!provider) {
+  if (providerLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Welcome to ServicePanda Partners</h2>
-          <p className="text-gray-600 mb-6">Complete your provider registration to access the dashboard</p>
-          <Button onClick={() => window.location.href = "/provider-signup"}>
-            Complete Registration
-          </Button>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your dashboard...</p>
         </div>
       </div>
     );
   }
 
-  if (provider.status === "pending") {
+  if (!provider) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md w-full">
-          <CardContent className="text-center py-8">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Calendar className="h-8 w-8 text-orange-600" />
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+              <p className="text-gray-600 mb-4">You need to be logged in as a provider to access this area.</p>
+              <Button onClick={() => navigate("/provider-login")} className="w-full">
+                Go to Provider Login
+              </Button>
             </div>
-            <h2 className="text-xl font-semibold mb-4">Application Under Review</h2>
-            <p className="text-gray-600 mb-6">
-              Your application is still being reviewed. Please contact us on 1300 123 456 if you have any questions.
-            </p>
-            <Button onClick={handleLogout} variant="outline">
-              Back to Home
-            </Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  const getStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'approved':
+        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending Review</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-800"><AlertCircle className="h-3 w-3 mr-1" />Unknown</Badge>;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <PawPrint className="h-8 w-8 text-primary mr-2" />
-              <span className="text-xl font-bold text-gray-900">ServicePanda Partners</span>
+              <Briefcase className="h-8 w-8 text-red-600 mr-3" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">ServicePanda Partners</h1>
+                <p className="text-sm text-gray-600">Provider Dashboard</p>
+              </div>
             </div>
-            <Button onClick={handleLogout} variant="ghost">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {provider.firstName} {provider.lastName}
+                </p>
+                <p className="text-xs text-gray-500">{provider.email}</p>
+              </div>
+              {getStatusBadge(provider.status)}
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="border-gray-300"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Provider Dashboard</h1>
-          <p className="text-gray-600 mt-2">Manage your leads and grow your business</p>
-        </div>
-        
-        <div className="grid lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center mb-6">
-                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                    <User className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="font-semibold text-gray-900">
-                      {provider.firstName} {provider.lastName}
-                    </p>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      Approved Provider
-                    </Badge>
-                  </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          {/* Status Alert */}
+          {provider.status?.toLowerCase() === 'pending' && (
+            <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
+              <div className="flex">
+                <Clock className="h-5 w-5 text-yellow-400 mr-3 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-medium text-yellow-800">Application Under Review</h3>
+                  <p className="mt-1 text-sm text-yellow-700">
+                    Your provider application is currently being reviewed by our team. You'll receive an email once approved.
+                  </p>
                 </div>
-                
-                <nav className="space-y-2">
-                  <button
-                    onClick={() => setActiveTab("dashboard")}
-                    className={`w-full flex items-center px-3 py-2 text-left rounded-lg transition-colors ${
-                      activeTab === "dashboard"
-                        ? "text-primary bg-blue-50"
-                        : "text-gray-600 hover:text-primary hover:bg-gray-50"
-                    }`}
-                  >
-                    <Gauge className="h-4 w-4 mr-3" />
-                    Dashboard
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("new-leads")}
-                    className={`w-full flex items-center px-3 py-2 text-left rounded-lg transition-colors ${
-                      activeTab === "new-leads"
-                        ? "text-primary bg-blue-50"
-                        : "text-gray-600 hover:text-primary hover:bg-gray-50"
-                    }`}
-                  >
-                    <Star className="h-4 w-4 mr-3" />
-                    New Leads
-                    {newLeads.length > 0 && (
-                      <Badge className="ml-auto" variant="secondary">
-                        {newLeads.length}
-                      </Badge>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("accepted-leads")}
-                    className={`w-full flex items-center px-3 py-2 text-left rounded-lg transition-colors ${
-                      activeTab === "accepted-leads"
-                        ? "text-primary bg-blue-50"
-                        : "text-gray-600 hover:text-primary hover:bg-gray-50"
-                    }`}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-3" />
-                    Accepted Leads
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("billing")}
-                    className={`w-full flex items-center px-3 py-2 text-left rounded-lg transition-colors ${
-                      activeTab === "billing"
-                        ? "text-primary bg-blue-50"
-                        : "text-gray-600 hover:text-primary hover:bg-gray-50"
-                    }`}
-                  >
-                    <CreditCard className="h-4 w-4 mr-3" />
-                    Billing & Payment
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("settings")}
-                    className={`w-full flex items-center px-3 py-2 text-left rounded-lg transition-colors ${
-                      activeTab === "settings"
-                        ? "text-primary bg-blue-50"
-                        : "text-gray-600 hover:text-primary hover:bg-gray-50"
-                    }`}
-                  >
-                    <Settings className="h-4 w-4 mr-3" />
-                    Settings
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("profile")}
-                    className={`w-full flex items-center px-3 py-2 text-left rounded-lg transition-colors ${
-                      activeTab === "profile"
-                        ? "text-primary bg-blue-50"
-                        : "text-gray-600 hover:text-primary hover:bg-gray-50"
-                    }`}
-                  >
-                    <UserCog className="h-4 w-4 mr-3" />
-                    Personal Details
-                  </button>
-                </nav>
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {activeTab === "dashboard" && (
-              <>
-                {/* Stats Cards */}
-                <div className="grid md:grid-cols-4 gap-6 mb-8">
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600">New Leads</p>
-                          <p className="text-2xl font-bold text-gray-900">{newLeads.length}</p>
-                        </div>
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Star className="h-6 w-6 text-primary" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600">Active Jobs</p>
-                          <p className="text-2xl font-bold text-gray-900">0</p>
-                        </div>
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                          <Briefcase className="h-6 w-6 text-green-600" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600">This Month</p>
-                          <p className="text-2xl font-bold text-gray-900">$0</p>
-                        </div>
-                        <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                          <DollarSign className="h-6 w-6 text-orange-600" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600">Rating</p>
-                          <p className="text-2xl font-bold text-gray-900">5.0</p>
-                        </div>
-                        <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                          <Star className="h-6 w-6 text-yellow-500" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-                
-                {/* Quick Actions */}
+              </div>
+            </div>
+          )}
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="leads">Leads & Jobs</TabsTrigger>
+              <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
+            </TabsList>
+
+            {/* Overview Tab */}
+            <TabsContent value="overview" className="space-y-6">
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">New Leads</CardTitle>
+                    <Bell className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="grid md:grid-cols-3 gap-4">
-                      <Button 
-                        className="h-20 flex flex-col items-center justify-center"
-                        onClick={() => setActiveTab("new-leads")}
-                      >
-                        <Eye className="h-6 w-6 mb-2" />
-                        View All Leads
-                      </Button>
-                      <Button 
-                        className="h-20 flex flex-col items-center justify-center bg-green-600 hover:bg-green-700"
-                        onClick={() => setActiveTab("billing")}
-                      >
-                        <CreditCard className="h-6 w-6 mb-2" />
-                        Update Payment
-                      </Button>
-                      <Button 
-                        className="h-20 flex flex-col items-center justify-center bg-orange-600 hover:bg-orange-700"
-                        onClick={() => setActiveTab("settings")}
-                      >
-                        <Settings className="h-6 w-6 mb-2" />
-                        Settings
-                      </Button>
-                    </div>
+                    <div className="text-2xl font-bold">{leads.filter((l: any) => l.status === 'new').length}</div>
+                    <p className="text-xs text-muted-foreground">Awaiting response</p>
                   </CardContent>
                 </Card>
-              </>
-            )}
-            
-            {activeTab === "new-leads" && (
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{leads.filter((l: any) => l.status === 'active').length}</div>
+                    <p className="text-xs text-muted-foreground">In progress</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">This Month</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">$0</div>
+                    <p className="text-xs text-muted-foreground">Total earnings</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Rating</CardTitle>
+                    <Star className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">-</div>
+                    <p className="text-xs text-muted-foreground">No reviews yet</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Activity */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Leads</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {leadsLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
+                        <p className="text-sm text-gray-500">Loading leads...</p>
+                      </div>
+                    ) : leads.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Bell className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500 mb-2">No leads yet</p>
+                        <p className="text-sm text-gray-400">Leads will appear here when customers request your services.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {leads.slice(0, 5).map((lead: any) => (
+                          <div key={lead.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                              <p className="font-medium text-sm">{lead.service}</p>
+                              <p className="text-xs text-gray-500">{lead.location}</p>
+                            </div>
+                            <Badge variant="outline">{lead.status}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>My Services</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {servicesLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
+                        <p className="text-sm text-gray-500">Loading services...</p>
+                      </div>
+                    ) : services.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Settings className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500 mb-2">No services configured</p>
+                        <Button variant="outline" size="sm" onClick={() => setActiveTab("profile")}>
+                          Set Up Services
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {services.map((service: any) => (
+                          <div key={service.id} className="flex items-center justify-between p-2 border rounded">
+                            <span className="text-sm">{service.name}</span>
+                            <Badge variant="secondary">{service.areas?.length || 0} areas</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Leads & Jobs Tab */}
+            <TabsContent value="leads" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>New Leads</CardTitle>
-                    <Badge className="bg-green-100 text-green-800">
-                      {provider.freeLeadsRemaining} Free Leads Remaining
-                    </Badge>
-                  </div>
+                  <CardTitle>All Leads & Jobs</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {newLeads.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No new leads available at the moment.</p>
+                  {leadsLoading ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+                      <p className="text-gray-500">Loading your leads...</p>
+                    </div>
+                  ) : leads.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Bell className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
+                      <p className="text-gray-500 mb-4">
+                        When customers request services in your area, they'll appear here.
+                      </p>
+                      <Button variant="outline" onClick={() => setActiveTab("profile")}>
+                        Update Your Profile
+                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {newLeads.map((lead: any) => (
-                        <LeadCard
-                          key={lead.id}
-                          lead={lead}
-                          onAccept={handleAcceptLead}
-                          loading={acceptLeadMutation.isPending}
-                        />
+                      {leads.map((lead: any) => (
+                        <div key={lead.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-medium">{lead.service}</h3>
+                                <Badge variant="outline">{lead.status}</Badge>
+                              </div>
+                              <div className="space-y-1 text-sm text-gray-600">
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {lead.location}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {new Date(lead.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                              {lead.description && (
+                                <p className="text-sm text-gray-700 mt-2">{lead.description}</p>
+                              )}
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <Button size="sm" variant="outline">
+                                <Eye className="h-3 w-3 mr-1" />
+                                View
+                              </Button>
+                              {lead.status === 'new' && (
+                                <Button size="sm">
+                                  Respond
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
                 </CardContent>
               </Card>
-            )}
-            
-            {activeTab === "accepted-leads" && (
+            </TabsContent>
+
+            {/* Profile Tab */}
+            <TabsContent value="profile" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Provider Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Name</label>
+                      <p className="text-sm">{provider.firstName} {provider.lastName}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Email</label>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-gray-400" />
+                        <p className="text-sm">{provider.email}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Mobile</label>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-gray-400" />
+                        <p className="text-sm">{provider.mobileNumber}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Address</label>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-gray-400" />
+                        <p className="text-sm">{provider.address}</p>
+                      </div>
+                    </div>
+                    <div className="pt-4">
+                      <Button variant="outline" className="w-full">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Edit Profile
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Account Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Application Status</span>
+                      {getStatusBadge(provider.status)}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Documents Uploaded</span>
+                      {provider.documentsUploaded ? (
+                        <Badge className="bg-green-100 text-green-800">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Complete
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-red-100 text-red-800">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Incomplete
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Services Configured</span>
+                      <Badge variant="outline">{services.length} services</Badge>
+                    </div>
+                    <div className="pt-4">
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => setActiveTab("documents")}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Manage Documents
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Documents Tab */}
+            <TabsContent value="documents" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Accepted Leads</CardTitle>
+                  <CardTitle>Required Documents</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No accepted leads yet.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            
-            {activeTab === "billing" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Billing & Payment</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">Payment setup coming soon.</p>
-                    <p className="text-sm text-gray-400 mt-2">
-                      You'll need to add a credit card to purchase leads beyond your free allocation.
+                  <div className="text-center py-12">
+                    <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Document Management</h3>
+                    <p className="text-gray-500 mb-4">
+                      Upload and manage your required business documents.
                     </p>
+                    <Button variant="outline">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Documents
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
-            )}
-            
-            {activeTab === "settings" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Settings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="font-semibold mb-2">Service Areas</h3>
-                      <p className="text-sm text-gray-600">
-                        Manage the areas where you provide services
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-2">Services Offered</h3>
-                      <p className="text-sm text-gray-600">
-                        Update the services you specialize in
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-2">Notifications</h3>
-                      <p className="text-sm text-gray-600">
-                        Configure how you receive lead notifications
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            
-            {activeTab === "profile" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Personal Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          First Name
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                          defaultValue={provider.firstName}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Last Name
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                          defaultValue={provider.lastName}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        defaultValue={provider.email}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Mobile Number
-                      </label>
-                      <input
-                        type="tel"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        defaultValue={provider.mobileNumber}
-                      />
-                    </div>
-                    <Button>Update Profile</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+            </TabsContent>
+          </Tabs>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

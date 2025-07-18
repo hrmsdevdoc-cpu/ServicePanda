@@ -24,6 +24,9 @@ export default function ProviderLogin() {
       return response.json();
     },
     onSuccess: (provider) => {
+      // Store provider ID for authentication
+      localStorage.setItem('providerId', provider.id.toString());
+      
       toast({
         title: "Welcome back!",
         description: "Successfully logged in to your provider dashboard.",

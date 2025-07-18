@@ -51,6 +51,7 @@ export interface IStorage {
   // Service provider operations
   createServiceProvider(provider: InsertServiceProvider): Promise<ServiceProvider>;
   getServiceProvider(id: number): Promise<ServiceProvider | undefined>;
+  getServiceProviderById(id: number): Promise<ServiceProvider | undefined>;
   getServiceProviderByEmail(email: string): Promise<ServiceProvider | undefined>;
   updateServiceProvider(id: number, updates: Partial<ServiceProvider>): Promise<ServiceProvider>;
   getServiceProvidersByStatus(status: string): Promise<ServiceProvider[]>;
@@ -61,7 +62,7 @@ export interface IStorage {
   
   // Provider service operations
   addProviderService(providerService: InsertProviderService): Promise<void>;
-  getProviderServices(providerId: number): Promise<number[]>;
+  getProviderServices(providerId: number): Promise<any[]>;
   
   // Location operations
   getAustralianStates(): Promise<AustralianState[]>;
@@ -150,6 +151,14 @@ export class DatabaseStorage implements IStorage {
     return provider;
   }
 
+  async getServiceProviderById(id: number): Promise<ServiceProvider | undefined> {
+    const [provider] = await db
+      .select()
+      .from(serviceProviders)
+      .where(eq(serviceProviders.id, id));
+    return provider;
+  }
+
   async getServiceProviderByEmail(email: string): Promise<ServiceProvider | undefined> {
     const [provider] = await db
       .select()
@@ -197,12 +206,18 @@ export class DatabaseStorage implements IStorage {
     await db.insert(providerServices).values(providerService);
   }
 
-  async getProviderServices(providerId: number): Promise<number[]> {
+  async getProviderServices(providerId: number): Promise<any[]> {
     const services = await db
-      .select({ categoryId: providerServices.categoryId })
+      .select({
+        id: providerServices.id,
+        categoryId: providerServices.categoryId,
+        name: serviceCategories.name,
+        icon: serviceCategories.icon,
+      })
       .from(providerServices)
+      .innerJoin(serviceCategories, eq(providerServices.categoryId, serviceCategories.id))
       .where(eq(providerServices.providerId, providerId));
-    return services.map(s => s.categoryId);
+    return services;
   }
 
   // Location operations
@@ -311,7 +326,6 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select({
         id: serviceProviders.id,
-        userId: serviceProviders.userId,
         firstName: serviceProviders.firstName,
         lastName: serviceProviders.lastName,
         email: serviceProviders.email,

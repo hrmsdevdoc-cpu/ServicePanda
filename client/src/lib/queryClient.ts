@@ -12,9 +12,17 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+  
+  // Add provider authentication header if available
+  const providerId = localStorage.getItem('providerId');
+  if (providerId && url.includes('/api/provider/')) {
+    headers['x-provider-id'] = providerId;
+  }
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -29,8 +37,18 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = queryKey.join("/") as string;
+    const headers: Record<string, string> = {};
+    
+    // Add provider authentication header if available
+    const providerId = localStorage.getItem('providerId');
+    if (providerId && url.includes('/api/provider/')) {
+      headers['x-provider-id'] = providerId;
+    }
+
+    const res = await fetch(url, {
       credentials: "include",
+      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
