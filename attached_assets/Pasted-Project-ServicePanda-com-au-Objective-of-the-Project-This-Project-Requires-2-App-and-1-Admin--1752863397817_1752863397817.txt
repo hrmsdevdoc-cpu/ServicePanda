@@ -1,0 +1,71 @@
+Project ServicePanda.com.au 
+
+Objective of the Project 
+This Project Requires 2 App and 1 Admin 
+1st App for Customer 
+2nd App for Service Providers 
+1 Admin to Manage all back end functionality 
+
+
+First App for Customers app name will be ServicePanda 
+Here customers sign up or sign in and enquire about types of services such as “domestic cleaning, end of lease or bond cleaning, carpet cleaning, pest control, gardening, removals, handyman, plumbing, electrician. 
+Once Customers Sign in they will be able to see all different types of services
+they can choose one types of service example: Domestic Cleaning system will request some specific information according to that type of service and request for a quote, 
+this will send a request to all the service providers in that category in that area that a new quote is requested. 
+
+
+Second App for Service Providers app name “ServicePandaPartners” 
+Here Service Providers is the user of this App will sign up or sign in, 
+Sign Up Process : In next few steps they will follow the process of providing 
+Step 1: User Can Sign up with Two Options 
+Sign up with Gmail, Apple, Facebook or 
+Filling a Form with Personal details, that includes First Name, Last Name, Email, Mobile Number, Address, Password, ReEnter Password. 
+Step 2: Users can select multiple Types of services they are specialised in. show icons of these services in this screen domestic cleaning, end of lease or bond cleaning, carpet cleaning, pest control, gardening, removals, handyman, plumbing, electrician
+Step 3: In this screen On top we will have a table in the table in first column  create a Dropdown with Australian States, in next column create a text box where post code can be entered  
+User can select Australian States in a dropdown and according to the state and post code entered it will display a list of suburbs in that post code 
+Users can select one suburb or multiple suburbs from the list and they will get added to the list below. 
+User can also Select First Option “Select All”, this will allow user to include all the suburbs in the post code get added under the list below., 
+
+
+final step is to upload document images for License, Police Check and Insurance , 
+Once they upload these documents , we will send this information to Admin to get approved, and show a message “{center aligned} {heading}Congratulations !!{/heading}  {after a few line breaks } Thank you for joining Service Panda. Someone from our team will be looking at your documents and give you a call shortly to onboard you. {after few line breaks } Please Remember our Office hours are from morning 9 am to 5 pm Monday to Friday”  
+Sign in Process
+Here Service Providers can Sign in, using their username and password or 
+Gmail, Apple, Facebook
+If they are approved by the Admin, they will enter the Dashboard to enter their Credit Card Details.  
+If they Status is Still Pending - We will Display the Message 
+“Sorry , Your status is Still Pending, Please Contact us on 1300 123 456 {please save this number in database to be changed later} 
+If this user Signed up for more that 24 working hours - please send an email to notifications@servicepanda.com.au {please save this email as “Notification to admin” in database to be changed later} 
+Subject: Service Provider Singed up for but still Pending for Review
+Description: Please Provide details about the above user and when they tried to login and when they signed up and user status 
+{Please save all emails going out in database separately with specific subject and description, so if they need to be edited later they can be changed from “admin”} 
+
+Credit Card Verification STEP & Terms and Conditions Accepting Step 
+If the User Sign in for the First Time, 
+1st Screen: they will need to Accept all Terms and conditions 
+In Here we will display a TextBox or Div in which all the terms and conditions will be shown which user can scroll up and down,
+Under this Div on bottom, It will have One Button, “I Accept”,
+Once the User Click “I Accept”
+We will Email him the Pdf of this Terms and Conditions and send a 
+All outgoing  emails to users will be stored under their Id in separate table, with date and timestamp, subject description 
+emails will go out using mailgun plugin and will be sent from team@servicepanda.com.au 
+Copy of this Email to notifications@servicepanda.com.au 
+“Subject “Terms and Conditions Accepted by $Service Providers Name, 
+Attached PDF - and Some description about the service provider
+2nd Screen: 
+Users will need to Enter their Name on Credit Card, credit card details, Expiry Date and CVV number
+Show Message above to “To get Your first Free 3 Leads Please Enter your Credit Card Below”
+Below the Card Details “Pre Select a Check Box, Please Save this Credit Card Details to Charge for Leads you will purchase” 
+If they unselect this checkbox, please display that “We will need a Card on File to Provide you with leads” 
+Also Don't let them submit the form without selecting the above checkbox. 
+Credit card information will be stored in the eway payment gateway with a token system.
+We will also store all of the information in our database, just not the complete credit card number, we can store the first 4 and last 4 digits of credit card number 
+If the user has already provided credit card details then can enter the dashboard , If not the above screen of Enter Credit Card will keep showing. 
+(I want to store all the information in database that when did the user logged in and logged out, so we can identify how many users sign up , but returned from the credit card screen) 
+
+
+Dashboard 
+Once user is successfully signed in then they can view options in dashboard 
+Dashboard will have few Icons on the Screen New Leads, Accepted Leads, Settings, Billing &  Payment, Personal Details, Log out. 
+New Leads : In here we will show all the new leads that user can accept, First 3 leads are free (Please add this feature in database, so we can turn on and off this feature later in “admin” also we can edit the number 3 to anything) 
+New Leads Section: Once user click 
