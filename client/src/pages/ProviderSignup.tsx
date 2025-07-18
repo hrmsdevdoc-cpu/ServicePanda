@@ -151,16 +151,31 @@ export default function ProviderSignup() {
     onSuccess: (data) => {
       console.log('User registered and provider created successfully:', data);
       try {
+        // Update the auth query cache
         queryClient.setQueryData(["/api/auth/user"], data.user);
+        
+        // Store provider ID for next steps
         setProviderId(data.provider.id);
+        
+        // Move to step 2
         setCurrentStep(2);
+        
+        // Show success message
         toast({
           title: "Account Created!",
           description: "Welcome to ServicePanda! Now select the services you provide.",
           variant: "default",
         });
+        
+        // Invalidate queries to refresh auth state
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        
+        console.log('Step 1 completed successfully, moving to Step 2');
       } catch (error) {
         console.error('Error in onSuccess:', error);
+        // Don't let this error block the flow
+        setProviderId(data.provider.id);
+        setCurrentStep(2);
       }
     },
     onError: (error: any) => {
