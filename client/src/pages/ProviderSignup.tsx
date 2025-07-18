@@ -142,15 +142,10 @@ export default function ProviderSignup() {
   });
 
   const handleStep1Submit = () => {
-    if (!isAuthenticated) {
-      window.location.href = "/api/login";
-      return;
-    }
-
     // Mark that form submission was attempted
     setHasAttemptedSubmit(true);
 
-    // Validate required fields
+    // Validate required fields first
     const errors = [];
     
     if (!formData.firstName.trim()) {
@@ -183,6 +178,12 @@ export default function ProviderSignup() {
         description: errors.join(", "),
         variant: "destructive",
       });
+      return;
+    }
+
+    // Check authentication only after validation passes
+    if (!isAuthenticated) {
+      window.location.href = "/api/login";
       return;
     }
 
