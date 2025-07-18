@@ -73,6 +73,9 @@ export default function ProviderSignup() {
     isLoadingSuburbs: false,
   });
 
+  // Store the provider ID once created
+  const [providerId, setProviderId] = useState<number | null>(null);
+
   const { data: categories = [] } = useQuery({
     queryKey: ["/api/service-categories"],
   });
@@ -119,7 +122,7 @@ export default function ProviderSignup() {
     },
     onSuccess: (data) => {
       console.log('Provider created successfully:', data);
-      setFormData(prev => ({ ...prev, providerId: data.id }));
+      setProviderId(data.id);
       setCurrentStep(2);
       toast({
         title: "Step 1 Complete!",
@@ -139,12 +142,20 @@ export default function ProviderSignup() {
 
   const addServicesMutation = useMutation({
     mutationFn: async ({ providerId, categoryIds }: { providerId: number; categoryIds: number[] }) => {
+      console.log('Adding services for provider:', providerId, 'categories:', categoryIds);
       await apiRequest("POST", `/api/service-providers/${providerId}/services`, { categoryIds });
     },
     onSuccess: () => {
+      console.log('Services added successfully');
       setCurrentStep(3);
+      toast({
+        title: "Step 2 Complete!",
+        description: "Your services have been saved. Now select your service areas.",
+        variant: "default",
+      });
     },
     onError: (error) => {
+      console.error('Error adding services:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -155,12 +166,20 @@ export default function ProviderSignup() {
 
   const addServiceAreasMutation = useMutation({
     mutationFn: async ({ providerId, suburbIds }: { providerId: number; suburbIds: number[] }) => {
+      console.log('Adding service areas for provider:', providerId, 'suburbs:', suburbIds);
       await apiRequest("POST", `/api/service-providers/${providerId}/service-areas`, { suburbIds });
     },
     onSuccess: () => {
+      console.log('Service areas added successfully');
       setCurrentStep(4);
+      toast({
+        title: "Step 3 Complete!",
+        description: "Your service areas have been saved. Upload your documents to complete registration.",
+        variant: "default",
+      });
     },
     onError: (error) => {
+      console.error('Error adding service areas:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -260,8 +279,18 @@ export default function ProviderSignup() {
       return;
     }
 
+    if (!providerId) {
+      toast({
+        title: "Error",
+        description: "Provider information not found. Please start from Step 1.",
+        variant: "destructive",
+      });
+      setCurrentStep(1);
+      return;
+    }
+
     addServicesMutation.mutate({
-      providerId: (formData as any).providerId,
+      providerId: providerId,
       categoryIds: formData.selectedServices,
     });
   };
@@ -279,15 +308,35 @@ export default function ProviderSignup() {
       return;
     }
 
+    if (!providerId) {
+      toast({
+        title: "Error",
+        description: "Provider information not found. Please start from Step 1.",
+        variant: "destructive",
+      });
+      setCurrentStep(1);
+      return;
+    }
+
     addServiceAreasMutation.mutate({
-      providerId: (formData as any).providerId,
+      providerId: providerId,
       suburbIds: formData.selectedSuburbs,
     });
   };
 
   const handleDocumentUpload = (files: FileList) => {
+    if (!providerId) {
+      toast({
+        title: "Error",
+        description: "Provider information not found. Please start from Step 1.",
+        variant: "destructive",
+      });
+      setCurrentStep(1);
+      return;
+    }
+
     uploadDocumentsMutation.mutate({
-      providerId: (formData as any).providerId,
+      providerId: providerId,
       documents: files,
     });
   };
