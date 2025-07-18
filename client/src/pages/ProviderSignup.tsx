@@ -146,12 +146,48 @@ export default function ProviderSignup() {
       return;
     }
 
+    // Validate required fields
+    const errors = [];
+    
+    if (!formData.firstName.trim()) {
+      errors.push("First name is required");
+    }
+    
+    if (!formData.lastName.trim()) {
+      errors.push("Last name is required");
+    }
+    
+    if (!formData.email.trim()) {
+      errors.push("Email address is required");
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.push("Please enter a valid email address");
+    }
+    
+    if (!formData.mobileNumber.trim()) {
+      errors.push("Mobile number is required");
+    } else if (!/^(\+61|0)[2-9]\d{8}$/.test(formData.mobileNumber.replace(/\s+/g, ''))) {
+      errors.push("Please enter a valid Australian mobile number");
+    }
+    
+    if (!formData.address.trim()) {
+      errors.push("Business address is required");
+    }
+
+    if (errors.length > 0) {
+      toast({
+        title: "Please fix the following errors:",
+        description: errors.join(", "),
+        variant: "destructive",
+      });
+      return;
+    }
+
     createProviderMutation.mutate({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      mobileNumber: formData.mobileNumber,
-      address: formData.address,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      email: formData.email.trim(),
+      mobileNumber: formData.mobileNumber.trim(),
+      address: formData.address.trim(),
     });
   };
 
@@ -233,44 +269,48 @@ export default function ProviderSignup() {
             <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="firstName">First Name</Label>
+                  <Label htmlFor="firstName">First Name *</Label>
                   <Input
                     id="firstName"
                     value={formData.firstName}
                     onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
                     placeholder="Enter your first name"
+                    className={!formData.firstName.trim() ? "border-red-300 focus:border-red-500" : ""}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="lastName">Last Name</Label>
+                  <Label htmlFor="lastName">Last Name *</Label>
                   <Input
                     id="lastName"
                     value={formData.lastName}
                     onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
                     placeholder="Enter your last name"
+                    className={!formData.lastName.trim() ? "border-red-300 focus:border-red-500" : ""}
                   />
                 </div>
               </div>
               
               <div>
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">Email Address *</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="Enter your email address"
+                  className={(!formData.email.trim() || (formData.email && !/\S+@\S+\.\S+/.test(formData.email))) ? "border-red-300 focus:border-red-500" : ""}
                 />
               </div>
               
               <div>
-                <Label htmlFor="mobile">Mobile Number</Label>
+                <Label htmlFor="mobile">Mobile Number *</Label>
                 <Input
                   id="mobile"
                   type="tel"
                   value={formData.mobileNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, mobileNumber: e.target.value }))}
-                  placeholder="Enter your mobile number"
+                  placeholder="Enter your mobile number (e.g., 0412 345 678)"
+                  className={(!formData.mobileNumber.trim() || (formData.mobileNumber && !/^(\+61|0)[2-9]\d{8}$/.test(formData.mobileNumber.replace(/\s+/g, '')))) ? "border-red-300 focus:border-red-500" : ""}
                 />
               </div>
               
@@ -286,9 +326,10 @@ export default function ProviderSignup() {
                       postcode: parsedAddress?.postcode || prev.postcode
                     }))
                   }
-                  label="Business Address"
+                  label="Business Address *"
                   placeholder="Start typing your business address..."
                   required
+                  error={!formData.address.trim() ? "Address is required" : ""}
                 />
               </div>
               
