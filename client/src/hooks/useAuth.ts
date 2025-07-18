@@ -28,9 +28,27 @@ export function useAuth() {
   // Use React Query to fetch user data - this will stay in sync with cache updates
   const { data: user, isLoading, error } = useQuery({
     queryKey: ["/api/auth/user"],
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/auth/user", {
+          credentials: 'include'
+        });
+        if (response.status === 401) {
+          return null; // User not authenticated
+        }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      } catch (error) {
+        return null; // Return null for any auth errors
+      }
+    },
     retry: false, // Don't retry on 401 errors
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
+    refetchInterval: false, // Don't auto-refetch
+    refetchOnReconnect: false,
     // Handle 401 errors gracefully (user not authenticated)
     throwOnError: false,
   });
