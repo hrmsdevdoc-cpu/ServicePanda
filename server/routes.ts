@@ -1,0 +1,405 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import { z } from "zod";
+import { insertServiceProviderSchema, insertServiceRequestSchema } from "@shared/schema";
+import multer from "multer";
+import path from "path";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Auth middleware
+  await setupAuth(app);
+
+  // Configure multer for file uploads
+  const upload = multer({
+    dest: "uploads/",
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = /jpeg|jpg|png|pdf/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype);
+      
+      if (mimetype && extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error("Only .png, .jpg, .jpeg and .pdf files are allowed"));
+      }
+    },
+  });
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Service categories
+  app.get('/api/service-categories', async (req, res) => {
+    try {
+      const categories = await storage.getServiceCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching service categories:", error);
+      res.status(500).json({ message: "Failed to fetch service categories" });
+    }
+  });
+
+  // Service provider registration
+  app.post('/api/service-providers', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const providerData = insertServiceProviderSchema.parse({
+        ...req.body,
+        userId,
+      });
+      
+      const provider = await storage.createServiceProvider(providerData);
+      
+      // Log user activity
+      await storage.logUserActivity({
+        userId,
+        userType: "provider",
+        action: "signup_started",
+        details: { providerId: provider.id },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+      });
+      
+      res.json(provider);
+    } catch (error) {
+      console.error("Error creating service provider:", error);
+      res.status(500).json({ message: "Failed to create service provider" });
+    }
+  });
+
+  // Get service provider by user ID
+  app.get('/api/service-providers/me', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const provider = await storage.getServiceProviderByUserId(userId);
+      
+      if (!provider) {
+        return res.status(404).json({ message: "Service provider not found" });
+      }
+      
+      res.json(provider);
+    } catch (error) {
+      console.error("Error fetching service provider:", error);
+      res.status(500).json({ message: "Failed to fetch service provider" });
+    }
+  });
+
+  // Update service provider
+  app.put('/api/service-providers/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership
+      const provider = await storage.getServiceProvider(id);
+      if (!provider || provider.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const updatedProvider = await storage.updateServiceProvider(id, req.body);
+      res.json(updatedProvider);
+    } catch (error) {
+      console.error("Error updating service provider:", error);
+      res.status(500).json({ message: "Failed to update service provider" });
+    }
+  });
+
+  // Add provider services
+  app.post('/api/service-providers/:id/services', isAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { categoryIds } = req.body;
+      
+      // Verify ownership
+      const provider = await storage.getServiceProvider(providerId);
+      if (!provider || provider.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Add services
+      for (const categoryId of categoryIds) {
+        await storage.addProviderService({ providerId, categoryId });
+      }
+      
+      res.json({ message: "Services added successfully" });
+    } catch (error) {
+      console.error("Error adding provider services:", error);
+      res.status(500).json({ message: "Failed to add provider services" });
+    }
+  });
+
+  // Get Australian states
+  app.get('/api/australian-states', async (req, res) => {
+    try {
+      const states = await storage.getAustralianStates();
+      res.json(states);
+    } catch (error) {
+      console.error("Error fetching Australian states:", error);
+      res.status(500).json({ message: "Failed to fetch Australian states" });
+    }
+  });
+
+  // Get suburbs by postcode
+  app.get('/api/suburbs/:postcode', async (req, res) => {
+    try {
+      const { postcode } = req.params;
+      const suburbs = await storage.getSuburbsByPostcode(postcode);
+      res.json(suburbs);
+    } catch (error) {
+      console.error("Error fetching suburbs:", error);
+      res.status(500).json({ message: "Failed to fetch suburbs" });
+    }
+  });
+
+  // Add provider service areas
+  app.post('/api/service-providers/:id/service-areas', isAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { suburbIds } = req.body;
+      
+      // Verify ownership
+      const provider = await storage.getServiceProvider(providerId);
+      if (!provider || provider.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Add service areas
+      for (const suburbId of suburbIds) {
+        await storage.addProviderServiceArea({ providerId, suburbId });
+      }
+      
+      res.json({ message: "Service areas added successfully" });
+    } catch (error) {
+      console.error("Error adding provider service areas:", error);
+      res.status(500).json({ message: "Failed to add provider service areas" });
+    }
+  });
+
+  // Upload provider documents
+  app.post('/api/service-providers/:id/documents', isAuthenticated, upload.array('documents', 3), async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const files = req.files as Express.Multer.File[];
+      
+      // Verify ownership
+      const provider = await storage.getServiceProvider(providerId);
+      if (!provider || provider.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const uploadedDocs = [];
+      
+      for (const file of files) {
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: req.body.documentType || 'general',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      // Update provider status
+      await storage.updateServiceProvider(providerId, { documentsUploaded: true });
+      
+      res.json({ 
+        message: "Documents uploaded successfully",
+        documents: uploadedDocs 
+      });
+    } catch (error) {
+      console.error("Error uploading documents:", error);
+      res.status(500).json({ message: "Failed to upload documents" });
+    }
+  });
+
+  // Get provider documents
+  app.get('/api/service-providers/:id/documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership
+      const provider = await storage.getServiceProvider(providerId);
+      if (!provider || provider.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const documents = await storage.getProviderDocuments(providerId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching provider documents:", error);
+      res.status(500).json({ message: "Failed to fetch provider documents" });
+    }
+  });
+
+  // Create service request
+  app.post('/api/service-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const requestData = insertServiceRequestSchema.parse({
+        ...req.body,
+        customerId: userId,
+      });
+      
+      const request = await storage.createServiceRequest(requestData);
+      
+      // Log user activity
+      await storage.logUserActivity({
+        userId,
+        userType: "customer",
+        action: "service_request_created",
+        details: { requestId: request.id },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+      });
+      
+      res.json(request);
+    } catch (error) {
+      console.error("Error creating service request:", error);
+      res.status(500).json({ message: "Failed to create service request" });
+    }
+  });
+
+  // Get service requests for customer
+  app.get('/api/service-requests/my-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const requests = await storage.getServiceRequests(userId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching service requests:", error);
+      res.status(500).json({ message: "Failed to fetch service requests" });
+    }
+  });
+
+  // Get new leads for provider
+  app.get('/api/leads/new', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const provider = await storage.getServiceProviderByUserId(userId);
+      
+      if (!provider) {
+        return res.status(404).json({ message: "Service provider not found" });
+      }
+      
+      const leads = await storage.getProviderLeads(provider.id, "pending");
+      res.json(leads);
+    } catch (error) {
+      console.error("Error fetching new leads:", error);
+      res.status(500).json({ message: "Failed to fetch new leads" });
+    }
+  });
+
+  // Accept lead
+  app.post('/api/leads/:id/accept', isAuthenticated, async (req: any, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership
+      const provider = await storage.getServiceProviderByUserId(userId);
+      if (!provider) {
+        return res.status(404).json({ message: "Service provider not found" });
+      }
+      
+      await storage.updateLeadStatus(leadId, "accepted");
+      
+      // Log user activity
+      await storage.logUserActivity({
+        userId,
+        userType: "provider",
+        action: "lead_accepted",
+        details: { leadId },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+      });
+      
+      res.json({ message: "Lead accepted successfully" });
+    } catch (error) {
+      console.error("Error accepting lead:", error);
+      res.status(500).json({ message: "Failed to accept lead" });
+    }
+  });
+
+  // Admin routes
+  app.get('/api/admin/providers', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // TODO: Add admin role check
+      const providers = await storage.getServiceProvidersByStatus("pending");
+      res.json(providers);
+    } catch (error) {
+      console.error("Error fetching pending providers:", error);
+      res.status(500).json({ message: "Failed to fetch pending providers" });
+    }
+  });
+
+  // Approve service provider
+  app.post('/api/admin/providers/:id/approve', isAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      
+      // TODO: Add admin role check
+      await storage.updateServiceProvider(providerId, { status: "approved" });
+      
+      // Log admin activity
+      await storage.logUserActivity({
+        userId,
+        userType: "admin",
+        action: "provider_approved",
+        details: { providerId },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+      });
+      
+      res.json({ message: "Service provider approved successfully" });
+    } catch (error) {
+      console.error("Error approving service provider:", error);
+      res.status(500).json({ message: "Failed to approve service provider" });
+    }
+  });
+
+  // Log user activity endpoint
+  app.post('/api/user-activity', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { action, details, userType } = req.body;
+      
+      await storage.logUserActivity({
+        userId,
+        userType,
+        action,
+        details,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+      });
+      
+      res.json({ message: "Activity logged successfully" });
+    } catch (error) {
+      console.error("Error logging user activity:", error);
+      res.status(500).json({ message: "Failed to log user activity" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
