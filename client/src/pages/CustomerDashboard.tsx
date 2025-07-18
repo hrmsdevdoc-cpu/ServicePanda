@@ -171,14 +171,39 @@ export default function CustomerDashboard() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                          <span className="text-sm text-gray-600">Cleaning service completed</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
-                          <span className="text-sm text-gray-600">Quote received for plumbing</span>
-                        </div>
+                        {myRequests.length === 0 ? (
+                          <div className="text-sm text-gray-500 text-center py-4">
+                            No recent activity. Create your first service request!
+                          </div>
+                        ) : (
+                          myRequests.slice(0, 3).map((request: any, index: number) => {
+                            const category = categories.find((cat: any) => cat.id === request.categoryId);
+                            const isLatest = index === 0;
+                            const statusColor = {
+                              'active': 'bg-blue-500',
+                              'assigned': 'bg-orange-500', 
+                              'completed': 'bg-green-500',
+                              'cancelled': 'bg-red-500'
+                            }[request.status] || 'bg-gray-500';
+                            
+                            return (
+                              <div key={request.id} className="flex items-start">
+                                <div className={`w-2 h-2 ${statusColor} rounded-full mr-3 mt-2`}></div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm text-gray-900 font-medium">
+                                    {category?.name || 'Service'} request {isLatest ? '(Latest)' : ''}
+                                  </div>
+                                  <div className="text-xs text-gray-600 truncate">
+                                    {request.suburb}, {request.postcode}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {new Date(request.createdAt).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
                     </CardContent>
                   </Card>
