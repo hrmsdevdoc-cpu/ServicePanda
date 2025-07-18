@@ -110,17 +110,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add provider services
-  app.post('/api/service-providers/:id/services', isAuthenticated, async (req: any, res) => {
+  // Add provider services (during signup - no auth required)
+  app.post('/api/service-providers/:id/services', async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      const userId = req.user.id;
       const { categoryIds } = req.body;
       
-      // Verify ownership
+      console.log(`Adding services for provider ${providerId}:`, categoryIds);
+      
+      if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+        return res.status(400).json({ message: "Category IDs are required" });
+      }
+      
+      // Verify provider exists
       const provider = await storage.getServiceProvider(providerId);
-      if (!provider || provider.userId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
       }
       
       // Add services
