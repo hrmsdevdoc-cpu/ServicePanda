@@ -532,6 +532,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all suburbs in a region
+  app.get("/api/regions/:regionId/suburbs", async (req, res) => {
+    try {
+      const regionId = parseInt(req.params.regionId);
+      const suburbs = await storage.getSuburbsByRegion(regionId);
+      res.json(suburbs);
+    } catch (error) {
+      console.error("Error fetching region suburbs:", error);
+      res.status(500).json({ error: "Failed to fetch region suburbs" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

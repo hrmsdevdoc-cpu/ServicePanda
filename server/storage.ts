@@ -98,6 +98,11 @@ export interface IStorage {
   // System settings
   getSystemSetting(key: string): Promise<SystemSetting | undefined>;
   updateSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
+  
+  // Regional operations
+  getAllRegions(): Promise<AustralianRegion[]>;
+  getRegionsByStateId(stateId: number): Promise<AustralianRegion[]>;
+  getSuburbsByRegion(regionId: number): Promise<AustralianSuburb[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -269,6 +274,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(australianRegions)
       .orderBy(asc(australianRegions.name));
+  }
+
+  async getSuburbsByRegion(regionId: number): Promise<AustralianSuburb[]> {
+    return await db
+      .select()
+      .from(australianSuburbs)
+      .where(eq(australianSuburbs.regionId, regionId))
+      .orderBy(asc(australianSuburbs.suburb));
   }
 
   // Document operations
