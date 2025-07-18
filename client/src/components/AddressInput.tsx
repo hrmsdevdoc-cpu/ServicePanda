@@ -6,9 +6,14 @@ import { cn } from "@/lib/utils";
 import { MapPin, Check, AlertCircle, Loader2 } from "lucide-react";
 
 interface AddressSuggestion {
-  formatted_address: string;
+  description: string;
   place_id: string;
-  address_components: {
+  structured_formatting?: {
+    main_text: string;
+    secondary_text: string;
+  };
+  formatted_address?: string;
+  address_components?: {
     long_name: string;
     short_name: string;
     types: string[];
@@ -225,20 +230,29 @@ export function AddressInput({
       {/* Address suggestions dropdown */}
       {showSuggestions && suggestions.length > 0 && (
         <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={suggestion.place_id || index}
-              type="button"
-              className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-start"
-              onClick={() => handleSuggestionSelect(suggestion)}
-            >
-              <MapPin className="h-4 w-4 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-              <div>
-                <div className="font-medium text-gray-900">{suggestion.formatted_address}</div>
-                <div className="text-xs text-gray-500 mt-1">Click to select and verify address</div>
-              </div>
-            </button>
-          ))}
+          {suggestions.map((suggestion, index) => {
+            // Use structured formatting if available, otherwise fall back to description
+            const mainText = suggestion.structured_formatting?.main_text || suggestion.description?.split(', ')[0] || '';
+            const secondaryText = suggestion.structured_formatting?.secondary_text || 
+                                suggestion.description?.split(', ').slice(1).join(', ') || '';
+            
+            return (
+              <button
+                key={suggestion.place_id || index}
+                type="button"
+                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-start transition-colors"
+                onClick={() => handleSuggestionSelect(suggestion)}
+              >
+                <MapPin className="h-4 w-4 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-gray-900 truncate">{mainText}</div>
+                  {secondaryText && (
+                    <div className="text-xs text-gray-500 mt-0.5 truncate">{secondaryText}</div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
