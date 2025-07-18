@@ -62,13 +62,17 @@ export default function CustomerDashboard() {
       const response = await apiRequest("PUT", "/api/auth/user", data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedUser) => {
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated.",
         variant: "default",
       });
+      // Update the auth cache with the new user data
+      queryClient.setQueryData(["/api/auth/user"], updatedUser);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      // Reset form data
+      setProfileData({ firstName: "", lastName: "" });
     },
     onError: (error: any) => {
       toast({
