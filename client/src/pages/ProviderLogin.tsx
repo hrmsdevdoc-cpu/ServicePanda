@@ -27,13 +27,28 @@ export default function ProviderLogin() {
       // Store provider ID for authentication
       localStorage.setItem('providerId', provider.id.toString());
       
-      toast({
-        title: "Welcome back!",
-        description: "Successfully logged in to your provider dashboard.",
-        variant: "default",
-      });
-      // Navigate to provider dashboard
-      navigate("/provider-dashboard");
+      // Check if provider needs to complete signup steps
+      const needsStepCompletion = !provider.documentsUploaded || 
+                                 !provider.termsAccepted || 
+                                 provider.status === 'pending';
+      
+      if (needsStepCompletion) {
+        toast({
+          title: "Welcome back!",
+          description: "Continue setting up your provider profile.",
+          variant: "default",
+        });
+        // Navigate to signup step 2 to complete profile
+        navigate("/provider-signup?step=2");
+      } else {
+        toast({
+          title: "Welcome back!",
+          description: "Successfully logged in to your provider dashboard.",
+          variant: "default",
+        });
+        // Navigate to provider dashboard
+        navigate("/provider-dashboard");
+      }
     },
     onError: (error: any) => {
       toast({

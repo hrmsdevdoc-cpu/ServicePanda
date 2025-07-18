@@ -48,6 +48,25 @@ export default function ProviderSignup() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [isExistingProvider, setIsExistingProvider] = useState(false);
+  
+  // Check for existing provider and URL parameters
+  useEffect(() => {
+    const providerId = localStorage.getItem('providerId');
+    const urlParams = new URLSearchParams(window.location.search);
+    const stepParam = urlParams.get('step');
+    
+    if (providerId) {
+      setIsExistingProvider(true);
+      // If provider is logged in and step is specified, go to that step
+      if (stepParam) {
+        setCurrentStep(parseInt(stepParam));
+      } else {
+        // Default to step 2 for existing providers
+        setCurrentStep(2);
+      }
+    }
+  }, []);
   
   // Reset validation state when moving between steps
   useEffect(() => {
@@ -75,7 +94,10 @@ export default function ProviderSignup() {
   });
 
   // Store the provider ID once created
-  const [providerId, setProviderId] = useState<number | null>(null);
+  const [providerId, setProviderId] = useState<number | null>(() => {
+    const storedId = localStorage.getItem('providerId');
+    return storedId ? parseInt(storedId) : null;
+  });
 
   const { data: categories = [] } = useQuery({
     queryKey: ["/api/service-categories"],
@@ -141,8 +163,9 @@ export default function ProviderSignup() {
     onSuccess: (provider) => {
       console.log('Provider registered successfully:', provider);
       try {
-        // Store provider ID for next steps
+        // Store provider ID for next steps and authentication
         setProviderId(provider.id);
+        localStorage.setItem('providerId', provider.id.toString());
         
         // Store provider info in localStorage for this session
         localStorage.setItem('currentProvider', JSON.stringify(provider));
@@ -162,6 +185,7 @@ export default function ProviderSignup() {
         console.error('Error in onSuccess:', error);
         // Don't let this error block the flow
         setProviderId(provider.id);
+        localStorage.setItem('providerId', provider.id.toString());
         setCurrentStep(2);
       }
     },
