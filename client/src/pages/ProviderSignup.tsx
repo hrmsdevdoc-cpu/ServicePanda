@@ -115,47 +115,37 @@ export default function ProviderSignup() {
     return () => clearTimeout(timeoutId);
   }, [locationData.postcodeForLocation]);
 
-  const registerAndCreateProviderMutation = useMutation({
+  const registerProviderMutation = useMutation({
     mutationFn: async (data: any) => {
-      console.log('Registering user and creating provider with data:', data);
+      console.log('Registering provider with data:', data);
       try {
-        // First register the user
-        const registerResponse = await apiRequest("POST", "/api/register", {
+        // Register provider with their own authentication system
+        const response = await apiRequest("POST", "/api/provider/register", {
           email: data.email,
           password: data.password,
           firstName: data.firstName,
           lastName: data.lastName,
-        });
-        
-        const user = await registerResponse.json();
-        console.log('User registered successfully:', user);
-        
-        // Then create the provider record
-        const providerResponse = await apiRequest("POST", "/api/service-providers", {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email,
           mobileNumber: data.mobileNumber,
           address: data.address,
         });
         
-        const provider = await providerResponse.json();
-        console.log('Provider created successfully:', provider);
+        const provider = await response.json();
+        console.log('Provider registered successfully:', provider);
         
-        return { user, provider };
+        return provider;
       } catch (error) {
-        console.error('Error in registerAndCreateProviderMutation:', error);
+        console.error('Error in registerProviderMutation:', error);
         throw error; // Re-throw to be caught by onError
       }
     },
-    onSuccess: (data) => {
-      console.log('User registered and provider created successfully:', data);
+    onSuccess: (provider) => {
+      console.log('Provider registered successfully:', provider);
       try {
-        // Update the auth query cache
-        queryClient.setQueryData(["/api/auth/user"], data.user);
-        
         // Store provider ID for next steps
-        setProviderId(data.provider.id);
+        setProviderId(provider.id);
+        
+        // Store provider info in localStorage for this session
+        localStorage.setItem('currentProvider', JSON.stringify(provider));
         
         // Move to step 2
         setCurrentStep(2);
@@ -167,19 +157,16 @@ export default function ProviderSignup() {
           variant: "default",
         });
         
-        // Invalidate queries to refresh auth state
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-        
         console.log('Step 1 completed successfully, moving to Step 2');
       } catch (error) {
         console.error('Error in onSuccess:', error);
         // Don't let this error block the flow
-        setProviderId(data.provider.id);
+        setProviderId(provider.id);
         setCurrentStep(2);
       }
     },
     onError: (error: any) => {
-      console.error('Error registering user or creating provider:', error);
+      console.error('Error registering provider:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create account. Please try again.",
@@ -309,7 +296,7 @@ export default function ProviderSignup() {
       return;
     }
 
-    registerAndCreateProviderMutation.mutate({
+    registerProviderMutation.mutate({
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       email: formData.email.trim(),
@@ -512,9 +499,9 @@ export default function ProviderSignup() {
               <div className="flex justify-end">
                 <Button 
                   onClick={handleStep1Submit}
-                  disabled={registerAndCreateProviderMutation.isPending}
+                  disabled={registerProviderMutation.isPending}
                 >
-                  {registerAndCreateProviderMutation.isPending ? "Creating Account..." : "Create Account & Continue"}
+                  {registerProviderMutation.isPending ? "Creating Account..." : "Create Account & Continue"}
                 </Button>
               </div>
             </CardContent>

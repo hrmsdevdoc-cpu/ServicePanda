@@ -2,14 +2,18 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
+import { setupProviderAuth, isProviderAuthenticated } from "./providerAuth";
 import { z } from "zod";
 import { insertServiceProviderSchema, insertServiceRequestSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
+  // Auth middleware for customers
   setupAuth(app);
+  
+  // Auth middleware for providers
+  setupProviderAuth(app);
 
   // Configure multer for file uploads
   const upload = multer({

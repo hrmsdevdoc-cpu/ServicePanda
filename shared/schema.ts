@@ -38,13 +38,13 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Service providers table
+// Service providers table - separate authentication from customers
 export const serviceProviders = pgTable("service_providers", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
   firstName: varchar("first_name").notNull(),
   lastName: varchar("last_name").notNull(),
-  email: varchar("email").notNull(),
+  email: varchar("email").unique().notNull(),
+  password: varchar("password").notNull(),
   mobileNumber: varchar("mobile_number").notNull(),
   address: text("address").notNull(),
   status: varchar("status").default("pending"), // pending, approved, rejected
@@ -190,15 +190,13 @@ export const systemSettings = pgTable("system_settings", {
 });
 
 // Relations
-export const usersRelations = relations(users, ({ one, many }) => ({
-  serviceProvider: one(serviceProviders),
+export const usersRelations = relations(users, ({ many }) => ({
   serviceRequests: many(serviceRequests),
   sentEmails: many(sentEmails),
   activityLogs: many(userActivityLogs),
 }));
 
-export const serviceProvidersRelations = relations(serviceProviders, ({ one, many }) => ({
-  user: one(users, { fields: [serviceProviders.userId], references: [users.id] }),
+export const serviceProvidersRelations = relations(serviceProviders, ({ many }) => ({
   services: many(providerServices),
   serviceAreas: many(providerServiceAreas),
   documents: many(providerDocuments),
