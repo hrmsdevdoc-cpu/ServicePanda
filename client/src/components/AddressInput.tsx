@@ -271,18 +271,12 @@ export function AddressInput({
                                 suggestion.description?.split(', ').slice(1).join(', ') || '';
             
             return (
-              <button
+              <div
                 key={suggestion.place_id || index}
-                type="button"
-                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-start transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-start transition-colors cursor-pointer"
+                onClick={() => {
                   console.log('Suggestion clicked:', suggestion.description); // Debug log
                   handleSuggestionSelect(suggestion);
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault(); // Prevent input blur before click
                 }}
               >
                 <MapPin className="h-4 w-4 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -292,7 +286,7 @@ export function AddressInput({
                     <div className="text-xs text-gray-500 mt-0.5 truncate">{secondaryText}</div>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
