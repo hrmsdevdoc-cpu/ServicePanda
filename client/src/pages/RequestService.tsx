@@ -204,9 +204,9 @@ export default function RequestService() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Location and Date Column */}
-          <div className="space-y-6">
+        <div className="space-y-6">
+          {/* Top Row: Location and Date */}
+          <div className="grid md:grid-cols-2 gap-6">
             {/* Location */}
             <Card>
               <CardHeader className="pb-4">
@@ -215,7 +215,7 @@ export default function RequestService() {
                   Location
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 <div className="relative">
                   <Label htmlFor="postcode">Postcode and Suburb *</Label>
                   <div className="relative">
@@ -290,12 +290,13 @@ export default function RequestService() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <Label htmlFor="date" className="text-sm">When do you need this service? (optional)</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-full justify-start text-left font-normal",
+                        "w-full justify-start text-left font-normal mt-2",
                         !formData.preferredDate && "text-muted-foreground"
                       )}
                     >
@@ -303,7 +304,7 @@ export default function RequestService() {
                       {formData.preferredDate ? (
                         format(formData.preferredDate, "PPP")
                       ) : (
-                        <span>Pick a date (optional)</span>
+                        <span>Select a date</span>
                       )}
                     </Button>
                   </PopoverTrigger>
@@ -321,34 +322,42 @@ export default function RequestService() {
             </Card>
           </div>
 
-          {/* Description and Submit Column */}
-          <div className="space-y-6">
-            {/* Description */}
-            <Card className="h-fit">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center text-lg">
-                  <FileText className="h-4 w-4 mr-2 text-primary" />
-                  Service Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Label htmlFor="description">Please explain what you need done *</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Describe your service requirements in detail..."
-                  rows={8}
-                  className="mt-2"
-                />
-                <p className="text-sm text-gray-500 mt-2">
-                  Be as specific as possible to help providers give accurate quotes
-                </p>
-              </CardContent>
-            </Card>
+          {/* Service Details - Full Width */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center text-lg">
+                <FileText className="h-4 w-4 mr-2 text-primary" />
+                Service Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Label htmlFor="description" className="text-sm font-medium">
+                Please explain what you need done *
+              </Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Describe your service requirements in detail... 
 
-            {/* Submit */}
-            <Card>
+For example:
+• What specific tasks need to be completed?
+• What is the size/scope of the area or items?
+• Are there any special requirements or preferences?
+• When would you like the work completed?
+• Any access considerations or preparation needed?"
+                rows={8}
+                className="mt-2 min-h-[200px]"
+              />
+              <p className="text-sm text-gray-500 mt-3">
+                💡 The more details you provide, the more accurate quotes you'll receive from service providers
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Submit Button */}
+          <div className="flex justify-center">
+            <Card className="w-full max-w-md">
               <CardContent className="pt-6">
                 <Button
                   onClick={handleSubmit}
