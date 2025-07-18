@@ -1,5 +1,6 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useState, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 type User = {
@@ -24,26 +25,37 @@ type RegisterData = {
 
 export function useAuth() {
   const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const {
-    data: user,
-    error,
-    isLoading,
-  } = useQuery<User | undefined, Error>({
-    queryKey: ["/api/auth/user"],
-    retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  // Check authentication status on mount only
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/user", {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        }
+      } catch (error) {
+        // User not authenticated, which is fine
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       const res = await apiRequest("POST", "/api/login", credentials);
       return await res.json();
     },
-    onSuccess: (user: User) => {
-      queryClient.setQueryData(["/api/auth/user"], user);
+    onSuccess: (userData: User) => {
+      setUser(userData);
       toast({
         title: "Welcome back!",
         description: "You have successfully logged in.",
@@ -63,8 +75,8 @@ export function useAuth() {
       const res = await apiRequest("POST", "/api/register", credentials);
       return await res.json();
     },
-    onSuccess: (user: User) => {
-      queryClient.setQueryData(["/api/auth/user"], user);
+    onSuccess: (userData: User) => {
+      setUser(userData);
       toast({
         title: "Welcome to ServicePanda!",
         description: "Your account has been created successfully.",
@@ -81,10 +93,14 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/logout");
+      const res = await fetch("/api/logout", {
+        method: "POST",
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error("Logout failed");
     },
     onSuccess: () => {
-      queryClient.setQueryData(["/api/auth/user"], null);
+      setUser(null);
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
@@ -100,10 +116,9 @@ export function useAuth() {
   });
 
   return {
-    user: user ?? null,
+    user,
     isLoading,
     isAuthenticated: !!user,
-    error,
     loginMutation,
     logoutMutation,
     registerMutation,
