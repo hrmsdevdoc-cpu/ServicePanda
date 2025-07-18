@@ -87,7 +87,10 @@ export default function CustomerDashboard() {
   };
 
   const handleProfileUpdate = () => {
-    if (!profileData.firstName.trim() || !profileData.lastName.trim()) {
+    const firstName = (profileData.firstName || user?.firstName || "").trim();
+    const lastName = (profileData.lastName || user?.lastName || "").trim();
+    
+    if (!firstName || !lastName) {
       toast({
         title: "Missing Information",
         description: "Please fill in both first and last name.",
@@ -96,7 +99,7 @@ export default function CustomerDashboard() {
       return;
     }
 
-    updateProfileMutation.mutate(profileData);
+    updateProfileMutation.mutate({ firstName, lastName });
   };
 
   return (
@@ -350,7 +353,7 @@ export default function CustomerDashboard() {
                       <Input
                         id="firstName"
                         value={profileData.firstName !== "" ? profileData.firstName : (user?.firstName || "")}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value.trim() }))}
                         placeholder="Enter your first name"
                       />
                     </div>
@@ -359,7 +362,7 @@ export default function CustomerDashboard() {
                       <Input
                         id="lastName"
                         value={profileData.lastName !== "" ? profileData.lastName : (user?.lastName || "")}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value.trim() }))}
                         placeholder="Enter your last name"
                       />
                     </div>
