@@ -299,7 +299,25 @@ export class DatabaseStorage implements IStorage {
   async findProvidersInArea(postcode: string, categoryId: number): Promise<ServiceProvider[]> {
     // Find all providers who service the given postcode and category
     return await db
-      .select()
+      .select({
+        id: serviceProviders.id,
+        userId: serviceProviders.userId,
+        firstName: serviceProviders.firstName,
+        lastName: serviceProviders.lastName,
+        email: serviceProviders.email,
+        mobileNumber: serviceProviders.mobileNumber,
+        address: serviceProviders.address,
+        status: serviceProviders.status,
+        documentsUploaded: serviceProviders.documentsUploaded,
+        termsAccepted: serviceProviders.termsAccepted,
+        creditCardAdded: serviceProviders.creditCardAdded,
+        freeLeadsRemaining: serviceProviders.freeLeadsRemaining,
+        eWayCustomerToken: serviceProviders.eWayCustomerToken,
+        cardFirstFour: serviceProviders.cardFirstFour,
+        cardLastFour: serviceProviders.cardLastFour,
+        createdAt: serviceProviders.createdAt,
+        updatedAt: serviceProviders.updatedAt,
+      })
       .from(serviceProviders)
       .innerJoin(providerServices, eq(serviceProviders.id, providerServices.providerId))
       .innerJoin(providerServiceAreas, eq(serviceProviders.id, providerServiceAreas.providerId))
@@ -311,8 +329,7 @@ export class DatabaseStorage implements IStorage {
           eq(serviceProviders.status, "approved")
         )
       )
-      .groupBy(serviceProviders.id)
-      .then(results => results.map(r => r.service_providers));
+      .groupBy(serviceProviders.id);
   }
 
   async createLeadsForRequest(requestId: number, postcode: string, categoryId: number): Promise<LeadAssignment[]> {
