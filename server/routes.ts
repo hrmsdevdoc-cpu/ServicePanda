@@ -292,14 +292,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       url.searchParams.append('fields', 'formatted_address,address_components,geometry');
       url.searchParams.append('key', apiKey);
 
+      console.log('Fetching place details for:', place_id);
       const response = await fetch(url.toString());
       const data = await response.json();
+
+      console.log('Google Places Details API response:', JSON.stringify(data, null, 2));
 
       if (data.status === 'OK') {
         res.json(data);
       } else {
-        console.error('Google Places Details API error:', data);
-        res.status(500).json({ error: 'Failed to fetch address details' });
+        console.error('Google Places Details API error:', data.status, data.error_message);
+        res.status(500).json({ error: 'Failed to fetch address details', details: data.error_message });
       }
     } catch (error) {
       console.error('Address details error:', error);

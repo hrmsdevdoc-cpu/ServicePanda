@@ -154,27 +154,40 @@ export function AddressInput({
   const handleSuggestionSelect = async (suggestion: AddressSuggestion) => {
     setLoading(true);
     try {
-      // Get detailed place information
+      // For now, use the description as the address while we get detailed info
+      onChange(suggestion.description, undefined);
+      setSuggestions([]);
+      setShowSuggestions(false);
+      
+      // Get detailed place information for verification
       const response = await fetch(`/api/address/details?place_id=${suggestion.place_id}`);
       if (response.ok) {
         const placeDetails = await response.json();
-        const parsedAddress = parseAddressComponents(placeDetails.result.address_components);
+        console.log('Place details response:', placeDetails); // Debug log
         
-        // Verify it's a valid Australian address
-        const isValid = validateAustralianAddress(parsedAddress);
-        
-        onChange(placeDetails.result.formatted_address, parsedAddress);
-        setVerified(isValid);
-        setSuggestions([]);
-        setShowSuggestions(false);
-        
-        if (!isValid) {
-          // Show warning for invalid addresses
-          console.warn('Selected address is not a valid Australian address');
+        if (placeDetails.result) {
+          const parsedAddress = parseAddressComponents(placeDetails.result.address_components || []);
+          
+          // Verify it's a valid Australian address
+          const isValid = validateAustralianAddress(parsedAddress);
+          
+          // Update with the properly formatted address
+          onChange(placeDetails.result.formatted_address, parsedAddress);
+          setVerified(isValid);
+          
+          if (!isValid) {
+            console.warn('Selected address is not a valid Australian address', parsedAddress);
+          }
         }
+      } else {
+        console.error('Error response from address details API:', response.status, response.statusText);
+        // Keep the description as the address if details fetch fails
+        setVerified(false);
       }
     } catch (error) {
       console.error('Error getting place details:', error);
+      // Keep the description as the address if there's an error
+      setVerified(false);
     } finally {
       setLoading(false);
     }
