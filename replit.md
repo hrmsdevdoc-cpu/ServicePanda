@@ -78,6 +78,20 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 - **Enhanced dashboard navigation**: Service icons now navigate directly to step 2 with pre-selected service category
 - **URL parameter handling**: Added support for direct navigation with category and step parameters
 
+### Booking Management System (January 18, 2025)
+- **Enhanced booking details**: Added comprehensive booking information fields including booking type, preferred date, and scheduled date
+- **Booking type categorization**: One-time service, regular/recurring, emergency, and quote-only options
+- **Improved dashboard display**: Shows booking type badges, request date, preferred date, and scheduled date in organized layout
+- **Database schema updates**: Added preferred_date, booking_type, and scheduled_date columns to service_requests table
+- **Form validation**: Required booking type selection for all new service requests
+- **Cache invalidation fix**: Resolved issue where new requests weren't appearing in dashboard immediately
+
+### Performance and Bug Fixes
+- **Infinite request loop fix**: Resolved React Query infinite loop that was blocking sign-in functionality
+- **Auto-dismiss notifications**: Toast notifications now automatically disappear after 3 seconds system-wide
+- **Cache consistency**: Fixed cache invalidation keys to ensure dashboard shows latest service requests
+- **Manual refresh option**: Added refresh button to My Bookings section for immediate data updates
+
 ### Profile Management System
 - **Complete profile update functionality**: Added PUT /api/auth/user endpoint with validation
 - **Real-time cache updates**: Profile changes immediately reflect in dashboard welcome message
