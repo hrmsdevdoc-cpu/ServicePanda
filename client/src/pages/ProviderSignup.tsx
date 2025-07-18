@@ -44,7 +44,7 @@ const serviceIcons = {
 
 export default function ProviderSignup() {
   const [, navigate] = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -113,14 +113,22 @@ export default function ProviderSignup() {
 
   const createProviderMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log('Creating provider with data:', data);
       const response = await apiRequest("POST", "/api/service-providers", data);
       return response.json();
     },
     onSuccess: (data) => {
+      console.log('Provider created successfully:', data);
       setFormData(prev => ({ ...prev, providerId: data.id }));
       setCurrentStep(2);
+      toast({
+        title: "Step 1 Complete!",
+        description: "Your basic information has been saved. Now select your services.",
+        variant: "default",
+      });
     },
     onError: (error) => {
+      console.error('Error creating provider:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -222,7 +230,10 @@ export default function ProviderSignup() {
     }
 
     // Check authentication only after validation passes
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !isLoading) {
+      console.log('User not authenticated, redirecting to login...');
+      // Store current path so we can return here after login
+      sessionStorage.setItem('returnTo', '/provider-signup');
       window.location.href = "/api/login";
       return;
     }
