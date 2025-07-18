@@ -33,6 +33,13 @@ export default function RequestService() {
   const [step, setStep] = useState(1);
   const [postcodeSearch, setPostcodeSearch] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
+  const [errors, setErrors] = useState({
+    categoryId: false,
+    postcode: false,
+    suburb: false,
+    bookingType: false,
+    description: false,
+  });
 
   // Handle URL parameters for direct navigation from dashboard
   useEffect(() => {
@@ -100,12 +107,53 @@ export default function RequestService() {
       return;
     }
 
-    if (!formData.categoryId || !formData.postcode || !formData.suburb || !formData.description || !formData.bookingType) {
+    // Reset errors
+    const newErrors = {
+      categoryId: false,
+      postcode: false,
+      suburb: false,
+      bookingType: false,
+      description: false,
+    };
+
+    // Check for missing fields
+    const missingFields = [];
+    
+    if (!formData.categoryId) {
+      newErrors.categoryId = true;
+      missingFields.push("Service Category");
+    }
+    if (!formData.postcode) {
+      newErrors.postcode = true;
+      missingFields.push("Postcode");
+    }
+    if (!formData.suburb) {
+      newErrors.suburb = true;
+      missingFields.push("Suburb");
+    }
+    if (!formData.bookingType) {
+      newErrors.bookingType = true;
+      missingFields.push("Booking Type");
+    }
+    if (!formData.description.trim()) {
+      newErrors.description = true;
+      missingFields.push("Service Description");
+    }
+
+    setErrors(newErrors);
+
+    if (missingFields.length > 0) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
+        title: "Missing Required Information",
+        description: `Please complete: ${missingFields.join(", ")}`,
         variant: "destructive",
       });
+      
+      // Scroll to first error field
+      const firstErrorField = document.querySelector('.error-field');
+      if (firstErrorField) {
+        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
 
@@ -320,7 +368,10 @@ export default function RequestService() {
               </CardHeader>
               <CardContent>
                 <div className="relative">
-                  <Label htmlFor="postcode">Postcode and Suburb *</Label>
+                  <Label htmlFor="postcode" className={errors.postcode ? "text-red-600" : ""}>
+                    Postcode and Suburb *
+                    {errors.postcode && <span className="text-red-500 text-xs ml-1">Required</span>}
+                  </Label>
                   <div className="relative">
                     <Input
                       id="postcode"
@@ -328,11 +379,16 @@ export default function RequestService() {
                       onChange={(e) => {
                         setPostcodeSearch(e.target.value);
                         setFormData({ ...formData, postcode: e.target.value, suburb: "" });
+                        // Clear error when user starts typing
+                        if (errors.postcode) {
+                          setErrors({ ...errors, postcode: false });
+                        }
                       }}
                       placeholder="Enter postcode (e.g., 2000, 3000, 4000)"
                       maxLength={4}
                       className={cn(
-                        suburbs.length > 0 && "rounded-b-none border-b-0"
+                        suburbs.length > 0 && "rounded-b-none border-b-0",
+                        errors.postcode && "border-red-500 error-field"
                       )}
                     />
                     
@@ -349,6 +405,10 @@ export default function RequestService() {
                             onClick={() => {
                               setFormData({ ...formData, suburb: suburb.suburb });
                               setPostcodeSearch(""); // Clear search to hide dropdown
+                              // Clear errors when user selects suburb
+                              if (errors.suburb || errors.postcode) {
+                                setErrors({ ...errors, suburb: false, postcode: false });
+                              }
                             }}
                           >
                             <div className="font-medium">{suburb.suburb}</div>
@@ -393,14 +453,21 @@ export default function RequestService() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Label htmlFor="bookingType" className="text-sm font-medium">
+                <Label htmlFor="bookingType" className={cn("text-sm font-medium", errors.bookingType && "text-red-600")}>
                   What type of booking do you need? *
+                  {errors.bookingType && <span className="text-red-500 text-xs ml-1">Required</span>}
                 </Label>
                 <Select 
                   value={formData.bookingType} 
-                  onValueChange={(value) => setFormData({ ...formData, bookingType: value })}
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, bookingType: value });
+                    // Clear error when user selects
+                    if (errors.bookingType) {
+                      setErrors({ ...errors, bookingType: false });
+                    }
+                  }}
                 >
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger className={cn("mt-2", errors.bookingType && "border-red-500 error-field")}>
                     <SelectValue placeholder="Select booking type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -463,13 +530,20 @@ export default function RequestService() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Label htmlFor="description" className="text-sm font-medium">
+              <Label htmlFor="description" className={cn("text-sm font-medium", errors.description && "text-red-600")}>
                 Please explain what you need done *
+                {errors.description && <span className="text-red-500 text-xs ml-1">Required</span>}
               </Label>
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, description: e.target.value });
+                  // Clear error when user starts typing
+                  if (errors.description) {
+                    setErrors({ ...errors, description: false });
+                  }
+                }}
                 placeholder="Describe your service requirements in detail... 
 
 For example:
@@ -479,7 +553,7 @@ For example:
 • When would you like the work completed?
 • Any access considerations or preparation needed?"
                 rows={8}
-                className="mt-2 min-h-[200px]"
+                className={cn("mt-2 min-h-[200px]", errors.description && "border-red-500 error-field")}
               />
               <p className="text-sm text-gray-500 mt-3">
                 💡 The more details you provide, the more accurate quotes you'll receive from service providers
