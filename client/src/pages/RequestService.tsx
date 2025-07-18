@@ -59,12 +59,9 @@ export default function RequestService() {
       return response.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: "Service Request Created!",
-        description: "We're finding service providers in your area.",
-      });
+      // Show success step instead of navigating away
+      setStep(3);
       queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
-      navigate("/");
     },
     onError: (error: any) => {
       toast({
@@ -96,13 +93,11 @@ export default function RequestService() {
     }
 
     createServiceRequestMutation.mutate({
-      customerId: user.id,
       categoryId: parseInt(formData.categoryId),
       postcode: formData.postcode,
       suburb: formData.suburb,
       preferredDate: formData.preferredDate?.toISOString(),
       description: formData.description,
-      status: "open",
     });
   };
 
@@ -181,6 +176,81 @@ export default function RequestService() {
           <div className="mt-4 text-center text-sm text-gray-500">
             Showing {filteredCategories.length} of {categories.length} services
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Success step after service request submission
+  if (step === 3) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <Card className="text-center">
+            <CardContent className="pt-8 pb-8">
+              <div className="mb-6">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Thank You for Contacting Us!</h1>
+                <p className="text-lg text-gray-600 mb-6">
+                  Your service request has been successfully submitted.
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                <h2 className="text-xl font-semibold text-blue-900 mb-3">What happens next?</h2>
+                <div className="space-y-3 text-left">
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">1</div>
+                    <p className="text-blue-800">We are locating qualified professionals in your area</p>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">2</div>
+                    <p className="text-blue-800">Service providers will review your requirements</p>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">3</div>
+                    <p className="text-blue-800">They will connect with you directly to provide the best quotes</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <Button 
+                  onClick={() => navigate("/")}
+                  className="w-full"
+                  size="lg"
+                >
+                  Back to Dashboard
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setStep(1);
+                    setFormData({
+                      categoryId: "",
+                      postcode: "",
+                      suburb: "",
+                      preferredDate: undefined,
+                      description: "",
+                    });
+                    setPostcodeSearch("");
+                    setCategorySearch("");
+                  }}
+                  className="w-full"
+                >
+                  Request Another Service
+                </Button>
+              </div>
+
+              <p className="text-sm text-gray-500 mt-6">
+                Expected response time: Within 24 hours
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

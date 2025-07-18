@@ -119,7 +119,6 @@ export const serviceRequests = pgTable("service_requests", {
   id: serial("id").primaryKey(),
   customerId: varchar("customer_id").references(() => users.id).notNull(),
   categoryId: integer("category_id").references(() => serviceCategories.id).notNull(),
-  title: varchar("title").notNull(),
   description: text("description").notNull(),
   postcode: varchar("postcode").notNull(),
   suburb: varchar("suburb").notNull(),
