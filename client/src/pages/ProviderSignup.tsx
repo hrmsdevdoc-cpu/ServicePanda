@@ -13,7 +13,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { DocumentUpload } from "@/components/DocumentUpload";
-import { AddressInput } from "@/components/AddressInput";
+import AddressInputFixed from "@/components/AddressInputFixed";
 import { 
   PawPrint, 
   X, 
@@ -275,7 +275,7 @@ export default function ProviderSignup() {
               </div>
               
               <div>
-                <AddressInput
+                <AddressInputFixed
                   value={formData.address}
                   onChange={(address, parsedAddress) => 
                     setFormData(prev => ({ 
