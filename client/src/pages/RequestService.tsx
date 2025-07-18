@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -32,6 +32,21 @@ export default function RequestService() {
   const [step, setStep] = useState(1);
   const [postcodeSearch, setPostcodeSearch] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
+
+  // Handle URL parameters for direct navigation from dashboard
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const categoryId = urlParams.get('category');
+    const stepParam = urlParams.get('step');
+    
+    if (categoryId) {
+      setFormData(prev => ({ ...prev, categoryId }));
+    }
+    
+    if (stepParam === '2' && categoryId) {
+      setStep(2);
+    }
+  }, []);
 
   const { data: categories = [] } = useQuery({
     queryKey: ["/api/service-categories"],
@@ -269,9 +284,23 @@ export default function RequestService() {
             Back to Service Selection
           </Button>
           <h1 className="text-2xl font-bold text-gray-900">Service Details</h1>
-          <p className="text-gray-600 mt-1">
-            Selected: <span className="font-semibold text-primary">{selectedCategory?.name}</span>
-          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <p className="text-gray-600">
+              Selected: <span className="font-semibold text-primary">{selectedCategory?.name}</span>
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Clear URL params and go back to step 1
+                window.history.replaceState({}, '', '/request-service');
+                setStep(1);
+              }}
+              className="text-xs"
+            >
+              Change Service
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-6">

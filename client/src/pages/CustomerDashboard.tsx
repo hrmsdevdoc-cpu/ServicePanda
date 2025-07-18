@@ -196,7 +196,8 @@ export default function CustomerDashboard() {
                         return (
                           <div
                             key={category.id}
-                            className="p-4 border border-gray-200 rounded-lg hover:border-primary transition-colors cursor-pointer"
+                            className="p-4 border border-gray-200 rounded-lg hover:border-primary hover:shadow-md transition-all cursor-pointer"
+                            onClick={() => navigate(`/request-service?category=${category.id}&step=2`)}
                           >
                             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                               <IconComponent className="h-6 w-6 text-primary" />
