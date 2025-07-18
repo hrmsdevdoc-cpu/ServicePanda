@@ -152,14 +152,22 @@ export function AddressInput({
 
   // Handle suggestion selection
   const handleSuggestionSelect = async (suggestion: AddressSuggestion) => {
+    console.log('Address suggestion selected:', suggestion); // Debug log
     setLoading(true);
+    
     try {
-      // For now, use the description as the address while we get detailed info
-      onChange(suggestion.description, undefined);
+      // Immediately update the input field with the selected address
+      const selectedAddress = suggestion.description;
+      console.log('Setting address to:', selectedAddress); // Debug log
+      
+      // Call onChange to update the parent component
+      onChange(selectedAddress, undefined);
+      
+      // Hide suggestions and clear the list
       setSuggestions([]);
       setShowSuggestions(false);
       
-      // Get detailed place information for verification
+      // Get detailed place information for verification in background
       const response = await fetch(`/api/address/details?place_id=${suggestion.place_id}`);
       if (response.ok) {
         const placeDetails = await response.json();
@@ -167,26 +175,22 @@ export function AddressInput({
         
         if (placeDetails.result) {
           const parsedAddress = parseAddressComponents(placeDetails.result.address_components || []);
+          console.log('Parsed address components:', parsedAddress); // Debug log
           
           // Verify it's a valid Australian address
           const isValid = validateAustralianAddress(parsedAddress);
+          console.log('Address validation result:', isValid); // Debug log
           
-          // Update with the properly formatted address
-          onChange(placeDetails.result.formatted_address, parsedAddress);
+          // Update with the properly formatted address and parsed data
+          onChange(placeDetails.result.formatted_address || selectedAddress, parsedAddress);
           setVerified(isValid);
-          
-          if (!isValid) {
-            console.warn('Selected address is not a valid Australian address', parsedAddress);
-          }
         }
       } else {
         console.error('Error response from address details API:', response.status, response.statusText);
-        // Keep the description as the address if details fetch fails
         setVerified(false);
       }
     } catch (error) {
-      console.error('Error getting place details:', error);
-      // Keep the description as the address if there's an error
+      console.error('Error in handleSuggestionSelect:', error);
       setVerified(false);
     } finally {
       setLoading(false);
@@ -219,6 +223,13 @@ export function AddressInput({
           ref={inputRef}
           value={value}
           onChange={handleInputChange}
+          onFocus={() => {
+            console.log('Input focused, value:', value); // Debug log
+            if (value.length >= 3) {
+              setShowSuggestions(true);
+              fetchAddressSuggestions(value);
+            }
+          }}
           placeholder={placeholder}
           className={cn(
             "pl-10 pr-10",
