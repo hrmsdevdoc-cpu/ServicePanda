@@ -72,6 +72,14 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Address Input System Fix (January 18, 2025)
+- **Fixed address selection bug**: Resolved issue where clicking on Google Maps autocomplete suggestions wouldn't fill the input field
+- **Simplified click handling**: Removed complex event prevention that was interfering with click detection
+- **Google Maps API integration**: Confirmed working autocomplete and place details APIs with proper Australian address filtering
+- **IP restriction setup**: Google Maps API key restricted to development IP (34.169.121.149) for security
+- **Enhanced debugging**: Added comprehensive console logging for troubleshooting address selection workflow
+- **Component optimization**: Streamlined AddressInput component with improved event handling and suggestion dropdown behavior
+
 ### Service Request System Enhancement
 - **Fixed SQL GROUP BY error**: Resolved service request creation failure by properly specifying columns in provider matching query
 - **Simplified request creation**: Removed provider matching during initial request creation for streamlined workflow
