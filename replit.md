@@ -70,15 +70,34 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 - **Storage**: Local filesystem with 10MB file size limits
 - **Validation**: File type and size validation with error handling
 
+## Recent Changes (January 2025)
+
+### Service Request System Enhancement
+- **Fixed SQL GROUP BY error**: Resolved service request creation failure by properly specifying columns in provider matching query
+- **Simplified request creation**: Removed provider matching during initial request creation for streamlined workflow
+- **Enhanced dashboard navigation**: Service icons now navigate directly to step 2 with pre-selected service category
+- **URL parameter handling**: Added support for direct navigation with category and step parameters
+
+### Profile Management System
+- **Complete profile update functionality**: Added PUT /api/auth/user endpoint with validation
+- **Real-time cache updates**: Profile changes immediately reflect in dashboard welcome message
+- **Form state management**: Proper handling of controlled inputs with trimming and validation
+- **Toast notifications**: Success/error feedback for profile updates
+
+### Dashboard Improvements
+- **Dynamic recent activity**: Latest service requests display with status indicators and service categories
+- **Improved UX**: Service icons with hover effects and direct navigation
+- **Better form controls**: Professional input components with proper labeling
+
 ## Data Flow
 
 ### Customer Journey
 1. Customer visits landing page and views available services
 2. Authentication via Replit Auth (optional for browsing)
-3. Service selection and requirement specification
-4. Quote request submission
-5. Automatic provider matching and notification
-6. Provider responses and job assignment
+3. Service selection via dashboard icons (direct to step 2) or service request flow
+4. Service details and location specification with Australian postcode integration
+5. Request submission with confirmation page
+6. Request appears in dashboard Recent Activity area
 
 ### Provider Journey
 1. Multi-step registration with document upload
