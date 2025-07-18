@@ -81,7 +81,7 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 - **Provider login system**: Created dedicated `/provider-login` page with `/api/provider/login` endpoint
 - **Enhanced navigation**: Home page now shows "Book a Job" for customers and "Join Us" dropdown for providers
 - **Hover dropdown menu**: "Join Us" reveals "Join us as a Partner" and "Partner Login" options with descriptions
-- **Testing optimization**: Email uniqueness disabled during development for easier testing
+- **Email uniqueness enabled**: Enforces unique email addresses for providers to ensure proper authentication flow
 - **Progressive data persistence**: Provider data saves immediately after Step 1 completion
 - **Enhanced user feedback**: Success messages confirm account creation and step progression
 

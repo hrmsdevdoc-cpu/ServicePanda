@@ -37,32 +37,22 @@ export function setupProviderAuth(app: Express) {
         return res.status(400).json({ message: "All fields are required" });
       }
 
-      // For testing: allow duplicate emails by updating existing providers
+      // Check for existing provider - enforce unique emails
       const existingProvider = await storage.getServiceProviderByEmail(email);
-      let provider;
-      
       if (existingProvider) {
-        // Update existing provider for testing
-        const hashedPassword = await hashPassword(password);
-        provider = await storage.updateServiceProvider(existingProvider.id, {
-          firstName,
-          lastName,
-          password: hashedPassword,
-          mobileNumber,
-          address,
-        });
-      } else {
-        // Create new provider
-        const hashedPassword = await hashPassword(password);
-        provider = await storage.createServiceProvider({
-          email,
-          password: hashedPassword,
-          firstName,
-          lastName,
-          mobileNumber,
-          address,
-        });
+        return res.status(400).json({ message: "An account with this email already exists. Please use a different email or try logging in." });
       }
+
+      // Create new provider
+      const hashedPassword = await hashPassword(password);
+      const provider = await storage.createServiceProvider({
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        mobileNumber,
+        address,
+      });
 
       res.status(201).json({
         id: provider.id,
