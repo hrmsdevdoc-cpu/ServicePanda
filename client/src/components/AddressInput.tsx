@@ -152,21 +152,17 @@ export function AddressInput({
 
   // Handle suggestion selection
   const handleSuggestionSelect = (suggestion: AddressSuggestion) => {
-    console.log('=== Address suggestion selected ===', suggestion.description); // Debug log
+    console.log('=== Address suggestion selected ===', suggestion.description);
     
-    // Immediately update the input field with the selected address
-    const selectedAddress = suggestion.description;
-    console.log('=== Setting address to ===', selectedAddress); // Debug log
-    
-    // Call onChange to update the parent component
-    onChange(selectedAddress, undefined);
+    // Update the input field with the selected address
+    onChange(suggestion.description);
     
     // Hide suggestions and clear the list
     setSuggestions([]);
     setShowSuggestions(false);
     setVerified(false);
     
-    console.log('=== Address selection completed ==='); // Debug log
+    console.log('=== Address selection completed ===');
   };
 
   // Close suggestions when clicking outside
@@ -202,12 +198,9 @@ export function AddressInput({
               fetchAddressSuggestions(value);
             }
           }}
-          onBlur={(e) => {
-            // Only hide suggestions if not clicking on a suggestion
-            const relatedTarget = e.relatedTarget as HTMLElement;
-            if (!relatedTarget || !relatedTarget.closest('[data-suggestions-dropdown]')) {
-              setTimeout(() => setShowSuggestions(false), 150);
-            }
+          onBlur={() => {
+            // Delay hiding suggestions to allow clicks to register
+            setTimeout(() => setShowSuggestions(false), 200);
           }}
           placeholder={placeholder}
           className={cn(
@@ -247,11 +240,8 @@ export function AddressInput({
                 key={suggestion.place_id || index}
                 className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-start transition-colors cursor-pointer"
                 onMouseDown={(e) => {
-                  console.log('=== MOUSE DOWN ===', suggestion.description); // Debug log
+                  console.log('=== MOUSE DOWN ===', suggestion.description);
                   e.preventDefault(); // Prevent input blur
-                }}
-                onClick={() => {
-                  console.log('=== DIV CLICKED ===', suggestion.description); // Debug log
                   handleSuggestionSelect(suggestion);
                 }}
               >

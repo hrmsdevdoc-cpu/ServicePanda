@@ -169,7 +169,7 @@ export default function ProviderSignup() {
     
     if (!formData.mobileNumber.trim()) {
       errors.push("Mobile number is required");
-    } else if (!/^(\+61|0)[2-9]\d{8}$/.test(formData.mobileNumber.replace(/\s+/g, ''))) {
+    } else if (!/^(\+61|0)[2-9]\d{8}$/.test(formData.mobileNumber.replace(/[\s\-\(\)]/g, ''))) {
       errors.push("Please enter a valid Australian mobile number");
     }
     
@@ -320,7 +320,7 @@ export default function ProviderSignup() {
                   value={formData.mobileNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, mobileNumber: e.target.value }))}
                   placeholder="Enter your mobile number (e.g., 0412 345 678)"
-                  className={hasAttemptedSubmit && (!formData.mobileNumber.trim() || (formData.mobileNumber && !/^(\+61|0)[2-9]\d{8}$/.test(formData.mobileNumber.replace(/\s+/g, '')))) ? "border-red-300 focus:border-red-500" : ""}
+                  className={hasAttemptedSubmit && (!formData.mobileNumber.trim() || (formData.mobileNumber && !/^(\+61|0)[2-9]\d{8}$/.test(formData.mobileNumber.replace(/[\s\-\(\)]/g, '')))) ? "border-red-300 focus:border-red-500" : ""}
                 />
               </div>
               
