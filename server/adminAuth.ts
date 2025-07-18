@@ -49,12 +49,18 @@ export function setupAdminAuth(app: Express) {
 
       // For the default admin, use simple password check initially
       let passwordValid = false;
+      console.log(`Admin login attempt - username: ${username}, password: ${password}`);
+      
       if (username === "admin" && password === "ServicePanda2025!") {
+        console.log("Using default admin credentials");
         passwordValid = true;
       } else {
+        console.log("Checking against hashed password");
         // Use hash comparison for changed passwords
         passwordValid = await comparePasswords(password, admin.passwordHash);
       }
+      
+      console.log(`Password validation result: ${passwordValid}`);
 
       if (!passwordValid) {
         return res.status(401).json({ message: "Invalid credentials" });
