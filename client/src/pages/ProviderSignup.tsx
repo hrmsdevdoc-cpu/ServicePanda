@@ -536,12 +536,21 @@ export default function ProviderSignup() {
         {currentStep === 2 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">
-                <h2 className="text-2xl font-bold mb-2">Select Your Services</h2>
-                <p className="text-gray-600 font-normal">
-                  Choose the services you specialize in (you can select multiple)
-                </p>
-              </CardTitle>
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-center flex-1">
+                  <h2 className="text-2xl font-bold mb-2">Select Your Services</h2>
+                  <p className="text-gray-600 font-normal">
+                    Choose the services you specialize in (you can select multiple)
+                  </p>
+                </CardTitle>
+                <Button 
+                  onClick={handleStep2Submit}
+                  disabled={addServicesMutation.isPending || formData.selectedServices.length === 0}
+                  className="ml-4"
+                >
+                  {addServicesMutation.isPending ? "Saving..." : "Next Step"}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Validation message */}
@@ -553,7 +562,7 @@ export default function ProviderSignup() {
                 </div>
               )}
 
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                 {categories.map((category: any) => {
                   const IconComponent = serviceIcons[category.name as keyof typeof serviceIcons] || Home;
                   const isSelected = formData.selectedServices.includes(category.id);
@@ -561,7 +570,7 @@ export default function ProviderSignup() {
                   return (
                     <div
                       key={category.id}
-                      className={`relative border-2 rounded-lg p-3 text-center cursor-pointer transition-all duration-200 ${
+                      className={`relative border-2 rounded-lg p-2 text-center cursor-pointer transition-all duration-200 ${
                         isSelected 
                           ? "border-primary bg-blue-50 shadow-md" 
                           : "border-gray-300 hover:border-primary hover:shadow-sm"
@@ -575,14 +584,16 @@ export default function ProviderSignup() {
                         }));
                       }}
                     >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 ${
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1 ${
                         isSelected ? "bg-primary text-white" : "bg-blue-100"
                       }`}>
-                        <IconComponent className={`h-5 w-5 ${isSelected ? "text-white" : "text-primary"}`} />
+                        <IconComponent className={`h-4 w-4 ${isSelected ? "text-white" : "text-primary"}`} />
                       </div>
                       <h3 className="text-xs font-medium text-gray-900 leading-tight">{category.name}</h3>
                       {isSelected && (
-                        <Check className="absolute top-1 right-1 h-4 w-4 text-primary bg-white rounded-full p-0.5" />
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                          <Check className="h-3 w-3 text-white" />
+                        </div>
                       )}
                     </div>
                   );
