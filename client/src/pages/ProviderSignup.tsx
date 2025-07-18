@@ -233,7 +233,7 @@ export default function ProviderSignup() {
     };
 
     fetchRegions();
-  }, [locationData.selectedStateForLocation, states]);
+  }, [locationData.selectedStateForLocation]); // Remove states from dependencies to prevent infinite loop
 
   // Fetch suburbs when postcode changes (for custom selection)
   useEffect(() => {
