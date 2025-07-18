@@ -48,9 +48,11 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 ## Key Components
 
 ### Authentication System
-- **Provider**: Replit Auth with OAuth support (Gmail, Apple, Facebook)
-- **Sessions**: Secure session management with PostgreSQL storage
+- **Provider**: Custom username/password authentication with bcrypt hashing
+- **Sessions**: Secure session management with PostgreSQL storage using connect-pg-simple
 - **Authorization**: Role-based access control for customers, providers, and admins
+- **Frontend**: React Query-based authentication hooks with login/register/logout mutations
+- **Security**: Password hashing using Node.js crypto module with scrypt and salt
 
 ### Service Provider Onboarding
 - **Multi-step Registration**: Personal details, service selection, service areas, document upload

@@ -41,7 +41,7 @@ export default function Landing() {
   });
 
   const handleSignIn = () => {
-    window.location.href = "/api/login";
+    navigate("/auth");
   };
 
   const handleJoinProvider = () => {

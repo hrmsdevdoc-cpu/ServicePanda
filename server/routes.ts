@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { z } from "zod";
 import { insertServiceProviderSchema, insertServiceRequestSchema } from "@shared/schema";
 import multer from "multer";
@@ -9,7 +9,7 @@ import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
-  await setupAuth(app);
+  setupAuth(app);
 
   // Configure multer for file uploads
   const upload = multer({
@@ -28,17 +28,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   });
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
+
 
   // Service categories
   app.get('/api/service-categories', async (req, res) => {
@@ -54,7 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Service provider registration
   app.post('/api/service-providers', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const providerData = insertServiceProviderSchema.parse({
         ...req.body,
         userId,
@@ -82,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get service provider by user ID
   app.get('/api/service-providers/me', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const provider = await storage.getServiceProviderByUserId(userId);
       
       if (!provider) {
@@ -100,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/service-providers/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Verify ownership
       const provider = await storage.getServiceProvider(id);
@@ -120,7 +110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/service-providers/:id/services', isAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { categoryIds } = req.body;
       
       // Verify ownership
@@ -168,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/service-providers/:id/service-areas', isAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { suburbIds } = req.body;
       
       // Verify ownership
@@ -193,7 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/service-providers/:id/documents', isAuthenticated, upload.array('documents', 3), async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const files = req.files as Express.Multer.File[];
       
       // Verify ownership
@@ -233,7 +223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/service-providers/:id/documents', isAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Verify ownership
       const provider = await storage.getServiceProvider(providerId);
@@ -252,7 +242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create service request
   app.post('/api/service-requests', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const requestData = insertServiceRequestSchema.parse({
         ...req.body,
         customerId: userId,
@@ -280,7 +270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get service requests for customer
   app.get('/api/service-requests/my-requests', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const requests = await storage.getServiceRequests(userId);
       res.json(requests);
     } catch (error) {
@@ -292,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get new leads for provider
   app.get('/api/leads/new', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const provider = await storage.getServiceProviderByUserId(userId);
       
       if (!provider) {
@@ -311,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/leads/:id/accept', isAuthenticated, async (req: any, res) => {
     try {
       const leadId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Verify ownership
       const provider = await storage.getServiceProviderByUserId(userId);
@@ -341,7 +331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes
   app.get('/api/admin/providers', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // TODO: Add admin role check
       const providers = await storage.getServiceProvidersByStatus("pending");
@@ -356,7 +346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/providers/:id/approve', isAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // TODO: Add admin role check
       await storage.updateServiceProvider(providerId, { status: "approved" });
@@ -381,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Log user activity endpoint
   app.post('/api/user-activity', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { action, details, userType } = req.body;
       
       await storage.logUserActivity({
