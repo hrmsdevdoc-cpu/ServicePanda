@@ -29,7 +29,8 @@ import {
   Square,
   Settings,
   Sun,
-  TreePine
+  TreePine,
+  ChevronDown
 } from "lucide-react";
 
 const serviceIcons = {
@@ -56,6 +57,7 @@ export default function Landing() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAllServices, setShowAllServices] = useState(false);
+  const [joinDropdownOpen, setJoinDropdownOpen] = useState(false);
 
   const { data: categories = [] } = useQuery({
     queryKey: ["/api/service-categories"],
@@ -74,12 +76,17 @@ export default function Landing() {
   // Determine which categories to show
   const categoriesToShow = showAllServices ? filteredCategories : popularCategories;
 
-  const handleSignIn = () => {
+  const handleBookJob = () => {
     navigate("/auth");
   };
 
-  const handleJoinProvider = () => {
+  const handleJoinAsPartner = () => {
     navigate("/provider-signup");
+  };
+
+  const handlePartnerLogin = () => {
+    // TODO: Create provider login page
+    navigate("/provider-login");
   };
 
   return (
@@ -105,12 +112,50 @@ export default function Landing() {
               <a href="#" className="text-gray-600 hover:text-primary px-3 py-2 text-sm font-medium">
                 Support
               </a>
-              <Button onClick={handleSignIn} className="bg-primary hover:bg-primary/90">
-                Sign In
+              <Button onClick={handleBookJob} className="bg-primary hover:bg-primary/90">
+                Book a Job
               </Button>
-              <Button onClick={handleJoinProvider} className="bg-green-600 hover:bg-green-700">
-                Join as Provider
-              </Button>
+              
+              {/* Join Us Dropdown */}
+              <div 
+                className="relative"
+                onMouseEnter={() => setJoinDropdownOpen(true)}
+                onMouseLeave={() => setJoinDropdownOpen(false)}
+              >
+                <Button 
+                  variant="outline" 
+                  className="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
+                >
+                  Join Us
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+                
+                {joinDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="py-2">
+                      <button
+                        onClick={handleJoinAsPartner}
+                        className="flex w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <div>
+                          <div className="font-medium">Join us as a Partner</div>
+                          <div className="text-sm text-gray-500">Start earning by providing services</div>
+                        </div>
+                      </button>
+                      <hr className="border-gray-100" />
+                      <button
+                        onClick={handlePartnerLogin}
+                        className="flex w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <div>
+                          <div className="font-medium">Partner Login</div>
+                          <div className="text-sm text-gray-500">Access your provider dashboard</div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className="sm:hidden flex items-center">
@@ -138,11 +183,14 @@ export default function Landing() {
               <a href="#" className="block px-3 py-2 text-gray-600 hover:text-primary">
                 Support
               </a>
-              <Button onClick={handleSignIn} className="w-full mt-2">
-                Sign In
+              <Button onClick={handleBookJob} className="w-full mt-2">
+                Book a Job
               </Button>
-              <Button onClick={handleJoinProvider} className="w-full mt-2 bg-green-600 hover:bg-green-700">
-                Join as Provider
+              <Button onClick={handleJoinAsPartner} className="w-full mt-2 bg-green-600 hover:bg-green-700">
+                Join us as a Partner
+              </Button>
+              <Button onClick={handlePartnerLogin} className="w-full mt-2" variant="outline">
+                Partner Login
               </Button>
             </div>
           </div>
@@ -163,17 +211,17 @@ export default function Landing() {
             <div className="flex flex-col sm:flex-row justify-center gap-4 mb-12">
               <Button
                 size="lg"
-                onClick={handleSignIn}
+                onClick={handleBookJob}
                 className="bg-white text-primary hover:bg-gray-100 text-lg px-8 py-4"
               >
-                Find Services
+                Book a Job
               </Button>
               <Button
                 size="lg"
-                onClick={handleJoinProvider}
+                onClick={handleJoinAsPartner}
                 className="bg-green-600 hover:bg-green-700 text-lg px-8 py-4"
               >
-                Become a Provider
+                Join us as a Partner
               </Button>
             </div>
           </div>
@@ -230,7 +278,7 @@ export default function Landing() {
                 title={category.name}
                 description={category.description}
                 icon={serviceIcons[category.icon] || Home}
-                onClick={() => handleSignIn()}
+                onClick={() => handleBookJob()}
               />
             ))}
           </div>
