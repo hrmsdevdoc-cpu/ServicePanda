@@ -48,11 +48,12 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 ## Key Components
 
 ### Authentication System
-- **Provider**: Custom username/password authentication with bcrypt hashing
+- **Provider**: Custom email/password authentication with scrypt hashing and salt
 - **Sessions**: Secure session management with PostgreSQL storage using connect-pg-simple
 - **Authorization**: Role-based access control for customers, providers, and admins
 - **Frontend**: React Query-based authentication hooks with login/register/logout mutations
 - **Security**: Password hashing using Node.js crypto module with scrypt and salt
+- **Auth Flow**: Custom auth page with login/register tabs, redirects to return URL after authentication
 
 ### Service Provider Onboarding
 - **Multi-step Registration**: Personal details, service selection, service areas, document upload
@@ -72,10 +73,11 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
-### Progressive Data Persistence Implementation (January 18, 2025)
-- **Database-first approach**: Provider data now saves to database immediately after Step 1 completion
-- **Progressive data saving**: Each step saves data incrementally rather than storing locally until the end
-- **Enhanced data integrity**: Provider ID properly tracked throughout the multi-step process
+### Custom Authentication System Implementation (January 18, 2025)
+- **Switched from Replit Auth to custom auth**: Now uses email/password authentication with full control
+- **Progressive data persistence**: Provider data saves to database immediately after Step 1 completion
+- **Authentication flow**: Custom auth page with login/register tabs, proper return URL handling
+- **Enhanced data integrity**: Provider ID properly tracked throughout multi-step process
 - **Improved error handling**: Clear validation when provider data is missing between steps
 - **Better user feedback**: Success messages confirm data has been saved at each step
 - **Debugging enhancements**: Console logging for tracking data flow and troubleshooting

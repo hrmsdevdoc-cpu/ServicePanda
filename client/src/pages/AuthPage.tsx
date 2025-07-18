@@ -1,138 +1,179 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, Mail, Lock, User } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PawPrint } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+
+interface LoginData {
+  email: string;
+  password: string;
+}
+
+interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
 
 export default function AuthPage() {
-  const { user, isLoading, loginMutation, registerMutation } = useAuth();
-  const [location, navigate] = useLocation();
-  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
-  const [registerForm, setRegisterForm] = useState({
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
+  
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    const returnTo = new URLSearchParams(window.location.search).get('returnTo') || '/';
+    setLocation(returnTo);
+    return null;
+  }
+
+  const [loginData, setLoginData] = useState<LoginData>({
+    email: "",
+    password: "",
+  });
+
+  const [registerData, setRegisterData] = useState<RegisterData>({
     email: "",
     password: "",
     firstName: "",
     lastName: "",
   });
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (user && !isLoading) {
-      navigate("/");
-    }
-  }, [user, isLoading, navigate]);
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: LoginData) => {
+      const response = await apiRequest("POST", "/api/login", credentials);
+      return response.json();
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(["/api/auth/user"], user);
+      const returnTo = new URLSearchParams(window.location.search).get('returnTo') || '/';
+      toast({
+        title: "Welcome back!",
+        description: "You have been logged in successfully.",
+      });
+      setLocation(returnTo);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Login failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
-  // Show loading while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render if user is authenticated
-  if (user) {
-    return null;
-  }
+  const registerMutation = useMutation({
+    mutationFn: async (credentials: RegisterData) => {
+      const response = await apiRequest("POST", "/api/register", credentials);
+      return response.json();
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(["/api/auth/user"], user);
+      const returnTo = new URLSearchParams(window.location.search).get('returnTo') || '/';
+      toast({
+        title: "Account created!",
+        description: "Your account has been created successfully.",
+      });
+      setLocation(returnTo);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Registration failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    loginMutation.mutate(loginForm);
+    if (!loginData.email || !loginData.password) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    loginMutation.mutate(loginData);
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    registerMutation.mutate(registerForm);
+    if (!registerData.email || !registerData.password || !registerData.firstName || !registerData.lastName) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    registerMutation.mutate(registerData);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-orange-600 dark:text-orange-400">
-            ServicePanda
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Connect with trusted service providers across Australia
-          </p>
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <div className="flex items-center">
+            <PawPrint className="h-10 w-10 text-primary mr-3" />
+            <span className="text-2xl font-bold text-gray-900">ServicePanda</span>
+          </div>
         </div>
 
         <Tabs defaultValue="login" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Sign In</TabsTrigger>
-            <TabsTrigger value="register">Sign Up</TabsTrigger>
+            <TabsTrigger value="login">Login</TabsTrigger>
+            <TabsTrigger value="register">Register</TabsTrigger>
           </TabsList>
 
           <TabsContent value="login">
             <Card>
               <CardHeader>
-                <CardTitle>Welcome Back</CardTitle>
+                <CardTitle>Welcome back</CardTitle>
                 <CardDescription>
                   Sign in to your ServicePanda account
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
+                  <div>
                     <Label htmlFor="login-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="login-email"
-                        type="email"
-                        placeholder="your@email.com"
-                        className="pl-10"
-                        value={loginForm.email}
-                        onChange={(e) =>
-                          setLoginForm({ ...loginForm, email: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      value={loginData.email}
+                      onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="Enter your email"
+                      required
+                    />
                   </div>
-
-                  <div className="space-y-2">
+                  <div>
                     <Label htmlFor="login-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="login-password"
-                        type="password"
-                        placeholder="••••••••"
-                        className="pl-10"
-                        value={loginForm.password}
-                        onChange={(e) =>
-                          setLoginForm({ ...loginForm, password: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      value={loginData.password}
+                      onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Enter your password"
+                      required
+                    />
                   </div>
-
-                  {loginMutation.error && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        {loginMutation.error.message}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Button
-                    type="submit"
+                  <Button 
+                    type="submit" 
                     className="w-full"
                     disabled={loginMutation.isPending}
                   >
-                    {loginMutation.isPending ? "Signing In..." : "Sign In"}
+                    {loginMutation.isPending ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
               </CardContent>
@@ -142,120 +183,69 @@ export default function AuthPage() {
           <TabsContent value="register">
             <Card>
               <CardHeader>
-                <CardTitle>Create Account</CardTitle>
+                <CardTitle>Create account</CardTitle>
                 <CardDescription>
-                  Join ServicePanda to find trusted service providers
+                  Join the ServicePanda community
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                    <div>
                       <Label htmlFor="register-firstName">First Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="register-firstName"
-                          placeholder="John"
-                          className="pl-10"
-                          value={registerForm.firstName}
-                          onChange={(e) =>
-                            setRegisterForm({
-                              ...registerForm,
-                              firstName: e.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </div>
+                      <Input
+                        id="register-firstName"
+                        value={registerData.firstName}
+                        onChange={(e) => setRegisterData(prev => ({ ...prev, firstName: e.target.value }))}
+                        placeholder="First name"
+                        required
+                      />
                     </div>
-
-                    <div className="space-y-2">
+                    <div>
                       <Label htmlFor="register-lastName">Last Name</Label>
                       <Input
                         id="register-lastName"
-                        placeholder="Doe"
-                        value={registerForm.lastName}
-                        onChange={(e) =>
-                          setRegisterForm({
-                            ...registerForm,
-                            lastName: e.target.value,
-                          })
-                        }
+                        value={registerData.lastName}
+                        onChange={(e) => setRegisterData(prev => ({ ...prev, lastName: e.target.value }))}
+                        placeholder="Last name"
                         required
                       />
                     </div>
                   </div>
-
-                  <div className="space-y-2">
+                  <div>
                     <Label htmlFor="register-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="register-email"
-                        type="email"
-                        placeholder="your@email.com"
-                        className="pl-10"
-                        value={registerForm.email}
-                        onChange={(e) =>
-                          setRegisterForm({
-                            ...registerForm,
-                            email: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
+                    <Input
+                      id="register-email"
+                      type="email"
+                      value={registerData.email}
+                      onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="Enter your email"
+                      required
+                    />
                   </div>
-
-                  <div className="space-y-2">
+                  <div>
                     <Label htmlFor="register-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="register-password"
-                        type="password"
-                        placeholder="••••••••"
-                        className="pl-10"
-                        value={registerForm.password}
-                        onChange={(e) =>
-                          setRegisterForm({
-                            ...registerForm,
-                            password: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
+                    <Input
+                      id="register-password"
+                      type="password"
+                      value={registerData.password}
+                      onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Create a password"
+                      required
+                    />
                   </div>
-
-                  {registerMutation.error && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        {registerMutation.error.message}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Button
-                    type="submit"
+                  <Button 
+                    type="submit" 
                     className="w-full"
                     disabled={registerMutation.isPending}
                   >
-                    {registerMutation.isPending ? "Creating Account..." : "Create Account"}
+                    {registerMutation.isPending ? "Creating account..." : "Create Account"}
                   </Button>
                 </form>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            By signing up, you agree to our Terms of Service and Privacy Policy
-          </p>
-        </div>
       </div>
     </div>
   );
