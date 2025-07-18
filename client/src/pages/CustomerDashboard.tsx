@@ -32,7 +32,7 @@ const serviceIcons = {
 };
 
 export default function CustomerDashboard() {
-  const { user } = useAuth();
+  const { user, logoutMutation } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
 
   const { data: categories = [] } = useQuery({
@@ -44,7 +44,7 @@ export default function CustomerDashboard() {
   });
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    logoutMutation.mutate();
   };
 
   return (
