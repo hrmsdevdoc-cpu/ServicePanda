@@ -246,15 +246,13 @@ export function AddressInput({
               <div
                 key={suggestion.place_id || index}
                 className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-start transition-colors cursor-pointer"
-                onClick={(e) => {
-                  console.log('=== DIV CLICKED ===', suggestion.description); // Debug log
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleSuggestionSelect(suggestion);
-                }}
                 onMouseDown={(e) => {
                   console.log('=== MOUSE DOWN ===', suggestion.description); // Debug log
-                  e.preventDefault();
+                  e.preventDefault(); // Prevent input blur
+                }}
+                onClick={() => {
+                  console.log('=== DIV CLICKED ===', suggestion.description); // Debug log
+                  handleSuggestionSelect(suggestion);
                 }}
               >
                 <MapPin className="h-4 w-4 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />

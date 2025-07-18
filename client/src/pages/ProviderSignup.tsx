@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,11 @@ export default function ProviderSignup() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  
+  // Reset validation state when moving between steps
+  useEffect(() => {
+    setHasAttemptedSubmit(false);
+  }, [currentStep]);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
