@@ -26,6 +26,7 @@ export default function RequestService() {
     postcode: "",
     suburb: "",
     preferredDate: undefined as Date | undefined,
+    bookingType: "",
     description: "",
   });
   
@@ -76,7 +77,8 @@ export default function RequestService() {
     onSuccess: (data) => {
       // Show success step instead of navigating away
       setStep(3);
-      queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
+      // Invalidate the correct query key that the dashboard uses
+      queryClient.invalidateQueries({ queryKey: ["/api/service-requests/my-requests"] });
     },
     onError: (error: any) => {
       toast({
@@ -98,7 +100,7 @@ export default function RequestService() {
       return;
     }
 
-    if (!formData.categoryId || !formData.postcode || !formData.suburb || !formData.description) {
+    if (!formData.categoryId || !formData.postcode || !formData.suburb || !formData.description || !formData.bookingType) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -112,6 +114,7 @@ export default function RequestService() {
       postcode: formData.postcode,
       suburb: formData.suburb,
       preferredDate: formData.preferredDate?.toISOString(),
+      bookingType: formData.bookingType,
       description: formData.description,
     });
   };
@@ -250,6 +253,7 @@ export default function RequestService() {
                       postcode: "",
                       suburb: "",
                       preferredDate: undefined,
+                      bookingType: "",
                       description: "",
                     });
                     setPostcodeSearch("");
@@ -377,6 +381,35 @@ export default function RequestService() {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Booking Type Selection */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-lg">
+                  <FileText className="h-4 w-4 mr-2 text-primary" />
+                  Type of Booking
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Label htmlFor="bookingType" className="text-sm font-medium">
+                  What type of booking do you need? *
+                </Label>
+                <Select 
+                  value={formData.bookingType} 
+                  onValueChange={(value) => setFormData({ ...formData, bookingType: value })}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select booking type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="one-time">One-time Service</SelectItem>
+                    <SelectItem value="regular">Regular/Recurring Service</SelectItem>
+                    <SelectItem value="emergency">Emergency Service</SelectItem>
+                    <SelectItem value="quote-only">Quote Only</SelectItem>
+                  </SelectContent>
+                </Select>
               </CardContent>
             </Card>
 

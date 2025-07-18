@@ -294,8 +294,15 @@ export default function CustomerDashboard() {
             
             {activeTab === "bookings" && (
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>My Bookings</CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/service-requests/my-requests"] })}
+                  >
+                    Refresh
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   {myRequests.length === 0 ? (
@@ -310,18 +317,62 @@ export default function CustomerDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {myRequests.map((request: any) => (
-                        <div key={request.id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold">{request.title}</h3>
-                            <span className="text-sm text-gray-500">{request.status}</span>
+                      {myRequests.map((request: any) => {
+                        const category = categories.find((cat: any) => cat.id === request.categoryId);
+                        const statusColor = {
+                          'active': 'bg-blue-500',
+                          'assigned': 'bg-orange-500', 
+                          'completed': 'bg-green-500',
+                          'cancelled': 'bg-red-500'
+                        }[request.status] || 'bg-gray-500';
+                        
+                        return (
+                          <div key={request.id} className="border rounded-lg p-4">
+                            <div className="flex justify-between items-start mb-3">
+                              <h3 className="font-semibold">{category?.name || 'Service Request'}</h3>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 ${statusColor} rounded-full`}></div>
+                                <span className="text-sm text-gray-500 capitalize">{request.status}</span>
+                              </div>
+                            </div>
+                            
+                            {/* Booking Details */}
+                            <div className="space-y-2 mb-3">
+                              {request.bookingType && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                    {request.bookingType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
+                                <div>
+                                  <span className="font-medium">Request Date:</span><br />
+                                  {new Date(request.createdAt).toLocaleDateString()}
+                                </div>
+                                {request.preferredDate && (
+                                  <div>
+                                    <span className="font-medium">Preferred Date:</span><br />
+                                    {new Date(request.preferredDate).toLocaleDateString()}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {request.scheduledDate && (
+                                <div className="text-xs text-gray-600">
+                                  <span className="font-medium">Scheduled Date:</span> {new Date(request.scheduledDate).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
+                            
+                            <p className="text-sm text-gray-600 mb-2">{request.description}</p>
+                            <div className="text-sm text-gray-500">
+                              <span>{request.suburb}, {request.postcode}</span>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-600">{request.description}</p>
-                          <div className="mt-2 text-sm text-gray-500">
-                            {request.suburb}, {request.postcode}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>

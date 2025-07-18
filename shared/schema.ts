@@ -125,6 +125,9 @@ export const serviceRequests = pgTable("service_requests", {
   propertyType: varchar("property_type"),
   urgency: varchar("urgency"),
   budget: decimal("budget", { precision: 10, scale: 2 }),
+  preferredDate: timestamp("preferred_date"), // When customer wants the job done
+  bookingType: varchar("booking_type"), // Type of booking requested
+  scheduledDate: timestamp("scheduled_date"), // Actual date job is scheduled for
   status: varchar("status").default("active"), // active, assigned, completed, cancelled
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
