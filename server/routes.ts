@@ -239,6 +239,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Address verification endpoints
+  app.get('/api/address/autocomplete', async (req, res) => {
+    try {
+      const { input, types = 'address', components = 'country:AU' } = req.query;
+      
+      if (!input || typeof input !== 'string') {
+        return res.status(400).json({ error: 'Input parameter is required' });
+      }
+
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: 'Google Maps API key not configured' });
+      }
+
+      const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
+      url.searchParams.append('input', input);
+      url.searchParams.append('types', types as string);
+      url.searchParams.append('components', components as string);
+      url.searchParams.append('key', apiKey);
+
+      const response = await fetch(url.toString());
+      const data = await response.json();
+
+      if (data.status === 'OK') {
+        res.json(data);
+      } else {
+        console.error('Google Places API error:', data);
+        res.status(500).json({ error: 'Failed to fetch address suggestions' });
+      }
+    } catch (error) {
+      console.error('Address autocomplete error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/address/details', async (req, res) => {
+    try {
+      const { place_id } = req.query;
+      
+      if (!place_id || typeof place_id !== 'string') {
+        return res.status(400).json({ error: 'place_id parameter is required' });
+      }
+
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: 'Google Maps API key not configured' });
+      }
+
+      const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
+      url.searchParams.append('place_id', place_id);
+      url.searchParams.append('fields', 'formatted_address,address_components,geometry');
+      url.searchParams.append('key', apiKey);
+
+      const response = await fetch(url.toString());
+      const data = await response.json();
+
+      if (data.status === 'OK') {
+        res.json(data);
+      } else {
+        console.error('Google Places Details API error:', data);
+        res.status(500).json({ error: 'Failed to fetch address details' });
+      }
+    } catch (error) {
+      console.error('Address details error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Create service request
   app.post('/api/service-requests', isAuthenticated, async (req: any, res) => {
     try {

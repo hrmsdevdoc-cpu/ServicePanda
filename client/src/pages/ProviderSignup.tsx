@@ -13,6 +13,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { DocumentUpload } from "@/components/DocumentUpload";
+import { AddressInput } from "@/components/AddressInput";
 import { 
   PawPrint, 
   X, 
@@ -49,6 +50,7 @@ export default function ProviderSignup() {
     email: "",
     mobileNumber: "",
     address: "",
+    parsedAddress: null as any,
     selectedServices: [] as number[],
     selectedState: "",
     postcode: "",
@@ -273,13 +275,20 @@ export default function ProviderSignup() {
               </div>
               
               <div>
-                <Label htmlFor="address">Address</Label>
-                <Textarea
-                  id="address"
+                <AddressInput
                   value={formData.address}
-                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="Enter your full address"
-                  rows={3}
+                  onChange={(address, parsedAddress) => 
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      address, 
+                      parsedAddress,
+                      // Auto-populate postcode if available
+                      postcode: parsedAddress?.postcode || prev.postcode
+                    }))
+                  }
+                  label="Business Address"
+                  placeholder="Start typing your business address..."
+                  required
                 />
               </div>
               
