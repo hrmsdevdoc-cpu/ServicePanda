@@ -230,6 +230,13 @@ export function AddressInput({
               fetchAddressSuggestions(value);
             }
           }}
+          onBlur={(e) => {
+            // Only hide suggestions if not clicking on a suggestion
+            const relatedTarget = e.relatedTarget as HTMLElement;
+            if (!relatedTarget || !relatedTarget.closest('[data-suggestions-dropdown]')) {
+              setTimeout(() => setShowSuggestions(false), 150);
+            }
+          }}
           placeholder={placeholder}
           className={cn(
             "pl-10 pr-10",
@@ -253,7 +260,10 @@ export function AddressInput({
 
       {/* Address suggestions dropdown */}
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg">
+        <div 
+          data-suggestions-dropdown
+          className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg"
+        >
           {suggestions.map((suggestion, index) => {
             // Use structured formatting if available, otherwise fall back to description
             const mainText = suggestion.structured_formatting?.main_text || suggestion.description?.split(', ')[0] || '';
@@ -265,7 +275,15 @@ export function AddressInput({
                 key={suggestion.place_id || index}
                 type="button"
                 className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-start transition-colors"
-                onClick={() => handleSuggestionSelect(suggestion)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Suggestion clicked:', suggestion.description); // Debug log
+                  handleSuggestionSelect(suggestion);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault(); // Prevent input blur before click
+                }}
               >
                 <MapPin className="h-4 w-4 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
