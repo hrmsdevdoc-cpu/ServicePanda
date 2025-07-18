@@ -44,6 +44,7 @@ export default function ProviderSignup() {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -145,6 +146,9 @@ export default function ProviderSignup() {
       window.location.href = "/api/login";
       return;
     }
+
+    // Mark that form submission was attempted
+    setHasAttemptedSubmit(true);
 
     // Validate required fields
     const errors = [];
@@ -275,7 +279,7 @@ export default function ProviderSignup() {
                     value={formData.firstName}
                     onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
                     placeholder="Enter your first name"
-                    className={!formData.firstName.trim() ? "border-red-300 focus:border-red-500" : ""}
+                    className={hasAttemptedSubmit && !formData.firstName.trim() ? "border-red-300 focus:border-red-500" : ""}
                   />
                 </div>
                 <div>
@@ -285,7 +289,7 @@ export default function ProviderSignup() {
                     value={formData.lastName}
                     onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
                     placeholder="Enter your last name"
-                    className={!formData.lastName.trim() ? "border-red-300 focus:border-red-500" : ""}
+                    className={hasAttemptedSubmit && !formData.lastName.trim() ? "border-red-300 focus:border-red-500" : ""}
                   />
                 </div>
               </div>
@@ -298,7 +302,7 @@ export default function ProviderSignup() {
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="Enter your email address"
-                  className={(!formData.email.trim() || (formData.email && !/\S+@\S+\.\S+/.test(formData.email))) ? "border-red-300 focus:border-red-500" : ""}
+                  className={hasAttemptedSubmit && (!formData.email.trim() || (formData.email && !/\S+@\S+\.\S+/.test(formData.email))) ? "border-red-300 focus:border-red-500" : ""}
                 />
               </div>
               
@@ -310,7 +314,7 @@ export default function ProviderSignup() {
                   value={formData.mobileNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, mobileNumber: e.target.value }))}
                   placeholder="Enter your mobile number (e.g., 0412 345 678)"
-                  className={(!formData.mobileNumber.trim() || (formData.mobileNumber && !/^(\+61|0)[2-9]\d{8}$/.test(formData.mobileNumber.replace(/\s+/g, '')))) ? "border-red-300 focus:border-red-500" : ""}
+                  className={hasAttemptedSubmit && (!formData.mobileNumber.trim() || (formData.mobileNumber && !/^(\+61|0)[2-9]\d{8}$/.test(formData.mobileNumber.replace(/\s+/g, '')))) ? "border-red-300 focus:border-red-500" : ""}
                 />
               </div>
               
@@ -329,7 +333,7 @@ export default function ProviderSignup() {
                   label="Business Address *"
                   placeholder="Start typing your business address..."
                   required
-                  error={!formData.address.trim() ? "Address is required" : ""}
+                  error={hasAttemptedSubmit && !formData.address.trim() ? "Address is required" : ""}
                 />
               </div>
               
