@@ -57,6 +57,7 @@ export default function ProviderSignup() {
     firstName: "",
     lastName: "",
     email: "",
+    password: "",
     mobileNumber: "",
     address: "",
     parsedAddress: null as any,
@@ -114,24 +115,43 @@ export default function ProviderSignup() {
     return () => clearTimeout(timeoutId);
   }, [locationData.postcodeForLocation]);
 
-  const createProviderMutation = useMutation({
+  const registerAndCreateProviderMutation = useMutation({
     mutationFn: async (data: any) => {
-      console.log('Creating provider with data:', data);
-      const response = await apiRequest("POST", "/api/service-providers", data);
-      return response.json();
+      console.log('Registering user and creating provider with data:', data);
+      // First register the user
+      const registerResponse = await apiRequest("POST", "/api/register", {
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+      });
+      const user = await registerResponse.json();
+      
+      // Then create the provider record
+      const providerResponse = await apiRequest("POST", "/api/service-providers", {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        mobileNumber: data.mobileNumber,
+        address: data.address,
+      });
+      const provider = await providerResponse.json();
+      
+      return { user, provider };
     },
     onSuccess: (data) => {
-      console.log('Provider created successfully:', data);
-      setProviderId(data.id);
+      console.log('User registered and provider created successfully:', data);
+      queryClient.setQueryData(["/api/auth/user"], data.user);
+      setProviderId(data.provider.id);
       setCurrentStep(2);
       toast({
-        title: "Step 1 Complete!",
-        description: "Your basic information has been saved. Now select your services.",
+        title: "Account Created!",
+        description: "Welcome to ServicePanda! Now select the services you provide.",
         variant: "default",
       });
     },
     onError: (error) => {
-      console.error('Error creating provider:', error);
+      console.error('Error registering user or creating provider:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -238,6 +258,12 @@ export default function ProviderSignup() {
     if (!formData.address.trim()) {
       errors.push("Business address is required");
     }
+    
+    if (!formData.password.trim()) {
+      errors.push("Password is required");
+    } else if (formData.password.trim().length < 6) {
+      errors.push("Password must be at least 6 characters");
+    }
 
     if (errors.length > 0) {
       toast({
@@ -248,21 +274,18 @@ export default function ProviderSignup() {
       return;
     }
 
-    // Check authentication only after validation passes
-    if (!isAuthenticated && !isLoading) {
-      console.log('User not authenticated, redirecting to auth page...');
-      console.log('Current URL:', window.location.pathname + window.location.search);
-      // Redirect to auth page with return URL parameter
-      const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-      console.log('Redirecting to auth with returnTo:', returnUrl);
-      navigate("/auth?returnTo=" + returnUrl);
+    // Only check authentication for Step 2 and beyond
+    if (currentStep > 1 && !isAuthenticated && !isLoading) {
+      console.log('User not authenticated for Step 2+, redirecting to auth page...');
+      navigate("/auth?returnTo=/provider-signup");
       return;
     }
 
-    createProviderMutation.mutate({
+    registerAndCreateProviderMutation.mutate({
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       email: formData.email.trim(),
+      password: formData.password.trim(),
       mobileNumber: formData.mobileNumber.trim(),
       address: formData.address.trim(),
     });
@@ -416,6 +439,18 @@ export default function ProviderSignup() {
               </div>
               
               <div>
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Create a secure password (min 6 characters)"
+                  className={hasAttemptedSubmit && (!formData.password.trim() || formData.password.trim().length < 6) ? "border-red-300 focus:border-red-500" : ""}
+                />
+              </div>
+              
+              <div>
                 <Label htmlFor="mobile">Mobile Number *</Label>
                 <Input
                   id="mobile"
@@ -449,9 +484,9 @@ export default function ProviderSignup() {
               <div className="flex justify-end">
                 <Button 
                   onClick={handleStep1Submit}
-                  disabled={createProviderMutation.isPending}
+                  disabled={registerAndCreateProviderMutation.isPending}
                 >
-                  {createProviderMutation.isPending ? "Creating..." : "Next Step"}
+                  {registerAndCreateProviderMutation.isPending ? "Creating Account..." : "Create Account & Continue"}
                 </Button>
               </div>
             </CardContent>
