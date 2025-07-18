@@ -118,43 +118,56 @@ export default function ProviderSignup() {
   const registerAndCreateProviderMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('Registering user and creating provider with data:', data);
-      // First register the user
-      const registerResponse = await apiRequest("POST", "/api/register", {
-        email: data.email,
-        password: data.password,
-        firstName: data.firstName,
-        lastName: data.lastName,
-      });
-      const user = await registerResponse.json();
-      
-      // Then create the provider record
-      const providerResponse = await apiRequest("POST", "/api/service-providers", {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        mobileNumber: data.mobileNumber,
-        address: data.address,
-      });
-      const provider = await providerResponse.json();
-      
-      return { user, provider };
+      try {
+        // First register the user
+        const registerResponse = await apiRequest("POST", "/api/register", {
+          email: data.email,
+          password: data.password,
+          firstName: data.firstName,
+          lastName: data.lastName,
+        });
+        
+        const user = await registerResponse.json();
+        console.log('User registered successfully:', user);
+        
+        // Then create the provider record
+        const providerResponse = await apiRequest("POST", "/api/service-providers", {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          mobileNumber: data.mobileNumber,
+          address: data.address,
+        });
+        
+        const provider = await providerResponse.json();
+        console.log('Provider created successfully:', provider);
+        
+        return { user, provider };
+      } catch (error) {
+        console.error('Error in registerAndCreateProviderMutation:', error);
+        throw error; // Re-throw to be caught by onError
+      }
     },
     onSuccess: (data) => {
       console.log('User registered and provider created successfully:', data);
-      queryClient.setQueryData(["/api/auth/user"], data.user);
-      setProviderId(data.provider.id);
-      setCurrentStep(2);
-      toast({
-        title: "Account Created!",
-        description: "Welcome to ServicePanda! Now select the services you provide.",
-        variant: "default",
-      });
+      try {
+        queryClient.setQueryData(["/api/auth/user"], data.user);
+        setProviderId(data.provider.id);
+        setCurrentStep(2);
+        toast({
+          title: "Account Created!",
+          description: "Welcome to ServicePanda! Now select the services you provide.",
+          variant: "default",
+        });
+      } catch (error) {
+        console.error('Error in onSuccess:', error);
+      }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error registering user or creating provider:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to create account. Please try again.",
         variant: "destructive",
       });
     },
