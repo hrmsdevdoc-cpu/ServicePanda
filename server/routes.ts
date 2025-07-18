@@ -250,13 +250,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const request = await storage.createServiceRequest(requestData);
       
-      // Automatically create leads for providers in the area
-      const leads = await storage.createLeadsForRequest(
-        request.id,
-        request.postcode,
-        request.categoryId
-      );
-      
       // Log user activity
       await storage.logUserActivity({
         userId,
@@ -264,7 +257,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: "service_request_created",
         details: { 
           requestId: request.id,
-          providersMatched: leads.length,
           postcode: request.postcode,
           categoryId: request.categoryId
         },
@@ -273,9 +265,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       res.json({ 
-        request, 
-        providersMatched: leads.length,
-        message: `Service request created! ${leads.length} providers found in your area.`
+        request,
+        message: "Service request created successfully! We'll be in touch soon."
       });
     } catch (error) {
       console.error("Error creating service request:", error);
