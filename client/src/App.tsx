@@ -15,24 +15,31 @@ import AdminDashboard from "@/pages/AdminDashboard";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <Switch>
-      {isLoading ? (
-        <Route path="/" component={() => <div className="min-h-screen flex items-center justify-center">Loading...</div>} />
-      ) : !isAuthenticated ? (
-        <>
-          <Route path="/" component={Landing} />
-          <Route path="/auth" component={AuthPage} />
-          <Route path="/provider-signup" component={ProviderSignup} />
-        </>
+      {/* Public routes - available to everyone */}
+      <Route path="/auth" component={AuthPage} />
+      <Route path="/provider-signup" component={ProviderSignup} />
+      
+      {/* Conditional routes based on authentication */}
+      {!isAuthenticated ? (
+        <Route path="/" component={Landing} />
       ) : (
         <>
           <Route path="/" component={CustomerDashboard} />
-          <Route path="/provider-signup" component={ProviderSignup} />
           <Route path="/provider-dashboard" component={ProviderDashboard} />
           <Route path="/admin" component={AdminDashboard} />
         </>
       )}
+      
       <Route component={NotFound} />
     </Switch>
   );
