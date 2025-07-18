@@ -35,22 +35,24 @@ function Router() {
       <Route path="/provider-login" component={ProviderLogin} />
       <Route path="/admin-login" component={AdminLogin} />
       
-      {/* Conditional routes based on authentication */}
+      {/* Provider routes - accessible with provider authentication */}
+      <Route path="/provider-dashboard" component={ProviderDashboard} />
+      
+      {/* Admin routes - accessible with admin authentication */}
+      {localStorage.getItem('adminToken') && (
+        <>
+          <Route path="/admin" component={SimpleAdminDashboard} />
+        </>
+      )}
+      
+      {/* Customer routes based on authentication */}
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
         <>
           <Route path="/" component={CustomerDashboard} />
           <Route path="/request-service" component={RequestService} />
-          <Route path="/provider-dashboard" component={ProviderDashboard} />
           <Route path="/admin" component={AdminDashboard} />
-        </>
-      )}
-      
-      {/* Admin routes - accessible regardless of customer auth */}
-      {localStorage.getItem('adminToken') && (
-        <>
-          <Route path="/admin" component={SimpleAdminDashboard} />
         </>
       )}
       
