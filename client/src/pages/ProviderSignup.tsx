@@ -25,17 +25,20 @@ import {
   Truck, 
   Wrench, 
   Zap,
-  Check
+  Check,
+  Droplet
 } from "lucide-react";
 
 const serviceIcons = {
   "Domestic Cleaning": Home,
   "Bond Cleaning": Key,
+  "End of Lease Cleaning": Key,
   "Carpet Cleaning": Sofa,
   "Pest Control": Bug,
   "Gardening": Sprout,
   "Removals": Truck,
   "Handyman": Wrench,
+  "Plumbing": Droplet,
   "Electrician": Zap,
 };
 
@@ -202,10 +205,13 @@ export default function ProviderSignup() {
   };
 
   const handleStep2Submit = () => {
+    // Mark that form submission was attempted
+    setHasAttemptedSubmit(true);
+
     if (formData.selectedServices.length === 0) {
       toast({
-        title: "Error",
-        description: "Please select at least one service",
+        title: "Please select your services",
+        description: "You must select at least one service you specialize in",
         variant: "destructive",
       });
       return;
@@ -367,6 +373,15 @@ export default function ProviderSignup() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Validation message */}
+              {hasAttemptedSubmit && formData.selectedServices.length === 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                  <p className="text-red-600 text-sm font-medium">
+                    Please select at least one service you specialize in
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 {categories.map((category: any) => {
                   const IconComponent = serviceIcons[category.name as keyof typeof serviceIcons] || Home;
@@ -375,10 +390,10 @@ export default function ProviderSignup() {
                   return (
                     <div
                       key={category.id}
-                      className={`border-2 rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                      className={`border-2 rounded-xl p-6 text-center cursor-pointer transition-all duration-200 ${
                         isSelected 
-                          ? "border-primary bg-blue-50" 
-                          : "border-gray-300 hover:border-primary"
+                          ? "border-primary bg-blue-50 shadow-md scale-105" 
+                          : "border-gray-300 hover:border-primary hover:shadow-sm"
                       }`}
                       onClick={() => {
                         setFormData(prev => ({
@@ -389,14 +404,40 @@ export default function ProviderSignup() {
                         }));
                       }}
                     >
-                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <IconComponent className="h-8 w-8 text-primary" />
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                        isSelected ? "bg-primary text-white" : "bg-blue-100"
+                      }`}>
+                        <IconComponent className={`h-8 w-8 ${isSelected ? "text-white" : "text-primary"}`} />
                       </div>
                       <h3 className="font-semibold text-gray-900">{category.name}</h3>
+                      {isSelected && (
+                        <Check className="h-5 w-5 text-primary mx-auto mt-2" />
+                      )}
                     </div>
                   );
                 })}
               </div>
+
+              {/* Selected services summary */}
+              {formData.selectedServices.length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-green-700 text-sm font-medium mb-2">
+                    Selected Services ({formData.selectedServices.length}):
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {categories
+                      .filter((cat: any) => formData.selectedServices.includes(cat.id))
+                      .map((cat: any) => (
+                        <span 
+                          key={cat.id}
+                          className="bg-primary text-white px-3 py-1 rounded-full text-xs font-medium"
+                        >
+                          {cat.name}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              )}
               
               <div className="flex justify-between">
                 <Button 
