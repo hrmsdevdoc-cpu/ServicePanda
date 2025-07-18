@@ -9,6 +9,7 @@ import Landing from "@/pages/Landing";
 import AuthPage from "@/pages/AuthPage";
 import CustomerDashboard from "@/pages/CustomerDashboard";
 import ProviderSignup from "@/pages/ProviderSignup";
+import ProviderLogin from "@/pages/ProviderLogin";
 import ProviderDashboard from "@/pages/ProviderDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import RequestService from "@/pages/RequestService";
@@ -29,6 +30,7 @@ function Router() {
       {/* Public routes - available to everyone */}
       <Route path="/auth" component={AuthPage} />
       <Route path="/provider-signup" component={ProviderSignup} />
+      <Route path="/provider-login" component={ProviderLogin} />
       
       {/* Conditional routes based on authentication */}
       {!isAuthenticated ? (

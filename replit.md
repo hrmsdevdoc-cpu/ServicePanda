@@ -78,6 +78,9 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 - **No more confusion**: Clear distinction between customer journey (request services) and provider journey (get leads)
 - **Database schema fixed**: Added password column to service_providers table, removed user_id dependency
 - **Working provider registration**: Successfully tested Step 1 → creates provider account → proceeds to Step 2
+- **Provider login system**: Created dedicated `/provider-login` page with `/api/provider/login` endpoint
+- **Enhanced navigation**: Home page now shows "Book a Job" for customers and "Join Us" dropdown for providers
+- **Hover dropdown menu**: "Join Us" reveals "Join us as a Partner" and "Partner Login" options with descriptions
 - **Testing optimization**: Email uniqueness disabled during development for easier testing
 - **Progressive data persistence**: Provider data saves immediately after Step 1 completion
 - **Enhanced user feedback**: Success messages confirm account creation and step progression
