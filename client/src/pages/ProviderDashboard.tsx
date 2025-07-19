@@ -963,15 +963,9 @@ export default function ProviderDashboard() {
                       <div className="grid gap-4">
                         {/* Group documents by type and show latest */}
                         {['license', 'police_check', 'insurance'].map(docType => {
-                          const filteredDocs = existingDocuments.filter((doc: any) => doc.documentType === docType);
-                          const document = filteredDocs
+                          const document = existingDocuments
+                            .filter((doc: any) => doc.documentType === docType)
                             .sort((a: any, b: any) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
-                          
-                          // Debug logging
-                          if (docType === 'insurance') {
-                            console.log('Insurance documents:', filteredDocs.map(d => ({ fileName: d.fileName, uploadedAt: d.uploadedAt, mimeType: d.mimeType })));
-                            console.log('Selected insurance document:', document ? { fileName: document.fileName, uploadedAt: document.uploadedAt, mimeType: document.mimeType } : 'none');
-                          }
                           
                           const docTypeLabels = {
                             license: 'License Document',
@@ -1293,10 +1287,10 @@ export default function ProviderDashboard() {
               <div className="w-full h-[70vh] border rounded bg-white overflow-auto">
                 {/* Check file extension to determine display method */}
                 {viewingDocument.fileName.toLowerCase().endsWith('.pdf') ? (
-                  <embed
-                    src={`/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}/${provider.id}#toolbar=1&navpanes=1&scrollbar=1`}
-                    className="w-full h-full min-h-[70vh]"
-                    type="application/pdf"
+                  <iframe
+                    src={`/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}/${provider.id}`}
+                    className="w-full h-full min-h-[70vh] border-0"
+                    title={viewingDocument.fileName}
                   />
                 ) : (
                   <img
