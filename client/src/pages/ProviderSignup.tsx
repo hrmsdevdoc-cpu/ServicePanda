@@ -96,25 +96,46 @@ export default function ProviderSignup() {
               if (services && services.length > 0) {
                 targetStep = 3;
                 
-                // Check if service areas are set (Step 3)
+                // Check if service areas are set (Step 3) - check both old and new format
                 const areasResponse = await fetch(`/api/provider/${provider.id}/service-areas`, {
                   credentials: 'include',
                   headers: {
                     'X-Provider-Id': provider.id.toString()
                   }
                 });
+                
+                const locationAreasResponse = await fetch(`/api/provider/${provider.id}/location-service-areas`, {
+                  credentials: 'include',
+                  headers: {
+                    'X-Provider-Id': provider.id.toString()
+                  }
+                });
+                
+                let hasServiceAreas = false;
+                
                 if (areasResponse.ok) {
                   const areas = await areasResponse.json();
                   if (areas && areas.length > 0) {
-                    targetStep = 4; // Documents step
-                    
-                    // Check if documents are uploaded (Step 4)
-                    if (provider.documentsUploaded) {
-                      // All steps complete, redirect to dashboard
-                      navigate('/provider-dashboard');
-                      setIsCheckingProgress(false);
-                      return;
-                    }
+                    hasServiceAreas = true;
+                  }
+                }
+                
+                if (locationAreasResponse.ok) {
+                  const locationAreas = await locationAreasResponse.json();
+                  if (locationAreas && locationAreas.length > 0) {
+                    hasServiceAreas = true;
+                  }
+                }
+                
+                if (hasServiceAreas) {
+                  targetStep = 4; // Documents step
+                  
+                  // Check if documents are uploaded (Step 4)
+                  if (provider.documentsUploaded) {
+                    // All steps complete, redirect to dashboard
+                    navigate('/provider-dashboard');
+                    setIsCheckingProgress(false);
+                    return;
                   }
                 }
               }
@@ -869,92 +890,110 @@ export default function ProviderSignup() {
                 </p>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-8">
-              {/* License Document Upload */}
-              <div>
-                <DocumentUpload
-                  label="License Document"
-                  description="Upload your business license or professional certification (PDF, JPG, PNG)"
-                  onUpload={(files) => {
-                    if (files.length > 0) {
-                      setDocumentFiles(prev => ({ ...prev, license: files[0] }));
-                    }
-                  }}
-                  loading={uploadDocumentsMutation.isPending}
-                  multiple={false}
-                />
-                {documentFiles.license && (
-                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-green-700">✓ {documentFiles.license.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDocumentFiles(prev => ({ ...prev, license: null }))}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+            <CardContent className="space-y-6">
+              {/* Compact document upload sections */}
+              <div className="grid md:grid-cols-1 gap-4">
+                {/* License Document Upload */}
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-2">License Document</h3>
+                  <p className="text-sm text-gray-600 mb-3">Business license or professional certification</p>
+                  <DocumentUpload
+                    label="Choose License File"
+                    description="PDF, JPG, PNG (Max 10MB)"
+                    onUpload={(files) => {
+                      if (files.length > 0) {
+                        setDocumentFiles(prev => ({ ...prev, license: files[0] }));
+                      }
+                    }}
+                    loading={uploadDocumentsMutation.isPending}
+                    multiple={false}
+                  />
+                  {documentFiles.license && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-green-700 flex items-center">
+                          <Check className="h-4 w-4 mr-1" />
+                          {documentFiles.license.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDocumentFiles(prev => ({ ...prev, license: null }))}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              {/* Police Check Document Upload */}
-              <div>
-                <DocumentUpload
-                  label="Police Check"
-                  description="Upload your police check certificate (PDF, JPG, PNG)"
-                  onUpload={(files) => {
-                    if (files.length > 0) {
-                      setDocumentFiles(prev => ({ ...prev, policeCheck: files[0] }));
-                    }
-                  }}
-                  loading={uploadDocumentsMutation.isPending}
-                  multiple={false}
-                />
-                {documentFiles.policeCheck && (
-                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-green-700">✓ {documentFiles.policeCheck.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDocumentFiles(prev => ({ ...prev, policeCheck: null }))}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                {/* Police Check Document Upload */}
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-2">Police Check</h3>
+                  <p className="text-sm text-gray-600 mb-3">Police check certificate</p>
+                  <DocumentUpload
+                    label="Choose Police Check File"
+                    description="PDF, JPG, PNG (Max 10MB)"
+                    onUpload={(files) => {
+                      if (files.length > 0) {
+                        setDocumentFiles(prev => ({ ...prev, policeCheck: files[0] }));
+                      }
+                    }}
+                    loading={uploadDocumentsMutation.isPending}
+                    multiple={false}
+                  />
+                  {documentFiles.policeCheck && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-green-700 flex items-center">
+                          <Check className="h-4 w-4 mr-1" />
+                          {documentFiles.policeCheck.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDocumentFiles(prev => ({ ...prev, policeCheck: null }))}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              {/* Insurance Certificate Upload */}
-              <div>
-                <DocumentUpload
-                  label="Insurance Certificate"
-                  description="Upload your public liability insurance certificate (PDF, JPG, PNG)"
-                  onUpload={(files) => {
-                    if (files.length > 0) {
-                      setDocumentFiles(prev => ({ ...prev, insuranceCertificate: files[0] }));
-                    }
-                  }}
-                  loading={uploadDocumentsMutation.isPending}
-                  multiple={false}
-                />
-                {documentFiles.insuranceCertificate && (
-                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-green-700">✓ {documentFiles.insuranceCertificate.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDocumentFiles(prev => ({ ...prev, insuranceCertificate: null }))}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                {/* Insurance Certificate Upload */}
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-2">Insurance Certificate</h3>
+                  <p className="text-sm text-gray-600 mb-3">Public liability insurance certificate</p>
+                  <DocumentUpload
+                    label="Choose Insurance File"
+                    description="PDF, JPG, PNG (Max 10MB)"
+                    onUpload={(files) => {
+                      if (files.length > 0) {
+                        setDocumentFiles(prev => ({ ...prev, insuranceCertificate: files[0] }));
+                      }
+                    }}
+                    loading={uploadDocumentsMutation.isPending}
+                    multiple={false}
+                  />
+                  {documentFiles.insuranceCertificate && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-green-700 flex items-center">
+                          <Check className="h-4 w-4 mr-1" />
+                          {documentFiles.insuranceCertificate.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDocumentFiles(prev => ({ ...prev, insuranceCertificate: null }))}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
               
               <div className="flex justify-between">
