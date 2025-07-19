@@ -163,7 +163,8 @@ export default function ProviderPayment() {
     setValue("cardNumber", formatted);
   };
 
-  const getCardBrand = (cardNumber: string) => {
+  const getCardBrand = (cardNumber: string | undefined) => {
+    if (!cardNumber) return 'Card';
     const cleaned = cardNumber.replace(/\D/g, '');
     if (cleaned.startsWith('4')) return 'Visa';
     if (cleaned.startsWith('5') || cleaned.startsWith('2')) return 'Mastercard';
@@ -171,7 +172,8 @@ export default function ProviderPayment() {
     return 'Card';
   };
 
-  const maskCardNumber = (cardNumber: string) => {
+  const maskCardNumber = (cardNumber: string | undefined) => {
+    if (!cardNumber) return '**** **** **** ****';
     const cleaned = cardNumber.replace(/\D/g, '');
     return `**** **** **** ${cleaned.slice(-4)}`;
   };
