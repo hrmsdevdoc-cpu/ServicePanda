@@ -1063,7 +1063,8 @@ export default function ProviderSignup() {
               </p>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-md mx-auto mb-8">
                 <p className="text-sm text-gray-700">
-                  <strong>Please Remember:</strong> Our office hours are from 9 AM to 5 PM, Monday to Friday
+                  <strong>Please Remember:</strong> Our office hours are from<br/>
+                  <strong>9 AM to 5 PM, Monday to Friday</strong>
                 </p>
               </div>
               <Button onClick={() => navigate("/")}>
