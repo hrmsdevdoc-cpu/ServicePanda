@@ -1295,18 +1295,12 @@ export default function ProviderDashboard() {
                       <Button
                         onClick={() => {
                           const url = `/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}/${provider.id}`;
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.target = '_blank';
-                          link.download = viewingDocument.fileName;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
+                          window.open(url, '_blank', 'noopener,noreferrer');
                         }}
                         className="bg-red-600 hover:bg-red-700 text-white"
                       >
                         <Eye className="h-4 w-4 mr-2" />
-                        Download & View PDF
+                        Open PDF in New Window
                       </Button>
                     </div>
                   </div>

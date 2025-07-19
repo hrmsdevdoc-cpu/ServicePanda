@@ -91,7 +91,7 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 ### Document Viewer Implementation (January 19, 2025)
 - **Smart Document Display**: Implemented intelligent viewer that detects file types and uses appropriate display methods
 - **Image Support**: PNG, JPG, JPEG images display as native img elements with proper scaling and centering
-- **PDF Download System**: PDF documents show download interface due to Chrome popup blocking - clicking downloads PDF directly for viewing
+- **PDF New Window System**: PDF documents open in new browser window with built-in PDF viewer, keeping dashboard page intact
 - **Secure API Endpoint**: Created `/api/provider/documents/view/:filename/:providerId` with provider ownership validation
 - **Inline Headers**: Fixed content-disposition headers to display documents inline rather than forcing downloads
 - **Authentication Fix**: Resolved iframe authentication issues by including provider ID in URL path instead of headers
