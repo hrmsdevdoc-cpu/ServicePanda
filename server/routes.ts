@@ -323,14 +323,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get provider documents
-  app.get('/api/service-providers/:id/documents', isAuthenticated, async (req: any, res) => {
+  app.get('/api/service-providers/:id/documents', isProviderAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      const userId = req.user.id;
       
-      // Verify ownership
-      const provider = await storage.getServiceProvider(providerId);
-      if (!provider || provider.email !== req.user.email) {
+      // Verify provider ownership
+      if (req.provider.id !== providerId) {
         return res.status(403).json({ message: "Access denied" });
       }
       

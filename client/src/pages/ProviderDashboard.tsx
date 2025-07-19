@@ -119,6 +119,13 @@ export default function ProviderDashboard() {
     retry: false,
   });
 
+  // Fetch existing provider documents
+  const { data: existingDocuments = [], isLoading: documentsLoading } = useQuery({
+    queryKey: ["/api/service-providers", provider?.id, "documents"],
+    enabled: !!provider?.id,
+    retry: false,
+  });
+
   // Set initial selected services when data loads
   useEffect(() => {
     if (services && services.length > 0) {
@@ -210,6 +217,9 @@ export default function ProviderDashboard() {
       await apiRequest("POST", `/api/service-providers/${providerId}/documents`, formData);
     },
     onSuccess: () => {
+      // Invalidate documents query to refresh the uploaded documents section
+      queryClient.invalidateQueries({ queryKey: ["/api/service-providers", provider?.id, "documents"] });
+      
       toast({
         title: "Documents Updated!",
         description: "Your documents have been uploaded successfully.",
@@ -927,27 +937,95 @@ export default function ProviderDashboard() {
             {/* Documents Panel */}
             {activeMenuItem === "documents" && (
               <div className="space-y-6">
+                {/* Existing Documents Section */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center">
                       <FileText className="h-5 w-5 mr-2" />
-                      Upload Documents
+                      Uploaded Documents
                     </CardTitle>
                     <p className="text-sm text-gray-600">
-                      Upload your professional documents for verification. These help build trust with customers.
+                      View your currently uploaded documents. These are used for verification and building customer trust.
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
-                      {/* Compact document upload sections - exact replica from Step 4 */}
-                      <div className="grid md:grid-cols-1 gap-4">
+                    {documentsLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+                      </div>
+                    ) : existingDocuments.length > 0 ? (
+                      <div className="grid gap-4">
+                        {/* Group documents by type and show latest */}
+                        {['license', 'police_check', 'insurance'].map(docType => {
+                          const document = existingDocuments
+                            .filter((doc: any) => doc.documentType === docType)
+                            .sort((a: any, b: any) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
+                          
+                          const docTypeLabels = {
+                            license: 'License Document',
+                            police_check: 'Police Check',
+                            insurance: 'Insurance Certificate'
+                          };
+                          
+                          return (
+                            <div key={docType} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                              <div className="flex items-center space-x-3">
+                                <FileText className="h-5 w-5 text-gray-400" />
+                                <div>
+                                  <p className="font-medium text-gray-900">{docTypeLabels[docType as keyof typeof docTypeLabels]}</p>
+                                  {document ? (
+                                    <p className="text-sm text-gray-500">
+                                      Uploaded: {new Date(document.uploadedAt).toLocaleDateString()}
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm text-red-500">Not uploaded</p>
+                                  )}
+                                </div>
+                              </div>
+                              {document && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(`/uploads/${document.filePath.split('/').pop()}`, '_blank')}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500">No documents uploaded yet</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Update Documents Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Upload className="h-5 w-5 mr-2" />
+                      Update Documents
+                    </CardTitle>
+                    <p className="text-sm text-gray-600">
+                      Upload new versions of your documents. You can update individual documents as needed.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {/* Compact document upload sections - 1/3 height */}
+                      <div className="grid md:grid-cols-3 gap-3">
                         {/* License Document Upload */}
-                        <div className="border rounded-lg p-4">
-                          <h3 className="font-medium text-gray-900 mb-2">License Document *</h3>
-                          <p className="text-sm text-gray-600 mb-3">Business license or professional certification (Required)</p>
+                        <div className="border rounded-lg p-3">
+                          <h3 className="font-medium text-gray-900 mb-1 text-sm">License Document</h3>
                           <DocumentUpload
-                            label="Choose License File"
-                            description="PDF, JPG, PNG supported (Max 10MB)"
+                            label="Choose File"
+                            description="PDF, JPG, PNG (10MB max)"
                             onUpload={(files) => {
                               if (files.length > 0) {
                                 setDocumentFiles(prev => ({ ...prev, license: files[0] }));
@@ -957,18 +1035,19 @@ export default function ProviderDashboard() {
                             multiple={false}
                           />
                           {documentFiles.license && (
-                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                            <div className="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs">
                               <div className="flex items-center justify-between">
                                 <span className="text-green-700 flex items-center">
-                                  <Check className="h-4 w-4 mr-1" />
-                                  {documentFiles.license.name}
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Selected
                                 </span>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => setDocumentFiles(prev => ({ ...prev, license: null }))}
+                                  className="h-5 w-5 p-0"
                                 >
-                                  <X className="h-4 w-4" />
+                                  <X className="h-3 w-3" />
                                 </Button>
                               </div>
                             </div>
@@ -976,12 +1055,11 @@ export default function ProviderDashboard() {
                         </div>
 
                         {/* Police Check Document Upload */}
-                        <div className="border rounded-lg p-4">
-                          <h3 className="font-medium text-gray-900 mb-2">Police Check *</h3>
-                          <p className="text-sm text-gray-600 mb-3">Police check certificate (Required)</p>
+                        <div className="border rounded-lg p-3">
+                          <h3 className="font-medium text-gray-900 mb-1 text-sm">Police Check</h3>
                           <DocumentUpload
-                            label="Choose Police Check File"
-                            description="PDF, JPG, PNG supported (Max 10MB)"
+                            label="Choose File"
+                            description="PDF, JPG, PNG (10MB max)"
                             onUpload={(files) => {
                               if (files.length > 0) {
                                 setDocumentFiles(prev => ({ ...prev, policeCheck: files[0] }));
@@ -991,18 +1069,19 @@ export default function ProviderDashboard() {
                             multiple={false}
                           />
                           {documentFiles.policeCheck && (
-                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                            <div className="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs">
                               <div className="flex items-center justify-between">
                                 <span className="text-green-700 flex items-center">
-                                  <Check className="h-4 w-4 mr-1" />
-                                  {documentFiles.policeCheck.name}
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Selected
                                 </span>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => setDocumentFiles(prev => ({ ...prev, policeCheck: null }))}
+                                  className="h-5 w-5 p-0"
                                 >
-                                  <X className="h-4 w-4" />
+                                  <X className="h-3 w-3" />
                                 </Button>
                               </div>
                             </div>
@@ -1010,12 +1089,11 @@ export default function ProviderDashboard() {
                         </div>
 
                         {/* Insurance Certificate Upload */}
-                        <div className="border rounded-lg p-4">
-                          <h3 className="font-medium text-gray-900 mb-2">Insurance Certificate *</h3>
-                          <p className="text-sm text-gray-600 mb-3">Public liability insurance certificate (Required)</p>
+                        <div className="border rounded-lg p-3">
+                          <h3 className="font-medium text-gray-900 mb-1 text-sm">Insurance Certificate</h3>
                           <DocumentUpload
-                            label="Choose Insurance File"
-                            description="PDF, JPG, PNG supported (Max 10MB)"
+                            label="Choose File"
+                            description="PDF, JPG, PNG (10MB max)"
                             onUpload={(files) => {
                               if (files.length > 0) {
                                 setDocumentFiles(prev => ({ ...prev, insuranceCertificate: files[0] }));
@@ -1025,18 +1103,19 @@ export default function ProviderDashboard() {
                             multiple={false}
                           />
                           {documentFiles.insuranceCertificate && (
-                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                            <div className="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs">
                               <div className="flex items-center justify-between">
                                 <span className="text-green-700 flex items-center">
-                                  <Check className="h-4 w-4 mr-1" />
-                                  {documentFiles.insuranceCertificate.name}
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Selected
                                 </span>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => setDocumentFiles(prev => ({ ...prev, insuranceCertificate: null }))}
+                                  className="h-5 w-5 p-0"
                                 >
-                                  <X className="h-4 w-4" />
+                                  <X className="h-3 w-3" />
                                 </Button>
                               </div>
                             </div>
@@ -1058,7 +1137,7 @@ export default function ProviderDashboard() {
                           ) : (
                             <>
                               <Upload className="h-4 w-4 mr-2" />
-                              Upload Documents
+                              Update Selected
                             </>
                           )}
                         </Button>
