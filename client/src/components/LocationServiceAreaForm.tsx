@@ -142,42 +142,9 @@ export function LocationServiceAreaForm({
       mapInstanceRef.current = map;
       console.log('Google Maps initialized successfully');
 
-      // Try to initialize autocomplete, but don't fail if it doesn't work
-      try {
-        if (addressInputRef.current && window.google.maps.places) {
-          const autocomplete = new window.google.maps.places.Autocomplete(
-            addressInputRef.current,
-            {
-              types: ['address'],
-              componentRestrictions: { country: 'au' }, // Australia only
-            }
-          );
-
-          autocomplete.addListener('place_changed', () => {
-            const place = autocomplete.getPlace();
-            if (place.geometry && place.geometry.location) {
-              const lat = place.geometry.location.lat();
-              const lng = place.geometry.location.lng();
-              
-              setCurrentArea(prev => ({
-                ...prev,
-                centerAddress: place.formatted_address || place.name,
-                centerLat: lat.toString(),
-                centerLng: lng.toString(),
-              }));
-              
-              // Center map on selected location
-              map.setCenter({ lat, lng });
-              map.setZoom(10);
-            }
-          });
-
-          autocompleteRef.current = autocomplete;
-        }
-      } catch (autocompleteError) {
-        console.warn('Autocomplete failed, manual entry still works:', autocompleteError);
-        // Don't show error - manual entry will still work
-      }
+      // Skip autocomplete initialization due to RefererNotAllowedMapError
+      // This allows manual entry to work without interference
+      console.log('Skipping autocomplete due to domain restrictions - manual entry enabled');
       
     } catch (error) {
       console.error('Google Maps initialization failed:', error);
@@ -389,13 +356,16 @@ export function LocationServiceAreaForm({
                   ref={addressInputRef}
                   placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
                   value={currentArea.centerAddress || ""}
-                  onChange={(e) => setCurrentArea(prev => ({ 
-                    ...prev, 
-                    centerAddress: e.target.value,
-                    // Clear coordinates when manually typing to allow manual geocoding
-                    centerLat: undefined,
-                    centerLng: undefined
-                  }))}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCurrentArea(prev => ({ 
+                      ...prev, 
+                      centerAddress: value,
+                      // Clear coordinates when manually typing to allow manual geocoding
+                      centerLat: undefined,
+                      centerLng: undefined
+                    }));
+                  }}
                   onFocus={() => {
                     if (!mapLoaded && window.google && window.google.maps) {
                       initializeGoogleMaps();
@@ -403,6 +373,7 @@ export function LocationServiceAreaForm({
                     }
                   }}
                   className="flex-1"
+                  autoComplete="off"
                 />
                 <Button
                   type="button"
