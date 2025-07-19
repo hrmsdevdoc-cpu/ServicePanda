@@ -72,6 +72,11 @@ export default function ProviderDashboard() {
   const [activeMenuItem, setActiveMenuItem] = useState("dashboard");
   const [expandedMenus, setExpandedMenus] = useState<string[]>(["leads", "settings"]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [viewingDocument, setViewingDocument] = useState<{
+    fileName: string;
+    filePath: string;
+    documentType: string;
+  } | null>(null);
   
   // Services panel state
   const [formData, setFormData] = useState({
@@ -88,13 +93,6 @@ export default function ProviderDashboard() {
     policeCheck: null as File | null,
     insuranceCertificate: null as File | null,
   });
-  
-  // Document viewer state
-  const [viewingDocument, setViewingDocument] = useState<{
-    fileName: string;
-    filePath: string;
-    documentType: string;
-  } | null>(null);
 
   // Fetch provider profile
   const { data: provider, isLoading: providerLoading } = useQuery({
@@ -1275,6 +1273,26 @@ export default function ProviderDashboard() {
           </div>
         </main>
       </div>
+
+      {/* Document Viewer Dialog */}
+      <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {viewingDocument?.documentType} - {viewingDocument?.fileName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {viewingDocument && (
+              <iframe
+                src={`/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}`}
+                className="w-full h-[70vh] border rounded"
+                title={`${viewingDocument.documentType} Document`}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

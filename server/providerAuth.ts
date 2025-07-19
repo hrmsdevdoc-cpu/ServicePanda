@@ -5,6 +5,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { ServiceProvider } from "@shared/schema";
+import path from "path";
 
 declare global {
   namespace Express {
@@ -156,6 +157,28 @@ export function setupProviderAuth(app: Express) {
     } catch (error) {
       console.error("Error fetching provider service areas:", error);
       res.status(500).json({ message: "Failed to fetch service areas" });
+    }
+  });
+
+  // Provider document viewing endpoint
+  app.get('/api/provider/documents/view/:filename', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const filename = req.params.filename;
+      const providerId = req.provider.id;
+      
+      // Get document from database to verify ownership
+      const documents = await storage.getProviderDocuments(providerId);
+      const document = documents.find((doc: any) => doc.filePath.includes(filename));
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found or access denied" });
+      }
+      
+      // Serve the file
+      res.sendFile(path.resolve(document.filePath));
+    } catch (error) {
+      console.error("Error serving document:", error);
+      res.status(500).json({ message: "Failed to serve document" });
     }
   });
 }
