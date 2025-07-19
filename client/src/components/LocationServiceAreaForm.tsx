@@ -247,11 +247,38 @@ export function LocationServiceAreaForm({
     });
   };
 
+  // Geocode address using Google Maps Geocoding API (fallback when autocomplete fails)
+  const geocodeAddress = async (address: string): Promise<{lat: number, lng: number} | null> => {
+    if (!address.trim()) return null;
+    
+    try {
+      // Use Google Geocoding API directly as fallback
+      const geocoder = new window.google.maps.Geocoder();
+      const result = await new Promise<any>((resolve, reject) => {
+        geocoder.geocode({ address: address + ', Australia' }, (results, status) => {
+          if (status === 'OK' && results && results[0]) {
+            resolve(results[0]);
+          } else {
+            reject(new Error(`Geocoding failed: ${status}`));
+          }
+        });
+      });
+      
+      return {
+        lat: result.geometry.location.lat(),
+        lng: result.geometry.location.lng()
+      };
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return null;
+    }
+  };
+
   const handleAddServiceArea = async () => {
     if (!currentArea.centerAddress || !currentArea.radiusKm) {
       toast({
         title: "Missing Information",
-        description: "Please select an address and radius",
+        description: "Please enter an address and select radius",
         variant: "destructive",
       });
       return;
@@ -260,10 +287,31 @@ export function LocationServiceAreaForm({
     setIsLoading(true);
 
     try {
+      let centerLat = currentArea.centerLat;
+      let centerLng = currentArea.centerLng;
+
+      // If we don't have coordinates, try to geocode the address
+      if (!centerLat || !centerLng) {
+        if (window.google && window.google.maps) {
+          const coords = await geocodeAddress(currentArea.centerAddress);
+          if (coords) {
+            centerLat = coords.lat.toString();
+            centerLng = coords.lng.toString();
+          }
+        } else {
+          // Allow adding without coordinates for now - backend can handle this
+          toast({
+            title: "Note",
+            description: "Address added without map coordinates. Google Maps is not available.",
+            variant: "default",
+          });
+        }
+      }
+
       const response = await apiRequest("POST", `/api/provider/${providerId}/location-service-areas`, {
         centerAddress: currentArea.centerAddress,
-        centerLat: currentArea.centerLat,
-        centerLng: currentArea.centerLng,
+        centerLat: centerLat,
+        centerLng: centerLng,
         radiusKm: currentArea.radiusKm,
         areaName: currentArea.areaName || undefined,
       });
@@ -401,11 +449,20 @@ export function LocationServiceAreaForm({
 
           <Button 
             onClick={handleAddServiceArea} 
-            disabled={isLoading || !currentArea.centerAddress}
+            disabled={isLoading || !currentArea.centerAddress || !currentArea.radiusKm}
             className="w-full"
           >
             {isLoading ? "Adding..." : "Add Service Area"}
           </Button>
+          
+          {!mapLoaded && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                <strong>Maps unavailable:</strong> You can still add service areas by typing the full address manually 
+                (e.g., "123 Main Street, Brisbane QLD 4000")
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
