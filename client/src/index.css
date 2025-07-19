@@ -144,6 +144,33 @@
   @apply bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-medium;
 }
 
+/* Google Maps autocomplete dropdown styles */
+.pac-container {
+  z-index: 10000 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.pac-item {
+  padding: 8px 12px !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  font-size: 14px !important;
+}
+
+.pac-item:hover {
+  background-color: #f9fafb !important;
+}
+
+.pac-item-selected {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}
+
+.pac-matched {
+  font-weight: 600 !important;
+}
+
 .lead-badge-paid {
   @apply bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm font-medium;
 }

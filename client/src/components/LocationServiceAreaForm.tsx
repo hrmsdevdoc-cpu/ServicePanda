@@ -192,6 +192,18 @@ export function LocationServiceAreaForm({
             if (addressInputRef.current) {
               console.log('Autocomplete instance:', autocomplete);
               console.log('Input element:', addressInputRef.current);
+              
+              // Test Places service
+              const service = new window.google.maps.places.PlacesService(map);
+              console.log('Places service:', service);
+              
+              // Test if we can query places
+              service.textSearch({
+                query: 'Brisbane Australia',
+                fields: ['name', 'geometry']
+              }, (results: any, status: any) => {
+                console.log('Places API test - Status:', status, 'Results:', results);
+              });
             }
           }, 1000);
         } else {
@@ -439,6 +451,7 @@ export function LocationServiceAreaForm({
                   }}
                   className="flex-1"
                   autoComplete="off"
+                  style={{ zIndex: 1000 }}
                 />
                 <Button
                   type="button"
