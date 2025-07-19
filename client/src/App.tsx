@@ -15,6 +15,7 @@ import ProviderDashboard from "@/pages/ProviderDashboard";
 import ProviderPayment from "@/pages/ProviderPayment";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminSettings from "@/pages/AdminSettings";
+import AdminStripeConfig from "@/pages/AdminStripeConfig";
 import SimpleAdminDashboard from "@/pages/SimpleAdminDashboard";
 import RequestService from "@/pages/RequestService";
 
@@ -44,6 +45,7 @@ function Router() {
       {/* Admin routes - accessible with admin authentication */}
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/settings" component={AdminSettings} />
+      <Route path="/admin/stripe-config" component={AdminStripeConfig} />
       
       {/* Customer routes based on authentication */}
       {!isAuthenticated ? (

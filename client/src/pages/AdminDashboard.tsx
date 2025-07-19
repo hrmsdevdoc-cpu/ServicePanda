@@ -594,51 +594,73 @@ export default function AdminDashboard() {
 
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Platform Settings</CardTitle>
+                  <CardTitle className="flex items-center">
+                    <Key className="h-5 w-5 mr-2" />
+                    Stripe Configuration
+                  </CardTitle>
+                  <CardDescription>Set up payment processing for provider leads</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="maintenance">Maintenance Mode</Label>
-                    <div className="flex items-center mt-2">
-                      <input type="checkbox" id="maintenance" className="mr-2" />
-                      <span className="text-sm">Enable maintenance mode</span>
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="registration">Provider Registration</Label>
-                    <div className="flex items-center mt-2">
-                      <input type="checkbox" id="registration" className="mr-2" defaultChecked />
-                      <span className="text-sm">Allow new provider registration</span>
-                    </div>
-                  </div>
-                  <Button className="w-full">Save Settings</Button>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Configure Stripe API keys to enable payment processing for lead purchases.
+                  </p>
+                  <Button 
+                    onClick={() => navigate('/admin/stripe-config')} 
+                    className="w-full"
+                  >
+                    <Key className="h-4 w-4 mr-2" />
+                    Configure Stripe
+                  </Button>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>System Information</CardTitle>
+                  <CardTitle className="flex items-center">
+                    <Shield className="h-5 w-5 mr-2" />
+                    Security Settings
+                  </CardTitle>
+                  <CardDescription>Manage system security and access control</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Advanced security configuration and user access management.
+                  </p>
+                  <Button 
+                    onClick={() => navigate('/admin/settings')} 
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Security Settings
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Settings className="h-5 w-5 mr-2" />
+                    System Information
+                  </CardTitle>
+                  <CardDescription>System status and information</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span>Version:</span>
-                      <span className="font-medium">ServicePanda v2.1.0</span>
-                    </div>
                     <div className="flex justify-between">
                       <span>Database:</span>
                       <span className="font-medium">PostgreSQL</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Uptime:</span>
-                      <span className="font-medium">7 days, 14 hours</span>
+                      <span>Provider Auth:</span>
+                      <span className="font-medium text-green-600">Active</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Last Backup:</span>
-                      <span className="font-medium">2 hours ago</span>
+                      <span>Payment System:</span>
+                      <span className="font-medium text-orange-600">Setup Required</span>
                     </div>
                   </div>
                 </CardContent>

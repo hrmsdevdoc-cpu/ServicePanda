@@ -146,24 +146,23 @@ export class DatabaseStorage implements IStorage {
   private encrypt(text: string): string {
     const iv = crypto.randomBytes(16);
     const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
-    const cipher = crypto.createCipherGCM('aes-256-gcm', key, iv);
+    const cipher = crypto.createCipher('aes-256-cbc', key);
+    cipher.setAutoPadding(true);
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    const authTag = cipher.getAuthTag();
-    return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
+    return iv.toString('hex') + ':' + encrypted;
   }
 
   private decrypt(encryptedText: string): string {
     const parts = encryptedText.split(':');
-    if (parts.length !== 3) throw new Error('Invalid encrypted format');
+    if (parts.length !== 2) throw new Error('Invalid encrypted format');
     
     const iv = Buffer.from(parts[0], 'hex');
-    const authTag = Buffer.from(parts[1], 'hex');
-    const encrypted = parts[2];
+    const encrypted = parts[1];
     
     const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
-    const decipher = crypto.createDecipherGCM('aes-256-gcm', key, iv);
-    decipher.setAuthTag(authTag);
+    const decipher = crypto.createDecipher('aes-256-cbc', key);
+    decipher.setAutoPadding(true);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
