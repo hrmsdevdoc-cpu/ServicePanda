@@ -167,7 +167,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add provider service areas
+  // Add provider location-based service areas (new approach)
+  app.post('/api/provider/:id/location-service-areas', async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const { centerAddress, centerLat, centerLng, radiusKm, areaName } = req.body;
+
+      console.log('Adding location-based service area for provider:', providerId, 'address:', centerAddress, 'radius:', radiusKm);
+
+      const serviceArea = await storage.addProviderLocationServiceArea({
+        providerId,
+        centerAddress,
+        centerLat,
+        centerLng,
+        radiusKm,
+        areaName,
+      });
+
+      res.status(201).json(serviceArea);
+    } catch (error: any) {
+      console.error('Error adding location-based service area:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get provider location-based service areas
+  app.get('/api/provider/:id/location-service-areas', async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const serviceAreas = await storage.getProviderLocationServiceAreas(providerId);
+      res.json(serviceAreas);
+    } catch (error: any) {
+      console.error('Error fetching location-based service areas:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Legacy: Add provider service areas
   app.post('/api/service-providers/:id/service-areas', isAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
@@ -180,9 +216,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // Add service areas
+      // Add service areas (legacy approach - need to provide centerAddress)
       for (const suburbId of suburbIds) {
-        await storage.addProviderServiceArea({ providerId, suburbId });
+        await storage.addProviderServiceArea({ 
+          providerId, 
+          suburbId,
+          centerAddress: "Legacy suburb-based area" // Temporary workaround
+        });
       }
       
       res.json({ message: "Service areas added successfully" });

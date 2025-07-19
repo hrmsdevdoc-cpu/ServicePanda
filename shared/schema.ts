@@ -103,11 +103,18 @@ export const australianSuburbs = pgTable("australian_suburbs", {
   regionId: integer("region_id").references(() => australianRegions.id), // Link to SA4 region
 });
 
-// Provider service areas
+// Provider service areas - new location-based approach
 export const providerServiceAreas = pgTable("provider_service_areas", {
   id: serial("id").primaryKey(),
   providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
-  suburbId: integer("suburb_id").references(() => australianSuburbs.id).notNull(),
+  // Location-based service areas
+  centerAddress: text("center_address").notNull(), // Full address of service center
+  centerLat: decimal("center_lat", { precision: 10, scale: 7 }), // Latitude
+  centerLng: decimal("center_lng", { precision: 10, scale: 7 }), // Longitude
+  radiusKm: integer("radius_km").notNull().default(25), // Service radius in kilometers
+  areaName: varchar("area_name"), // Optional friendly name (e.g., "Gold Coast", "Brisbane North")
+  // Legacy suburb-based approach (keeping for backwards compatibility)
+  suburbId: integer("suburb_id").references(() => australianSuburbs.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

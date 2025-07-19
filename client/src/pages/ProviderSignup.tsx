@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { AddressInput } from "@/components/AddressInput";
+import { LocationServiceAreaForm } from "@/components/LocationServiceAreaForm";
 import { 
   PawPrint, 
   X, 
@@ -351,29 +352,30 @@ export default function ProviderSignup() {
     },
   });
 
-  const addServiceAreasMutation = useMutation({
-    mutationFn: async ({ providerId, suburbIds }: { providerId: number; suburbIds: number[] }) => {
-      console.log('Adding service areas for provider:', providerId, 'suburbs:', suburbIds);
-      await apiRequest("POST", `/api/service-providers/${providerId}/service-areas`, { suburbIds });
-    },
-    onSuccess: () => {
-      console.log('Service areas added successfully');
-      setCurrentStep(4);
+  // New location-based service areas mutation (replaces suburb-based approach)
+  const [serviceAreas, setServiceAreas] = useState([]);
+
+  const handleServiceAreasChange = (areas: any[]) => {
+    setServiceAreas(areas);
+  };
+
+  const handleStep3Next = () => {
+    if (serviceAreas.length === 0) {
       toast({
-        title: "Step 3 Complete!",
-        description: "Your service areas have been saved. Upload your documents to complete registration.",
-        variant: "default",
-      });
-    },
-    onError: (error) => {
-      console.error('Error adding service areas:', error);
-      toast({
-        title: "Error",
-        description: error.message,
+        title: "Please add at least one service area",
+        description: "You must add at least one location where you provide services",
         variant: "destructive",
       });
-    },
-  });
+      return;
+    }
+
+    setCurrentStep(4);
+    toast({
+      title: "Step 3 Complete!",
+      description: "Your service areas have been saved. Upload your documents to complete registration.",
+      variant: "default",
+    });
+  };
 
   const uploadDocumentsMutation = useMutation({
     mutationFn: async ({ providerId, documents }: { providerId: number; documents: FileList }) => {
@@ -779,380 +781,23 @@ export default function ProviderSignup() {
           </Card>
         )}
 
-        {/* Step 3: Service Areas - Hierarchical Selection */}
+        {/* Step 3: Service Areas - New Location-Based Approach */}
         {currentStep === 3 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-center">
                 <h2 className="text-2xl font-bold mb-2">Service Areas</h2>
                 <p className="text-gray-600 font-normal">
-                  Select the areas where you provide services
+                  Define your service locations with coverage radius
                 </p>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Step 1: State Selection */}
-              <div className="border border-gray-300 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
-                  <h3 className="font-semibold text-gray-900">1. Select State</h3>
-                </div>
-                <div className="p-4">
-                  <Select
-                    value={locationData.selectedStateForLocation}
-                    onValueChange={(value) => setLocationData(prev => ({ 
-                      ...prev, 
-                      selectedStateForLocation: value
-                    }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose your state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {states.map((state: any) => (
-                        <SelectItem key={state.id} value={state.name}>
-                          {state.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Step 2: Region Selection */}
-              {locationData.showRegionOptions && (
-                <div className="border border-gray-300 rounded-lg overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
-                    <h3 className="font-semibold text-gray-900">2. Select Region in {locationData.selectedStateForLocation}</h3>
-                  </div>
-                  <div className="p-4">
-                    {locationData.isLoadingRegions ? (
-                      <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                        <p className="text-gray-600 mt-2">Loading regions...</p>
-                      </div>
-                    ) : (
-                      <Select
-                        value={locationData.selectedRegion}
-                        onValueChange={(value) => setLocationData(prev => ({ 
-                          ...prev, 
-                          selectedRegion: value
-                        }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a region" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {locationData.availableRegions.map((region: any) => (
-                            <SelectItem key={region.id} value={region.name}>
-                              {region.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Coverage Options */}
-              {locationData.selectedRegion && (
-                <div className="border border-gray-300 rounded-lg overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
-                    <h3 className="font-semibold text-gray-900">3. Service Coverage in {locationData.selectedRegion}</h3>
-                  </div>
-                  <div className="p-4 space-y-4">
-                    <p className="text-sm text-gray-600">
-                      Do you want to add all suburbs in {locationData.selectedRegion}, or select specific postcodes?
-                    </p>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="radio"
-                          id="region-all"
-                          name="regionSelection"
-                          value="all"
-                          checked={locationData.regionSelection === "all"}
-                          onChange={(e) => setLocationData(prev => ({ 
-                            ...prev, 
-                            regionSelection: e.target.value as "all" | "custom",
-                            postcodeForLocation: "",
-                            availableSuburbs: []
-                          }))}
-                          className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                        />
-                        <Label htmlFor="region-all" className="cursor-pointer">
-                          <span className="font-medium">Add all suburbs in {locationData.selectedRegion}</span>
-                          <p className="text-sm text-gray-500">Automatically include all postcodes and suburbs in this region</p>
-                        </Label>
-                      </div>
-                      
-                      {/* Add All Suburbs Button */}
-                      {locationData.regionSelection === "all" && (
-                        <div className="pl-7">
-                          <Button
-                            onClick={async () => {
-                              try {
-                                const selectedRegion = locationData.availableRegions.find(
-                                  (r: any) => r.name === locationData.selectedRegion
-                                );
-                                if (selectedRegion) {
-                                  const response = await fetch(`/api/regions/${selectedRegion.id}/suburbs`);
-                                  
-                                  if (!response.ok) {
-                                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                                  }
-                                  
-                                  const allSuburbs = await response.json();
-                                  
-                                  if (allSuburbs.length === 0) {
-                                    toast({
-                                      title: "No Suburbs Available",
-                                      description: `No suburbs found for ${locationData.selectedRegion}. Try selecting a different region or add postcodes manually.`,
-                                      variant: "destructive",
-                                    });
-                                    return;
-                                  }
-                                  
-                                  // Add all suburb IDs to selectedSuburbs
-                                  const allSuburbIds = allSuburbs.map((s: any) => s.id);
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    selectedSuburbs: [...new Set([...prev.selectedSuburbs, ...allSuburbIds])]
-                                  }));
-                                  
-                                  // Get all unique postcodes from suburbs
-                                  const uniquePostcodes = [...new Set(allSuburbs.map((s: any) => s.postcode))];
-                                  setLocationData(prev => ({
-                                    ...prev,
-                                    addedPostcodes: [...new Set([...prev.addedPostcodes, ...uniquePostcodes])]
-                                  }));
-                                  
-                                  toast({
-                                    title: "Suburbs Added Successfully",
-                                    description: `Added ${allSuburbs.length} suburbs and ${uniquePostcodes.length} unique postcodes from ${locationData.selectedRegion}.`,
-                                  });
-                                }
-                              } catch (error) {
-                                console.error("Error fetching region suburbs:", error);
-                                toast({
-                                  title: "Error Loading Suburbs",
-                                  description: "Unable to load suburbs for this region. Please try again or select postcodes manually.",
-                                  variant: "destructive",
-                                });
-                              }
-                            }}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            Add All Suburbs in {locationData.selectedRegion}
-                          </Button>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="radio"
-                          id="region-custom"
-                          name="regionSelection"
-                          value="custom"
-                          checked={locationData.regionSelection === "custom"}
-                          onChange={(e) => setLocationData(prev => ({ 
-                            ...prev, 
-                            regionSelection: e.target.value as "all" | "custom"
-                          }))}
-                          className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                        />
-                        <Label htmlFor="region-custom" className="cursor-pointer">
-                          <span className="font-medium">Select specific postcodes</span>
-                          <p className="text-sm text-gray-500">Choose individual postcodes and suburbs one by one</p>
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Custom Postcode Selection */}
-              {locationData.regionSelection === "custom" && locationData.selectedRegion && (
-                <div className="border border-gray-300 rounded-lg overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
-                    <h3 className="font-semibold text-gray-900">4. Add Postcodes in {locationData.selectedRegion}</h3>
-                  </div>
-                  <div className="p-4 space-y-4">
-                    <div>
-                      <Label htmlFor="custom-postcode" className="text-sm font-medium">Enter Postcode</Label>
-                      <Input
-                        id="custom-postcode"
-                        type="text"
-                        value={locationData.postcodeForLocation}
-                        onChange={(e) => setLocationData(prev => ({ 
-                          ...prev, 
-                          postcodeForLocation: e.target.value.replace(/\D/g, '').slice(0, 4)
-                        }))}
-                        placeholder="Enter postcode (e.g., 3000)"
-                        className="mt-1"
-                        maxLength={4}
-                      />
-                    </div>
-                    
-                    {/* Added Postcodes Summary */}
-                    {locationData.addedPostcodes.length > 0 && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <h4 className="font-medium text-blue-900 mb-2">Added Postcodes:</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {locationData.addedPostcodes.map((postcode) => (
-                            <span 
-                              key={postcode}
-                              className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2"
-                            >
-                              {postcode}
-                              <button
-                                onClick={() => setLocationData(prev => ({
-                                  ...prev,
-                                  addedPostcodes: prev.addedPostcodes.filter(p => p !== postcode)
-                                }))}
-                                className="text-blue-200 hover:text-white"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Suburb Selection for Custom Postcodes */}
-              {locationData.regionSelection === "custom" && locationData.postcodeForLocation.length >= 4 && (
-                <div className="border border-gray-300 rounded-lg overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
-                    <h3 className="font-semibold text-gray-900">
-                      Available Suburbs in {locationData.postcodeForLocation}
-                      {locationData.selectedStateForLocation && ` (${locationData.selectedStateForLocation})`}
-                    </h3>
-                  </div>
-                  <div className="p-4">
-                    {locationData.isLoadingSuburbs ? (
-                      <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                        <p className="text-gray-600 mt-2">Loading suburbs...</p>
-                      </div>
-                    ) : locationData.availableSuburbs.length > 0 ? (
-                      <div className="space-y-4">
-                        {/* Select All Option */}
-                        <div className="flex items-center space-x-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <Checkbox
-                            id="select-all-suburbs"
-                            checked={
-                              locationData.availableSuburbs.length > 0 &&
-                              locationData.availableSuburbs.every((suburb: any) => 
-                                formData.selectedSuburbs.includes(suburb.id)
-                              )
-                            }
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                // Add all suburbs
-                                const allSuburbIds = locationData.availableSuburbs.map((s: any) => s.id);
-                                setFormData(prev => ({
-                                  ...prev,
-                                  selectedSuburbs: [...new Set([...prev.selectedSuburbs, ...allSuburbIds])]
-                                }));
-                                
-                                // Add postcode to added list if not already there
-                                if (!locationData.addedPostcodes.includes(locationData.postcodeForLocation)) {
-                                  setLocationData(prev => ({
-                                    ...prev,
-                                    addedPostcodes: [...prev.addedPostcodes, locationData.postcodeForLocation]
-                                  }));
-                                }
-                              } else {
-                                // Remove all suburbs from this postcode
-                                const suburbIdsToRemove = locationData.availableSuburbs.map((s: any) => s.id);
-                                setFormData(prev => ({
-                                  ...prev,
-                                  selectedSuburbs: prev.selectedSuburbs.filter(id => !suburbIdsToRemove.includes(id))
-                                }));
-                                
-                                // Remove postcode from added list
-                                setLocationData(prev => ({
-                                  ...prev,
-                                  addedPostcodes: prev.addedPostcodes.filter(p => p !== locationData.postcodeForLocation)
-                                }));
-                              }
-                            }}
-                          />
-                          <Label htmlFor="select-all-suburbs" className="font-medium text-blue-700 cursor-pointer">
-                            Add All Suburbs ({locationData.availableSuburbs.length} suburbs) for {locationData.postcodeForLocation}
-                          </Label>
-                        </div>
-
-                        {/* Individual Suburbs */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
-                          {locationData.availableSuburbs.map((suburb: any) => (
-                            <div key={suburb.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
-                              <Checkbox
-                                id={`suburb-${suburb.id}`}
-                                checked={formData.selectedSuburbs.includes(suburb.id)}
-                                onCheckedChange={(checked) => {
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    selectedSuburbs: checked
-                                      ? [...prev.selectedSuburbs, suburb.id]
-                                      : prev.selectedSuburbs.filter(id => id !== suburb.id)
-                                  }));
-                                  
-                                  // Auto-add postcode to list if any suburb is selected
-                                  if (checked && !locationData.addedPostcodes.includes(locationData.postcodeForLocation)) {
-                                    setLocationData(prev => ({
-                                      ...prev,
-                                      addedPostcodes: [...prev.addedPostcodes, locationData.postcodeForLocation]
-                                    }));
-                                  }
-                                }}
-                              />
-                              <Label htmlFor={`suburb-${suburb.id}`} className="text-sm cursor-pointer">
-                                {suburb.suburb}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <p className="text-gray-600">No suburbs found for postcode {locationData.postcodeForLocation}</p>
-                        <p className="text-sm text-gray-500 mt-1">Please check the postcode and try again</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Selected Service Areas Summary */}
-              {formData.selectedSuburbs.length > 0 && (
-                <div className="border border-green-300 rounded-lg overflow-hidden">
-                  <div className="bg-green-50 px-4 py-3 border-b border-green-300">
-                    <h3 className="font-semibold text-green-900">
-                      Selected Service Areas ({formData.selectedSuburbs.length})
-                    </h3>
-                  </div>
-                  <div className="p-4">
-                    <div className="text-sm text-gray-600">
-                      You have selected {formData.selectedSuburbs.length} suburb{formData.selectedSuburbs.length !== 1 ? 's' : ''} for your service areas.
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Validation message */}
-              {hasAttemptedSubmit && formData.selectedSuburbs.length === 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-red-600 text-sm font-medium">
-                    Please select at least one service area to continue
-                  </p>
-                </div>
-              )}
+              <LocationServiceAreaForm
+                providerId={parseInt(localStorage.getItem('providerId') || '0')}
+                initialAddress={formData.address}
+                onServiceAreasChange={handleServiceAreasChange}
+              />
               
               <div className="flex justify-between">
                 <Button 
@@ -1162,15 +807,17 @@ export default function ProviderSignup() {
                   Previous
                 </Button>
                 <Button 
-                  onClick={handleStep3Submit}
-                  disabled={addServiceAreasMutation.isPending}
+                  onClick={handleStep3Next}
                 >
-                  {addServiceAreasMutation.isPending ? "Saving..." : "Next Step"}
+                  Next Step
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
+
+
+
 
         {/* Step 4: Document Upload */}
         {currentStep === 4 && (

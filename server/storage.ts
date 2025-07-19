@@ -22,6 +22,7 @@ import {
   type InsertServiceCategory,
   type InsertProviderService,
   type InsertProviderServiceArea,
+  type ProviderServiceArea,
   type InsertProviderDocument,
   type ProviderDocument,
   type InsertServiceRequest,
@@ -41,7 +42,7 @@ import {
   type AustralianSuburb,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, inArray, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -70,7 +71,16 @@ export interface IStorage {
   getAustralianStates(): Promise<AustralianState[]>;
   getSuburbsByPostcode(postcode: string): Promise<AustralianSuburb[]>;
   addProviderServiceArea(area: InsertProviderServiceArea): Promise<void>;
+  addProviderLocationServiceArea(serviceAreaData: {
+    providerId: number;
+    centerAddress: string;
+    centerLat?: string;
+    centerLng?: string;
+    radiusKm: number;
+    areaName?: string;
+  }): Promise<ProviderServiceArea>;
   getProviderServiceAreas(providerId: number): Promise<AustralianSuburb[]>;
+  getProviderLocationServiceAreas(providerId: number): Promise<ProviderServiceArea[]>;
   
   // Document operations
   uploadProviderDocument(document: InsertProviderDocument): Promise<ProviderDocument>;
@@ -253,6 +263,34 @@ export class DatabaseStorage implements IStorage {
 
   async addProviderServiceArea(area: InsertProviderServiceArea): Promise<void> {
     await db.insert(providerServiceAreas).values(area);
+  }
+
+  // New location-based service area methods
+  async addProviderLocationServiceArea(serviceAreaData: {
+    providerId: number;
+    centerAddress: string;
+    centerLat?: string;
+    centerLng?: string;
+    radiusKm: number;
+    areaName?: string;
+  }): Promise<ProviderServiceArea> {
+    const [result] = await db
+      .insert(providerServiceAreas)
+      .values(serviceAreaData)
+      .returning();
+    return result;
+  }
+
+  async getProviderLocationServiceAreas(providerId: number): Promise<ProviderServiceArea[]> {
+    return await db
+      .select()
+      .from(providerServiceAreas)
+      .where(
+        and(
+          eq(providerServiceAreas.providerId, providerId),
+          isNotNull(providerServiceAreas.centerAddress) // Only get location-based service areas
+        )
+      );
   }
 
   async getProviderServiceAreas(providerId: number): Promise<AustralianSuburb[]> {
