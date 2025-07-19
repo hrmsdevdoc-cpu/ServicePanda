@@ -695,9 +695,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateAdminSetting(key: string, value: string): Promise<void> {
+    console.log(`[updateAdminSetting] Setting ${key} with value length: ${value.length}`);
     const encryptedValue = this.encrypt(value);
+    console.log(`[updateAdminSetting] Encrypted value length: ${encryptedValue.length}`);
     
-    await db
+    const result = await db
       .insert(systemSettings)
       .values({
         key,
@@ -711,7 +713,10 @@ export class DatabaseStorage implements IStorage {
           value: encryptedValue,
           updatedAt: new Date()
         }
-      });
+      })
+      .returning();
+    
+    console.log(`[updateAdminSetting] Database result for ${key}:`, result.length > 0 ? 'Success' : 'Failed');
   }
 
   async getDecryptedSetting(key: string): Promise<string | null> {

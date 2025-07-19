@@ -24,7 +24,7 @@ export default function AdminStripeConfig() {
 
   const updateKeysMutation = useMutation({
     mutationFn: async (data: { stripeSecretKey: string; stripePublicKey: string }) => {
-      const response = await apiRequest("PUT", "/api/admin/settings", data);
+      const response = await apiRequest("PUT", "/api/setup/stripe", data);
       return response.json();
     },
     onSuccess: () => {

@@ -703,7 +703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin settings endpoints - temporarily without authentication for initial setup
+  // Admin settings endpoints - bypass route for initial setup
   app.get('/api/admin/settings', async (req, res) => {
     try {
       const settings = await storage.getAdminSettings();
@@ -711,6 +711,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching admin settings:', error);
       res.status(500).json({ message: 'Failed to fetch admin settings' });
+    }
+  });
+
+  // Bypass route for initial Stripe configuration
+  app.put('/api/setup/stripe', async (req, res) => {
+    try {
+      const { stripeSecretKey, stripePublicKey } = req.body;
+
+      console.log('Received Stripe setup request:', { 
+        hasSecretKey: !!stripeSecretKey, 
+        hasPublicKey: !!stripePublicKey,
+        secretKeyStart: stripeSecretKey ? stripeSecretKey.substring(0, 10) : 'none'
+      });
+
+      if (!stripeSecretKey || !stripePublicKey) {
+        return res.status(400).json({ message: 'Both Stripe keys are required' });
+      }
+
+      if (!stripeSecretKey.startsWith('sk_')) {
+        return res.status(400).json({ message: 'Invalid Stripe Secret Key format' });
+      }
+
+      if (!stripePublicKey.startsWith('pk_')) {
+        return res.status(400).json({ message: 'Invalid Stripe Public Key format' });
+      }
+
+      // Store encrypted keys in database
+      await storage.updateAdminSetting('stripe_secret_key', stripeSecretKey);
+      await storage.updateAdminSetting('stripe_public_key', stripePublicKey);
+
+      console.log('Stripe keys saved successfully - Secret key starts with:', stripeSecretKey.substring(0, 10) + '...');
+
+      res.json({ 
+        message: 'Settings updated successfully',
+        stripeConfigured: true
+      });
+    } catch (error) {
+      console.error('Error updating admin settings:', error);
+      res.status(500).json({ message: 'Failed to update admin settings' });
     }
   });
 
