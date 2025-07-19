@@ -58,16 +58,24 @@ export default function ProviderPayment() {
 
   const agreeToTerms = watch("agreeToTerms");
 
+  // Get provider ID from localStorage
+  const providerId = localStorage.getItem('providerId');
+
   // Fetch provider payment methods
   const { data: paymentMethods = [], isLoading: loadingPayments } = useQuery({
     queryKey: ["/api/provider/payment-methods"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/provider/${providerId}/payment-methods`);
+      return await response.json();
+    },
     retry: false,
+    enabled: !!providerId,
   });
 
   // Add payment method mutation
   const addPaymentMethodMutation = useMutation({
     mutationFn: async (data: AddCardFormData) => {
-      const response = await apiRequest("POST", "/api/provider/payment-methods", {
+      const response = await apiRequest("POST", `/api/provider/${providerId}/payment-methods`, {
         cardNumber: data.cardNumber,
         expiryMonth: data.expiryMonth,
         expiryYear: data.expiryYear,
@@ -99,7 +107,7 @@ export default function ProviderPayment() {
   // Set primary payment method mutation
   const setPrimaryMutation = useMutation({
     mutationFn: async (paymentMethodId: number) => {
-      await apiRequest("PUT", `/api/provider/payment-methods/${paymentMethodId}/primary`);
+      await apiRequest("PUT", `/api/provider/${providerId}/payment-methods/${paymentMethodId}/primary`);
     },
     onSuccess: () => {
       toast({

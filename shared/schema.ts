@@ -65,12 +65,12 @@ export const serviceProviders = pgTable("service_providers", {
 export const providerPaymentMethods = pgTable("provider_payment_methods", {
   id: serial("id").primaryKey(),
   providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  stripeCustomerId: varchar("stripe_customer_id").notNull(),
   stripePaymentMethodId: varchar("stripe_payment_method_id").notNull(),
-  cardNumber: varchar("card_number").notNull(), // Masked/last 4 digits for display
-  cardholderName: varchar("cardholder_name").notNull(),
-  expiryMonth: varchar("expiry_month").notNull(),
-  expiryYear: varchar("expiry_year").notNull(),
-  cardBrand: varchar("card_brand"), // visa, mastercard, amex, etc.
+  cardBrand: varchar("card_brand").notNull(),
+  cardLastFour: varchar("card_last_four").notNull(),
+  cardExpMonth: integer("card_exp_month").notNull(),
+  cardExpYear: integer("card_exp_year").notNull(),
   isPrimary: boolean("is_primary").default(false),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),

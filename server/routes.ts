@@ -812,26 +812,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Extract payment method data
+      // Extract payment method data from frontend
       const { 
-        stripeCustomerId, 
-        stripePaymentMethodId, 
-        cardBrand, 
-        cardLastFour, 
-        cardExpMonth, 
-        cardExpYear,
+        cardNumber, 
+        cardholderName, 
+        expiryMonth, 
+        expiryYear,
+        cvv,
         isPrimary = false
       } = req.body;
 
-      // If this is being set as primary, we'll handle that in the storage method
+      // Validate required fields
+      if (!cardNumber || !cardholderName || !expiryMonth || !expiryYear) {
+        return res.status(400).json({ message: "Missing required card information" });
+      }
+
+      // Determine card brand from card number
+      let cardBrand = "Unknown";
+      if (cardNumber.startsWith("4")) cardBrand = "Visa";
+      else if (cardNumber.startsWith("5") || cardNumber.startsWith("2")) cardBrand = "Mastercard";
+      else if (cardNumber.startsWith("3")) cardBrand = "American Express";
+
+      // Extract last 4 digits of card number
+      const cardLastFour = cardNumber.slice(-4);
+
+      // Create payment method data matching the existing schema
       const paymentMethodData = {
         providerId,
-        stripeCustomerId,
-        stripePaymentMethodId,
+        stripeCustomerId: `cus_test_${Date.now()}`, // Generate test customer ID
+        stripePaymentMethodId: `pm_test_${Date.now()}`, // Generate test payment method ID
         cardBrand,
         cardLastFour,
-        cardExpMonth,
-        cardExpYear,
+        cardExpMonth: parseInt(expiryMonth),
+        cardExpYear: parseInt(expiryYear),
         isPrimary,
         isActive: true
       };
