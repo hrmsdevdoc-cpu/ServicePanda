@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -87,6 +88,13 @@ export default function ProviderDashboard() {
     policeCheck: null as File | null,
     insuranceCertificate: null as File | null,
   });
+  
+  // Document viewer state
+  const [viewingDocument, setViewingDocument] = useState<{
+    fileName: string;
+    filePath: string;
+    documentType: string;
+  } | null>(null);
 
   // Fetch provider profile
   const { data: provider, isLoading: providerLoading } = useQuery({
@@ -986,7 +994,11 @@ export default function ProviderDashboard() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => window.open(`/uploads/${document.filePath.split('/').pop()}`, '_blank')}
+                                  onClick={() => setViewingDocument({
+                                    fileName: document.fileName,
+                                    filePath: document.filePath,
+                                    documentType: docTypeLabels[docType as keyof typeof docTypeLabels]
+                                  })}
                                 >
                                   <Eye className="h-4 w-4 mr-2" />
                                   View

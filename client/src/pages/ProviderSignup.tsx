@@ -926,16 +926,15 @@ export default function ProviderSignup() {
                 </p>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Compact document upload sections */}
-              <div className="grid md:grid-cols-1 gap-4">
+            <CardContent className="space-y-3">
+              {/* Compact 3-column document upload sections */}
+              <div className="grid md:grid-cols-3 gap-3">
                 {/* License Document Upload */}
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-2">License Document *</h3>
-                  <p className="text-sm text-gray-600 mb-3">Business license or professional certification (Required)</p>
+                <div className="border rounded-lg p-3">
+                  <h3 className="font-medium text-gray-900 mb-1 text-sm">License Document *</h3>
                   <DocumentUpload
-                    label="Choose License File"
-                    description="PDF, JPG, PNG supported (Max 10MB)"
+                    label="Choose File"
+                    description="PDF, JPG, PNG (10MB max)"
                     onUpload={(files) => {
                       if (files.length > 0) {
                         setDocumentFiles(prev => ({ ...prev, license: files[0] }));
@@ -945,18 +944,19 @@ export default function ProviderSignup() {
                     multiple={false}
                   />
                   {documentFiles.license && (
-                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                    <div className="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs">
                       <div className="flex items-center justify-between">
                         <span className="text-green-700 flex items-center">
-                          <Check className="h-4 w-4 mr-1" />
-                          {documentFiles.license.name}
+                          <Check className="h-3 w-3 mr-1" />
+                          Selected
                         </span>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setDocumentFiles(prev => ({ ...prev, license: null }))}
+                          className="h-5 w-5 p-0"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -964,12 +964,11 @@ export default function ProviderSignup() {
                 </div>
 
                 {/* Police Check Document Upload */}
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-2">Police Check *</h3>
-                  <p className="text-sm text-gray-600 mb-3">Police check certificate (Required)</p>
+                <div className="border rounded-lg p-3">
+                  <h3 className="font-medium text-gray-900 mb-1 text-sm">Police Check *</h3>
                   <DocumentUpload
-                    label="Choose Police Check File"
-                    description="PDF, JPG, PNG supported (Max 10MB)"
+                    label="Choose File"
+                    description="PDF, JPG, PNG (10MB max)"
                     onUpload={(files) => {
                       if (files.length > 0) {
                         setDocumentFiles(prev => ({ ...prev, policeCheck: files[0] }));
@@ -979,18 +978,19 @@ export default function ProviderSignup() {
                     multiple={false}
                   />
                   {documentFiles.policeCheck && (
-                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                    <div className="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs">
                       <div className="flex items-center justify-between">
                         <span className="text-green-700 flex items-center">
-                          <Check className="h-4 w-4 mr-1" />
-                          {documentFiles.policeCheck.name}
+                          <Check className="h-3 w-3 mr-1" />
+                          Selected
                         </span>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setDocumentFiles(prev => ({ ...prev, policeCheck: null }))}
+                          className="h-5 w-5 p-0"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -998,12 +998,11 @@ export default function ProviderSignup() {
                 </div>
 
                 {/* Insurance Certificate Upload */}
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-2">Insurance Certificate *</h3>
-                  <p className="text-sm text-gray-600 mb-3">Public liability insurance certificate (Required)</p>
+                <div className="border rounded-lg p-3">
+                  <h3 className="font-medium text-gray-900 mb-1 text-sm">Insurance Certificate *</h3>
                   <DocumentUpload
-                    label="Choose Insurance File"
-                    description="PDF, JPG, PNG supported (Max 10MB)"
+                    label="Choose File"
+                    description="PDF, JPG, PNG (10MB max)"
                     onUpload={(files) => {
                       if (files.length > 0) {
                         setDocumentFiles(prev => ({ ...prev, insuranceCertificate: files[0] }));
@@ -1013,18 +1012,19 @@ export default function ProviderSignup() {
                     multiple={false}
                   />
                   {documentFiles.insuranceCertificate && (
-                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                    <div className="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs">
                       <div className="flex items-center justify-between">
                         <span className="text-green-700 flex items-center">
-                          <Check className="h-4 w-4 mr-1" />
-                          {documentFiles.insuranceCertificate.name}
+                          <Check className="h-3 w-3 mr-1" />
+                          Selected
                         </span>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setDocumentFiles(prev => ({ ...prev, insuranceCertificate: null }))}
+                          className="h-5 w-5 p-0"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
