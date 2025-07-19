@@ -190,32 +190,82 @@ export default function ProviderPayment() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/provider-dashboard")}
-                className="mr-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Payment Methods</h1>
-                <p className="text-sm text-gray-600">Manage your credit card details and billing information</p>
-              </div>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Left Navigation */}
+      <div className="w-64 bg-white shadow-lg">
+        <div className="p-6">
+          <div className="flex items-center mb-8">
+            <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">SP</span>
+            </div>
+            <div className="ml-3">
+              <h2 className="text-lg font-semibold text-gray-900">ServicePanda</h2>
+              <p className="text-sm text-gray-600">Partners</p>
             </div>
           </div>
+          
+          <nav className="space-y-2">
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/provider-dashboard")}
+              className="w-full justify-start text-gray-700 hover:text-red-600 hover:bg-red-50"
+            >
+              <ArrowLeft className="h-4 w-4 mr-3" />
+              Back to Dashboard
+            </Button>
+            
+            <div className="pt-4 pb-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Settings</p>
+            </div>
+            
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/provider-dashboard")}
+              className="w-full justify-start text-gray-700 hover:text-red-600 hover:bg-red-50"
+            >
+              Services
+            </Button>
+            
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/provider-dashboard")}
+              className="w-full justify-start text-gray-700 hover:text-red-600 hover:bg-red-50"
+            >
+              Service Area
+            </Button>
+            
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/provider-dashboard")}
+              className="w-full justify-start text-gray-700 hover:text-red-600 hover:bg-red-50"
+            >
+              Documents
+            </Button>
+            
+            <Button
+              variant="ghost"
+              className="w-full justify-start bg-red-50 text-red-600 font-medium"
+            >
+              <CreditCard className="h-4 w-4 mr-3" />
+              Payment Methods
+            </Button>
+          </nav>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      {/* Main Content Area */}
+      <div className="flex-1">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="px-6 py-6">
+            <h1 className="text-2xl font-bold text-gray-900">Payment Methods</h1>
+            <p className="text-sm text-gray-600">Manage your credit card details and billing information</p>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="p-6">
+          <div className="max-w-4xl">
           
           {/* Existing Payment Methods */}
           <Card className="mb-8">
@@ -467,8 +517,9 @@ export default function ProviderPayment() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </main>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

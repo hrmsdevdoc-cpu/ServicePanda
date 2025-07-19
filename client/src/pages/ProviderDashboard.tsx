@@ -482,12 +482,8 @@ export default function ProviderDashboard() {
 
           {/* Payment */}
           <button
-            onClick={() => setActiveMenuItem("payment")}
-            className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-              activeMenuItem === "payment" 
-                ? "bg-red-50 text-red-700" 
-                : "text-gray-700 hover:bg-gray-50"
-            }`}
+            onClick={() => navigate("/provider-payment")}
+            className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50"
           >
             <CreditCard className="h-4 w-4 mr-3" />
             Payment
@@ -1158,35 +1154,7 @@ export default function ProviderDashboard() {
               </div>
             )}
 
-            {/* Payment Panel */}
-            {activeMenuItem === "payment" && (
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <CreditCard className="h-5 w-5 mr-2" />
-                      Payment Methods
-                    </CardTitle>
-                    <p className="text-sm text-gray-600">
-                      Manage your payment methods for receiving lead fees. Add a card to start receiving job requests.
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    {/* Navigate directly to the payment form */}
-                    <div className="text-center py-4">
-                      <Button
-                        onClick={() => navigate("/provider-payment")}
-                        className="bg-red-600 hover:bg-red-700 text-white"
-                        size="lg"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Manage Payment Methods
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+
 
             {/* Other menu items (coming soon) */}
             {(activeMenuItem === "accepted-leads" || activeMenuItem === "billing" || activeMenuItem === "help") && (
