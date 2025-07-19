@@ -577,13 +577,16 @@ export default function ProviderSignup() {
       return;
     }
 
-    // Check if at least one document is uploaded
-    const hasAnyDocument = documentFiles.license || documentFiles.policeCheck || documentFiles.insuranceCertificate;
+    // Check if all three documents are uploaded
+    const missingDocs = [];
+    if (!documentFiles.license) missingDocs.push("License Document");
+    if (!documentFiles.policeCheck) missingDocs.push("Police Check");
+    if (!documentFiles.insuranceCertificate) missingDocs.push("Insurance Certificate");
     
-    if (!hasAnyDocument) {
+    if (missingDocs.length > 0) {
       toast({
-        title: "Documents Required",
-        description: "Please upload at least one document to continue.",
+        title: "All Documents Required",
+        description: `Please upload the following documents: ${missingDocs.join(", ")}`,
         variant: "destructive",
       });
       return;
@@ -886,7 +889,7 @@ export default function ProviderSignup() {
               <CardTitle className="text-center">
                 <h2 className="text-2xl font-bold mb-2">Upload Documents</h2>
                 <p className="text-gray-600 font-normal">
-                  Upload your required documents for verification (at least one required)
+                  Upload all three required documents for verification (all mandatory)
                 </p>
               </CardTitle>
             </CardHeader>
@@ -895,11 +898,11 @@ export default function ProviderSignup() {
               <div className="grid md:grid-cols-1 gap-4">
                 {/* License Document Upload */}
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-2">License Document</h3>
-                  <p className="text-sm text-gray-600 mb-3">Business license or professional certification</p>
+                  <h3 className="font-medium text-gray-900 mb-2">License Document *</h3>
+                  <p className="text-sm text-gray-600 mb-3">Business license or professional certification (Required)</p>
                   <DocumentUpload
                     label="Choose License File"
-                    description="PDF, JPG, PNG (Max 10MB)"
+                    description="PDF, JPG, PNG supported (Max 10MB)"
                     onUpload={(files) => {
                       if (files.length > 0) {
                         setDocumentFiles(prev => ({ ...prev, license: files[0] }));
@@ -929,11 +932,11 @@ export default function ProviderSignup() {
 
                 {/* Police Check Document Upload */}
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-2">Police Check</h3>
-                  <p className="text-sm text-gray-600 mb-3">Police check certificate</p>
+                  <h3 className="font-medium text-gray-900 mb-2">Police Check *</h3>
+                  <p className="text-sm text-gray-600 mb-3">Police check certificate (Required)</p>
                   <DocumentUpload
                     label="Choose Police Check File"
-                    description="PDF, JPG, PNG (Max 10MB)"
+                    description="PDF, JPG, PNG supported (Max 10MB)"
                     onUpload={(files) => {
                       if (files.length > 0) {
                         setDocumentFiles(prev => ({ ...prev, policeCheck: files[0] }));
@@ -963,11 +966,11 @@ export default function ProviderSignup() {
 
                 {/* Insurance Certificate Upload */}
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-2">Insurance Certificate</h3>
-                  <p className="text-sm text-gray-600 mb-3">Public liability insurance certificate</p>
+                  <h3 className="font-medium text-gray-900 mb-2">Insurance Certificate *</h3>
+                  <p className="text-sm text-gray-600 mb-3">Public liability insurance certificate (Required)</p>
                   <DocumentUpload
                     label="Choose Insurance File"
-                    description="PDF, JPG, PNG (Max 10MB)"
+                    description="PDF, JPG, PNG supported (Max 10MB)"
                     onUpload={(files) => {
                       if (files.length > 0) {
                         setDocumentFiles(prev => ({ ...prev, insuranceCertificate: files[0] }));
