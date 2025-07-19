@@ -160,6 +160,13 @@ export default function ProviderSignup() {
     selectedSuburbs: [] as number[],
   });
 
+  // Document upload state
+  const [documentFiles, setDocumentFiles] = useState({
+    license: null as File | null,
+    policeCheck: null as File | null,
+    insuranceCertificate: null as File | null,
+  });
+
   const [locationData, setLocationData] = useState({
     selectedStateForLocation: "",
     selectedRegion: "",
@@ -385,19 +392,32 @@ export default function ProviderSignup() {
   };
 
   const uploadDocumentsMutation = useMutation({
-    mutationFn: async ({ providerId, documents }: { providerId: number; documents: FileList }) => {
+    mutationFn: async ({ providerId, documents }: { providerId: number; documents: { license?: File; policeCheck?: File; insuranceCertificate?: File } }) => {
       const formData = new FormData();
-      Array.from(documents).forEach((file) => {
-        formData.append("documents", file);
-      });
+      
+      if (documents.license) {
+        formData.append("license", documents.license);
+      }
+      if (documents.policeCheck) {
+        formData.append("policeCheck", documents.policeCheck);
+      }
+      if (documents.insuranceCertificate) {
+        formData.append("insuranceCertificate", documents.insuranceCertificate);
+      }
+      
       await apiRequest("POST", `/api/service-providers/${providerId}/documents`, formData);
     },
     onSuccess: () => {
       setCurrentStep(5);
+      toast({
+        title: "Documents Uploaded!",
+        description: "Your documents have been uploaded successfully. Application submitted for review.",
+        variant: "default",
+      });
     },
     onError: (error) => {
       toast({
-        title: "Error",
+        title: "Upload Error",
         description: error.message,
         variant: "destructive",
       });
@@ -525,7 +545,7 @@ export default function ProviderSignup() {
     });
   };
 
-  const handleDocumentUpload = (files: FileList) => {
+  const handleDocumentUpload = () => {
     if (!providerId) {
       toast({
         title: "Error",
@@ -536,9 +556,21 @@ export default function ProviderSignup() {
       return;
     }
 
+    // Check if at least one document is uploaded
+    const hasAnyDocument = documentFiles.license || documentFiles.policeCheck || documentFiles.insuranceCertificate;
+    
+    if (!hasAnyDocument) {
+      toast({
+        title: "Documents Required",
+        description: "Please upload at least one document to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     uploadDocumentsMutation.mutate({
       providerId: providerId,
-      documents: files,
+      documents: documentFiles,
     });
   };
 
@@ -833,17 +865,97 @@ export default function ProviderSignup() {
               <CardTitle className="text-center">
                 <h2 className="text-2xl font-bold mb-2">Upload Documents</h2>
                 <p className="text-gray-600 font-normal">
-                  Upload your required documents for verification
+                  Upload your required documents for verification (at least one required)
                 </p>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-8">
-              <DocumentUpload
-                label="Upload Documents"
-                description="Upload your license, police check, and insurance documents"
-                onUpload={handleDocumentUpload}
-                loading={uploadDocumentsMutation.isPending}
-              />
+              {/* License Document Upload */}
+              <div>
+                <DocumentUpload
+                  label="License Document"
+                  description="Upload your business license or professional certification (PDF, JPG, PNG)"
+                  onUpload={(files) => {
+                    if (files.length > 0) {
+                      setDocumentFiles(prev => ({ ...prev, license: files[0] }));
+                    }
+                  }}
+                  loading={uploadDocumentsMutation.isPending}
+                  multiple={false}
+                />
+                {documentFiles.license && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-green-700">✓ {documentFiles.license.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDocumentFiles(prev => ({ ...prev, license: null }))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Police Check Document Upload */}
+              <div>
+                <DocumentUpload
+                  label="Police Check"
+                  description="Upload your police check certificate (PDF, JPG, PNG)"
+                  onUpload={(files) => {
+                    if (files.length > 0) {
+                      setDocumentFiles(prev => ({ ...prev, policeCheck: files[0] }));
+                    }
+                  }}
+                  loading={uploadDocumentsMutation.isPending}
+                  multiple={false}
+                />
+                {documentFiles.policeCheck && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-green-700">✓ {documentFiles.policeCheck.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDocumentFiles(prev => ({ ...prev, policeCheck: null }))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Insurance Certificate Upload */}
+              <div>
+                <DocumentUpload
+                  label="Insurance Certificate"
+                  description="Upload your public liability insurance certificate (PDF, JPG, PNG)"
+                  onUpload={(files) => {
+                    if (files.length > 0) {
+                      setDocumentFiles(prev => ({ ...prev, insuranceCertificate: files[0] }));
+                    }
+                  }}
+                  loading={uploadDocumentsMutation.isPending}
+                  multiple={false}
+                />
+                {documentFiles.insuranceCertificate && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-green-700">✓ {documentFiles.insuranceCertificate.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDocumentFiles(prev => ({ ...prev, insuranceCertificate: null }))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
               
               <div className="flex justify-between">
                 <Button 
@@ -853,10 +965,10 @@ export default function ProviderSignup() {
                   Previous
                 </Button>
                 <Button 
-                  onClick={() => setCurrentStep(5)}
+                  onClick={handleDocumentUpload}
                   disabled={uploadDocumentsMutation.isPending}
                 >
-                  Complete Registration
+                  {uploadDocumentsMutation.isPending ? "Uploading..." : "Complete Registration"}
                 </Button>
               </div>
             </CardContent>

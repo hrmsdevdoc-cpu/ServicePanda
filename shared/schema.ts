@@ -55,6 +55,10 @@ export const serviceProviders = pgTable("service_providers", {
   eWayCustomerToken: varchar("eway_customer_token"),
   cardFirstFour: varchar("card_first_four"),
   cardLastFour: varchar("card_last_four"),
+  // Document information fields
+  licenseInfo: text("license_info"),
+  policeCheckInfo: text("police_check_info"),
+  insuranceCertificateInfo: text("insurance_certificate_info"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

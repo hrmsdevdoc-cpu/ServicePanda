@@ -238,24 +238,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload provider documents
-  app.post('/api/service-providers/:id/documents', isAuthenticated, upload.array('documents', 3), async (req: any, res) => {
+  app.post('/api/service-providers/:id/documents', isProviderAuthenticated, upload.fields([
+    { name: 'license', maxCount: 1 },
+    { name: 'policeCheck', maxCount: 1 },
+    { name: 'insuranceCertificate', maxCount: 1 }
+  ]), async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      const userId = req.user.id;
-      const files = req.files as Express.Multer.File[];
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       
-      // Verify ownership
+      // Verify provider exists
       const provider = await storage.getServiceProvider(providerId);
-      if (!provider || provider.userId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
       }
       
       const uploadedDocs = [];
       
-      for (const file of files) {
+      // Process each document type
+      if (files.license && files.license[0]) {
+        const file = files.license[0];
         const doc = await storage.uploadProviderDocument({
           providerId,
-          documentType: req.body.documentType || 'general',
+          documentType: 'license',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      if (files.policeCheck && files.policeCheck[0]) {
+        const file = files.policeCheck[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'police_check',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      if (files.insuranceCertificate && files.insuranceCertificate[0]) {
+        const file = files.insuranceCertificate[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'insurance',
           fileName: file.originalname,
           filePath: file.path,
           fileSize: file.size,
