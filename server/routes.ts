@@ -876,6 +876,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customer: stripeCustomerId,
       });
 
+      // Check if this is the first payment method for this provider
+      const existingMethods = await storage.getProviderPaymentMethods(providerId);
+      const isFirstCard = existingMethods.length === 0;
+
       // Store payment method reference in our database
       const paymentMethodData = {
         providerId,
@@ -885,14 +889,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cardLastFour: paymentMethod.card?.last4 || '0000',
         cardExpMonth: paymentMethod.card?.exp_month || 0,
         cardExpYear: paymentMethod.card?.exp_year || 0,
-        isPrimary,
+        isPrimary: isFirstCard || isPrimary, // First card is automatically primary
         isActive: true
       };
 
       const newPaymentMethod = await storage.addProviderPaymentMethod(paymentMethodData);
       
       // If this was set as primary, update other methods
-      if (isPrimary) {
+      if (isFirstCard || isPrimary) {
         await storage.updateProviderPaymentMethodPrimary(providerId, newPaymentMethod.id);
       }
       

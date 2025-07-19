@@ -151,8 +151,7 @@ export class DatabaseStorage implements IStorage {
   private encrypt(text: string): string {
     const iv = crypto.randomBytes(16);
     const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
-    const cipher = crypto.createCipher('aes-256-cbc', key);
-    cipher.setAutoPadding(true);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return iv.toString('hex') + ':' + encrypted;
@@ -166,8 +165,7 @@ export class DatabaseStorage implements IStorage {
     const encrypted = parts[1];
     
     const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
-    const decipher = crypto.createDecipher('aes-256-cbc', key);
-    decipher.setAutoPadding(true);
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
