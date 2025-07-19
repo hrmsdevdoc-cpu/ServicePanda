@@ -187,6 +187,13 @@ export default function ProviderSignup() {
     queryKey: ["/api/australian-states"],
   });
 
+  // Fetch provider profile if existing provider
+  const { data: providerProfileData } = useQuery({
+    queryKey: ["/api/provider/profile"],
+    retry: false,
+    enabled: isExistingProvider,
+  });
+
   // Fetch regions when state is selected
   useEffect(() => {
     const fetchRegions = async () => {
@@ -795,7 +802,7 @@ export default function ProviderSignup() {
             <CardContent className="space-y-6">
               <LocationServiceAreaForm
                 providerId={parseInt(localStorage.getItem('providerId') || '0')}
-                initialAddress={formData.address}
+                initialAddress={providerProfileData?.address || formData.address || ""}
                 onServiceAreasChange={handleServiceAreasChange}
               />
               

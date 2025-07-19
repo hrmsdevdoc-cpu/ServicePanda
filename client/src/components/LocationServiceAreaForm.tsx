@@ -40,7 +40,7 @@ export function LocationServiceAreaForm({
   const { toast } = useToast();
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
   const [currentArea, setCurrentArea] = useState<Partial<ServiceArea>>({
-    centerAddress: initialAddress,
+    centerAddress: initialAddress || "",
     radiusKm: 25,
     areaName: "",
   });
@@ -79,18 +79,40 @@ export function LocationServiceAreaForm({
 
   // Update initial address when prop changes
   useEffect(() => {
+    console.log('Initial address received:', initialAddress);
     if (initialAddress && initialAddress !== currentArea.centerAddress) {
+      console.log('Setting initial address:', initialAddress);
       setCurrentArea(prev => ({
         ...prev,
         centerAddress: initialAddress,
       }));
-      
-      // Update input field
-      if (addressInputRef.current) {
-        addressInputRef.current.value = initialAddress;
-      }
     }
   }, [initialAddress]);
+
+  // Pre-populate map if we have an initial address with coordinates  
+  useEffect(() => {
+    if (initialAddress && window.google && window.google.maps && mapInstanceRef.current && !currentArea.centerLat) {
+      // Try to geocode the initial address to get coordinates and show on map
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ address: initialAddress }, (results: any, status: any) => {
+        if (status === 'OK' && results[0]) {
+          const location = results[0].geometry.location;
+          const lat = location.lat();
+          const lng = location.lng();
+          
+          setCurrentArea(prev => ({
+            ...prev,
+            centerLat: lat.toString(),
+            centerLng: lng.toString(),
+          }));
+          
+          // Center map on the address
+          mapInstanceRef.current.setCenter(location);
+          mapInstanceRef.current.setZoom(12);
+        }
+      });
+    }
+  }, [initialAddress, mapLoaded]);
 
   const fetchExistingServiceAreas = async () => {
     try {
@@ -299,7 +321,8 @@ export function LocationServiceAreaForm({
                 id="address"
                 ref={addressInputRef}
                 placeholder="Enter your service area address..."
-                defaultValue={initialAddress}
+                value={currentArea.centerAddress || ""}
+                onChange={(e) => setCurrentArea(prev => ({ ...prev, centerAddress: e.target.value }))}
                 onFocus={() => {
                   if (!mapLoaded && window.google && window.google.maps) {
                     initializeGoogleMaps();
