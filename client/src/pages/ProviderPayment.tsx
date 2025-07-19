@@ -20,6 +20,12 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle,
+  LayoutDashboard,
+  Target,
+  Settings,
+  Receipt,
+  HelpCircle,
+  LogOut,
 } from "lucide-react";
 
 const addCardSchema = z.object({
@@ -205,51 +211,102 @@ export default function ProviderPayment() {
           </div>
           
           <nav className="space-y-2">
-            <Button
-              variant="ghost"
+            {/* Dashboard */}
+            <button
               onClick={() => navigate("/provider-dashboard")}
-              className="w-full justify-start text-gray-700 hover:text-red-600 hover:bg-red-50"
+              className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50"
             >
-              <ArrowLeft className="h-4 w-4 mr-3" />
-              Back to Dashboard
-            </Button>
-            
-            <div className="pt-4 pb-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Settings</p>
+              <LayoutDashboard className="h-4 w-4 mr-3" />
+              Dashboard
+            </button>
+
+            {/* Leads Section */}
+            <div className="space-y-1">
+              <button className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50">
+                <div className="flex items-center">
+                  <Target className="h-4 w-4 mr-3" />
+                  Leads
+                </div>
+              </button>
             </div>
-            
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/provider-dashboard")}
-              className="w-full justify-start text-gray-700 hover:text-red-600 hover:bg-red-50"
-            >
-              Services
-            </Button>
-            
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/provider-dashboard")}
-              className="w-full justify-start text-gray-700 hover:text-red-600 hover:bg-red-50"
-            >
-              Service Area
-            </Button>
-            
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/provider-dashboard")}
-              className="w-full justify-start text-gray-700 hover:text-red-600 hover:bg-red-50"
-            >
-              Documents
-            </Button>
-            
-            <Button
-              variant="ghost"
-              className="w-full justify-start bg-red-50 text-red-600 font-medium"
-            >
+
+            {/* Settings Section */}
+            <div className="space-y-1">
+              <button className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50">
+                <div className="flex items-center">
+                  <Settings className="h-4 w-4 mr-3" />
+                  Settings
+                </div>
+              </button>
+              
+              <div className="ml-6 space-y-1">
+                <button
+                  onClick={() => navigate("/provider-dashboard")}
+                  className="w-full flex items-center px-3 py-2 text-sm rounded-md text-gray-600 hover:bg-gray-50"
+                >
+                  Services
+                </button>
+                <button
+                  onClick={() => navigate("/provider-dashboard")}
+                  className="w-full flex items-center px-3 py-2 text-sm rounded-md text-gray-600 hover:bg-gray-50"
+                >
+                  Service Area
+                </button>
+                <button
+                  onClick={() => navigate("/provider-dashboard")}
+                  className="w-full flex items-center px-3 py-2 text-sm rounded-md text-gray-600 hover:bg-gray-50"
+                >
+                  Documents
+                </button>
+              </div>
+            </div>
+
+            {/* Payment */}
+            <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md bg-red-50 text-red-700">
               <CreditCard className="h-4 w-4 mr-3" />
-              Payment Methods
-            </Button>
+              Payment
+            </button>
+
+            {/* Other menu items */}
+            <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50">
+              <Receipt className="h-4 w-4 mr-3" />
+              Billing
+            </button>
+
+            <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50">
+              <HelpCircle className="h-4 w-4 mr-3" />
+              Help
+            </button>
           </nav>
+        </div>
+
+        {/* User Profile Section */}
+        <div className="border-t border-gray-200 p-4 mt-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center min-w-0">
+              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="text-sm font-medium text-red-600">
+                  {providerId ? 'M' : '?'}
+                </span>
+              </div>
+              <div className="ml-3 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  Provider
+                </p>
+                <p className="text-xs text-gray-500">
+                  Active
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => navigate("/provider-login")}
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
