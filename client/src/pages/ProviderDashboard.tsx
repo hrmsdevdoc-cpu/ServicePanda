@@ -70,6 +70,7 @@ export default function ProviderDashboard() {
   const { toast } = useToast();
   const [activeMenuItem, setActiveMenuItem] = useState("dashboard");
   const [expandedMenus, setExpandedMenus] = useState<string[]>(["leads", "settings"]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Services panel state
   const [formData, setFormData] = useState({
@@ -319,9 +320,11 @@ export default function ProviderDashboard() {
   const newLeadsCount = leads.filter((l: any) => l.status === 'new').length;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Left Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      {/* Left Sidebar - Fixed Height with Internal Scrolling */}
+      <div className={`w-64 bg-white border-r border-gray-200 flex flex-col h-full md:relative fixed left-0 top-0 z-40 transform transition-transform duration-300 ease-in-out ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      } md:transform-none`}>
         {/* Logo Section */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center">
@@ -337,7 +340,10 @@ export default function ProviderDashboard() {
         <nav className="flex-1 px-4 py-6 space-y-1">
           {/* Dashboard */}
           <button
-            onClick={() => setActiveMenuItem("dashboard")}
+            onClick={() => {
+              setActiveMenuItem("dashboard");
+              setIsMobileMenuOpen(false);
+            }}
             className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
               activeMenuItem === "dashboard" 
                 ? "bg-red-50 text-red-700 border-r-2 border-red-600" 
@@ -368,7 +374,10 @@ export default function ProviderDashboard() {
             {expandedMenus.includes("leads") && (
               <div className="ml-6 space-y-1">
                 <button
-                  onClick={() => setActiveMenuItem("new-leads")}
+                  onClick={() => {
+                    setActiveMenuItem("new-leads");
+                    setIsMobileMenuOpen(false);
+                  }}
                   className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md ${
                     activeMenuItem === "new-leads" 
                       ? "bg-red-50 text-red-700" 
@@ -383,7 +392,10 @@ export default function ProviderDashboard() {
                   )}
                 </button>
                 <button
-                  onClick={() => setActiveMenuItem("accepted-leads")}
+                  onClick={() => {
+                    setActiveMenuItem("accepted-leads");
+                    setIsMobileMenuOpen(false);
+                  }}
                   className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                     activeMenuItem === "accepted-leads" 
                       ? "bg-red-50 text-red-700" 
@@ -522,8 +534,29 @@ export default function ProviderDashboard() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Mobile menu overlay */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30" onClick={() => setIsMobileMenuOpen(false)}></div>
+      )}
+
+      {/* Main Content Area - Scrollable */}
+      <div className="flex-1 flex flex-col h-full">
+        {/* Mobile header with hamburger */}
+        <div className="md:hidden bg-white shadow-sm border-b px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div className="flex items-center">
+            <Briefcase className="h-6 w-6 text-red-600 mr-2" />
+            <span className="text-lg font-bold text-gray-900">ServicePanda</span>
+          </div>
+          <div className="w-10"></div> {/* Spacer for centering */}
+        </div>
         {/* Header */}
         <header className="bg-white shadow-sm border-b">
           <div className="px-6 py-4">
@@ -556,9 +589,9 @@ export default function ProviderDashboard() {
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="px-6 py-6">
+        {/* Main Content - Scrollable Area */}
+        <main className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="px-6 py-6 min-h-full">
             {/* Status Alert */}
             {provider.status?.toLowerCase() === 'pending' && (
               <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
