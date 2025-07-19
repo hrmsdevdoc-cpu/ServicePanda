@@ -53,7 +53,8 @@ export default function ProviderDashboard() {
 
   // Fetch provider payment methods to check if payment setup is complete
   const { data: paymentMethods = [], isLoading: paymentMethodsLoading } = useQuery({
-    queryKey: ["/api/provider/payment-methods"],
+    queryKey: ["/api/provider", provider?.id, "payment-methods"],
+    enabled: !!provider?.id, // Only run query when provider ID is available
     retry: false,
   });
 
