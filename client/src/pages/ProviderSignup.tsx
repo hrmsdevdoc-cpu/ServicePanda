@@ -862,6 +862,7 @@ export default function ProviderSignup() {
                 <Button 
                   variant="outline"
                   onClick={() => setCurrentStep(1)}
+                  disabled={isExistingProvider}
                 >
                   Previous
                 </Button>
@@ -898,7 +899,6 @@ export default function ProviderSignup() {
                 <Button 
                   variant="outline"
                   onClick={() => setCurrentStep(2)}
-                  disabled={isExistingProvider}
                 >
                   Previous
                 </Button>
