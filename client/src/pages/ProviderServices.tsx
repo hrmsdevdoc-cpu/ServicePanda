@@ -1,25 +1,47 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  Save,
   ArrowLeft,
+  Check,
+  Home,
   Wrench,
-  CheckCircle,
-  AlertCircle,
-  Loader2
+  Zap,
+  Droplets,
+  Car,
+  Hammer,
+  TreePine,
+  Bug,
+  Sparkles,
+  Building,
+  Save
 } from "lucide-react";
+
+// Service icons mapping - same as registration
+const serviceIcons = {
+  "Domestic Cleaning": Sparkles,
+  "Bond Cleaning": Building,
+  "Carpet Cleaning": Home,
+  "Pest Control": Bug,
+  "Gardening": TreePine,
+  "Removals": Car,
+  "Handyman": Hammer,
+  "Electrical": Zap,
+  "Air Conditioning": Wrench,
+  "Plumbing": Droplets,
+};
 
 export default function ProviderServices() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [selectedServices, setSelectedServices] = useState<number[]>([]);
+  const [formData, setFormData] = useState({
+    selectedServices: [] as number[],
+  });
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   // Fetch service categories
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -35,66 +57,66 @@ export default function ProviderServices() {
 
   // Set initial selected services when data loads
   useEffect(() => {
-    if (providerServices.length > 0) {
-      setSelectedServices(providerServices.map((s: any) => s.categoryId));
+    if (providerServices && providerServices.length > 0) {
+      const serviceIds = providerServices.map((service: any) => service.categoryId);
+      setFormData(prev => ({ 
+        ...prev, 
+        selectedServices: serviceIds 
+      }));
     }
   }, [providerServices]);
 
-  const updateServicesMutation = useMutation({
-    mutationFn: async (serviceIds: number[]) => {
-      const res = await apiRequest("PUT", "/api/provider/services", {
-        categoryIds: serviceIds
-      });
-      return res.json();
+  const addServicesMutation = useMutation({
+    mutationFn: async (categoryIds: number[]) => {
+      // Get provider ID from localStorage (same as registration)
+      const providerId = localStorage.getItem('providerId');
+      if (!providerId) {
+        throw new Error("Provider information not found.");
+      }
+      
+      console.log('Updating services for provider:', providerId, 'categories:', categoryIds);
+      await apiRequest("POST", `/api/service-providers/${providerId}/services`, { categoryIds });
     },
     onSuccess: () => {
+      console.log('Services updated successfully');
       queryClient.invalidateQueries({ queryKey: ["/api/provider/services"] });
       toast({
-        title: "Services Updated",
+        title: "Services Updated!",
         description: "Your service offerings have been updated successfully.",
+        variant: "default",
       });
     },
     onError: (error: any) => {
+      console.error('Error updating services:', error);
       toast({
-        title: "Update Failed",
+        title: "Error",
         description: error.message || "Failed to update services.",
         variant: "destructive",
       });
     },
   });
 
-  const handleServiceToggle = (categoryId: number) => {
-    setSelectedServices(prev => {
-      if (prev.includes(categoryId)) {
-        return prev.filter(id => id !== categoryId);
-      } else {
-        return [...prev, categoryId];
-      }
-    });
-  };
+  const handleSaveServices = () => {
+    // Mark that form submission was attempted
+    setHasAttemptedSubmit(true);
 
-  const handleSave = () => {
-    if (selectedServices.length === 0) {
+    if (formData.selectedServices.length === 0) {
       toast({
-        title: "No Services Selected",
-        description: "Please select at least one service category.",
+        title: "Please select your services",
+        description: "You must select at least one service you specialize in",
         variant: "destructive",
       });
       return;
     }
-    updateServicesMutation.mutate(selectedServices);
-  };
 
-  const getServiceIcon = (iconName: string) => {
-    // Return a default wrench icon for now - can be enhanced later
-    return <Wrench className="h-6 w-6" />;
+    addServicesMutation.mutate(formData.selectedServices);
   };
 
   if (categoriesLoading || servicesLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-red-600 mx-auto mb-4" />
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading services...</p>
         </div>
       </div>
@@ -103,7 +125,7 @@ export default function ProviderServices() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-8 px-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <Button
@@ -115,121 +137,112 @@ export default function ProviderServices() {
             Back to Dashboard
           </Button>
           
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Service Categories</h1>
-              <p className="text-lg text-gray-600 mt-2">
-                Select the services you provide to customers
-              </p>
-            </div>
-            <Badge variant="outline" className="text-sm">
-              Step 2 of 4
-            </Badge>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Select Your Services</h1>
+            <p className="text-lg text-gray-600 mt-2">
+              Choose the services you specialize in (you can select multiple)
+            </p>
           </div>
         </div>
 
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
-            <span>Registration Progress</span>
-            <span>50% Complete</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-red-600 h-2 rounded-full" style={{ width: '50%' }}></div>
-          </div>
-        </div>
-
+        {/* Exact replication of Step 2 from registration */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Wrench className="h-5 w-5 mr-2" />
-              Available Service Categories
-            </CardTitle>
-            <p className="text-sm text-gray-600">
-              Choose all the services you can provide. You can update this anytime.
-            </p>
+            <div className="flex justify-between items-start">
+              <CardTitle className="text-center flex-1">
+                <h2 className="text-2xl font-bold mb-2">Select Your Services</h2>
+                <p className="text-gray-600 font-normal">
+                  Choose the services you specialize in (you can select multiple)
+                </p>
+              </CardTitle>
+              <Button 
+                onClick={handleSaveServices}
+                disabled={addServicesMutation.isPending || formData.selectedServices.length === 0}
+                className="ml-4"
+              >
+                {addServicesMutation.isPending ? "Saving..." : "Save Services"}
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
-            {categories.length === 0 ? (
-              <div className="text-center py-8">
-                <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Service Categories</h3>
-                <p className="text-gray-500">
-                  Service categories are not available at the moment.
+          <CardContent className="space-y-6">
+            {/* Validation message */}
+            {hasAttemptedSubmit && formData.selectedServices.length === 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p className="text-red-600 text-sm font-medium">
+                  Please select at least one service you specialize in
                 </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {categories.map((category: any) => (
+            )}
+
+            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+              {categories.map((category: any) => {
+                const IconComponent = serviceIcons[category.name as keyof typeof serviceIcons] || Home;
+                const isSelected = formData.selectedServices.includes(category.id);
+                
+                return (
                   <div
                     key={category.id}
-                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                      selectedServices.includes(category.id)
-                        ? 'border-red-500 bg-red-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                    className={`relative border-2 rounded-lg p-2 text-center cursor-pointer transition-all duration-200 ${
+                      isSelected 
+                        ? "border-primary bg-blue-50 shadow-md" 
+                        : "border-gray-300 hover:border-primary hover:shadow-sm"
                     }`}
-                    onClick={() => handleServiceToggle(category.id)}
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        selectedServices: isSelected
+                          ? prev.selectedServices.filter(id => id !== category.id)
+                          : [...prev.selectedServices, category.id]
+                      }));
+                    }}
                   >
-                    <div className="flex items-center space-x-3">
-                      <Checkbox
-                        checked={selectedServices.includes(category.id)}
-                        onChange={() => {}} // Controlled by parent click
-                        className="pointer-events-none"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          {getServiceIcon(category.icon)}
-                          <h3 className="font-medium text-gray-900">{category.name}</h3>
-                        </div>
-                        {category.description && (
-                          <p className="text-sm text-gray-600">{category.description}</p>
-                        )}
-                      </div>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1 ${
+                      isSelected ? "bg-primary text-white" : "bg-blue-100"
+                    }`}>
+                      <IconComponent className={`h-4 w-4 ${isSelected ? "text-white" : "text-primary"}`} />
                     </div>
+                    <h3 className="text-xs font-medium text-gray-900 leading-tight">{category.name}</h3>
+                    {isSelected && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                        <Check className="h-3 w-3 text-white" />
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
 
-            {/* Selected Services Summary */}
-            {selectedServices.length > 0 && (
-              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center mb-2">
-                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
-                  <h4 className="font-medium text-green-800">
-                    {selectedServices.length} Service{selectedServices.length !== 1 ? 's' : ''} Selected
-                  </h4>
-                </div>
+            {/* Selected services summary */}
+            {formData.selectedServices.length > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <p className="text-green-700 text-sm font-medium mb-2">
+                  Selected Services ({formData.selectedServices.length}):
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedServices.map((serviceId) => {
-                    const category = categories.find((c: any) => c.id === serviceId);
-                    return category ? (
-                      <Badge key={serviceId} className="bg-green-100 text-green-800">
-                        {category.name}
-                      </Badge>
-                    ) : null;
-                  })}
+                  {categories
+                    .filter((cat: any) => formData.selectedServices.includes(cat.id))
+                    .map((cat: any) => (
+                      <span 
+                        key={cat.id}
+                        className="bg-primary text-white px-3 py-1 rounded-full text-xs font-medium"
+                      >
+                        {cat.name}
+                      </span>
+                    ))}
                 </div>
               </div>
             )}
-
-            {/* Action Buttons */}
-            <div className="flex justify-between mt-8">
-              <Button
-                variant="outline"
-                onClick={() => navigate("/provider-dashboard")}
+            
+            {/* Save button at bottom */}
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleSaveServices}
+                disabled={addServicesMutation.isPending}
+                className="bg-primary hover:bg-primary/90"
               >
-                Cancel
-              </Button>
-              
-              <Button
-                onClick={handleSave}
-                disabled={selectedServices.length === 0 || updateServicesMutation.isPending}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {updateServicesMutation.isPending ? (
+                {addServicesMutation.isPending ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                     Saving...
                   </>
                 ) : (
