@@ -893,7 +893,8 @@ export default function ProviderDashboard() {
                   </CardHeader>
                   <CardContent>
                     <LocationServiceAreaForm 
-                      businessAddress={provider?.businessAddress || ""} 
+                      providerId={provider?.id || 0}
+                      initialAddress={provider?.businessAddress || ""} 
                       onServiceAreasChange={handleServiceAreasChange}
                     />
                   </CardContent>
