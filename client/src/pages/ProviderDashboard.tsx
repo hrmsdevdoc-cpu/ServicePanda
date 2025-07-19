@@ -252,7 +252,7 @@ export default function ProviderDashboard() {
             {expandedMenus.includes("settings") && (
               <div className="ml-6 space-y-1">
                 <button
-                  onClick={() => setActiveMenuItem("services")}
+                  onClick={() => navigate("/provider-services")}
                   className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                     activeMenuItem === "services" 
                       ? "bg-red-50 text-red-700" 
@@ -262,7 +262,7 @@ export default function ProviderDashboard() {
                   Services
                 </button>
                 <button
-                  onClick={() => setActiveMenuItem("service-area")}
+                  onClick={() => navigate("/provider-service-area")}
                   className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                     activeMenuItem === "service-area" 
                       ? "bg-red-50 text-red-700" 
@@ -272,7 +272,7 @@ export default function ProviderDashboard() {
                   Service Area
                 </button>
                 <button
-                  onClick={() => setActiveMenuItem("documents")}
+                  onClick={() => navigate("/provider-documents")}
                   className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                     activeMenuItem === "documents" 
                       ? "bg-red-50 text-red-700" 

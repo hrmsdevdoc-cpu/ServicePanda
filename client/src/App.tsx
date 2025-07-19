@@ -13,6 +13,9 @@ import ProviderLogin from "@/pages/ProviderLogin";
 import AdminLogin from "@/pages/AdminLogin";
 import ProviderDashboard from "@/pages/ProviderDashboard";
 import ProviderPayment from "@/pages/ProviderPayment";
+import ProviderServices from "@/pages/ProviderServices";
+import ProviderServiceArea from "@/pages/ProviderServiceArea";
+import ProviderDocuments from "@/pages/ProviderDocuments";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminSettings from "@/pages/AdminSettings";
 import AdminStripeConfig from "@/pages/AdminStripeConfig";
@@ -41,6 +44,9 @@ function Router() {
       {/* Provider routes - accessible with provider authentication */}
       <Route path="/provider-dashboard" component={ProviderDashboard} />
       <Route path="/provider-payment" component={ProviderPayment} />
+      <Route path="/provider-services" component={ProviderServices} />
+      <Route path="/provider-service-area" component={ProviderServiceArea} />
+      <Route path="/provider-documents" component={ProviderDocuments} />
       
       {/* Admin routes - accessible with admin authentication */}
       <Route path="/admin" component={AdminDashboard} />
