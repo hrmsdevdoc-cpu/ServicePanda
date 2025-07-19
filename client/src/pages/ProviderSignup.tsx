@@ -667,8 +667,8 @@ export default function ProviderSignup() {
           </div>
         </div>
 
-        {/* Step 1: Account Creation */}
-        {currentStep === 1 && (
+        {/* Step 1: Account Creation - Hidden for existing providers */}
+        {currentStep === 1 && !isExistingProvider && (
           <Card>
             <CardHeader>
               <CardTitle className="text-center">
@@ -898,6 +898,7 @@ export default function ProviderSignup() {
                 <Button 
                   variant="outline"
                   onClick={() => setCurrentStep(2)}
+                  disabled={isExistingProvider}
                 >
                   Previous
                 </Button>
