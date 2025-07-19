@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -25,13 +24,23 @@ import {
   AlertCircle,
   Briefcase,
   Upload,
-  Eye
+  Eye,
+  LayoutDashboard,
+  Target,
+  CheckSquare,
+  CreditCard,
+  Receipt,
+  HelpCircle,
+  Wrench,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 
 export default function ProviderDashboard() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeMenuItem, setActiveMenuItem] = useState("dashboard");
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(["leads", "settings"]);
 
   // Fetch provider profile
   const { data: provider, isLoading: providerLoading } = useQuery({
@@ -132,198 +141,396 @@ export default function ProviderDashboard() {
     }
   };
 
+  const toggleMenu = (menuId: string) => {
+    setExpandedMenus(prev => 
+      prev.includes(menuId) 
+        ? prev.filter(id => id !== menuId)
+        : [...prev, menuId]
+    );
+  };
+
+  const newLeadsCount = leads.filter((l: any) => l.status === 'new').length;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <Briefcase className="h-8 w-8 text-red-600 mr-3" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">ServicePanda Partners</h1>
-                <p className="text-sm text-gray-600">Provider Dashboard</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">
-                  {provider.firstName} {provider.lastName}
-                </p>
-                <p className="text-xs text-gray-500">{provider.email}</p>
-              </div>
-              {getStatusBadge(provider.status)}
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                size="sm"
-                className="border-gray-300"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Left Sidebar */}
+      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+        {/* Logo Section */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center">
+            <Briefcase className="h-8 w-8 text-red-600 mr-3" />
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">ServicePanda</h1>
+              <p className="text-xs text-gray-600">Partners</p>
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {/* Status Alert */}
-          {provider.status?.toLowerCase() === 'pending' && (
-            <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
-              <div className="flex">
-                <Clock className="h-5 w-5 text-yellow-400 mr-3 mt-0.5" />
-                <div>
-                  <h3 className="text-sm font-medium text-yellow-800">Application Under Review</h3>
-                  <p className="mt-1 text-sm text-yellow-700">
-                    Your provider application is currently being reviewed by our team. You'll receive an email once approved.
-                  </p>
+        {/* Navigation Menu */}
+        <nav className="flex-1 px-4 py-6 space-y-1">
+          {/* Dashboard */}
+          <button
+            onClick={() => setActiveMenuItem("dashboard")}
+            className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+              activeMenuItem === "dashboard" 
+                ? "bg-red-50 text-red-700 border-r-2 border-red-600" 
+                : "text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <LayoutDashboard className="h-4 w-4 mr-3" />
+            Dashboard
+          </button>
+
+          {/* Leads Section */}
+          <div className="space-y-1">
+            <button
+              onClick={() => toggleMenu("leads")}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              <div className="flex items-center">
+                <Target className="h-4 w-4 mr-3" />
+                Leads
+              </div>
+              {expandedMenus.includes("leads") ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+            
+            {expandedMenus.includes("leads") && (
+              <div className="ml-6 space-y-1">
+                <button
+                  onClick={() => setActiveMenuItem("new-leads")}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md ${
+                    activeMenuItem === "new-leads" 
+                      ? "bg-red-50 text-red-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <span>New Leads</span>
+                  {newLeadsCount > 0 && (
+                    <Badge className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      {newLeadsCount}
+                    </Badge>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveMenuItem("accepted-leads")}
+                  className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                    activeMenuItem === "accepted-leads" 
+                      ? "bg-red-50 text-red-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  Leads Accepted
+                </button>
+              </div>
+            )}
+          </div>
+        </nav>
+
+        {/* Footer Menu */}
+        <div className="border-t border-gray-200 px-4 py-4 space-y-1">
+          {/* Settings Section */}
+          <div className="space-y-1">
+            <button
+              onClick={() => toggleMenu("settings")}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              <div className="flex items-center">
+                <Settings className="h-4 w-4 mr-3" />
+                Settings
+              </div>
+              {expandedMenus.includes("settings") ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+            
+            {expandedMenus.includes("settings") && (
+              <div className="ml-6 space-y-1">
+                <button
+                  onClick={() => setActiveMenuItem("services")}
+                  className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                    activeMenuItem === "services" 
+                      ? "bg-red-50 text-red-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  Services
+                </button>
+                <button
+                  onClick={() => setActiveMenuItem("service-area")}
+                  className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                    activeMenuItem === "service-area" 
+                      ? "bg-red-50 text-red-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  Service Area
+                </button>
+                <button
+                  onClick={() => setActiveMenuItem("documents")}
+                  className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                    activeMenuItem === "documents" 
+                      ? "bg-red-50 text-red-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  Documents
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Payment */}
+          <button
+            onClick={() => {
+              setActiveMenuItem("payment");
+              navigate("/provider-payment");
+            }}
+            className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+              activeMenuItem === "payment" 
+                ? "bg-red-50 text-red-700" 
+                : "text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <CreditCard className="h-4 w-4 mr-3" />
+            Payment
+          </button>
+
+          {/* Billing */}
+          <button
+            onClick={() => setActiveMenuItem("billing")}
+            className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+              activeMenuItem === "billing" 
+                ? "bg-red-50 text-red-700" 
+                : "text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <Receipt className="h-4 w-4 mr-3" />
+            Billing
+          </button>
+
+          {/* Help */}
+          <button
+            onClick={() => setActiveMenuItem("help")}
+            className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+              activeMenuItem === "help" 
+                ? "bg-red-50 text-red-700" 
+                : "text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <HelpCircle className="h-4 w-4 mr-3" />
+            Help
+          </button>
+        </div>
+
+        {/* User Profile Section */}
+        <div className="border-t border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center min-w-0">
+              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="text-sm font-medium text-red-600">
+                  {provider.firstName?.[0]}{provider.lastName?.[0]}
+                </span>
+              </div>
+              <div className="ml-3 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {provider.firstName} {provider.lastName}
+                </p>
+                <div className="flex items-center">
+                  {getStatusBadge(provider.status)}
                 </div>
               </div>
             </div>
-          )}
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
 
-          {/* Payment Setup Alert - Only show if no payment methods exist */}
-          {!paymentMethodsLoading && paymentMethods.length === 0 && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-              <div className="flex justify-between items-start">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {activeMenuItem === "dashboard" && "Dashboard"}
+                  {activeMenuItem === "new-leads" && "New Leads"}
+                  {activeMenuItem === "accepted-leads" && "Accepted Leads"}
+                  {activeMenuItem === "services" && "Services"}
+                  {activeMenuItem === "service-area" && "Service Area"}
+                  {activeMenuItem === "documents" && "Documents"}
+                  {activeMenuItem === "payment" && "Payment"}
+                  {activeMenuItem === "billing" && "Billing"}
+                  {activeMenuItem === "help" && "Help"}
+                </h1>
+                <p className="text-sm text-gray-600">
+                  {activeMenuItem === "dashboard" && "Overview of your provider activities"}
+                  {activeMenuItem === "new-leads" && "Manage incoming lead requests"}
+                  {activeMenuItem === "accepted-leads" && "Track your accepted leads"}
+                  {activeMenuItem === "services" && "Manage your service offerings"}
+                  {activeMenuItem === "service-area" && "Configure your service coverage"}
+                  {activeMenuItem === "documents" && "Upload and manage your documents"}
+                  {activeMenuItem === "payment" && "Manage your payment methods"}
+                  {activeMenuItem === "billing" && "View billing history and invoices"}
+                  {activeMenuItem === "help" && "Get support and documentation"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="px-6 py-6">
+            {/* Status Alert */}
+            {provider.status?.toLowerCase() === 'pending' && (
+              <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
                 <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-red-400 mr-3 mt-0.5" />
+                  <Clock className="h-5 w-5 text-yellow-400 mr-3 mt-0.5" />
                   <div>
-                    <h3 className="text-sm font-medium text-red-800">Payment Setup Required</h3>
-                    <p className="mt-1 text-sm text-red-700">
-                      Please Add your Credit Card Details, and setup start getting your leads, Remember First 3 Leads are FREE
+                    <h3 className="text-sm font-medium text-yellow-800">Application Under Review</h3>
+                    <p className="mt-1 text-sm text-yellow-700">
+                      Your provider application is currently being reviewed by our team. You'll receive an email once approved.
                     </p>
                   </div>
                 </div>
-                <Button
-                  onClick={() => navigate("/provider-payment")}
-                  className="bg-red-600 hover:bg-red-700 text-white ml-4"
-                  size="sm"
-                >
-                  Update
-                </Button>
               </div>
-            </div>
-          )}
+            )}
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="leads">Leads & Jobs</TabsTrigger>
-              <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
-            </TabsList>
-
-            {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-6">
-              {/* Quick Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">New Leads</CardTitle>
-                    <Bell className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{leads.filter((l: any) => l.status === 'new').length}</div>
-                    <p className="text-xs text-muted-foreground">Awaiting response</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{leads.filter((l: any) => l.status === 'active').length}</div>
-                    <p className="text-xs text-muted-foreground">In progress</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">This Month</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">$0</div>
-                    <p className="text-xs text-muted-foreground">Total earnings</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Rating</CardTitle>
-                    <Star className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">-</div>
-                    <p className="text-xs text-muted-foreground">No reviews yet</p>
-                  </CardContent>
-                </Card>
+            {/* Payment Setup Alert - Only show if no payment methods exist */}
+            {!paymentMethodsLoading && paymentMethods.length === 0 && (
+              <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex">
+                    <AlertCircle className="h-5 w-5 text-red-400 mr-3 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-medium text-red-800">Payment Setup Required</h3>
+                      <p className="mt-1 text-sm text-red-700">
+                        Please Add your Credit Card Details, and setup start getting your leads, Remember First 3 Leads are FREE
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => navigate("/provider-payment")}
+                    className="bg-red-600 hover:bg-red-700 text-white ml-4"
+                    size="sm"
+                  >
+                    Update
+                  </Button>
+                </div>
               </div>
+            )}
 
-              {/* Recent Activity */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Content based on active menu item */}
+            {activeMenuItem === "dashboard" && (
+              <div className="space-y-6">
+                {/* Quick Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">New Leads</CardTitle>
+                      <Bell className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{newLeadsCount}</div>
+                      <p className="text-xs text-muted-foreground">Awaiting response</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
+                      <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{leads.filter((l: any) => l.status === 'active').length}</div>
+                      <p className="text-xs text-muted-foreground">In progress</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">This Month</CardTitle>
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">$0</div>
+                      <p className="text-xs text-muted-foreground">Total earnings</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Rating</CardTitle>
+                      <Star className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">5.0</div>
+                      <p className="text-xs text-muted-foreground">Customer reviews</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Recent Activity */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Recent Leads</CardTitle>
+                    <CardTitle>Recent Activity</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {leadsLoading ? (
                       <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
-                        <p className="text-sm text-gray-500">Loading leads...</p>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading recent activity...</p>
                       </div>
                     ) : leads.length === 0 ? (
                       <div className="text-center py-8">
-                        <Bell className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 mb-2">No leads yet</p>
-                        <p className="text-sm text-gray-400">Leads will appear here when customers request your services.</p>
+                        <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No recent activity</h3>
+                        <p className="text-gray-500 mb-4">
+                          When customers request services in your area, they'll appear here.
+                        </p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {leads.slice(0, 5).map((lead: any) => (
-                          <div key={lead.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div>
-                              <p className="font-medium text-sm">{lead.service}</p>
-                              <p className="text-xs text-gray-500">{lead.location}</p>
+                          <div key={lead.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="font-medium">{lead.service}</h3>
+                                  <Badge variant="outline">{lead.status}</Badge>
+                                </div>
+                                <div className="space-y-1 text-sm text-gray-600">
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {lead.location}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {new Date(lead.createdAt).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <Button size="sm" variant="outline">
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  View
+                                </Button>
+                              </div>
                             </div>
-                            <Badge variant="outline">{lead.status}</Badge>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>My Services</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {servicesLoading ? (
-                      <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
-                        <p className="text-sm text-gray-500">Loading services...</p>
-                      </div>
-                    ) : services.length === 0 ? (
-                      <div className="text-center py-8">
-                        <Settings className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 mb-2">No services configured</p>
-                        <Button variant="outline" size="sm" onClick={() => setActiveTab("profile")}>
-                          Set Up Services
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {services.map((service: any) => (
-                          <div key={service.id} className="flex items-center justify-between p-2 border rounded">
-                            <span className="text-sm">{service.name}</span>
-                            <Badge variant="secondary">{service.areas?.length || 0} areas</Badge>
                           </div>
                         ))}
                       </div>
@@ -331,183 +538,99 @@ export default function ProviderDashboard() {
                   </CardContent>
                 </Card>
               </div>
-            </TabsContent>
+            )}
 
-            {/* Leads & Jobs Tab */}
-            <TabsContent value="leads" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>All Leads & Jobs</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {leadsLoading ? (
-                    <div className="text-center py-12">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
-                      <p className="text-gray-500">Loading your leads...</p>
-                    </div>
-                  ) : leads.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Bell className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
-                      <p className="text-gray-500 mb-4">
-                        When customers request services in your area, they'll appear here.
-                      </p>
-                      <Button variant="outline" onClick={() => setActiveTab("profile")}>
-                        Update Your Profile
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {leads.map((lead: any) => (
-                        <div key={lead.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h3 className="font-medium">{lead.service}</h3>
-                                <Badge variant="outline">{lead.status}</Badge>
-                              </div>
-                              <div className="space-y-1 text-sm text-gray-600">
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
-                                  {lead.location}
+            {/* New Leads Content */}
+            {activeMenuItem === "new-leads" && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Target className="h-5 w-5 mr-2" />
+                      New Leads ({newLeadsCount})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {leadsLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading new leads...</p>
+                      </div>
+                    ) : leads.filter((l: any) => l.status === 'new').length === 0 ? (
+                      <div className="text-center py-8">
+                        <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No new leads</h3>
+                        <p className="text-gray-500">New customer requests will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {leads.filter((l: any) => l.status === 'new').map((lead: any) => (
+                          <div key={lead.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="font-medium">{lead.service}</h3>
+                                  <Badge className="bg-blue-100 text-blue-800">New</Badge>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {new Date(lead.createdAt).toLocaleDateString()}
+                                <div className="space-y-1 text-sm text-gray-600">
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {lead.location}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {new Date(lead.createdAt).toLocaleDateString()}
+                                  </div>
                                 </div>
+                                {lead.description && (
+                                  <p className="text-sm text-gray-700 mt-2">{lead.description}</p>
+                                )}
                               </div>
-                              {lead.description && (
-                                <p className="text-sm text-gray-700 mt-2">{lead.description}</p>
-                              )}
-                            </div>
-                            <div className="flex gap-2 ml-4">
-                              <Button size="sm" variant="outline">
-                                <Eye className="h-3 w-3 mr-1" />
-                                View
-                              </Button>
-                              {lead.status === 'new' && (
+                              <div className="flex gap-2 ml-4">
+                                <Button size="sm" variant="outline">
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  View
+                                </Button>
                                 <Button size="sm">
                                   Respond
                                 </Button>
-                              )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Profile Tab */}
-            <TabsContent value="profile" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Provider Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Name</label>
-                      <p className="text-sm">{provider.firstName} {provider.lastName}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Email</label>
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-gray-400" />
-                        <p className="text-sm">{provider.email}</p>
+                        ))}
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Mobile</label>
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-gray-400" />
-                        <p className="text-sm">{provider.mobileNumber}</p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Address</label>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-gray-400" />
-                        <p className="text-sm">{provider.address}</p>
-                      </div>
-                    </div>
-                    <div className="pt-4">
-                      <Button variant="outline" className="w-full">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Edit Profile
-                      </Button>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
+              </div>
+            )}
 
+            {/* Other menu items */}
+            {(activeMenuItem === "accepted-leads" || activeMenuItem === "services" || 
+              activeMenuItem === "service-area" || activeMenuItem === "documents" || 
+              activeMenuItem === "billing" || activeMenuItem === "help") && (
+              <div className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Account Status</CardTitle>
+                    <CardTitle>Coming Soon</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Application Status</span>
-                      {getStatusBadge(provider.status)}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Documents Uploaded</span>
-                      {provider.documentsUploaded ? (
-                        <Badge className="bg-green-100 text-green-800">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Complete
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-red-100 text-red-800">
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Incomplete
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Services Configured</span>
-                      <Badge variant="outline">{services.length} services</Badge>
-                    </div>
-                    <div className="pt-4">
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => setActiveTab("documents")}
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Manage Documents
-                      </Button>
+                  <CardContent>
+                    <div className="text-center py-12">
+                      <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Settings className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Feature Coming Soon</h3>
+                      <p className="text-gray-500">
+                        This feature is currently under development.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
               </div>
-            </TabsContent>
-
-            {/* Documents Tab */}
-            <TabsContent value="documents" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Required Documents</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Document Management</h3>
-                    <p className="text-gray-500 mb-4">
-                      Upload and manage your required business documents.
-                    </p>
-                    <Button variant="outline">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Documents
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </main>
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
