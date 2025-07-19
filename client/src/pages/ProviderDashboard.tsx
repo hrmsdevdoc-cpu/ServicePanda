@@ -1284,13 +1284,22 @@ export default function ProviderDashboard() {
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
             {viewingDocument && provider && (
-              <div className="w-full h-[70vh] border rounded bg-white flex items-center justify-center">
-                {/* Try embedding the document directly */}
-                <embed
-                  src={`/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}/${provider.id}#toolbar=1&navpanes=1&scrollbar=1`}
-                  className="w-full h-full"
-                  type="application/pdf"
-                />
+              <div className="w-full h-[70vh] border rounded bg-white overflow-auto">
+                {/* Check file extension to determine display method */}
+                {viewingDocument.fileName.toLowerCase().endsWith('.pdf') ? (
+                  <embed
+                    src={`/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}/${provider.id}#toolbar=1&navpanes=1&scrollbar=1`}
+                    className="w-full h-full min-h-[70vh]"
+                    type="application/pdf"
+                  />
+                ) : (
+                  <img
+                    src={`/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}/${provider.id}`}
+                    alt={viewingDocument.fileName}
+                    className="max-w-full h-auto mx-auto block"
+                    style={{ maxHeight: '70vh', objectFit: 'contain' }}
+                  />
+                )}
               </div>
             )}
           </div>
