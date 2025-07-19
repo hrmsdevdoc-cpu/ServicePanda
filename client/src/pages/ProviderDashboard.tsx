@@ -790,14 +790,28 @@ export default function ProviderDashboard() {
                       </div>
                     ) : (
                       <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* Validation message */}
+                        {hasAttemptedSubmit && formData.selectedServices.length === 0 && (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                            <p className="text-red-600 text-sm font-medium">
+                              Please select at least one service you specialize in
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                           {categories.map((category: any) => {
-                            const Icon = serviceIcons[category.name as keyof typeof serviceIcons] || Wrench;
+                            const IconComponent = serviceIcons[category.name as keyof typeof serviceIcons] || Home;
                             const isSelected = formData.selectedServices.includes(category.id);
                             
                             return (
                               <div
                                 key={category.id}
+                                className={`relative border-2 rounded-lg p-2 text-center cursor-pointer transition-all duration-200 ${
+                                  isSelected 
+                                    ? "border-primary bg-blue-50 shadow-md" 
+                                    : "border-gray-300 hover:border-primary hover:shadow-sm"
+                                }`}
                                 onClick={() => {
                                   setFormData(prev => ({
                                     ...prev,
@@ -806,51 +820,26 @@ export default function ProviderDashboard() {
                                       : [...prev.selectedServices, category.id]
                                   }));
                                 }}
-                                className={`
-                                  relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-200
-                                  ${isSelected 
-                                    ? 'border-red-300 bg-red-50' 
-                                    : 'border-gray-200 hover:border-gray-300 bg-white'
-                                  }
-                                  ${hasAttemptedSubmit && formData.selectedServices.length === 0 
-                                    ? 'border-red-300 bg-red-50' 
-                                    : ''
-                                  }
-                                `}
                               >
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1 ${
+                                  isSelected ? "bg-primary text-white" : "bg-blue-100"
+                                }`}>
+                                  <IconComponent className="w-4 h-4" />
+                                </div>
+                                <h3 className={`text-xs font-medium truncate ${
+                                  isSelected ? "text-primary" : "text-gray-700"
+                                }`}>
+                                  {category.name}
+                                </h3>
                                 {isSelected && (
-                                  <div className="absolute top-3 right-3">
-                                    <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                                      <Check className="w-3 h-3 text-white" />
-                                    </div>
+                                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                    <Check className="w-2.5 h-2.5 text-white" />
                                   </div>
                                 )}
-                                
-                                <div className="flex flex-col items-center text-center space-y-3">
-                                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                                    isSelected ? 'bg-red-100' : 'bg-gray-100'
-                                  }`}>
-                                    <Icon className={`w-8 h-8 ${isSelected ? 'text-red-600' : 'text-gray-600'}`} />
-                                  </div>
-                                  <div>
-                                    <h3 className={`font-medium ${isSelected ? 'text-red-900' : 'text-gray-900'}`}>
-                                      {category.name}
-                                    </h3>
-                                    <p className={`text-sm ${isSelected ? 'text-red-700' : 'text-gray-600'}`}>
-                                      {category.description}
-                                    </p>
-                                  </div>
-                                </div>
                               </div>
                             );
                           })}
                         </div>
-                        
-                        {hasAttemptedSubmit && formData.selectedServices.length === 0 && (
-                          <div className="text-red-600 text-sm text-center">
-                            Please select at least one service you specialize in
-                          </div>
-                        )}
                         
                         <div className="flex justify-end pt-4">
                           <Button 
@@ -917,43 +906,109 @@ export default function ProviderDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {/* License Upload */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          License
-                        </label>
-                        <DocumentUpload 
-                          onFileSelect={(file) => setDocumentFiles(prev => ({ ...prev, license: file }))}
-                          selectedFile={documentFiles.license}
-                          label="Upload License"
-                          description="Upload your business license or professional certification"
-                        />
-                      </div>
+                      {/* Compact document upload sections - exact replica from Step 4 */}
+                      <div className="grid md:grid-cols-1 gap-4">
+                        {/* License Document Upload */}
+                        <div className="border rounded-lg p-4">
+                          <h3 className="font-medium text-gray-900 mb-2">License Document *</h3>
+                          <p className="text-sm text-gray-600 mb-3">Business license or professional certification (Required)</p>
+                          <DocumentUpload
+                            label="Choose License File"
+                            description="PDF, JPG, PNG supported (Max 10MB)"
+                            onUpload={(files) => {
+                              if (files.length > 0) {
+                                setDocumentFiles(prev => ({ ...prev, license: files[0] }));
+                              }
+                            }}
+                            loading={uploadDocumentsMutation.isPending}
+                            multiple={false}
+                          />
+                          {documentFiles.license && (
+                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                              <div className="flex items-center justify-between">
+                                <span className="text-green-700 flex items-center">
+                                  <Check className="h-4 w-4 mr-1" />
+                                  {documentFiles.license.name}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setDocumentFiles(prev => ({ ...prev, license: null }))}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Police Check Upload */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Police Check
-                        </label>
-                        <DocumentUpload 
-                          onFileSelect={(file) => setDocumentFiles(prev => ({ ...prev, policeCheck: file }))}
-                          selectedFile={documentFiles.policeCheck}
-                          label="Upload Police Check"
-                          description="Upload your police check certificate"
-                        />
-                      </div>
+                        {/* Police Check Document Upload */}
+                        <div className="border rounded-lg p-4">
+                          <h3 className="font-medium text-gray-900 mb-2">Police Check *</h3>
+                          <p className="text-sm text-gray-600 mb-3">Police check certificate (Required)</p>
+                          <DocumentUpload
+                            label="Choose Police Check File"
+                            description="PDF, JPG, PNG supported (Max 10MB)"
+                            onUpload={(files) => {
+                              if (files.length > 0) {
+                                setDocumentFiles(prev => ({ ...prev, policeCheck: files[0] }));
+                              }
+                            }}
+                            loading={uploadDocumentsMutation.isPending}
+                            multiple={false}
+                          />
+                          {documentFiles.policeCheck && (
+                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                              <div className="flex items-center justify-between">
+                                <span className="text-green-700 flex items-center">
+                                  <Check className="h-4 w-4 mr-1" />
+                                  {documentFiles.policeCheck.name}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setDocumentFiles(prev => ({ ...prev, policeCheck: null }))}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Insurance Certificate Upload */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Insurance Certificate
-                        </label>
-                        <DocumentUpload 
-                          onFileSelect={(file) => setDocumentFiles(prev => ({ ...prev, insuranceCertificate: file }))}
-                          selectedFile={documentFiles.insuranceCertificate}
-                          label="Upload Insurance Certificate"
-                          description="Upload your public liability insurance certificate"
-                        />
+                        {/* Insurance Certificate Upload */}
+                        <div className="border rounded-lg p-4">
+                          <h3 className="font-medium text-gray-900 mb-2">Insurance Certificate *</h3>
+                          <p className="text-sm text-gray-600 mb-3">Public liability insurance certificate (Required)</p>
+                          <DocumentUpload
+                            label="Choose Insurance File"
+                            description="PDF, JPG, PNG supported (Max 10MB)"
+                            onUpload={(files) => {
+                              if (files.length > 0) {
+                                setDocumentFiles(prev => ({ ...prev, insuranceCertificate: files[0] }));
+                              }
+                            }}
+                            loading={uploadDocumentsMutation.isPending}
+                            multiple={false}
+                          />
+                          {documentFiles.insuranceCertificate && (
+                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                              <div className="flex items-center justify-between">
+                                <span className="text-green-700 flex items-center">
+                                  <Check className="h-4 w-4 mr-1" />
+                                  {documentFiles.insuranceCertificate.name}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setDocumentFiles(prev => ({ ...prev, insuranceCertificate: null }))}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="flex justify-end pt-4">
