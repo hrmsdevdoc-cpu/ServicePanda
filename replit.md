@@ -91,11 +91,11 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 ### Document Viewer Implementation (January 19, 2025)
 - **Smart Document Display**: Implemented intelligent viewer that detects file types and uses appropriate display methods
 - **Image Support**: PNG, JPG, JPEG images display as native img elements with proper scaling and centering
-- **PDF Support**: PDF documents use embed elements with built-in PDF viewer controls and navigation
+- **PDF Download System**: PDF documents show download interface due to Chrome popup blocking - clicking downloads PDF directly for viewing
 - **Secure API Endpoint**: Created `/api/provider/documents/view/:filename/:providerId` with provider ownership validation
 - **Inline Headers**: Fixed content-disposition headers to display documents inline rather than forcing downloads
 - **Authentication Fix**: Resolved iframe authentication issues by including provider ID in URL path instead of headers
-- **User Testing Validated**: Document viewing functionality confirmed working through direct user testing
+- **Chrome Compatibility**: Fixed popup blocker issues by implementing direct PDF download instead of iframe/popup display
 
 ### Stripe Payment Integration Completed (January 19, 2025)
 - **Secure Stripe integration**: Replaced database card storage with Stripe Customer and PaymentMethod APIs for PCI compliance

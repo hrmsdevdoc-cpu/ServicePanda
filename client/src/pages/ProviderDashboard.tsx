@@ -1287,11 +1287,29 @@ export default function ProviderDashboard() {
               <div className="w-full h-[70vh] border rounded bg-white overflow-auto">
                 {/* Check file extension to determine display method */}
                 {viewingDocument.fileName.toLowerCase().endsWith('.pdf') ? (
-                  <iframe
-                    src={`/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}/${provider.id}`}
-                    className="w-full h-full min-h-[70vh] border-0"
-                    title={viewingDocument.fileName}
-                  />
+                  <div className="flex flex-col items-center justify-center h-full space-y-4">
+                    <FileText className="h-16 w-16 text-red-600" />
+                    <div className="text-center">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">PDF Document</h3>
+                      <p className="text-gray-600 mb-4">{viewingDocument.fileName}</p>
+                      <Button
+                        onClick={() => {
+                          const url = `/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}/${provider.id}`;
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.target = '_blank';
+                          link.download = viewingDocument.fileName;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Download & View PDF
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <img
                     src={`/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}/${provider.id}`}
