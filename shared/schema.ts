@@ -52,13 +52,27 @@ export const serviceProviders = pgTable("service_providers", {
   termsAccepted: boolean("terms_accepted").default(false),
   creditCardAdded: boolean("credit_card_added").default(false),
   freeLeadsRemaining: integer("free_leads_remaining").default(3),
-  eWayCustomerToken: varchar("eway_customer_token"),
-  cardFirstFour: varchar("card_first_four"),
-  cardLastFour: varchar("card_last_four"),
+  stripeCustomerId: varchar("stripe_customer_id"),
   // Document information fields
   licenseInfo: text("license_info"),
   policeCheckInfo: text("police_check_info"),
   insuranceCertificateInfo: text("insurance_certificate_info"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Provider payment methods table
+export const providerPaymentMethods = pgTable("provider_payment_methods", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  stripePaymentMethodId: varchar("stripe_payment_method_id").notNull(),
+  cardNumber: varchar("card_number").notNull(), // Masked/last 4 digits for display
+  cardholderName: varchar("cardholder_name").notNull(),
+  expiryMonth: varchar("expiry_month").notNull(),
+  expiryYear: varchar("expiry_year").notNull(),
+  cardBrand: varchar("card_brand"), // visa, mastercard, amex, etc.
+  isPrimary: boolean("is_primary").default(false),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -332,6 +346,11 @@ export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit
   id: true, 
   updatedAt: true 
 });
+export const insertProviderPaymentMethodSchema = createInsertSchema(providerPaymentMethods).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
@@ -361,3 +380,5 @@ export type SystemSetting = typeof systemSettings.$inferSelect;
 export type AustralianState = typeof australianStates.$inferSelect;
 export type AustralianRegion = typeof australianRegions.$inferSelect;
 export type AustralianSuburb = typeof australianSuburbs.$inferSelect;
+export type InsertProviderPaymentMethod = z.infer<typeof insertProviderPaymentMethodSchema>;
+export type ProviderPaymentMethod = typeof providerPaymentMethods.$inferSelect;

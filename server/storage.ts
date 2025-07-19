@@ -40,9 +40,13 @@ import {
   type AustralianState,
   type AustralianRegion,
   type AustralianSuburb,
+  providerPaymentMethods,
+  type InsertProviderPaymentMethod,
+  type ProviderPaymentMethod,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, isNotNull } from "drizzle-orm";
+import crypto from "crypto";
 
 export interface IStorage {
   // User operations
@@ -122,9 +126,48 @@ export interface IStorage {
   getServiceProvidersForAdmin(status?: string): Promise<ServiceProvider[]>;
   updateServiceProviderStatus(id: number, status: string): Promise<void>;
   getAllServiceRequestsForAdmin(): Promise<ServiceRequest[]>;
+
+  // Admin settings operations
+  getAdminSettings(): Promise<{ stripeConfigured: boolean }>;
+  updateAdminSetting(key: string, value: string): Promise<void>;
+  getDecryptedSetting(key: string): Promise<string | null>;
+
+  // Payment operations
+  getProviderPaymentMethods(providerId: number): Promise<ProviderPaymentMethod[]>;
+  addProviderPaymentMethod(paymentMethod: InsertProviderPaymentMethod): Promise<ProviderPaymentMethod>;
+  updateProviderPaymentMethodPrimary(providerId: number, paymentMethodId: number): Promise<void>;
+  deleteProviderPaymentMethod(paymentMethodId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
+  private readonly ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+  private readonly ALGORITHM = 'aes-256-gcm';
+
+  private encrypt(text: string): string {
+    const iv = crypto.randomBytes(16);
+    const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
+    const cipher = crypto.createCipherGCM('aes-256-gcm', key, iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    const authTag = cipher.getAuthTag();
+    return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
+  }
+
+  private decrypt(encryptedText: string): string {
+    const parts = encryptedText.split(':');
+    if (parts.length !== 3) throw new Error('Invalid encrypted format');
+    
+    const iv = Buffer.from(parts[0], 'hex');
+    const authTag = Buffer.from(parts[1], 'hex');
+    const encrypted = parts[2];
+    
+    const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
+    const decipher = crypto.createDecipherGCM('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  }
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -411,25 +454,7 @@ export class DatabaseStorage implements IStorage {
   async findProvidersInArea(postcode: string, categoryId: number): Promise<ServiceProvider[]> {
     // Find all providers who service the given postcode and category
     return await db
-      .select({
-        id: serviceProviders.id,
-        firstName: serviceProviders.firstName,
-        lastName: serviceProviders.lastName,
-        email: serviceProviders.email,
-        mobileNumber: serviceProviders.mobileNumber,
-        address: serviceProviders.address,
-        status: serviceProviders.status,
-        documentsUploaded: serviceProviders.documentsUploaded,
-        termsAccepted: serviceProviders.termsAccepted,
-        creditCardAdded: serviceProviders.creditCardAdded,
-        freeLeadsRemaining: serviceProviders.freeLeadsRemaining,
-        eWayCustomerToken: serviceProviders.eWayCustomerToken,
-        cardFirstFour: serviceProviders.cardFirstFour,
-        cardLastFour: serviceProviders.cardLastFour,
-        password: serviceProviders.password,
-        createdAt: serviceProviders.createdAt,
-        updatedAt: serviceProviders.updatedAt,
-      })
+      .select()
       .from(serviceProviders)
       .innerJoin(providerServices, eq(serviceProviders.id, providerServices.providerId))
       .innerJoin(providerServiceAreas, eq(serviceProviders.id, providerServiceAreas.providerId))
@@ -609,6 +634,106 @@ export class DatabaseStorage implements IStorage {
       .from(serviceRequests)
       .orderBy(desc(serviceRequests.createdAt));
   }
+
+  // Payment operations
+  async getProviderPaymentMethods(providerId: number): Promise<ProviderPaymentMethod[]> {
+    return await db
+      .select()
+      .from(providerPaymentMethods)
+      .where(and(
+        eq(providerPaymentMethods.providerId, providerId),
+        eq(providerPaymentMethods.isActive, true)
+      ))
+      .orderBy(desc(providerPaymentMethods.isPrimary), desc(providerPaymentMethods.createdAt));
+  }
+
+  async addProviderPaymentMethod(paymentMethod: InsertProviderPaymentMethod): Promise<ProviderPaymentMethod> {
+    const [newPaymentMethod] = await db
+      .insert(providerPaymentMethods)
+      .values(paymentMethod)
+      .returning();
+    return newPaymentMethod;
+  }
+
+  async updateProviderPaymentMethodPrimary(providerId: number, paymentMethodId: number): Promise<void> {
+    // First, set all payment methods for this provider to non-primary
+    await db
+      .update(providerPaymentMethods)
+      .set({ isPrimary: false, updatedAt: new Date() })
+      .where(eq(providerPaymentMethods.providerId, providerId));
+
+    // Then set the specified payment method as primary
+    await db
+      .update(providerPaymentMethods)
+      .set({ isPrimary: true, updatedAt: new Date() })
+      .where(eq(providerPaymentMethods.id, paymentMethodId));
+  }
+
+  async deleteProviderPaymentMethod(paymentMethodId: number): Promise<void> {
+    await db
+      .update(providerPaymentMethods)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(providerPaymentMethods.id, paymentMethodId));
+  }
+
+  // Admin settings operations
+  async getAdminSettings(): Promise<{ stripeConfigured: boolean }> {
+    const stripeSecretKey = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'stripe_secret_key'))
+      .limit(1);
+    
+    const stripePublicKey = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'stripe_public_key'))
+      .limit(1);
+
+    return {
+      stripeConfigured: stripeSecretKey.length > 0 && stripePublicKey.length > 0
+    };
+  }
+
+  async updateAdminSetting(key: string, value: string): Promise<void> {
+    const encryptedValue = this.encrypt(value);
+    
+    await db
+      .insert(systemSettings)
+      .values({
+        key,
+        value: encryptedValue,
+        description: `Encrypted ${key} setting`,
+        updatedAt: new Date()
+      })
+      .onConflictDoUpdate({
+        target: systemSettings.key,
+        set: {
+          value: encryptedValue,
+          updatedAt: new Date()
+        }
+      });
+  }
+
+  async getDecryptedSetting(key: string): Promise<string | null> {
+    const [setting] = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, key))
+      .limit(1);
+
+    if (!setting || !setting.value) {
+      return null;
+    }
+
+    try {
+      return this.decrypt(setting.value);
+    } catch (error) {
+      console.error(`Failed to decrypt setting ${key}:`, error);
+      return null;
+    }
+  }
+
 }
 
 export const storage = new DatabaseStorage();

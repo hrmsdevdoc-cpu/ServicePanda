@@ -81,7 +81,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/service-providers/me', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const provider = await storage.getServiceProviderByUserId(userId);
+      const provider = await storage.getServiceProviderByEmail(req.user.email);
       
       if (!provider) {
         return res.status(404).json({ message: "Service provider not found" });
@@ -102,7 +102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Verify ownership
       const provider = await storage.getServiceProvider(id);
-      if (!provider || provider.userId !== userId) {
+      if (!provider || provider.email !== req.user.email) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -231,7 +231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Verify ownership
       const provider = await storage.getServiceProvider(providerId);
-      if (!provider || provider.userId !== userId) {
+      if (!provider || provider.email !== req.user.email) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -330,7 +330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Verify ownership
       const provider = await storage.getServiceProvider(providerId);
-      if (!provider || provider.userId !== userId) {
+      if (!provider || provider.email !== req.user.email) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -464,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/leads/new', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const provider = await storage.getServiceProviderByUserId(userId);
+      const provider = await storage.getServiceProviderByEmail(req.user.email);
       
       if (!provider) {
         return res.status(404).json({ message: "Service provider not found" });
@@ -485,7 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.id;
       
       // Verify ownership
-      const provider = await storage.getServiceProviderByUserId(userId);
+      const provider = await storage.getServiceProviderByEmail(req.user.email);
       if (!provider) {
         return res.status(404).json({ message: "Service provider not found" });
       }
@@ -700,6 +700,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching service requests:', error);
       res.status(500).json({ message: 'Failed to fetch service requests' });
+    }
+  });
+
+  // Admin settings endpoints
+  app.get('/api/admin/settings', isAdminAuthenticated, async (req, res) => {
+    try {
+      const settings = await storage.getAdminSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching admin settings:', error);
+      res.status(500).json({ message: 'Failed to fetch admin settings' });
+    }
+  });
+
+  app.put('/api/admin/settings', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { stripeSecretKey, stripePublicKey } = req.body;
+
+      if (!stripeSecretKey || !stripePublicKey) {
+        return res.status(400).json({ message: 'Both Stripe keys are required' });
+      }
+
+      if (!stripeSecretKey.startsWith('sk_')) {
+        return res.status(400).json({ message: 'Invalid Stripe Secret Key format' });
+      }
+
+      if (!stripePublicKey.startsWith('pk_')) {
+        return res.status(400).json({ message: 'Invalid Stripe Public Key format' });
+      }
+
+      // Store encrypted keys in database
+      await storage.updateAdminSetting('stripe_secret_key', stripeSecretKey);
+      await storage.updateAdminSetting('stripe_public_key', stripePublicKey);
+
+      res.json({ 
+        message: 'Settings updated successfully',
+        stripeConfigured: true
+      });
+    } catch (error) {
+      console.error('Error updating admin settings:', error);
+      res.status(500).json({ message: 'Failed to update admin settings' });
+    }
+  });
+
+  // Provider Payment Routes
+  app.get('/api/provider/:id/payment-methods', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      
+      // Verify provider ownership
+      if (req.provider.id !== providerId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const paymentMethods = await storage.getProviderPaymentMethods(providerId);
+      res.json(paymentMethods);
+    } catch (error) {
+      console.error("Error fetching payment methods:", error);
+      res.status(500).json({ message: "Failed to fetch payment methods" });
+    }
+  });
+
+  app.post('/api/provider/:id/payment-methods', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      
+      // Verify provider ownership
+      if (req.provider.id !== providerId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Extract payment method data
+      const { 
+        stripeCustomerId, 
+        stripePaymentMethodId, 
+        cardBrand, 
+        cardLastFour, 
+        cardExpMonth, 
+        cardExpYear,
+        isPrimary = false
+      } = req.body;
+
+      // If this is being set as primary, we'll handle that in the storage method
+      const paymentMethodData = {
+        providerId,
+        stripeCustomerId,
+        stripePaymentMethodId,
+        cardBrand,
+        cardLastFour,
+        cardExpMonth,
+        cardExpYear,
+        isPrimary,
+        isActive: true
+      };
+
+      const newPaymentMethod = await storage.addProviderPaymentMethod(paymentMethodData);
+      
+      // If this was set as primary, update other methods
+      if (isPrimary) {
+        await storage.updateProviderPaymentMethodPrimary(providerId, newPaymentMethod.id);
+      }
+      
+      res.json(newPaymentMethod);
+    } catch (error) {
+      console.error("Error adding payment method:", error);
+      res.status(500).json({ message: "Failed to add payment method" });
+    }
+  });
+
+  app.put('/api/provider/:id/payment-methods/:paymentMethodId/primary', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const paymentMethodId = parseInt(req.params.paymentMethodId);
+      
+      // Verify provider ownership
+      if (req.provider.id !== providerId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.updateProviderPaymentMethodPrimary(providerId, paymentMethodId);
+      res.json({ message: "Primary payment method updated successfully" });
+    } catch (error) {
+      console.error("Error updating primary payment method:", error);
+      res.status(500).json({ message: "Failed to update primary payment method" });
+    }
+  });
+
+  app.delete('/api/provider/:id/payment-methods/:paymentMethodId', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const paymentMethodId = parseInt(req.params.paymentMethodId);
+      
+      // Verify provider ownership
+      if (req.provider.id !== providerId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteProviderPaymentMethod(paymentMethodId);
+      res.json({ message: "Payment method removed successfully" });
+    } catch (error) {
+      console.error("Error removing payment method:", error);
+      res.status(500).json({ message: "Failed to remove payment method" });
     }
   });
 

@@ -180,14 +180,23 @@ export default function ProviderDashboard() {
 
           {/* Payment Setup Alert */}
           <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="flex">
-              <AlertCircle className="h-5 w-5 text-red-400 mr-3 mt-0.5" />
-              <div>
-                <h3 className="text-sm font-medium text-red-800">Payment Setup Required</h3>
-                <p className="mt-1 text-sm text-red-700">
-                  Please Add your Credit Card Details, and setup start getting your leads, Remember First 3 Leads are FREE
-                </p>
+            <div className="flex justify-between items-start">
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-red-400 mr-3 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-medium text-red-800">Payment Setup Required</h3>
+                  <p className="mt-1 text-sm text-red-700">
+                    Please Add your Credit Card Details, and setup start getting your leads, Remember First 3 Leads are FREE
+                  </p>
+                </div>
               </div>
+              <Button
+                onClick={() => navigate("/provider-payment")}
+                className="bg-red-600 hover:bg-red-700 text-white ml-4"
+                size="sm"
+              >
+                Update
+              </Button>
             </div>
           </div>
 
