@@ -12,18 +12,28 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+  const headers: Record<string, string> = {};
+  let body;
+  
+  // Handle FormData (for file uploads) vs JSON data
+  if (data instanceof FormData) {
+    body = data;
+    // Don't set Content-Type for FormData, let browser set it with boundary
+  } else if (data) {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(data);
+  }
   
   // Add provider authentication header if available
   const providerId = localStorage.getItem('providerId');
-  if (providerId && url.includes('/api/provider/')) {
+  if (providerId && (url.includes('/api/provider/') || url.includes('/api/service-providers/'))) {
     headers['x-provider-id'] = providerId;
   }
 
   const res = await fetch(url, {
     method,
     headers,
-    body: data ? JSON.stringify(data) : undefined,
+    body,
     credentials: "include",
   });
 
@@ -42,7 +52,7 @@ export const getQueryFn: <T>(options: {
     
     // Add provider authentication header if available
     const providerId = localStorage.getItem('providerId');
-    if (providerId && url.includes('/api/provider/')) {
+    if (providerId && (url.includes('/api/provider/') || url.includes('/api/service-providers/'))) {
       headers['x-provider-id'] = providerId;
     }
 
