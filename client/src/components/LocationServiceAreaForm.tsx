@@ -128,45 +128,58 @@ export function LocationServiceAreaForm({
   const initializeGoogleMaps = () => {
     if (!mapRef.current || !addressInputRef.current) return;
 
-    // Initialize map (centered on Australia)
-    const map = new window.google.maps.Map(mapRef.current, {
-      center: { lat: -25.2744, lng: 133.7751 }, // Center of Australia
-      zoom: 5,
-      mapTypeControl: false,
-      streetViewControl: false,
-    });
-    
-    mapInstanceRef.current = map;
+    try {
+      console.log('Initializing Google Maps...');
+      
+      // Initialize map (centered on Australia)
+      const map = new window.google.maps.Map(mapRef.current, {
+        center: { lat: -25.2744, lng: 133.7751 }, // Center of Australia
+        zoom: 5,
+        mapTypeControl: false,
+        streetViewControl: false,
+      });
+      
+      mapInstanceRef.current = map;
+      console.log('Google Maps initialized successfully');
 
-    // Initialize autocomplete
-    const autocomplete = new window.google.maps.places.Autocomplete(
-      addressInputRef.current,
-      {
-        types: ['address'],
-        componentRestrictions: { country: 'au' }, // Australia only
-      }
-    );
+      // Initialize autocomplete
+      const autocomplete = new window.google.maps.places.Autocomplete(
+        addressInputRef.current,
+        {
+          types: ['address'],
+          componentRestrictions: { country: 'au' }, // Australia only
+        }
+      );
 
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (place.geometry && place.geometry.location) {
-        const lat = place.geometry.location.lat();
-        const lng = place.geometry.location.lng();
-        
-        setCurrentArea(prev => ({
-          ...prev,
-          centerAddress: place.formatted_address || place.name,
-          centerLat: lat.toString(),
-          centerLng: lng.toString(),
-        }));
-        
-        // Center map on selected location
-        map.setCenter({ lat, lng });
-        map.setZoom(10);
-      }
-    });
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (place.geometry && place.geometry.location) {
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+          
+          setCurrentArea(prev => ({
+            ...prev,
+            centerAddress: place.formatted_address || place.name,
+            centerLat: lat.toString(),
+            centerLng: lng.toString(),
+          }));
+          
+          // Center map on selected location
+          map.setCenter({ lat, lng });
+          map.setZoom(10);
+        }
+      });
 
-    autocompleteRef.current = autocomplete;
+      autocompleteRef.current = autocomplete;
+      
+    } catch (error) {
+      console.error('Error initializing Google Maps:', error);
+      toast({
+        title: "Maps Error",
+        description: "Failed to initialize Google Maps. Please ensure all required APIs are enabled.",
+        variant: "destructive",
+      });
+    }
   };
 
   const updateMapLocation = () => {
