@@ -142,9 +142,42 @@ export function LocationServiceAreaForm({
       mapInstanceRef.current = map;
       console.log('Google Maps initialized successfully');
 
-      // Skip autocomplete initialization due to RefererNotAllowedMapError
-      // This allows manual entry to work without interference
-      console.log('Skipping autocomplete due to domain restrictions - manual entry enabled');
+      // Initialize autocomplete now that domain is authorized
+      try {
+        if (addressInputRef.current && window.google.maps.places) {
+          const autocomplete = new window.google.maps.places.Autocomplete(
+            addressInputRef.current,
+            {
+              types: ['address'],
+              componentRestrictions: { country: 'au' }, // Australia only
+            }
+          );
+
+          autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (place.geometry && place.geometry.location) {
+              const lat = place.geometry.location.lat();
+              const lng = place.geometry.location.lng();
+              
+              setCurrentArea(prev => ({
+                ...prev,
+                centerAddress: place.formatted_address || place.name,
+                centerLat: lat.toString(),
+                centerLng: lng.toString(),
+              }));
+              
+              // Center map on selected location
+              map.setCenter({ lat, lng });
+              map.setZoom(10);
+            }
+          });
+
+          autocompleteRef.current = autocomplete;
+          console.log('Address autocomplete enabled successfully');
+        }
+      } catch (autocompleteError) {
+        console.warn('Autocomplete failed, manual entry still available:', autocompleteError);
+      }
       
     } catch (error) {
       console.error('Google Maps initialization failed:', error);
@@ -406,7 +439,7 @@ export function LocationServiceAreaForm({
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">
-                Type a full Australian address, then click "Locate" to find it on the map
+                Start typing an Australian address to see suggestions, or use "Locate" to find manually entered addresses
               </p>
             </div>
             
