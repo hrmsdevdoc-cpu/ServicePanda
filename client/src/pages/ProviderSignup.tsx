@@ -897,8 +897,22 @@ export default function ProviderSignup() {
                                   (r: any) => r.name === locationData.selectedRegion
                                 );
                                 if (selectedRegion) {
-                                  const response = await fetch(`http://localhost:5000/api/regions/${selectedRegion.id}/suburbs`);
+                                  const response = await fetch(`/api/regions/${selectedRegion.id}/suburbs`);
+                                  
+                                  if (!response.ok) {
+                                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                                  }
+                                  
                                   const allSuburbs = await response.json();
+                                  
+                                  if (allSuburbs.length === 0) {
+                                    toast({
+                                      title: "No Suburbs Available",
+                                      description: `No suburbs found for ${locationData.selectedRegion}. Try selecting a different region or add postcodes manually.`,
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
                                   
                                   // Add all suburb IDs to selectedSuburbs
                                   const allSuburbIds = allSuburbs.map((s: any) => s.id);
@@ -913,9 +927,19 @@ export default function ProviderSignup() {
                                     ...prev,
                                     addedPostcodes: [...new Set([...prev.addedPostcodes, ...uniquePostcodes])]
                                   }));
+                                  
+                                  toast({
+                                    title: "Suburbs Added Successfully",
+                                    description: `Added ${allSuburbs.length} suburbs and ${uniquePostcodes.length} unique postcodes from ${locationData.selectedRegion}.`,
+                                  });
                                 }
                               } catch (error) {
                                 console.error("Error fetching region suburbs:", error);
+                                toast({
+                                  title: "Error Loading Suburbs",
+                                  description: "Unable to load suburbs for this region. Please try again or select postcodes manually.",
+                                  variant: "destructive",
+                                });
                               }
                             }}
                             className="bg-green-600 hover:bg-green-700 text-white"

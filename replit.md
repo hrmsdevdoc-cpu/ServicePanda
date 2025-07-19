@@ -73,6 +73,15 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### "Add All Suburbs" Bug Fix (January 19, 2025)
+- **Fixed Gold Coast suburbs error**: Resolved "Failed to fetch" error in provider signup Step 3 by fixing hardcoded localhost URL
+- **Added Gold Coast suburb data**: Populated database with 10 actual Gold Coast suburbs (Surfers Paradise, Broadbeach, Main Beach, etc.)
+- **Enhanced error handling**: Added proper HTTP status validation and user-friendly toast notifications for success/error states
+- **Improved UX**: Added validation for empty suburb responses with clear messaging to guide users to alternative options
+- **Database fix**: Corrected region_id mapping for Gold Coast suburbs to use proper regional hierarchy
+
+## Previous Changes
+
 ### Regional Geographic Hierarchy Implementation (January 18, 2025)
 - **Added SA4 regional structure**: Implemented middle layer between states and suburbs using ABS SA4 statistical areas
 - **Database schema enhancement**: Added `australian_regions` table with 67 official SA4 regions covering major metropolitan and regional areas
