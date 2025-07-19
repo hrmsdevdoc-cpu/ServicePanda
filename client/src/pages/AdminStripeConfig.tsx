@@ -74,9 +74,10 @@ export default function AdminStripeConfig() {
       return;
     }
 
+    console.log('Submitting Stripe keys to backend...');
     updateKeysMutation.mutate({
-      stripeSecretKey: stripeKeys.secretKey,
-      stripePublicKey: stripeKeys.publicKey,
+      stripeSecretKey: stripeKeys.secretKey.trim(),
+      stripePublicKey: stripeKeys.publicKey.trim(),
     });
   };
 
