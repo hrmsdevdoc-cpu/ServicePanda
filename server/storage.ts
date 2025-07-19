@@ -136,7 +136,12 @@ export interface IStorage {
   getProviderPaymentMethods(providerId: number): Promise<ProviderPaymentMethod[]>;
   addProviderPaymentMethod(paymentMethod: InsertProviderPaymentMethod): Promise<ProviderPaymentMethod>;
   updateProviderPaymentMethodPrimary(providerId: number, paymentMethodId: number): Promise<void>;
+  removeProviderPaymentMethod(providerId: number, paymentMethodId: number): Promise<void>;
   deleteProviderPaymentMethod(paymentMethodId: number): Promise<void>;
+  updateProviderStripeCustomerId(providerId: number, stripeCustomerId: string): Promise<void>;
+  
+  // Stripe settings operations
+  getDecryptedStripeKeys(): Promise<{ secretKey: string; publicKey: string } | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -734,6 +739,43 @@ export class DatabaseStorage implements IStorage {
       return this.decrypt(setting.value);
     } catch (error) {
       console.error(`Failed to decrypt setting ${key}:`, error);
+      return null;
+    }
+  }
+
+  async removeProviderPaymentMethod(providerId: number, paymentMethodId: number): Promise<void> {
+    await db
+      .delete(providerPaymentMethods)
+      .where(
+        and(
+          eq(providerPaymentMethods.providerId, providerId),
+          eq(providerPaymentMethods.id, paymentMethodId)
+        )
+      );
+  }
+
+  async updateProviderStripeCustomerId(providerId: number, stripeCustomerId: string): Promise<void> {
+    await db
+      .update(serviceProviders)
+      .set({ 
+        stripeCustomerId,
+        updatedAt: new Date()
+      })
+      .where(eq(serviceProviders.id, providerId));
+  }
+
+  async getDecryptedStripeKeys(): Promise<{ secretKey: string; publicKey: string } | null> {
+    try {
+      const secretKey = await this.getDecryptedSetting('stripe_secret_key');
+      const publicKey = await this.getDecryptedSetting('stripe_public_key');
+      
+      if (!secretKey || !publicKey) {
+        return null;
+      }
+      
+      return { secretKey, publicKey };
+    } catch (error) {
+      console.error('Failed to get Stripe keys:', error);
       return null;
     }
   }

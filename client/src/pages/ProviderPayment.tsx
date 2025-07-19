@@ -260,8 +260,8 @@ export default function ProviderPayment() {
                         <CreditCard className="h-6 w-6 text-gray-400 mr-3" />
                         <div>
                           <div className="flex items-center">
-                            <span className="font-medium">{getCardBrand(method.cardNumber)}</span>
-                            <span className="ml-2 text-gray-600">{maskCardNumber(method.cardNumber)}</span>
+                            <span className="font-medium">{method.cardBrand}</span>
+                            <span className="ml-2 text-gray-600">**** **** **** {method.cardLastFour}</span>
                             {method.isPrimary && (
                               <Badge className="ml-3 bg-green-100 text-green-800">
                                 <Star className="h-3 w-3 mr-1" />
@@ -270,7 +270,7 @@ export default function ProviderPayment() {
                             )}
                           </div>
                           <p className="text-sm text-gray-500">
-                            {method.cardholderName} • Expires {method.expiryMonth}/{method.expiryYear}
+                            Expires {method.cardExpMonth.toString().padStart(2, '0')}/{method.cardExpYear}
                           </p>
                         </div>
                       </div>

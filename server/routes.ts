@@ -812,6 +812,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
+      // Get Stripe keys
+      const stripeKeys = await storage.getDecryptedStripeKeys();
+      if (!stripeKeys) {
+        return res.status(500).json({ message: "Stripe not configured" });
+      }
+
+      const stripe = new (await import('stripe')).default(stripeKeys.secretKey);
+
       // Extract payment method data from frontend
       const { 
         cardNumber, 
@@ -823,28 +831,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } = req.body;
 
       // Validate required fields
-      if (!cardNumber || !cardholderName || !expiryMonth || !expiryYear) {
+      if (!cardNumber || !cardholderName || !expiryMonth || !expiryYear || !cvv) {
         return res.status(400).json({ message: "Missing required card information" });
       }
 
-      // Determine card brand from card number
-      let cardBrand = "Unknown";
-      if (cardNumber.startsWith("4")) cardBrand = "Visa";
-      else if (cardNumber.startsWith("5") || cardNumber.startsWith("2")) cardBrand = "Mastercard";
-      else if (cardNumber.startsWith("3")) cardBrand = "American Express";
+      // Get provider details
+      const provider = await storage.getServiceProvider(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
 
-      // Extract last 4 digits of card number
-      const cardLastFour = cardNumber.slice(-4);
+      // Create or get Stripe customer
+      let stripeCustomerId = provider.stripeCustomerId;
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: provider.email,
+          name: `${provider.firstName} ${provider.lastName}`,
+          metadata: {
+            providerId: providerId.toString()
+          }
+        });
+        stripeCustomerId = customer.id;
+        
+        // Update provider with Stripe customer ID
+        await storage.updateProviderStripeCustomerId(providerId, stripeCustomerId);
+      }
 
-      // Create payment method data matching the existing schema
+      // Create payment method in Stripe
+      const paymentMethod = await stripe.paymentMethods.create({
+        type: 'card',
+        card: {
+          number: cardNumber.replace(/\s/g, ''),
+          exp_month: parseInt(expiryMonth),
+          exp_year: parseInt(expiryYear),
+          cvc: cvv,
+        },
+        billing_details: {
+          name: cardholderName,
+        },
+      });
+
+      // Attach payment method to customer
+      await stripe.paymentMethods.attach(paymentMethod.id, {
+        customer: stripeCustomerId,
+      });
+
+      // Store payment method reference in our database
       const paymentMethodData = {
         providerId,
-        stripeCustomerId: `cus_test_${Date.now()}`, // Generate test customer ID
-        stripePaymentMethodId: `pm_test_${Date.now()}`, // Generate test payment method ID
-        cardBrand,
-        cardLastFour,
-        cardExpMonth: parseInt(expiryMonth),
-        cardExpYear: parseInt(expiryYear),
+        stripeCustomerId,
+        stripePaymentMethodId: paymentMethod.id,
+        cardBrand: paymentMethod.card?.brand || 'unknown',
+        cardLastFour: paymentMethod.card?.last4 || '0000',
+        cardExpMonth: paymentMethod.card?.exp_month || 0,
+        cardExpYear: paymentMethod.card?.exp_year || 0,
         isPrimary,
         isActive: true
       };
@@ -857,9 +897,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(newPaymentMethod);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding payment method:", error);
-      res.status(500).json({ message: "Failed to add payment method" });
+      res.status(500).json({ message: error.message || "Failed to add payment method" });
     }
   });
 
