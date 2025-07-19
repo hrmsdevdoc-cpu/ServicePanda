@@ -416,6 +416,7 @@ export class DatabaseStorage implements IStorage {
         eWayCustomerToken: serviceProviders.eWayCustomerToken,
         cardFirstFour: serviceProviders.cardFirstFour,
         cardLastFour: serviceProviders.cardLastFour,
+        password: serviceProviders.password,
         createdAt: serviceProviders.createdAt,
         updatedAt: serviceProviders.updatedAt,
       })

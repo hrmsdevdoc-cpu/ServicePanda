@@ -73,6 +73,13 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Google Maps API Integration & Service Area Preview Fix (January 19, 2025)
+- **Fixed Google Maps API authorization**: Resolved ApiTargetBlockedMapError and RefererNotAllowedMapError by enabling Maps JavaScript API
+- **Service Area Preview working**: Step 3 now displays interactive map with business address auto-populated from Step 1
+- **Address integration confirmed**: Business address from Step 1 registration properly flows to Step 3 service area configuration
+- **Enhanced error handling**: Added specific error messages for different Google API issues with user-friendly guidance
+- **Database schema completed**: All location-based columns (center_lat, center_lng, radius_km, area_name) properly implemented
+
 ### Comprehensive Region Coverage & Data Integrity Fix (January 19, 2025)
 - **Fixed Gold Coast suburbs error**: Resolved "Failed to fetch" error in provider signup Step 3 by fixing hardcoded localhost URLs to relative paths
 - **Complete region coverage**: Expanded from 5 regions with suburbs to all 67 regions across Australia with comprehensive suburb data
