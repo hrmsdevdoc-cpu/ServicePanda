@@ -1172,78 +1172,17 @@ export default function ProviderDashboard() {
                     </p>
                   </CardHeader>
                   <CardContent>
-                    {paymentMethodsLoading ? (
-                      <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
-                        <p className="text-gray-600">Loading payment methods...</p>
-                      </div>
-                    ) : paymentMethods.length === 0 ? (
-                      <div className="text-center py-12">
-                        <CreditCard className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No payment methods</h3>
-                        <p className="text-gray-500 mb-6">
-                          Add your first payment method to start receiving leads.
-                        </p>
-                        <Button
-                          onClick={() => navigate("/provider-payment")}
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Payment Method
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-medium">Your Cards</h3>
-                          <Button
-                            onClick={() => navigate("/provider-payment")}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Card
-                          </Button>
-                        </div>
-                        
-                        {paymentMethods.map((method: any) => (
-                          <div key={method.id} className="border rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-12 h-8 bg-gray-100 rounded flex items-center justify-center">
-                                  <CreditCard className="h-4 w-4 text-gray-600" />
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">
-                                      {method.cardBrand} **** **** **** {method.cardLastFour}
-                                    </span>
-                                    {method.isPrimary && (
-                                      <Badge className="bg-green-100 text-green-800">Primary</Badge>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-gray-600">
-                                    Expires {method.cardExpMonth}/{method.cardExpYear}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <div className="flex items-center">
-                            <AlertCircle className="h-5 w-5 text-blue-500 mr-3" />
-                            <div>
-                              <h4 className="font-medium text-blue-900">Lead Pricing</h4>
-                              <p className="text-sm text-blue-700">
-                                Your first 3 leads are free! After that, leads cost $5 each. You're only charged when you accept a lead.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    {/* Navigate directly to the payment form */}
+                    <div className="text-center py-4">
+                      <Button
+                        onClick={() => navigate("/provider-payment")}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        size="lg"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Manage Payment Methods
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

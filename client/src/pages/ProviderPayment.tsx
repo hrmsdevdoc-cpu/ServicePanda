@@ -205,7 +205,7 @@ export default function ProviderPayment() {
                 Back to Dashboard
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Payment Management</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Payment Methods</h1>
                 <p className="text-sm text-gray-600">Manage your credit card details and billing information</p>
               </div>
             </div>
