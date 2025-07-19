@@ -77,6 +77,21 @@ export function LocationServiceAreaForm({
     }
   }, [currentArea.centerLat, currentArea.centerLng, currentArea.radiusKm]);
 
+  // Update initial address when prop changes
+  useEffect(() => {
+    if (initialAddress && initialAddress !== currentArea.centerAddress) {
+      setCurrentArea(prev => ({
+        ...prev,
+        centerAddress: initialAddress,
+      }));
+      
+      // Update input field
+      if (addressInputRef.current) {
+        addressInputRef.current.value = initialAddress;
+      }
+    }
+  }, [initialAddress]);
+
   const fetchExistingServiceAreas = async () => {
     try {
       const response = await apiRequest("GET", `/api/provider/${providerId}/location-service-areas`);

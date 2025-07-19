@@ -167,6 +167,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Google Maps API configuration
+  app.get('/api/config/google-maps', (req, res) => {
+    res.json({ apiKey: process.env.GOOGLE_MAPS_API_KEY || '' });
+  });
+
   // Add provider location-based service areas (new approach)
   app.post('/api/provider/:id/location-service-areas', async (req, res) => {
     try {

@@ -7,14 +7,25 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- Google Maps API - Key will be injected by server -->
+    <!-- Google Maps API - Load dynamically -->
     <script>
-      window.addEventListener('DOMContentLoaded', function() {
-        const script = document.createElement('script');
-        script.async = true;
-        script.defer = true;
-        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + window.GOOGLE_MAPS_API_KEY + '&libraries=places';
-        document.head.appendChild(script);
+      window.addEventListener('DOMContentLoaded', async function() {
+        try {
+          const response = await fetch('/api/config/google-maps');
+          const config = await response.json();
+          
+          if (config.apiKey) {
+            const script = document.createElement('script');
+            script.async = true;
+            script.defer = true;
+            script.src = 'https://maps.googleapis.com/maps/api/js?key=' + config.apiKey + '&libraries=places';
+            document.head.appendChild(script);
+          } else {
+            console.warn('Google Maps API key not configured');
+          }
+        } catch (error) {
+          console.error('Failed to load Google Maps configuration:', error);
+        }
       });
     </script>
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
