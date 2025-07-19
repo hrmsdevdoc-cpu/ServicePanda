@@ -174,11 +174,28 @@ export function LocationServiceAreaForm({
       
     } catch (error) {
       console.error('Error initializing Google Maps:', error);
-      toast({
-        title: "Maps Error",
-        description: "Failed to initialize Google Maps. Please ensure all required APIs are enabled.",
-        variant: "destructive",
-      });
+      
+      // Check if it's an API restriction error
+      const errorMessage = error?.message || String(error);
+      if (errorMessage.includes('ApiTargetBlocked')) {
+        toast({
+          title: "Google Maps API Error",
+          description: "Maps JavaScript API is not enabled. Please enable 'Maps JavaScript API' in Google Cloud Console.",
+          variant: "destructive",
+        });
+      } else if (errorMessage.includes('RefererNotAllowed')) {
+        toast({
+          title: "Domain Authorization Error", 
+          description: "Your Replit domain needs to be added to Google Cloud Console API restrictions.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Maps Error",
+          description: "Failed to initialize Google Maps. Check console for details.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
