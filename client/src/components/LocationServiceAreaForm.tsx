@@ -145,38 +145,70 @@ export function LocationServiceAreaForm({
       // Initialize autocomplete now that domain is authorized
       try {
         if (addressInputRef.current && window.google.maps.places) {
+          console.log('Creating autocomplete with Places API...');
+          
           const autocomplete = new window.google.maps.places.Autocomplete(
             addressInputRef.current,
             {
-              types: ['address'],
+              types: ['geocode'],
               componentRestrictions: { country: 'au' }, // Australia only
+              fields: ['formatted_address', 'geometry', 'name', 'place_id']
             }
           );
 
           autocomplete.addListener('place_changed', () => {
             const place = autocomplete.getPlace();
+            console.log('Place selected:', place);
+            
             if (place.geometry && place.geometry.location) {
               const lat = place.geometry.location.lat();
               const lng = place.geometry.location.lng();
               
               setCurrentArea(prev => ({
                 ...prev,
-                centerAddress: place.formatted_address || place.name,
+                centerAddress: place.formatted_address || place.name || prev.centerAddress,
                 centerLat: lat.toString(),
                 centerLng: lng.toString(),
               }));
               
               // Center map on selected location
               map.setCenter({ lat, lng });
-              map.setZoom(10);
+              map.setZoom(12);
+              
+              toast({
+                title: "Address Selected",
+                description: "Address located on map successfully",
+              });
+            } else {
+              console.warn('No geometry data for selected place');
             }
           });
 
           autocompleteRef.current = autocomplete;
           console.log('Address autocomplete enabled successfully');
+          
+          // Test the autocomplete functionality
+          setTimeout(() => {
+            if (addressInputRef.current) {
+              console.log('Autocomplete instance:', autocomplete);
+              console.log('Input element:', addressInputRef.current);
+            }
+          }, 1000);
+        } else {
+          console.error('Missing Places API or input ref:', {
+            placesAPI: !!window.google.maps.places,
+            inputRef: !!addressInputRef.current
+          });
         }
       } catch (autocompleteError) {
-        console.warn('Autocomplete failed, manual entry still available:', autocompleteError);
+        console.error('Autocomplete initialization failed:', autocompleteError);
+        
+        // Show user-friendly error
+        toast({
+          title: "Address Suggestions Unavailable",
+          description: "You can still type addresses manually and use the 'Locate' button",
+          variant: "destructive",
+        });
       }
       
     } catch (error) {
