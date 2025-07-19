@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,14 +33,59 @@ import {
   HelpCircle,
   Wrench,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Check,
+  X,
+  Home,
+  Zap,
+  Droplets,
+  Car,
+  Hammer,
+  TreePine,
+  Bug,
+  Sparkles,
+  Building,
+  Save,
+  Plus
 } from "lucide-react";
+import { LocationServiceAreaForm } from "@/components/LocationServiceAreaForm";
+import { DocumentUpload } from "@/components/DocumentUpload";
+
+// Service icons mapping - same as registration
+const serviceIcons = {
+  "Domestic Cleaning": Sparkles,
+  "Bond Cleaning": Building,
+  "Carpet Cleaning": Home,
+  "Pest Control": Bug,
+  "Gardening": TreePine,
+  "Removals": Car,
+  "Handyman": Hammer,
+  "Electrical": Zap,
+  "Air Conditioning": Wrench,
+  "Plumbing": Droplets,
+};
 
 export default function ProviderDashboard() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [activeMenuItem, setActiveMenuItem] = useState("dashboard");
   const [expandedMenus, setExpandedMenus] = useState<string[]>(["leads", "settings"]);
+  
+  // Services panel state
+  const [formData, setFormData] = useState({
+    selectedServices: [] as number[],
+  });
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  
+  // Service areas panel state
+  const [serviceAreas, setServiceAreas] = useState([]);
+  
+  // Documents panel state
+  const [documentFiles, setDocumentFiles] = useState({
+    license: null as File | null,
+    policeCheck: null as File | null,
+    insuranceCertificate: null as File | null,
+  });
 
   // Fetch provider profile
   const { data: provider, isLoading: providerLoading } = useQuery({
@@ -66,6 +111,23 @@ export default function ProviderDashboard() {
     enabled: !!provider?.id, // Only run query when provider ID is available
     retry: false,
   });
+
+  // Fetch service categories for services panel
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ["/api/service-categories"],
+    retry: false,
+  });
+
+  // Set initial selected services when data loads
+  useEffect(() => {
+    if (services && services.length > 0) {
+      const serviceIds = services.map((service: any) => service.categoryId);
+      setFormData(prev => ({ 
+        ...prev, 
+        selectedServices: serviceIds 
+      }));
+    }
+  }, [services]);
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -96,6 +158,111 @@ export default function ProviderDashboard() {
 
   const handleLogout = () => {
     logoutMutation.mutate();
+  };
+
+  // Services mutations
+  const addServicesMutation = useMutation({
+    mutationFn: async (categoryIds: number[]) => {
+      const providerId = localStorage.getItem('providerId');
+      if (!providerId) {
+        throw new Error("Provider information not found.");
+      }
+      await apiRequest("POST", `/api/service-providers/${providerId}/services`, { categoryIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/provider/services"] });
+      toast({
+        title: "Services Updated!",
+        description: "Your service offerings have been updated successfully.",
+        variant: "default",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update services.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Document upload mutation
+  const uploadDocumentsMutation = useMutation({
+    mutationFn: async (documents: { license?: File; policeCheck?: File; insuranceCertificate?: File }) => {
+      const formData = new FormData();
+      
+      if (documents.license) {
+        formData.append("license", documents.license);
+      }
+      if (documents.policeCheck) {
+        formData.append("policeCheck", documents.policeCheck);
+      }
+      if (documents.insuranceCertificate) {
+        formData.append("insuranceCertificate", documents.insuranceCertificate);
+      }
+      
+      const providerId = localStorage.getItem('providerId');
+      if (!providerId) {
+        throw new Error("Provider information not found.");
+      }
+      
+      await apiRequest("POST", `/api/service-providers/${providerId}/documents`, formData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Documents Updated!",
+        description: "Your documents have been uploaded successfully.",
+        variant: "default",
+      });
+      
+      setDocumentFiles({
+        license: null,
+        policeCheck: null,
+        insuranceCertificate: null,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload Error",
+        description: error.message || "Failed to upload documents.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Panel handlers
+  const handleSaveServices = () => {
+    setHasAttemptedSubmit(true);
+
+    if (formData.selectedServices.length === 0) {
+      toast({
+        title: "Please select your services",
+        description: "You must select at least one service you specialize in",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addServicesMutation.mutate(formData.selectedServices);
+  };
+
+  const handleServiceAreasChange = (areas: any[]) => {
+    setServiceAreas(areas);
+  };
+
+  const handleDocumentUpload = () => {
+    const hasDocuments = documentFiles.license || documentFiles.policeCheck || documentFiles.insuranceCertificate;
+    
+    if (!hasDocuments) {
+      toast({
+        title: "No Documents Selected",
+        description: "Please select at least one document to upload.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    uploadDocumentsMutation.mutate(documentFiles);
   };
 
   if (providerLoading) {
@@ -252,7 +419,7 @@ export default function ProviderDashboard() {
             {expandedMenus.includes("settings") && (
               <div className="ml-6 space-y-1">
                 <button
-                  onClick={() => navigate("/provider-services")}
+                  onClick={() => setActiveMenuItem("services")}
                   className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                     activeMenuItem === "services" 
                       ? "bg-red-50 text-red-700" 
@@ -262,7 +429,7 @@ export default function ProviderDashboard() {
                   Services
                 </button>
                 <button
-                  onClick={() => navigate("/provider-service-area")}
+                  onClick={() => setActiveMenuItem("service-area")}
                   className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                     activeMenuItem === "service-area" 
                       ? "bg-red-50 text-red-700" 
@@ -272,7 +439,7 @@ export default function ProviderDashboard() {
                   Service Area
                 </button>
                 <button
-                  onClick={() => navigate("/provider-documents")}
+                  onClick={() => setActiveMenuItem("documents")}
                   className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                     activeMenuItem === "documents" 
                       ? "bg-red-50 text-red-700" 
@@ -287,10 +454,7 @@ export default function ProviderDashboard() {
 
           {/* Payment */}
           <button
-            onClick={() => {
-              setActiveMenuItem("payment");
-              navigate("/provider-payment");
-            }}
+            onClick={() => setActiveMenuItem("payment")}
             className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
               activeMenuItem === "payment" 
                 ? "bg-red-50 text-red-700" 
@@ -605,10 +769,310 @@ export default function ProviderDashboard() {
               </div>
             )}
 
-            {/* Other menu items */}
-            {(activeMenuItem === "accepted-leads" || activeMenuItem === "services" || 
-              activeMenuItem === "service-area" || activeMenuItem === "documents" || 
-              activeMenuItem === "billing" || activeMenuItem === "help") && (
+            {/* Services Panel */}
+            {activeMenuItem === "services" && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Wrench className="h-5 w-5 mr-2" />
+                      Manage Your Services
+                    </CardTitle>
+                    <p className="text-sm text-gray-600">
+                      Select the services you offer to your customers. This will determine what types of jobs you receive.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {categoriesLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading services...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {categories.map((category: any) => {
+                            const Icon = serviceIcons[category.name as keyof typeof serviceIcons] || Wrench;
+                            const isSelected = formData.selectedServices.includes(category.id);
+                            
+                            return (
+                              <div
+                                key={category.id}
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    selectedServices: isSelected
+                                      ? prev.selectedServices.filter(id => id !== category.id)
+                                      : [...prev.selectedServices, category.id]
+                                  }));
+                                }}
+                                className={`
+                                  relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-200
+                                  ${isSelected 
+                                    ? 'border-red-300 bg-red-50' 
+                                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                                  }
+                                  ${hasAttemptedSubmit && formData.selectedServices.length === 0 
+                                    ? 'border-red-300 bg-red-50' 
+                                    : ''
+                                  }
+                                `}
+                              >
+                                {isSelected && (
+                                  <div className="absolute top-3 right-3">
+                                    <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                                      <Check className="w-3 h-3 text-white" />
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                <div className="flex flex-col items-center text-center space-y-3">
+                                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                                    isSelected ? 'bg-red-100' : 'bg-gray-100'
+                                  }`}>
+                                    <Icon className={`w-8 h-8 ${isSelected ? 'text-red-600' : 'text-gray-600'}`} />
+                                  </div>
+                                  <div>
+                                    <h3 className={`font-medium ${isSelected ? 'text-red-900' : 'text-gray-900'}`}>
+                                      {category.name}
+                                    </h3>
+                                    <p className={`text-sm ${isSelected ? 'text-red-700' : 'text-gray-600'}`}>
+                                      {category.description}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        {hasAttemptedSubmit && formData.selectedServices.length === 0 && (
+                          <div className="text-red-600 text-sm text-center">
+                            Please select at least one service you specialize in
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-end pt-4">
+                          <Button 
+                            onClick={handleSaveServices}
+                            disabled={addServicesMutation.isPending}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            {addServicesMutation.isPending ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="h-4 w-4 mr-2" />
+                                Save Services
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Service Area Panel */}
+            {activeMenuItem === "service-area" && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <MapPin className="h-5 w-5 mr-2" />
+                      Configure Service Area
+                    </CardTitle>
+                    <p className="text-sm text-gray-600">
+                      Set up your service coverage area. This determines which job requests you'll receive.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <LocationServiceAreaForm 
+                      businessAddress={provider?.businessAddress || ""} 
+                      onServiceAreasChange={handleServiceAreasChange}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Documents Panel */}
+            {activeMenuItem === "documents" && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <FileText className="h-5 w-5 mr-2" />
+                      Upload Documents
+                    </CardTitle>
+                    <p className="text-sm text-gray-600">
+                      Upload your professional documents for verification. These help build trust with customers.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {/* License Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          License
+                        </label>
+                        <DocumentUpload 
+                          onFileSelect={(file) => setDocumentFiles(prev => ({ ...prev, license: file }))}
+                          selectedFile={documentFiles.license}
+                          label="Upload License"
+                          description="Upload your business license or professional certification"
+                        />
+                      </div>
+
+                      {/* Police Check Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Police Check
+                        </label>
+                        <DocumentUpload 
+                          onFileSelect={(file) => setDocumentFiles(prev => ({ ...prev, policeCheck: file }))}
+                          selectedFile={documentFiles.policeCheck}
+                          label="Upload Police Check"
+                          description="Upload your police check certificate"
+                        />
+                      </div>
+
+                      {/* Insurance Certificate Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Insurance Certificate
+                        </label>
+                        <DocumentUpload 
+                          onFileSelect={(file) => setDocumentFiles(prev => ({ ...prev, insuranceCertificate: file }))}
+                          selectedFile={documentFiles.insuranceCertificate}
+                          label="Upload Insurance Certificate"
+                          description="Upload your public liability insurance certificate"
+                        />
+                      </div>
+                      
+                      <div className="flex justify-end pt-4">
+                        <Button 
+                          onClick={handleDocumentUpload}
+                          disabled={uploadDocumentsMutation.isPending}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          {uploadDocumentsMutation.isPending ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload Documents
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Payment Panel */}
+            {activeMenuItem === "payment" && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <CreditCard className="h-5 w-5 mr-2" />
+                      Payment Methods
+                    </CardTitle>
+                    <p className="text-sm text-gray-600">
+                      Manage your payment methods for receiving lead fees. Add a card to start receiving job requests.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {paymentMethodsLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading payment methods...</p>
+                      </div>
+                    ) : paymentMethods.length === 0 ? (
+                      <div className="text-center py-12">
+                        <CreditCard className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No payment methods</h3>
+                        <p className="text-gray-500 mb-6">
+                          Add your first payment method to start receiving leads.
+                        </p>
+                        <Button
+                          onClick={() => navigate("/provider-payment")}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Payment Method
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-lg font-medium">Your Cards</h3>
+                          <Button
+                            onClick={() => navigate("/provider-payment")}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Card
+                          </Button>
+                        </div>
+                        
+                        {paymentMethods.map((method: any) => (
+                          <div key={method.id} className="border rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-12 h-8 bg-gray-100 rounded flex items-center justify-center">
+                                  <CreditCard className="h-4 w-4 text-gray-600" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">
+                                      {method.cardBrand} **** **** **** {method.cardLastFour}
+                                    </span>
+                                    {method.isPrimary && (
+                                      <Badge className="bg-green-100 text-green-800">Primary</Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-600">
+                                    Expires {method.cardExpMonth}/{method.cardExpYear}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="flex items-center">
+                            <AlertCircle className="h-5 w-5 text-blue-500 mr-3" />
+                            <div>
+                              <h4 className="font-medium text-blue-900">Lead Pricing</h4>
+                              <p className="text-sm text-blue-700">
+                                Your first 3 leads are free! After that, leads cost $5 each. You're only charged when you accept a lead.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Other menu items (coming soon) */}
+            {(activeMenuItem === "accepted-leads" || activeMenuItem === "billing" || activeMenuItem === "help") && (
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
