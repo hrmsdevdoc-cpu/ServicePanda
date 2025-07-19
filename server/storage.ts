@@ -81,6 +81,7 @@ export interface IStorage {
   }): Promise<ProviderServiceArea>;
   getProviderServiceAreas(providerId: number): Promise<AustralianSuburb[]>;
   getProviderLocationServiceAreas(providerId: number): Promise<ProviderServiceArea[]>;
+  deleteProviderLocationServiceArea(providerId: number, areaId: number): Promise<void>;
   
   // Document operations
   uploadProviderDocument(document: InsertProviderDocument): Promise<ProviderDocument>;
@@ -291,6 +292,15 @@ export class DatabaseStorage implements IStorage {
           isNotNull(providerServiceAreas.centerAddress) // Only get location-based service areas
         )
       );
+  }
+
+  async deleteProviderLocationServiceArea(providerId: number, areaId: number): Promise<void> {
+    await db
+      .delete(providerServiceAreas)
+      .where(and(
+        eq(providerServiceAreas.providerId, providerId),
+        eq(providerServiceAreas.id, areaId)
+      ));
   }
 
   async getProviderServiceAreas(providerId: number): Promise<AustralianSuburb[]> {

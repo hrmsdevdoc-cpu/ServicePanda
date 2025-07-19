@@ -309,9 +309,10 @@ export function LocationServiceAreaForm({
 
   const handleRemoveServiceArea = async (areaId: number) => {
     try {
-      // Note: You'll need to implement the DELETE endpoint
-      // await apiRequest("DELETE", `/api/provider/${providerId}/location-service-areas/${areaId}`);
+      // Delete from database first
+      await apiRequest("DELETE", `/api/provider/${providerId}/location-service-areas/${areaId}`);
       
+      // Then update local state
       const updatedAreas = serviceAreas.filter(area => area.id !== areaId);
       setServiceAreas(updatedAreas);
       onServiceAreasChange?.(updatedAreas);

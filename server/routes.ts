@@ -208,6 +208,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete provider location-based service area
+  app.delete('/api/provider/:id/location-service-areas/:areaId', async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const areaId = parseInt(req.params.areaId);
+      
+      await storage.deleteProviderLocationServiceArea(providerId, areaId);
+      res.json({ message: 'Service area deleted successfully' });
+    } catch (error: any) {
+      console.error('Error deleting location-based service area:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Legacy: Add provider service areas
   app.post('/api/service-providers/:id/service-areas', isAuthenticated, async (req: any, res) => {
     try {
