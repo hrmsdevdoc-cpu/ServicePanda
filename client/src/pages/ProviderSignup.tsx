@@ -222,6 +222,38 @@ export default function ProviderSignup() {
     enabled: isExistingProvider,
   });
 
+  // Fetch provider services to populate form
+  const { data: providerServices } = useQuery({
+    queryKey: ["/api/provider/services"],
+    retry: false,
+    enabled: isExistingProvider,
+  });
+
+  // Update form data when provider services are loaded
+  useEffect(() => {
+    if (providerServices && providerServices.length > 0) {
+      const serviceIds = providerServices.map((service: any) => service.categoryId);
+      setFormData(prev => ({ 
+        ...prev, 
+        selectedServices: serviceIds 
+      }));
+    }
+  }, [providerServices]);
+
+  // Update form data when provider profile is loaded
+  useEffect(() => {
+    if (providerProfileData) {
+      setFormData(prev => ({ 
+        ...prev,
+        firstName: providerProfileData.firstName || "",
+        lastName: providerProfileData.lastName || "",
+        email: providerProfileData.email || "",
+        mobileNumber: providerProfileData.mobileNumber || "",
+        address: providerProfileData.address || "",
+      }));
+    }
+  }, [providerProfileData]);
+
   // Fetch regions when state is selected
   useEffect(() => {
     const fetchRegions = async () => {
