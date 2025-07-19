@@ -126,7 +126,7 @@ export function LocationServiceAreaForm({
   };
 
   const initializeGoogleMaps = () => {
-    if (!mapRef.current || !addressInputRef.current) return;
+    if (!mapRef.current) return;
 
     try {
       console.log('Initializing Google Maps...');
@@ -142,60 +142,47 @@ export function LocationServiceAreaForm({
       mapInstanceRef.current = map;
       console.log('Google Maps initialized successfully');
 
-      // Initialize autocomplete
-      const autocomplete = new window.google.maps.places.Autocomplete(
-        addressInputRef.current,
-        {
-          types: ['address'],
-          componentRestrictions: { country: 'au' }, // Australia only
-        }
-      );
+      // Try to initialize autocomplete, but don't fail if it doesn't work
+      try {
+        if (addressInputRef.current && window.google.maps.places) {
+          const autocomplete = new window.google.maps.places.Autocomplete(
+            addressInputRef.current,
+            {
+              types: ['address'],
+              componentRestrictions: { country: 'au' }, // Australia only
+            }
+          );
 
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-        if (place.geometry && place.geometry.location) {
-          const lat = place.geometry.location.lat();
-          const lng = place.geometry.location.lng();
-          
-          setCurrentArea(prev => ({
-            ...prev,
-            centerAddress: place.formatted_address || place.name,
-            centerLat: lat.toString(),
-            centerLng: lng.toString(),
-          }));
-          
-          // Center map on selected location
-          map.setCenter({ lat, lng });
-          map.setZoom(10);
-        }
-      });
+          autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (place.geometry && place.geometry.location) {
+              const lat = place.geometry.location.lat();
+              const lng = place.geometry.location.lng();
+              
+              setCurrentArea(prev => ({
+                ...prev,
+                centerAddress: place.formatted_address || place.name,
+                centerLat: lat.toString(),
+                centerLng: lng.toString(),
+              }));
+              
+              // Center map on selected location
+              map.setCenter({ lat, lng });
+              map.setZoom(10);
+            }
+          });
 
-      autocompleteRef.current = autocomplete;
+          autocompleteRef.current = autocomplete;
+        }
+      } catch (autocompleteError) {
+        console.warn('Autocomplete failed, manual entry still works:', autocompleteError);
+        // Don't show error - manual entry will still work
+      }
       
     } catch (error) {
-      console.error('Error initializing Google Maps:', error);
-      
-      // Check if it's an API restriction error
-      const errorMessage = error?.message || String(error);
-      if (errorMessage.includes('ApiTargetBlocked')) {
-        toast({
-          title: "Google Maps API Error",
-          description: "Maps JavaScript API is not enabled. Please enable 'Maps JavaScript API' in Google Cloud Console.",
-          variant: "destructive",
-        });
-      } else if (errorMessage.includes('RefererNotAllowed')) {
-        toast({
-          title: "Domain Authorization Error", 
-          description: "Your Replit domain needs to be added to Google Cloud Console API restrictions.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Maps Error",
-          description: "Failed to initialize Google Maps. Check console for details.",
-          variant: "destructive",
-        });
-      }
+      console.error('Google Maps initialization failed:', error);
+      // Don't show error toast - let manual entry work
+      setMapLoaded(false);
     }
   };
 
@@ -396,21 +383,59 @@ export function LocationServiceAreaForm({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="address">Service Location Address *</Label>
-              <Input
-                id="address"
-                ref={addressInputRef}
-                placeholder="Enter your service area address..."
-                value={currentArea.centerAddress || ""}
-                onChange={(e) => setCurrentArea(prev => ({ ...prev, centerAddress: e.target.value }))}
-                onFocus={() => {
-                  if (!mapLoaded && window.google && window.google.maps) {
-                    initializeGoogleMaps();
-                    setMapLoaded(true);
-                  }
-                }}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="address"
+                  ref={addressInputRef}
+                  placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                  value={currentArea.centerAddress || ""}
+                  onChange={(e) => setCurrentArea(prev => ({ 
+                    ...prev, 
+                    centerAddress: e.target.value,
+                    // Clear coordinates when manually typing to allow manual geocoding
+                    centerLat: undefined,
+                    centerLng: undefined
+                  }))}
+                  onFocus={() => {
+                    if (!mapLoaded && window.google && window.google.maps) {
+                      initializeGoogleMaps();
+                      setMapLoaded(true);
+                    }
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    if (currentArea.centerAddress && window.google) {
+                      const coords = await geocodeAddress(currentArea.centerAddress);
+                      if (coords) {
+                        setCurrentArea(prev => ({
+                          ...prev,
+                          centerLat: coords.lat.toString(),
+                          centerLng: coords.lng.toString(),
+                        }));
+                        toast({
+                          title: "Address Found",
+                          description: "Address located successfully on map",
+                        });
+                      } else {
+                        toast({
+                          title: "Address Not Found",
+                          description: "Please check the address and try again",
+                          variant: "destructive",
+                        });
+                      }
+                    }
+                  }}
+                  disabled={!currentArea.centerAddress}
+                >
+                  Locate
+                </Button>
+              </div>
               <p className="text-sm text-muted-foreground">
-                Start typing to see address suggestions
+                Type a full Australian address, then click "Locate" to find it on the map
               </p>
             </div>
             
