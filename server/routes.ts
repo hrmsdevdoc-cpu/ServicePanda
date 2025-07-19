@@ -544,6 +544,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+
+  // Admin Dashboard API Endpoints
+  app.get('/api/admin/stats', isAdminAuthenticated, async (req, res) => {
+    try {
+      const totalProviders = await storage.getServiceProviderCount();
+      const activeProviders = await storage.getServiceProviderCount('approved');
+      const pendingProviders = await storage.getServiceProviderCount('pending');
+      const totalCustomers = await storage.getUserCount();
+      const totalRequests = await storage.getServiceRequestCount();
+      const pendingRequests = await storage.getServiceRequestCount('pending');
+
+      res.json({
+        totalProviders,
+        activeProviders,
+        pendingProviders,
+        totalCustomers,
+        totalRequests,
+        pendingRequests,
+      });
+    } catch (error) {
+      console.error('Error fetching admin stats:', error);
+      res.status(500).json({ message: 'Failed to fetch statistics' });
+    }
+  });
+
+  app.get('/api/admin/providers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const status = req.query.status as string;
+      const providers = await storage.getServiceProvidersForAdmin(status);
+      res.json(providers);
+    } catch (error) {
+      console.error('Error fetching providers:', error);
+      res.status(500).json({ message: 'Failed to fetch providers' });
+    }
+  });
+
+  app.post('/api/admin/providers/:id/approve', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      await storage.updateServiceProviderStatus(providerId, 'approved');
+      res.json({ message: 'Provider approved successfully' });
+    } catch (error) {
+      console.error('Error approving provider:', error);
+      res.status(500).json({ message: 'Failed to approve provider' });
+    }
+  });
+
+  app.post('/api/admin/providers/:id/reject', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      await storage.updateServiceProviderStatus(providerId, 'rejected');
+      res.json({ message: 'Provider rejected successfully' });
+    } catch (error) {
+      console.error('Error rejecting provider:', error);
+      res.status(500).json({ message: 'Failed to reject provider' });
+    }
+  });
+
+  app.get('/api/admin/service-requests', isAdminAuthenticated, async (req, res) => {
+    try {
+      const serviceRequests = await storage.getAllServiceRequestsForAdmin();
+      res.json(serviceRequests);
+    } catch (error) {
+      console.error('Error fetching service requests:', error);
+      res.status(500).json({ message: 'Failed to fetch service requests' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

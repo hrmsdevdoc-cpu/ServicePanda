@@ -103,6 +103,14 @@ export interface IStorage {
   getAllRegions(): Promise<AustralianRegion[]>;
   getRegionsByStateId(stateId: number): Promise<AustralianRegion[]>;
   getSuburbsByRegion(regionId: number): Promise<AustralianSuburb[]>;
+
+  // Admin operations
+  getServiceProviderCount(status?: string): Promise<number>;
+  getUserCount(): Promise<number>;
+  getServiceRequestCount(status?: string): Promise<number>;
+  getServiceProvidersForAdmin(status?: string): Promise<ServiceProvider[]>;
+  updateServiceProviderStatus(id: number, status: string): Promise<void>;
+  getAllServiceRequestsForAdmin(): Promise<ServiceRequest[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -495,6 +503,62 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return systemSetting;
+  }
+
+  // Admin-specific methods
+  async getServiceProviderCount(status?: string): Promise<number> {
+    const query = db.select().from(serviceProviders);
+    
+    if (status) {
+      const result = await query.where(eq(serviceProviders.status, status));
+      return result.length;
+    }
+    
+    const result = await query;
+    return result.length;
+  }
+
+  async getUserCount(): Promise<number> {
+    const result = await db.select().from(users);
+    return result.length;
+  }
+
+  async getServiceRequestCount(status?: string): Promise<number> {
+    const query = db.select().from(serviceRequests);
+    
+    if (status) {
+      const result = await query.where(eq(serviceRequests.status, status));
+      return result.length;
+    }
+    
+    const result = await query;
+    return result.length;
+  }
+
+  async getServiceProvidersForAdmin(status?: string): Promise<ServiceProvider[]> {
+    const query = db.select().from(serviceProviders);
+    
+    if (status) {
+      return await query
+        .where(eq(serviceProviders.status, status))
+        .orderBy(desc(serviceProviders.createdAt));
+    }
+    
+    return await query.orderBy(desc(serviceProviders.createdAt));
+  }
+
+  async updateServiceProviderStatus(id: number, status: string): Promise<void> {
+    await db
+      .update(serviceProviders)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(serviceProviders.id, id));
+  }
+
+  async getAllServiceRequestsForAdmin(): Promise<ServiceRequest[]> {
+    return await db
+      .select()
+      .from(serviceRequests)
+      .orderBy(desc(serviceRequests.createdAt));
   }
 }
 

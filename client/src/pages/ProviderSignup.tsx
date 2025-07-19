@@ -897,7 +897,7 @@ export default function ProviderSignup() {
                                   (r: any) => r.name === locationData.selectedRegion
                                 );
                                 if (selectedRegion) {
-                                  const response = await fetch(`/api/regions/${selectedRegion.id}/suburbs`);
+                                  const response = await fetch(`http://localhost:5000/api/regions/${selectedRegion.id}/suburbs`);
                                   const allSuburbs = await response.json();
                                   
                                   // Add all suburb IDs to selectedSuburbs

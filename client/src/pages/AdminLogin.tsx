@@ -1,175 +1,174 @@
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
+import { useLocation } from "wouter";
+import { Shield, Lock, Eye, EyeOff } from "lucide-react";
 
 export default function AdminLogin() {
-  const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [showPassword, setShowPassword] = useState(false);
+  const [, navigate] = useLocation();
   const [formData, setFormData] = useState({
     username: "",
     password: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const loginMutation = useMutation({
-    mutationFn: async (credentials: { username: string; password: string }) => {
-      const response = await apiRequest("POST", "/api/admin/login", credentials);
-      return response.json();
-    },
-    onSuccess: (admin) => {
-      toast({
-        title: "Admin Access Granted",
-        description: "Welcome to the ServicePanda Admin Dashboard.",
-        variant: "default",
-      });
-      // Store admin session info
-      localStorage.setItem('adminToken', admin.token || 'admin-authenticated');
-      navigate("/admin");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Access Denied",
-        description: error.message || "Invalid username or password. Administrator access required.",
-        variant: "destructive",
-      });
-    },
-  });
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.username.trim() || !formData.password.trim()) {
+    if (!formData.username || !formData.password) {
       toast({
-        title: "Missing Information",
+        title: "Missing Fields",
         description: "Please enter both username and password.",
         variant: "destructive",
       });
       return;
     }
 
-    loginMutation.mutate(formData);
-  };
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store admin token in localStorage
+        localStorage.setItem('adminToken', data.token);
+        
+        toast({
+          title: "Login Successful",
+          description: "Welcome to ServicePanda Admin Panel.",
+          variant: "default",
+        });
+        
+        // Navigate to admin dashboard
+        navigate('/admin');
+      } else {
+        toast({
+          title: "Login Failed",
+          description: data.message || "Invalid credentials. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Admin login error:", error);
+      toast({
+        title: "Login Error",
+        description: "Unable to connect to server. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Header */}
         <div className="text-center">
-          <div className="flex items-center justify-center mb-6">
-            <Shield className="h-12 w-12 text-red-500 mr-3" />
-            <span className="text-2xl font-bold text-white">ServicePanda</span>
+          <div className="flex justify-center">
+            <Shield className="h-12 w-12 text-red-600" />
           </div>
-          <h2 className="text-3xl font-bold text-white mb-2">Admin Access</h2>
-          <p className="text-gray-400">
-            Restricted area - Administrator credentials required
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+            Admin Login
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Access the ServicePanda administration panel
           </p>
         </div>
 
-        {/* Login Form */}
-        <Card className="shadow-2xl border-gray-700 bg-gray-800">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-center text-xl text-white">Administrator Login</CardTitle>
+            <CardTitle className="flex items-center text-center justify-center">
+              <Lock className="h-5 w-5 mr-2" />
+              Secure Access
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Username Field */}
               <div>
-                <Label htmlFor="username" className="text-sm font-medium text-gray-200">
-                  Administrator Username <span className="text-red-500">*</span>
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <Input
-                    id="username"
-                    type="text"
-                    value={formData.username}
-                    onChange={(e) => handleInputChange("username", e.target.value)}
-                    className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                    placeholder="Enter admin username"
-                    required
-                  />
-                </div>
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  placeholder="Enter your admin username"
+                  className="mt-1"
+                />
               </div>
 
-              {/* Password Field */}
               <div>
-                <Label htmlFor="password" className="text-sm font-medium text-gray-200">
-                  Password <span className="text-red-500">*</span>
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
+                <Label htmlFor="password">Password</Label>
+                <div className="relative mt-1">
                   <Input
                     id="password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) => handleInputChange("password", e.target.value)}
-                    className="pl-10 pr-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                    placeholder="Enter admin password"
                     required
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="Enter your password"
+                    className="pr-10"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-300" />
+                      <EyeOff className="h-4 w-4 text-gray-400" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-300" />
+                      <Eye className="h-4 w-4 text-gray-400" />
                     )}
                   </button>
                 </div>
               </div>
 
-              {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
-                disabled={loginMutation.isPending}
+                disabled={isLoading}
+                className="w-full bg-red-600 hover:bg-red-700"
               >
-                {loginMutation.isPending ? "Authenticating..." : "Access Admin Panel"}
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Signing in...
+                  </div>
+                ) : (
+                  "Sign In"
+                )}
               </Button>
             </form>
-
-            {/* Additional Links */}
-            <div className="mt-6 space-y-4">
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => navigate("/")}
-                  className="text-sm text-gray-400 hover:text-gray-300"
-                >
-                  ← Back to Home
-                </button>
-              </div>
-              
-              <div className="border-t border-gray-600 pt-4">
-                <div className="text-center text-xs text-gray-500">
-                  This area is restricted to authorized administrators only.<br/>
-                  All access attempts are logged and monitored.
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
+
+        <div className="text-center">
+          <p className="text-xs text-gray-500">
+            This is a secure area. Only authorized administrators can access this panel.
+          </p>
+        </div>
       </div>
     </div>
   );

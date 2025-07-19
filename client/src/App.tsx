@@ -39,11 +39,7 @@ function Router() {
       <Route path="/provider-dashboard" component={ProviderDashboard} />
       
       {/* Admin routes - accessible with admin authentication */}
-      {localStorage.getItem('adminToken') && (
-        <>
-          <Route path="/admin" component={SimpleAdminDashboard} />
-        </>
-      )}
+      <Route path="/admin" component={AdminDashboard} />
       
       {/* Customer routes based on authentication */}
       {!isAuthenticated ? (
@@ -52,7 +48,6 @@ function Router() {
         <>
           <Route path="/" component={CustomerDashboard} />
           <Route path="/request-service" component={RequestService} />
-          <Route path="/admin" component={AdminDashboard} />
         </>
       )}
       
