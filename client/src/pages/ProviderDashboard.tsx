@@ -1283,9 +1283,9 @@ export default function ProviderDashboard() {
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
-            {viewingDocument && (
+            {viewingDocument && provider && (
               <iframe
-                src={`/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}`}
+                src={`/api/provider/documents/view/${viewingDocument.filePath.split('/').pop()}/${provider.id}`}
                 className="w-full h-[70vh] border rounded"
                 title={`${viewingDocument.documentType} Document`}
               />

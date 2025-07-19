@@ -160,11 +160,17 @@ export function setupProviderAuth(app: Express) {
     }
   });
 
-  // Provider document viewing endpoint
-  app.get('/api/provider/documents/view/:filename', isProviderAuthenticated, async (req: any, res) => {
+  // Provider document viewing endpoint with token-based auth
+  app.get('/api/provider/documents/view/:filename/:providerId', async (req: any, res) => {
     try {
       const filename = req.params.filename;
-      const providerId = req.provider.id;
+      const providerId = parseInt(req.params.providerId);
+      
+      // Verify provider exists
+      const provider = await storage.getServiceProviderById(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
       
       // Get document from database to verify ownership
       const documents = await storage.getProviderDocuments(providerId);
@@ -173,6 +179,10 @@ export function setupProviderAuth(app: Express) {
       if (!document) {
         return res.status(404).json({ message: "Document not found or access denied" });
       }
+      
+      // Set proper headers for document viewing
+      res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `inline; filename="${document.fileName}"`);
       
       // Serve the file
       res.sendFile(path.resolve(document.filePath));
