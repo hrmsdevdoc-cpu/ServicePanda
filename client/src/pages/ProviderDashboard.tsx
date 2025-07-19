@@ -963,9 +963,15 @@ export default function ProviderDashboard() {
                       <div className="grid gap-4">
                         {/* Group documents by type and show latest */}
                         {['license', 'police_check', 'insurance'].map(docType => {
-                          const document = existingDocuments
-                            .filter((doc: any) => doc.documentType === docType)
+                          const filteredDocs = existingDocuments.filter((doc: any) => doc.documentType === docType);
+                          const document = filteredDocs
                             .sort((a: any, b: any) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
+                          
+                          // Debug logging
+                          if (docType === 'insurance') {
+                            console.log('Insurance documents:', filteredDocs.map(d => ({ fileName: d.fileName, uploadedAt: d.uploadedAt, mimeType: d.mimeType })));
+                            console.log('Selected insurance document:', document ? { fileName: document.fileName, uploadedAt: document.uploadedAt, mimeType: document.mimeType } : 'none');
+                          }
                           
                           const docTypeLabels = {
                             license: 'License Document',
