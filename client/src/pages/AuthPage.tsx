@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PawPrint } from "lucide-react";
+import { PawPrint, ArrowLeft } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -122,6 +122,18 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
+        {/* Back to Home Button */}
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => setLocation('/')}
+            className="text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Home
+          </Button>
+        </div>
+
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center">
@@ -175,6 +187,22 @@ export default function AuthPage() {
                   >
                     {loginMutation.isPending ? "Signing in..." : "Sign In"}
                   </Button>
+                  
+                  {/* Forgot Password Link */}
+                  <div className="text-center mt-4">
+                    <Button
+                      variant="link"
+                      onClick={() => {
+                        toast({
+                          title: "Forgot Password",
+                          description: "Please contact support at support@servicepanda.com.au for password reset assistance.",
+                        });
+                      }}
+                      className="text-sm text-primary hover:text-primary/80"
+                    >
+                      Forgot your password?
+                    </Button>
+                  </div>
                 </form>
               </CardContent>
             </Card>
