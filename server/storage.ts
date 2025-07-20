@@ -69,6 +69,7 @@ export interface IStorage {
   
   // Provider service operations
   addProviderService(providerService: InsertProviderService): Promise<void>;
+  replaceProviderServices(providerId: number, categoryIds: number[]): Promise<void>;
   getProviderServices(providerId: number): Promise<any[]>;
   
   // Location operations

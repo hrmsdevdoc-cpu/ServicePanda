@@ -120,7 +120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const providerId = parseInt(req.params.id);
       const { categoryIds } = req.body;
       
-      console.log(`Updating services for provider ${providerId}:`, categoryIds);
+      console.log(`Replacing services for provider ${providerId}:`, categoryIds);
       
       if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
         return res.status(400).json({ message: "Category IDs are required" });
