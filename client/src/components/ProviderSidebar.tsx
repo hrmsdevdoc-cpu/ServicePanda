@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Target,
@@ -12,7 +13,11 @@ import {
   LogOut,
   Briefcase,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  CheckCircle,
+  Clock,
+  XCircle,
+  AlertCircle
 } from "lucide-react";
 
 interface ProviderSidebarProps {
@@ -44,6 +49,24 @@ export default function ProviderSidebar({
         ? prev.filter(id => id !== menuId)
         : [...prev, menuId]
     );
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'approved':
+        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending Review</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-800"><AlertCircle className="h-3 w-3 mr-1" />Unknown</Badge>;
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('providerId');
+    navigate("/provider-login");
   };
 
   return (
@@ -246,20 +269,19 @@ export default function ProviderSidebar({
               <p className="text-sm font-medium text-gray-900 truncate">
                 {provider?.firstName} {provider?.lastName}
               </p>
-              <p className="text-xs text-gray-500">
-                {provider?.businessName || 'Service Provider'}
-              </p>
+              <div className="flex items-center">
+                {getStatusBadge(provider?.status)}
+              </div>
             </div>
           </div>
-          <button
-            onClick={() => {
-              localStorage.removeItem('providerId');
-              navigate("/provider-login");
-            }}
+          <Button
+            onClick={handleLogout}
+            variant="ghost"
+            size="sm"
             className="text-gray-400 hover:text-gray-600"
           >
             <LogOut className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>
