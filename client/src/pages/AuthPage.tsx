@@ -192,12 +192,7 @@ export default function AuthPage() {
                   <div className="text-center mt-4">
                     <Button
                       variant="link"
-                      onClick={() => {
-                        toast({
-                          title: "Forgot Password",
-                          description: "Please contact support at support@servicepanda.com.au for password reset assistance.",
-                        });
-                      }}
+                      onClick={() => setLocation('/forgot-password')}
                       className="text-sm text-primary hover:text-primary/80"
                     >
                       Forgot your password?

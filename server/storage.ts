@@ -43,6 +43,9 @@ import {
   providerPaymentMethods,
   type InsertProviderPaymentMethod,
   type ProviderPaymentMethod,
+  passwordResetTokens,
+  type InsertPasswordResetToken,
+  type PasswordResetToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, isNotNull } from "drizzle-orm";
@@ -143,6 +146,12 @@ export interface IStorage {
   
   // Stripe settings operations
   getDecryptedStripeKeys(): Promise<{ secretKey: string; publicKey: string } | null>;
+  
+  // Password reset operations
+  createPasswordResetToken(token: InsertPasswordResetToken): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  markTokenAsUsed(token: string): Promise<void>;
+  updateUserPassword(userId: string, hashedPassword: string): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -791,6 +800,42 @@ export class DatabaseStorage implements IStorage {
       console.error('Failed to get Stripe keys:', error);
       return null;
     }
+  }
+
+  // Password reset operations
+  async createPasswordResetToken(token: InsertPasswordResetToken): Promise<PasswordResetToken> {
+    const [resetToken] = await db
+      .insert(passwordResetTokens)
+      .values(token)
+      .returning();
+    return resetToken;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    const [resetToken] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token));
+    return resetToken;
+  }
+
+  async markTokenAsUsed(token: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        password: hashedPassword,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
   }
 
 }

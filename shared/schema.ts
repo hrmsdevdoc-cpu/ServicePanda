@@ -224,6 +224,16 @@ export const systemSettings = pgTable("system_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Password reset tokens
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   serviceRequests: many(serviceRequests),
@@ -354,6 +364,10 @@ export const insertProviderPaymentMethodSchema = createInsertSchema(providerPaym
   createdAt: true, 
   updatedAt: true 
 });
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ 
+  id: true, 
+  createdAt: true 
+});
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
@@ -385,3 +399,5 @@ export type AustralianRegion = typeof australianRegions.$inferSelect;
 export type AustralianSuburb = typeof australianSuburbs.$inferSelect;
 export type InsertProviderPaymentMethod = z.infer<typeof insertProviderPaymentMethodSchema>;
 export type ProviderPaymentMethod = typeof providerPaymentMethods.$inferSelect;
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;

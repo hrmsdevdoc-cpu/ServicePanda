@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import AuthPage from "@/pages/AuthPage";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import CustomerDashboard from "@/pages/CustomerDashboard";
 import ProviderSignup from "@/pages/ProviderSignup";
 import ProviderLogin from "@/pages/ProviderLogin";
@@ -37,6 +39,8 @@ function Router() {
     <Switch>
       {/* Public routes - available to everyone */}
       <Route path="/auth" component={AuthPage} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/provider-signup" component={ProviderSignup} />
       <Route path="/provider-login" component={ProviderLogin} />
       <Route path="/admin-login" component={AdminLogin} />
