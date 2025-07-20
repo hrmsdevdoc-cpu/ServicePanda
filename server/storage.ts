@@ -731,9 +731,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(systemSettings.key, 'mailgun_domain'))
       .limit(1);
 
+    const mailgunDomainSendingKey = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'mailgun_domain_sending_key'))
+      .limit(1);
+
     return {
       stripeConfigured: stripeSecretKey.length > 0 && stripePublicKey.length > 0,
-      mailgunConfigured: mailgunApiKey.length > 0 && mailgunDomain.length > 0
+      mailgunConfigured: mailgunApiKey.length > 0 && mailgunDomain.length > 0 && mailgunDomainSendingKey.length > 0
     };
   }
 
