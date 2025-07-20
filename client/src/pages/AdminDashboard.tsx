@@ -647,6 +647,29 @@ export default function AdminDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
+                    <Mail className="h-5 w-5 mr-2" />
+                    Mailgun Configuration
+                  </CardTitle>
+                  <CardDescription>Set up email notifications and password resets</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Configure Mailgun API keys to enable email sending for password resets and notifications.
+                  </p>
+                  <Button 
+                    onClick={() => navigate('/admin/mailgun-config')} 
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Configure Mailgun
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
                     <Shield className="h-5 w-5 mr-2" />
                     Security Settings
                   </CardTitle>
