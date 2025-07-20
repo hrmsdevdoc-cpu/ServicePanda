@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import ProviderSidebar from "@/components/ProviderSidebar";
 import {
   CreditCard,
   Plus,
@@ -19,14 +20,8 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle,
-  LayoutDashboard,
-  Target,
-  Settings,
-  HelpCircle,
-  LogOut,
-  Briefcase,
-  ChevronRight,
-  Receipt,
+  Menu,
+  X,
 } from "lucide-react";
 
 const addCardSchema = z.object({
@@ -47,6 +42,11 @@ export default function ProviderPayment() {
   const { toast } = useToast();
   const [showAddCard, setShowAddCard] = useState(false);
   const [isAddingCard, setIsAddingCard] = useState(false);
+  
+  // Dashboard-style navigation state
+  const [activeMenuItem, setActiveMenuItem] = useState("payment");
+  const [expandedMenus, setExpandedMenus] = useState(["leads", "settings"]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Form setup
   const {
@@ -73,6 +73,14 @@ export default function ProviderPayment() {
     queryKey: ["/api/provider/profile"],
     retry: false,
   });
+
+  // Fetch leads for new leads count
+  const { data: leads = [] } = useQuery<any[]>({
+    queryKey: ["/api/provider/leads"],
+    retry: false,
+  });
+
+  const newLeadsCount = leads.filter((l: any) => l.status === 'new').length;
 
   // Fetch provider payment methods
   const { data: paymentMethods = [], isLoading: loadingPayments } = useQuery({
@@ -203,86 +211,38 @@ export default function ProviderPayment() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Left Sidebar - Exact Dashboard Copy */}
-      <div className={`w-64 bg-white border-r border-gray-200 flex flex-col h-full`}>
-        {/* Logo Section - Exact Dashboard Copy */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center">
-            <Briefcase className="h-8 w-8 text-red-600 mr-3" />
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">ServicePanda</h1>
-              <p className="text-xs text-gray-600">Partners</p>
-            </div>
-          </div>
-        </div>
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      {/* Mobile menu overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
-        {/* Navigation Menu - Exact Dashboard Copy */}
-        <nav className="flex-1 px-4 py-6 space-y-1">
-          {/* Dashboard */}
-          <button
-            onClick={() => navigate("/provider-dashboard")}
-            className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50"
-          >
-            <LayoutDashboard className="h-4 w-4 mr-3" />
-            Dashboard
-          </button>
-
-          {/* Leads Section */}
-          <div className="space-y-1">
-            <button className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50">
-              <div className="flex items-center">
-                <Target className="h-4 w-4 mr-3" />
-                Leads
-              </div>
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </nav>
-
-        {/* Footer Menu - Exact Dashboard Copy */}
-        <div className="border-t border-gray-200 px-4 py-4 space-y-1">
-          {/* Settings Section */}
-          <div className="space-y-1">
-            <button className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50">
-              <div className="flex items-center">
-                <Settings className="h-4 w-4 mr-3" />
-                Settings
-              </div>
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Payment - Active State */}
-          <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md bg-red-50 text-red-700 border-r-2 border-red-600">
-            <CreditCard className="h-4 w-4 mr-3" />
-            Payment
-          </button>
-
-          {/* Other menu items */}
-          <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50">
-            <Receipt className="h-4 w-4 mr-3" />
-            Billing
-          </button>
-
-          <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50">
-            <HelpCircle className="h-4 w-4 mr-3" />
-            Help
-          </button>
-
-          {/* Logout */}
-          <button
-            onClick={() => {
-              localStorage.removeItem('providerId');
-              navigate("/provider-login");
-            }}
-            className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50"
-          >
-            <LogOut className="h-4 w-4 mr-3" />
-            Logout
-          </button>
-        </div>
+      {/* Mobile Menu Button */}
+      <div className="md:hidden fixed top-4 left-4 z-50">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="bg-white"
+        >
+          {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+        </Button>
       </div>
+
+      {/* Shared Sidebar Component */}
+      <ProviderSidebar
+        activeMenuItem={activeMenuItem}
+        setActiveMenuItem={setActiveMenuItem}
+        expandedMenus={expandedMenus}
+        setExpandedMenus={setExpandedMenus}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+        newLeadsCount={newLeadsCount}
+        provider={provider}
+      />
 
       {/* Right Panel - Payment Content */}
       <div className="flex-1 p-6 overflow-y-auto">

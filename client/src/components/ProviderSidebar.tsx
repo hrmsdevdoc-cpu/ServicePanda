@@ -1,197 +1,266 @@
-/**
- * Shared Provider Sidebar Navigation Component
- * Used across all provider admin pages for consistent navigation and branding
- */
-
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
   Target,
   Settings,
+  CreditCard,
   Receipt,
   HelpCircle,
   LogOut,
-  MapPin,
-  FileText,
-  Wrench,
+  Briefcase,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 
 interface ProviderSidebarProps {
-  /** Currently active menu item */
-  activeItem?: string;
+  activeMenuItem: string;
+  setActiveMenuItem: (item: string) => void;
+  expandedMenus: string[];
+  setExpandedMenus: React.Dispatch<React.SetStateAction<string[]>>;
+  isMobileMenuOpen: boolean;
+  setIsMobileMenuOpen: (open: boolean) => void;
+  newLeadsCount: number;
+  provider: any;
 }
 
-interface NavigationItem {
-  id: string;
-  label: string;
-  icon: any;
-  path: string;
-  description?: string;
-}
-
-const navigationItems: NavigationItem[] = [
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    path: "/provider-dashboard",
-    description: "Overview and quick actions"
-  },
-  {
-    id: "leads",
-    label: "Leads",
-    icon: Target,
-    path: "/provider-leads", 
-    description: "Manage customer inquiries"
-  },
-  {
-    id: "settings",
-    label: "Settings",
-    icon: Settings,
-    path: "/provider-settings",
-    description: "Account and business settings"
-  },
-  {
-    id: "services",
-    label: "Services",
-    icon: Wrench,
-    path: "/provider-services",
-    description: "Manage your service offerings"
-  },
-  {
-    id: "service-area",
-    label: "Service Area",
-    icon: MapPin,
-    path: "/provider-service-area",
-    description: "Coverage areas and locations"
-  },
-  {
-    id: "documents",
-    label: "Documents",
-    icon: FileText,
-    path: "/provider-documents",
-    description: "Licenses and certifications"
-  },
-  {
-    id: "payment",
-    label: "Payment",
-    icon: Receipt,
-    path: "/provider-payment",
-    description: "Payment methods and billing"
-  },
-  {
-    id: "help",
-    label: "Help",
-    icon: HelpCircle,
-    path: "/provider-help",
-    description: "Support and resources"
-  }
-];
-
-export default function ProviderSidebar({ activeItem }: ProviderSidebarProps) {
+export default function ProviderSidebar({
+  activeMenuItem,
+  setActiveMenuItem,
+  expandedMenus,
+  setExpandedMenus,
+  isMobileMenuOpen,
+  setIsMobileMenuOpen,
+  newLeadsCount,
+  provider
+}: ProviderSidebarProps) {
   const [, navigate] = useLocation();
 
-  // Fetch provider profile data
-  const { data: provider } = useQuery<any>({
-    queryKey: ["/api/provider/profile"],
-    retry: false,
-  });
-
-  /**
-   * Handle navigation to a specific menu item
-   */
-  const handleNavigation = (path: string) => {
-    navigate(path);
-  };
-
-  /**
-   * Handle provider logout
-   */
-  const handleLogout = async () => {
-    try {
-      await apiRequest("POST", "/api/provider/logout");
-      localStorage.removeItem('providerId');
-      navigate("/provider-login");
-    } catch (error) {
-      console.error("Logout error:", error);
-      // Force logout even if API fails
-      localStorage.removeItem('providerId');
-      navigate("/provider-login");
-    }
-  };
-
-  /**
-   * Get provider display name
-   */
-  const getProviderName = (): string => {
-    if (!provider) return "Provider";
-    
-    const firstName = provider.firstName || "";
-    const lastName = provider.lastName || "";
-    const businessName = provider.businessName || "";
-    
-    // Priority: Business name > Full name > Email > "Provider"
-    if (businessName) return businessName;
-    if (firstName && lastName) return `${firstName} ${lastName}`;
-    if (firstName) return firstName;
-    if (provider.email) return provider.email.split('@')[0];
-    return "Provider";
+  const toggleMenu = (menuId: string) => {
+    setExpandedMenus(prev => 
+      prev.includes(menuId) 
+        ? prev.filter(id => id !== menuId)
+        : [...prev, menuId]
+    );
   };
 
   return (
-    <div className="w-64 bg-white shadow-lg border-r border-gray-200 min-h-screen flex flex-col">
-      {/* Header Section */}
+    <div className={`w-64 bg-white border-r border-gray-200 flex flex-col h-full md:relative fixed left-0 top-0 z-40 transform transition-transform duration-300 ease-in-out ${
+      isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+    } md:transform-none`}>
+      {/* Logo Section */}
       <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">
-              {getProviderName().charAt(0).toUpperCase()}
-            </span>
-          </div>
+        <div className="flex items-center">
+          <Briefcase className="h-8 w-8 text-red-600 mr-3" />
           <div>
-            <h2 className="font-semibold text-gray-900 text-sm">
-              {getProviderName()}
-            </h2>
-            <p className="text-xs text-gray-500">Service Provider</p>
+            <h1 className="text-lg font-bold text-gray-900">ServicePanda</h1>
+            <p className="text-xs text-gray-600">Partners</p>
           </div>
         </div>
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
-        {navigationItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeItem === item.id;
+      <nav className="flex-1 px-4 py-6 space-y-1">
+        {/* Dashboard */}
+        <button
+          onClick={() => {
+            setActiveMenuItem("dashboard");
+            setIsMobileMenuOpen(false);
+            navigate("/provider-dashboard");
+          }}
+          className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+            activeMenuItem === "dashboard" 
+              ? "bg-red-50 text-red-700 border-r-2 border-red-600" 
+              : "text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          <LayoutDashboard className="h-4 w-4 mr-3" />
+          Dashboard
+        </button>
+
+        {/* Leads Section */}
+        <div className="space-y-1">
+          <button
+            onClick={() => toggleMenu("leads")}
+            className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50"
+          >
+            <div className="flex items-center">
+              <Target className="h-4 w-4 mr-3" />
+              Leads
+            </div>
+            {expandedMenus.includes("leads") ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
           
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleNavigation(item.path)}
-              className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-                isActive
-                  ? "bg-primary text-white"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-              title={item.description}
-            >
-              <Icon className="h-5 w-5 mr-3 flex-shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </button>
-          );
-        })}
+          {expandedMenus.includes("leads") && (
+            <div className="ml-6 space-y-1">
+              <button
+                onClick={() => {
+                  setActiveMenuItem("new-leads");
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md ${
+                  activeMenuItem === "new-leads" 
+                    ? "bg-red-50 text-red-700" 
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <span>New Leads</span>
+                {newLeadsCount > 0 && (
+                  <Badge className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                    {newLeadsCount}
+                  </Badge>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setActiveMenuItem("accepted-leads");
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                  activeMenuItem === "accepted-leads" 
+                    ? "bg-red-50 text-red-700" 
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Leads Accepted
+              </button>
+            </div>
+          )}
+        </div>
       </nav>
 
-      {/* Footer/Logout Section */}
-      <div className="p-4 border-t border-gray-200">
+      {/* Footer Menu */}
+      <div className="border-t border-gray-200 px-4 py-4 space-y-1">
+        {/* Settings Section */}
+        <div className="space-y-1">
+          <button
+            onClick={() => toggleMenu("settings")}
+            className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50"
+          >
+            <div className="flex items-center">
+              <Settings className="h-4 w-4 mr-3" />
+              Settings
+            </div>
+            {expandedMenus.includes("settings") ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+          
+          {expandedMenus.includes("settings") && (
+            <div className="ml-6 space-y-1">
+              <button
+                onClick={() => setActiveMenuItem("services")}
+                className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                  activeMenuItem === "services" 
+                    ? "bg-red-50 text-red-700" 
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Services
+              </button>
+              <button
+                onClick={() => setActiveMenuItem("service-area")}
+                className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                  activeMenuItem === "service-area" 
+                    ? "bg-red-50 text-red-700" 
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Service Area
+              </button>
+              <button
+                onClick={() => setActiveMenuItem("documents")}
+                className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                  activeMenuItem === "documents" 
+                    ? "bg-red-50 text-red-700" 
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Documents
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Payment */}
         <button
-          onClick={handleLogout}
-          className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          onClick={() => {
+            setActiveMenuItem("payment");
+            navigate("/provider-payment");
+          }}
+          className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+            activeMenuItem === "payment" 
+              ? "bg-red-50 text-red-700 border-r-2 border-red-600" 
+              : "text-gray-700 hover:bg-gray-50"
+          }`}
         >
-          <LogOut className="h-5 w-5 mr-3" />
-          <span>Logout</span>
+          <CreditCard className="h-4 w-4 mr-3" />
+          Payment
         </button>
+
+        {/* Billing */}
+        <button
+          onClick={() => setActiveMenuItem("billing")}
+          className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+            activeMenuItem === "billing" 
+              ? "bg-red-50 text-red-700" 
+              : "text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          <Receipt className="h-4 w-4 mr-3" />
+          Billing
+        </button>
+
+        {/* Help */}
+        <button
+          onClick={() => setActiveMenuItem("help")}
+          className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+            activeMenuItem === "help" 
+              ? "bg-red-50 text-red-700" 
+              : "text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          <HelpCircle className="h-4 w-4 mr-3" />
+          Help
+        </button>
+      </div>
+
+      {/* User Profile Section */}
+      <div className="border-t border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center min-w-0">
+            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium text-red-600">
+                {provider?.firstName?.[0]}{provider?.lastName?.[0]}
+              </span>
+            </div>
+            <div className="ml-3 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {provider?.firstName} {provider?.lastName}
+              </p>
+              <p className="text-xs text-gray-500">
+                {provider?.businessName || 'Service Provider'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.removeItem('providerId');
+              navigate("/provider-login");
+            }}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
