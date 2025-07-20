@@ -24,6 +24,9 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  Briefcase,
+  ChevronRight,
+  Receipt,
 } from "lucide-react";
 
 const addCardSchema = z.object({
@@ -201,81 +204,82 @@ export default function ProviderPayment() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Left Sidebar - Exact Dashboard Style */}
-      <div className="w-64 bg-white shadow-lg border-r border-gray-200 min-h-screen flex flex-col">
-        {/* Header Section */}
+      {/* Left Sidebar - Exact Dashboard Copy */}
+      <div className={`w-64 bg-white border-r border-gray-200 flex flex-col h-full`}>
+        {/* Logo Section - Exact Dashboard Copy */}
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-semibold text-sm">
-                {provider?.firstName?.charAt(0)?.toUpperCase() || provider?.email?.charAt(0)?.toUpperCase() || 'P'}
-              </span>
-            </div>
+          <div className="flex items-center">
+            <Briefcase className="h-8 w-8 text-red-600 mr-3" />
             <div>
-              <h2 className="font-semibold text-gray-900 text-sm">
-                {provider?.firstName && provider?.lastName 
-                  ? `${provider.firstName} ${provider.lastName}` 
-                  : provider?.businessName || provider?.email?.split('@')[0] || 'Provider'}
-              </h2>
-              <p className="text-xs text-gray-500">Service Provider</p>
+              <h1 className="text-lg font-bold text-gray-900">ServicePanda</h1>
+              <p className="text-xs text-gray-600">Partners</p>
             </div>
           </div>
         </div>
 
-        {/* Navigation Menu - Dashboard Style */}
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        {/* Navigation Menu - Exact Dashboard Copy */}
+        <nav className="flex-1 px-4 py-6 space-y-1">
+          {/* Dashboard */}
           <button
             onClick={() => navigate("/provider-dashboard")}
-            className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50"
           >
-            <LayoutDashboard className="h-5 w-5 mr-3 flex-shrink-0" />
-            <span className="truncate">Dashboard</span>
+            <LayoutDashboard className="h-4 w-4 mr-3" />
+            Dashboard
           </button>
 
-          <button
-            onClick={() => navigate("/provider-leads")}
-            className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Target className="h-5 w-5 mr-3 flex-shrink-0" />
-            <span className="truncate">Leads</span>
-          </button>
-
-          <button
-            onClick={() => navigate("/provider-settings")}
-            className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Settings className="h-5 w-5 mr-3 flex-shrink-0" />
-            <span className="truncate">Settings</span>
-          </button>
-
-          {/* Payment - Active */}
-          <button
-            className="w-full flex items-center px-3 py-2.5 text-sm font-medium bg-red-600 text-white rounded-lg transition-colors"
-          >
-            <CreditCard className="h-5 w-5 mr-3 flex-shrink-0" />
-            <span className="truncate">Payment</span>
-          </button>
-
-          <button
-            onClick={() => navigate("/provider-help")}
-            className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <HelpCircle className="h-5 w-5 mr-3 flex-shrink-0" />
-            <span className="truncate">Help</span>
-          </button>
+          {/* Leads Section */}
+          <div className="space-y-1">
+            <button className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50">
+              <div className="flex items-center">
+                <Target className="h-4 w-4 mr-3" />
+                Leads
+              </div>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </nav>
 
-        {/* Footer/Logout Section */}
-        <div className="p-4 border-t border-gray-200">
+        {/* Footer Menu - Exact Dashboard Copy */}
+        <div className="border-t border-gray-200 px-4 py-4 space-y-1">
+          {/* Settings Section */}
+          <div className="space-y-1">
+            <button className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50">
+              <div className="flex items-center">
+                <Settings className="h-4 w-4 mr-3" />
+                Settings
+              </div>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Payment - Active State */}
+          <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md bg-red-50 text-red-700 border-r-2 border-red-600">
+            <CreditCard className="h-4 w-4 mr-3" />
+            Payment
+          </button>
+
+          {/* Other menu items */}
+          <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50">
+            <Receipt className="h-4 w-4 mr-3" />
+            Billing
+          </button>
+
+          <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50">
+            <HelpCircle className="h-4 w-4 mr-3" />
+            Help
+          </button>
+
+          {/* Logout */}
           <button
             onClick={() => {
               localStorage.removeItem('providerId');
               navigate("/provider-login");
             }}
-            className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50"
           >
-            <LogOut className="h-5 w-5 mr-3" />
-            <span>Logout</span>
+            <LogOut className="h-4 w-4 mr-3" />
+            Logout
           </button>
         </div>
       </div>
