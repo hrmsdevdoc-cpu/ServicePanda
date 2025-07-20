@@ -81,6 +81,7 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 - **Panel-Based Navigation**: Converted from page-based routing to persistent left sidebar with right panel content switching for better UX
 - **Direct Payment Navigation**: Clicking "Payment" in left menu navigates directly to full Payment Methods page, eliminating intermediate steps
 - **Payment Methods Page Navigation**: Added complete left sidebar navigation to Payment Methods page matching provider admin interface design
+- **Service Selection Bug Fix**: Fixed issue where unchecking service categories didn't save - server now properly removes deselected services instead of only adding new ones
 - **Database Fix**: Resolved "NaN" error in service area functionality by correcting providerId prop passing from provider.id
 
 ### Provider Registration Compact Documents Layout (January 19, 2025)

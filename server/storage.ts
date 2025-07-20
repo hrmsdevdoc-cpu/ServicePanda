@@ -277,6 +277,20 @@ export class DatabaseStorage implements IStorage {
     await db.insert(providerServices).values(providerService);
   }
 
+  async replaceProviderServices(providerId: number, categoryIds: number[]): Promise<void> {
+    // First, delete all existing services for this provider
+    await db.delete(providerServices).where(eq(providerServices.providerId, providerId));
+    
+    // Then, add the new services
+    if (categoryIds.length > 0) {
+      const newServices = categoryIds.map(categoryId => ({
+        providerId,
+        categoryId,
+      }));
+      await db.insert(providerServices).values(newServices);
+    }
+  }
+
   async getProviderServices(providerId: number): Promise<any[]> {
     const services = await db
       .select({

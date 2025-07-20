@@ -114,13 +114,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add provider services (during signup - no auth required)
+  // Update provider services (replace all existing services)
   app.post('/api/service-providers/:id/services', async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
       const { categoryIds } = req.body;
       
-      console.log(`Adding services for provider ${providerId}:`, categoryIds);
+      console.log(`Updating services for provider ${providerId}:`, categoryIds);
       
       if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
         return res.status(400).json({ message: "Category IDs are required" });
@@ -132,15 +132,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Provider not found" });
       }
       
-      // Add services
-      for (const categoryId of categoryIds) {
-        await storage.addProviderService({ providerId, categoryId });
-      }
+      // Replace all services for this provider
+      await storage.replaceProviderServices(providerId, categoryIds);
       
-      res.json({ message: "Services added successfully" });
+      res.json({ message: "Services updated successfully" });
     } catch (error) {
-      console.error("Error adding provider services:", error);
-      res.status(500).json({ message: "Failed to add provider services" });
+      console.error("Error updating provider services:", error);
+      res.status(500).json({ message: "Failed to update provider services" });
     }
   });
 
