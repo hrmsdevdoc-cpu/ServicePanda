@@ -812,6 +812,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email testing endpoint - for development only
+  app.post('/api/admin/test-email', adminAuth, async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: 'Email address required' });
+      }
+
+      // Get Mailgun credentials to verify setup
+      const mailgunKeys = await storage.getDecryptedMailgunKeys();
+      
+      if (!mailgunKeys) {
+        return res.status(400).json({ message: 'Mailgun not configured' });
+      }
+
+      const { apiKey, domain, domainSendingKey } = mailgunKeys;
+      
+      // Test the Mailgun API connection without sending
+      const testResponse = await fetch(`https://api.mailgun.net/v3/${domain}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`
+        }
+      });
+
+      if (!testResponse.ok) {
+        const errorText = await testResponse.text();
+        return res.status(400).json({ 
+          message: 'Mailgun API connection failed', 
+          error: errorText,
+          domain: domain
+        });
+      }
+
+      // Try to send a test email
+      const formData = new FormData();
+      formData.append('from', `ServicePanda Test <noreply@${domain}>`);
+      formData.append('to', email);
+      formData.append('subject', 'ServicePanda Email Test');
+      formData.append('text', 'This is a test email from ServicePanda. If you received this, email integration is working correctly.');
+      formData.append('html', '<p>This is a test email from ServicePanda. If you received this, email integration is working correctly.</p>');
+
+      const sendResponse = await fetch(`https://api.mailgun.net/v3/${domain}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`
+        },
+        body: formData
+      });
+
+      if (!sendResponse.ok) {
+        const errorText = await sendResponse.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText };
+        }
+        
+        // Check if it's the sandbox limitation
+        if (errorData.message && errorData.message.includes('Sandbox subdomains are for test purposes only')) {
+          return res.json({
+            success: false,
+            message: 'Mailgun API connection successful, but sandbox domain requires authorized recipients',
+            details: 'Add your email to authorized recipients in Mailgun dashboard, or configure a custom domain',
+            domain: domain,
+            isConfigured: true,
+            needsAuthorizedRecipients: true
+          });
+        }
+        
+        return res.status(400).json({ 
+          message: 'Email send failed', 
+          error: errorData,
+          domain: domain 
+        });
+      }
+
+      const result = await sendResponse.json();
+      res.json({
+        success: true,
+        message: 'Test email sent successfully',
+        messageId: result.id,
+        domain: domain
+      });
+
+    } catch (error: any) {
+      console.error('Email test error:', error);
+      res.status(500).json({ message: error.message || 'Email test failed' });
+    }
+  });
+
   // Provider Payment Routes
   app.get('/api/provider/:id/payment-methods', isProviderAuthenticated, async (req: any, res) => {
     try {
