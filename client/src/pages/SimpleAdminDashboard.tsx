@@ -270,46 +270,61 @@ export default function SimpleAdminDashboard() {
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
+            {/* System Settings */}
             <Card>
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
+                <CardTitle className="flex items-center">
+                  <Settings className="h-5 w-5 mr-2" />
+                  System Settings
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-gray-600">
-                  Admin dashboard is ready. More features will be added as the system grows.
+                  Configure system integrations and payment processing.
                 </p>
                 
-                <div className="space-y-2">
-                  <Button variant="outline" className="w-full" onClick={() => navigate("/")}>
-                    View Public Site
-                  </Button>
+                <div className="space-y-3">
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">Payment & Email Configuration</h4>
+                    <div className="space-y-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="w-full flex items-center justify-start gap-2" 
+                        onClick={() => navigate("/admin/stripe-config")}
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        Stripe Keys
+                      </Button>
+                      
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="w-full flex items-center justify-start gap-2" 
+                        onClick={() => navigate("/admin/mailgun-config")}
+                      >
+                        <Mail className="h-4 w-4" />
+                        Mailgun Keys
+                      </Button>
+                    </div>
+                  </div>
                   
-                  <Button 
-                    variant="outline" 
-                    className="w-full flex items-center justify-center gap-2" 
-                    onClick={() => navigate("/admin/stripe-config")}
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    Configure Stripe Payment
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="w-full flex items-center justify-center gap-2" 
-                    onClick={() => navigate("/admin/mailgun-config")}
-                  >
-                    <Mail className="h-4 w-4" />
-                    Configure Email (Mailgun)
-                  </Button>
-                  
-                  <Button variant="outline" className="w-full" disabled>
-                    Manage Providers (Coming Soon)
-                  </Button>
-                  
-                  <Button variant="outline" className="w-full" disabled>
-                    View Reports (Coming Soon)
-                  </Button>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">Quick Actions</h4>
+                    <div className="space-y-2">
+                      <Button variant="outline" size="sm" className="w-full" onClick={() => navigate("/")}>
+                        View Public Site
+                      </Button>
+                      
+                      <Button variant="outline" size="sm" className="w-full" disabled>
+                        Manage Providers (Coming Soon)
+                      </Button>
+                      
+                      <Button variant="outline" size="sm" className="w-full" disabled>
+                        View Reports (Coming Soon)
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
