@@ -13,6 +13,13 @@ The platform connects customers with service providers across various categories
 
 Preferred communication style: Simple, everyday language.
 
+## Development Rules (Established January 20, 2025)
+1. **No Code Improvisation**: Do not make code changes without user guidance - suggest changes for approval first
+2. **OOPS Best Practices**: Use proper object-oriented programming principles throughout
+3. **Modular Component Architecture**: Create separate header and navigation components for reuse across admin areas
+4. **Comprehensive Testing**: Write and execute test cases for all modules, show test outcomes to user
+5. **Documentation Standards**: Add clear comments and documentation throughout code for understanding
+
 ## System Architecture
 
 ### Frontend Architecture
