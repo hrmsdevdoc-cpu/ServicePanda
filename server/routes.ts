@@ -786,6 +786,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Mailgun configuration endpoint
+  app.post('/api/admin/mailgun-config', async (req, res) => {
+    try {
+      const { apiKey, domain } = req.body;
+
+      if (!apiKey || !domain) {
+        return res.status(400).json({ message: 'Both API key and domain are required' });
+      }
+
+      if (!apiKey.startsWith('key-')) {
+        return res.status(400).json({ message: 'Invalid Mailgun API Key format' });
+      }
+
+      // Store encrypted keys in database
+      await storage.updateAdminSetting('mailgun_api_key', apiKey);
+      await storage.updateAdminSetting('mailgun_domain', domain);
+
+      console.log('Mailgun keys saved successfully - API key starts with:', apiKey.substring(0, 10) + '...', 'Domain:', domain);
+
+      res.json({ 
+        message: 'Mailgun configuration updated successfully',
+        mailgunConfigured: true
+      });
+    } catch (error) {
+      console.error('Error updating Mailgun settings:', error);
+      res.status(500).json({ message: 'Failed to update Mailgun settings' });
+    }
+  });
+
   // Provider Payment Routes
   app.get('/api/provider/:id/payment-methods', isProviderAuthenticated, async (req: any, res) => {
     try {

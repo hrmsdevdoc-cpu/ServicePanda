@@ -6,6 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import { sendPasswordResetEmail } from "./emailService";
 import connectPg from "connect-pg-simple";
 
 declare global {
@@ -214,9 +215,15 @@ export function setupAuth(app: Express) {
         expiresAt,
       });
 
-      // In a real application, you would send an email here
-      console.log(`Password reset token for ${email}: ${resetToken}`);
-      console.log(`Reset URL: ${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`);
+      // Send password reset email
+      const emailSent = await sendPasswordResetEmail(email, resetToken);
+      
+      if (!emailSent) {
+        console.error(`Failed to send password reset email to ${email}`);
+        // Still return success for security - don't reveal if email failed to send
+      } else {
+        console.log(`Password reset email sent successfully to ${email}`);
+      }
 
       res.json({ message: "If an account with that email exists, you will receive a password reset link." });
     } catch (error) {

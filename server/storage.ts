@@ -132,9 +132,12 @@ export interface IStorage {
   getAllServiceRequestsForAdmin(): Promise<ServiceRequest[]>;
 
   // Admin settings operations
-  getAdminSettings(): Promise<{ stripeConfigured: boolean }>;
+  getAdminSettings(): Promise<{ stripeConfigured: boolean; mailgunConfigured: boolean }>;
   updateAdminSetting(key: string, value: string): Promise<void>;
   getDecryptedSetting(key: string): Promise<string | null>;
+  
+  // Mailgun settings operations
+  getDecryptedMailgunKeys(): Promise<{ apiKey: string; domain: string } | null>;
 
   // Payment operations
   getProviderPaymentMethods(providerId: number): Promise<ProviderPaymentMethod[]>;
@@ -703,7 +706,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Admin settings operations
-  async getAdminSettings(): Promise<{ stripeConfigured: boolean }> {
+  async getAdminSettings(): Promise<{ stripeConfigured: boolean; mailgunConfigured: boolean }> {
     const stripeSecretKey = await db
       .select()
       .from(systemSettings)
@@ -716,8 +719,21 @@ export class DatabaseStorage implements IStorage {
       .where(eq(systemSettings.key, 'stripe_public_key'))
       .limit(1);
 
+    const mailgunApiKey = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'mailgun_api_key'))
+      .limit(1);
+    
+    const mailgunDomain = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'mailgun_domain'))
+      .limit(1);
+
     return {
-      stripeConfigured: stripeSecretKey.length > 0 && stripePublicKey.length > 0
+      stripeConfigured: stripeSecretKey.length > 0 && stripePublicKey.length > 0,
+      mailgunConfigured: mailgunApiKey.length > 0 && mailgunDomain.length > 0
     };
   }
 
@@ -798,6 +814,22 @@ export class DatabaseStorage implements IStorage {
       return { secretKey, publicKey };
     } catch (error) {
       console.error('Failed to get Stripe keys:', error);
+      return null;
+    }
+  }
+
+  async getDecryptedMailgunKeys(): Promise<{ apiKey: string; domain: string } | null> {
+    try {
+      const apiKey = await this.getDecryptedSetting('mailgun_api_key');
+      const domain = await this.getDecryptedSetting('mailgun_domain');
+      
+      if (!apiKey || !domain) {
+        return null;
+      }
+      
+      return { apiKey, domain };
+    } catch (error) {
+      console.error('Failed to get Mailgun keys:', error);
       return null;
     }
   }

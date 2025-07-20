@@ -7,7 +7,7 @@ import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Users, Settings, LogOut, Key, Eye, EyeOff } from "lucide-react";
+import { Shield, Users, Settings, LogOut, Key, Eye, EyeOff, Mail, CreditCard } from "lucide-react";
 
 export default function SimpleAdminDashboard() {
   const [, navigate] = useLocation();
@@ -283,6 +283,24 @@ export default function SimpleAdminDashboard() {
                 <div className="space-y-2">
                   <Button variant="outline" className="w-full" onClick={() => navigate("/")}>
                     View Public Site
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full flex items-center justify-center gap-2" 
+                    onClick={() => navigate("/admin/stripe-config")}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Configure Stripe Payment
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full flex items-center justify-center gap-2" 
+                    onClick={() => navigate("/admin/mailgun-config")}
+                  >
+                    <Mail className="h-4 w-4" />
+                    Configure Email (Mailgun)
                   </Button>
                   
                   <Button variant="outline" className="w-full" disabled>

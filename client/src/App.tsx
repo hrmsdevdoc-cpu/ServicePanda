@@ -21,6 +21,7 @@ import ProviderDocuments from "@/pages/ProviderDocuments";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminSettings from "@/pages/AdminSettings";
 import AdminStripeConfig from "@/pages/AdminStripeConfig";
+import AdminMailgunConfig from "@/pages/AdminMailgunConfig";
 import SimpleAdminDashboard from "@/pages/SimpleAdminDashboard";
 import RequestService from "@/pages/RequestService";
 
@@ -56,6 +57,7 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/settings" component={AdminSettings} />
       <Route path="/admin/stripe-config" component={AdminStripeConfig} />
+      <Route path="/admin/mailgun-config" component={AdminMailgunConfig} />
       
       {/* Customer routes based on authentication */}
       {!isAuthenticated ? (
