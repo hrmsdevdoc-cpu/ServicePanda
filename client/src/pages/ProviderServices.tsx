@@ -5,8 +5,8 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import ProviderSidebar from "@/components/ProviderSidebar";
 import { 
-  ArrowLeft,
   Check,
   Home,
   Wrench,
@@ -130,29 +130,24 @@ export default function ProviderServices() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/provider-dashboard")}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Select Your Services</h1>
-            <p className="text-lg text-gray-600 mt-2">
-              Choose the services you specialize in (you can select multiple)
-            </p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Shared Provider Sidebar */}
+      <ProviderSidebar activeItem="services" />
 
-        {/* Exact replication of Step 2 from registration */}
-        <Card>
+      {/* Main Content Area */}
+      <div className="flex-1">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="px-6 py-6">
+            <h1 className="text-2xl font-bold text-gray-900">Manage Your Services</h1>
+            <p className="text-sm text-gray-600">Choose the services you specialize in</p>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="p-6">
+          <div className="max-w-4xl">
+            <Card>
           <CardHeader>
             <div className="flex justify-between items-start">
               <CardTitle className="text-center flex-1">
@@ -281,6 +276,8 @@ export default function ProviderServices() {
             </div>
           </CardContent>
         </Card>
+          </div>
+        </main>
       </div>
     </div>
   );

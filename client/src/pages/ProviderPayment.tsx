@@ -15,7 +15,6 @@ import { z } from "zod";
 import {
   CreditCard,
   Plus,
-  ArrowLeft,
   Star,
   Trash2,
   AlertCircle,
@@ -23,7 +22,6 @@ import {
   LayoutDashboard,
   Target,
   Settings,
-  Receipt,
   HelpCircle,
   LogOut,
 } from "lucide-react";
@@ -66,6 +64,12 @@ export default function ProviderPayment() {
 
   // Get provider ID from localStorage
   const providerId = localStorage.getItem('providerId');
+
+  // Fetch provider profile data
+  const { data: provider } = useQuery<any>({
+    queryKey: ["/api/provider/profile"],
+    retry: false,
+  });
 
   // Fetch provider payment methods
   const { data: paymentMethods = [], isLoading: loadingPayments } = useQuery({
@@ -197,132 +201,92 @@ export default function ProviderPayment() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Left Navigation */}
-      <div className="w-64 bg-white shadow-lg">
-        <div className="p-6">
-          <div className="flex items-center mb-8">
-            <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">SP</span>
+      {/* Left Sidebar - Exact Dashboard Style */}
+      <div className="w-64 bg-white shadow-lg border-r border-gray-200 min-h-screen flex flex-col">
+        {/* Header Section */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
+              <span className="text-white font-semibold text-sm">
+                {provider?.firstName?.charAt(0)?.toUpperCase() || provider?.email?.charAt(0)?.toUpperCase() || 'P'}
+              </span>
             </div>
-            <div className="ml-3">
-              <h2 className="text-lg font-semibold text-gray-900">ServicePanda</h2>
-              <p className="text-sm text-gray-600">Partners</p>
+            <div>
+              <h2 className="font-semibold text-gray-900 text-sm">
+                {provider?.firstName && provider?.lastName 
+                  ? `${provider.firstName} ${provider.lastName}` 
+                  : provider?.businessName || provider?.email?.split('@')[0] || 'Provider'}
+              </h2>
+              <p className="text-xs text-gray-500">Service Provider</p>
             </div>
           </div>
-          
-          <nav className="space-y-2">
-            {/* Dashboard */}
-            <button
-              onClick={() => navigate("/provider-dashboard")}
-              className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50"
-            >
-              <LayoutDashboard className="h-4 w-4 mr-3" />
-              Dashboard
-            </button>
-
-            {/* Leads Section */}
-            <div className="space-y-1">
-              <button className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50">
-                <div className="flex items-center">
-                  <Target className="h-4 w-4 mr-3" />
-                  Leads
-                </div>
-              </button>
-            </div>
-
-            {/* Settings Section */}
-            <div className="space-y-1">
-              <button className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50">
-                <div className="flex items-center">
-                  <Settings className="h-4 w-4 mr-3" />
-                  Settings
-                </div>
-              </button>
-              
-              <div className="ml-6 space-y-1">
-                <button
-                  onClick={() => navigate("/provider-dashboard")}
-                  className="w-full flex items-center px-3 py-2 text-sm rounded-md text-gray-600 hover:bg-gray-50"
-                >
-                  Services
-                </button>
-                <button
-                  onClick={() => navigate("/provider-dashboard")}
-                  className="w-full flex items-center px-3 py-2 text-sm rounded-md text-gray-600 hover:bg-gray-50"
-                >
-                  Service Area
-                </button>
-                <button
-                  onClick={() => navigate("/provider-dashboard")}
-                  className="w-full flex items-center px-3 py-2 text-sm rounded-md text-gray-600 hover:bg-gray-50"
-                >
-                  Documents
-                </button>
-              </div>
-            </div>
-
-            {/* Payment */}
-            <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md bg-red-50 text-red-700">
-              <CreditCard className="h-4 w-4 mr-3" />
-              Payment
-            </button>
-
-            {/* Other menu items */}
-            <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50">
-              <Receipt className="h-4 w-4 mr-3" />
-              Billing
-            </button>
-
-            <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50">
-              <HelpCircle className="h-4 w-4 mr-3" />
-              Help
-            </button>
-          </nav>
         </div>
 
-        {/* User Profile Section */}
-        <div className="border-t border-gray-200 p-4 mt-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center min-w-0">
-              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-red-600">
-                  {providerId ? 'M' : '?'}
-                </span>
-              </div>
-              <div className="ml-3 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  Provider
-                </p>
-                <p className="text-xs text-gray-500">
-                  Active
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => navigate("/provider-login")}
-              variant="ghost"
-              size="sm"
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+        {/* Navigation Menu - Dashboard Style */}
+        <nav className="flex-1 px-4 py-6 space-y-2">
+          <button
+            onClick={() => navigate("/provider-dashboard")}
+            className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <LayoutDashboard className="h-5 w-5 mr-3 flex-shrink-0" />
+            <span className="truncate">Dashboard</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/provider-leads")}
+            className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <Target className="h-5 w-5 mr-3 flex-shrink-0" />
+            <span className="truncate">Leads</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/provider-settings")}
+            className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <Settings className="h-5 w-5 mr-3 flex-shrink-0" />
+            <span className="truncate">Settings</span>
+          </button>
+
+          {/* Payment - Active */}
+          <button
+            className="w-full flex items-center px-3 py-2.5 text-sm font-medium bg-red-600 text-white rounded-lg transition-colors"
+          >
+            <CreditCard className="h-5 w-5 mr-3 flex-shrink-0" />
+            <span className="truncate">Payment</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/provider-help")}
+            className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <HelpCircle className="h-5 w-5 mr-3 flex-shrink-0" />
+            <span className="truncate">Help</span>
+          </button>
+        </nav>
+
+        {/* Footer/Logout Section */}
+        <div className="p-4 border-t border-gray-200">
+          <button
+            onClick={() => {
+              localStorage.removeItem('providerId');
+              navigate("/provider-login");
+            }}
+            className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <LogOut className="h-5 w-5 mr-3" />
+            <span>Logout</span>
+          </button>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1">
-        {/* Header */}
-        <header className="bg-white shadow-sm border-b">
-          <div className="px-6 py-6">
-            <h1 className="text-2xl font-bold text-gray-900">Payment Methods</h1>
-            <p className="text-sm text-gray-600">Manage your credit card details and billing information</p>
+      {/* Right Panel - Payment Content */}
+      <div className="flex-1 p-6 overflow-y-auto">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Payment Methods</h1>
+            <p className="text-gray-600">Manage your credit card details and billing information</p>
           </div>
-        </header>
-
-        {/* Content */}
-        <main className="p-6">
-          <div className="max-w-4xl">
           
           {/* Existing Payment Methods */}
           <Card className="mb-8">
@@ -574,8 +538,7 @@ export default function ProviderPayment() {
               </div>
             </CardContent>
           </Card>
-          </div>
-        </main>
+        </div>
       </div>
     </div>
   );
