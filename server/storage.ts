@@ -137,7 +137,7 @@ export interface IStorage {
   getDecryptedSetting(key: string): Promise<string | null>;
   
   // Mailgun settings operations
-  getDecryptedMailgunKeys(): Promise<{ apiKey: string; domain: string } | null>;
+  getDecryptedMailgunKeys(): Promise<{ apiKey: string; domain: string; domainSendingKey: string } | null>;
 
   // Payment operations
   getProviderPaymentMethods(providerId: number): Promise<ProviderPaymentMethod[]>;
@@ -818,16 +818,17 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getDecryptedMailgunKeys(): Promise<{ apiKey: string; domain: string } | null> {
+  async getDecryptedMailgunKeys(): Promise<{ apiKey: string; domain: string; domainSendingKey: string } | null> {
     try {
       const apiKey = await this.getDecryptedSetting('mailgun_api_key');
       const domain = await this.getDecryptedSetting('mailgun_domain');
+      const domainSendingKey = await this.getDecryptedSetting('mailgun_domain_sending_key');
       
-      if (!apiKey || !domain) {
+      if (!apiKey || !domain || !domainSendingKey) {
         return null;
       }
       
-      return { apiKey, domain };
+      return { apiKey, domain, domainSendingKey };
     } catch (error) {
       console.error('Failed to get Mailgun keys:', error);
       return null;

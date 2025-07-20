@@ -789,19 +789,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Mailgun configuration endpoint
   app.post('/api/admin/mailgun-config', async (req, res) => {
     try {
-      const { apiKey, domain } = req.body;
+      const { apiKey, domain, domainSendingKey } = req.body;
 
-      if (!apiKey || !domain) {
-        return res.status(400).json({ message: 'Both API key and domain are required' });
-      }
-
-      if (!apiKey.startsWith('key-')) {
-        return res.status(400).json({ message: 'Invalid Mailgun API Key format' });
+      if (!apiKey || !domain || !domainSendingKey) {
+        return res.status(400).json({ message: 'API key, domain, and domain sending key are all required' });
       }
 
       // Store encrypted keys in database
       await storage.updateAdminSetting('mailgun_api_key', apiKey);
       await storage.updateAdminSetting('mailgun_domain', domain);
+      await storage.updateAdminSetting('mailgun_domain_sending_key', domainSendingKey);
 
       console.log('Mailgun keys saved successfully - API key starts with:', apiKey.substring(0, 10) + '...', 'Domain:', domain);
 

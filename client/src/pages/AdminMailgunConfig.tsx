@@ -15,8 +15,10 @@ export default function AdminMailgunConfig() {
   const [mailgunData, setMailgunData] = useState({
     apiKey: "",
     domain: "",
+    domainSendingKey: ""
   });
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showDomainKey, setShowDomainKey] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   // Fetch admin settings to check if Mailgun is configured
@@ -30,7 +32,7 @@ export default function AdminMailgunConfig() {
 
   // Update Mailgun configuration mutation
   const updateMailgunMutation = useMutation({
-    mutationFn: async (data: { apiKey: string; domain: string }) => {
+    mutationFn: async (data: { apiKey: string; domain: string; domainSendingKey: string }) => {
       const response = await apiRequest("POST", "/api/admin/mailgun-config", data);
       return response.json();
     },
@@ -41,7 +43,7 @@ export default function AdminMailgunConfig() {
         variant: "default",
       });
       setIsEditing(false);
-      setMailgunData({ apiKey: "", domain: "" });
+      setMailgunData({ apiKey: "", domain: "", domainSendingKey: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
     },
     onError: (error: any) => {
@@ -56,19 +58,10 @@ export default function AdminMailgunConfig() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!mailgunData.apiKey || !mailgunData.domain) {
+    if (!mailgunData.apiKey || !mailgunData.domain || !mailgunData.domainSendingKey) {
       toast({
         title: "Missing Information",
-        description: "Please provide both API key and domain.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!mailgunData.apiKey.startsWith("key-")) {
-      toast({
-        title: "Invalid API Key",
-        description: "Mailgun API keys should start with 'key-'",
+        description: "Please provide API key, domain, and domain sending key.",
         variant: "destructive",
       });
       return;
@@ -157,7 +150,7 @@ export default function AdminMailgunConfig() {
                       type={showApiKey ? "text" : "password"}
                       value={mailgunData.apiKey}
                       onChange={(e) => setMailgunData(prev => ({ ...prev, apiKey: e.target.value }))}
-                      placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                      placeholder="Your Mailgun API key"
                       required
                     />
                     <button
@@ -173,7 +166,7 @@ export default function AdminMailgunConfig() {
                     </button>
                   </div>
                   <p className="text-xs text-gray-600 mt-1">
-                    Your private API key from Mailgun dashboard (starts with "key-")
+                    Your private API key from Mailgun dashboard
                   </p>
                 </div>
 
@@ -191,6 +184,35 @@ export default function AdminMailgunConfig() {
                   />
                   <p className="text-xs text-gray-600 mt-1">
                     Your verified sending domain from Mailgun
+                  </p>
+                </div>
+
+                {/* Domain Sending Key Field */}
+                <div>
+                  <Label htmlFor="domainSendingKey">Domain Sending Key *</Label>
+                  <div className="relative mt-2">
+                    <Input
+                      id="domainSendingKey"
+                      type={showDomainKey ? "text" : "password"}
+                      value={mailgunData.domainSendingKey}
+                      onChange={(e) => setMailgunData(prev => ({ ...prev, domainSendingKey: e.target.value }))}
+                      placeholder="Your domain sending key"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      onClick={() => setShowDomainKey(!showDomainKey)}
+                    >
+                      {showDomainKey ? (
+                        <EyeOff className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Your domain sending key from Mailgun dashboard
                   </p>
                 </div>
 
@@ -221,7 +243,7 @@ export default function AdminMailgunConfig() {
                       variant="outline"
                       onClick={() => {
                         setIsEditing(false);
-                        setMailgunData({ apiKey: "", domain: "" });
+                        setMailgunData({ apiKey: "", domain: "", domainSendingKey: "" });
                       }}
                     >
                       Cancel

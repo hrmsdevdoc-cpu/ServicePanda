@@ -22,7 +22,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       return false;
     }
 
-    const { apiKey, domain } = mailgunKeys;
+    const { apiKey, domain, domainSendingKey } = mailgunKeys;
     
     // Prepare form data for Mailgun API
     const formData = new FormData();
