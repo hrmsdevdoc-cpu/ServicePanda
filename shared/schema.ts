@@ -325,18 +325,8 @@ export const insertServiceRequestSchema = createInsertSchema(serviceRequests).om
   createdAt: true, 
   updatedAt: true 
 }).extend({
-  preferredDate: z.union([z.date(), z.string()]).optional().transform((val) => {
-    if (typeof val === 'string') {
-      return new Date(val);
-    }
-    return val;
-  }),
-  scheduledDate: z.union([z.date(), z.string()]).optional().transform((val) => {
-    if (typeof val === 'string') {
-      return new Date(val);
-    }
-    return val;
-  })
+  preferredDate: z.coerce.date().optional(),
+  scheduledDate: z.coerce.date().optional()
 });
 export const insertLeadAssignmentSchema = createInsertSchema(leadAssignments).omit({ 
   id: true, 
