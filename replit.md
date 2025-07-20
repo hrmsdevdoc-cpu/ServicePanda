@@ -88,7 +88,12 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 - **Panel-Based Navigation**: Converted from page-based routing to persistent left sidebar with right panel content switching for better UX
 - **Direct Payment Navigation**: Clicking "Payment" in left menu navigates directly to full Payment Methods page, eliminating intermediate steps
 - **Payment Methods Page Navigation**: Added complete left sidebar navigation to Payment Methods page matching provider admin interface design
-- **Service Selection Bug Fix**: Fixed issue where unchecking service categories didn't save - server now properly removes deselected services instead of only adding new ones
+- **Service Selection Bug Fix Completed**: Fixed critical issue where unchecking service categories didn't save due to duplicate category IDs being sent to server
+  - **Frontend Deduplication**: Added Array.from(new Set()) to remove duplicates when loading existing services and during selection changes
+  - **Enhanced Selection Logic**: Improved click handler to prevent duplicates and properly handle service removal
+  - **Server-side Safety**: Added deduplication in server endpoint as additional protection against duplicate data
+  - **Comprehensive Testing**: Created 12 test cases covering deduplication, selection/deselection, and edge cases - all tests pass
+  - **Detailed Logging**: Added console logging for debugging service selection changes and server operations
 - **Database Fix**: Resolved "NaN" error in service area functionality by correcting providerId prop passing from provider.id
 
 ### Provider Registration Compact Documents Layout (January 19, 2025)

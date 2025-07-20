@@ -44,24 +44,30 @@ export default function ProviderServices() {
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   // Fetch service categories
-  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<any[]>({
     queryKey: ["/api/service-categories"],
     retry: false,
   });
 
   // Fetch provider's existing services
-  const { data: providerServices = [], isLoading: servicesLoading } = useQuery({
+  const { data: providerServices = [], isLoading: servicesLoading } = useQuery<any[]>({
     queryKey: ["/api/provider/services"],
     retry: false,
   });
 
   // Set initial selected services when data loads
   useEffect(() => {
-    if (providerServices && providerServices.length > 0) {
+    if (Array.isArray(providerServices) && providerServices.length > 0) {
+      // Extract category IDs and remove duplicates
       const serviceIds = providerServices.map((service: any) => service.categoryId);
+      const uniqueServiceIds = Array.from(new Set(serviceIds));
+      
+      console.log('Original service IDs:', serviceIds);
+      console.log('Deduplicated service IDs:', uniqueServiceIds);
+      
       setFormData(prev => ({ 
         ...prev, 
-        selectedServices: serviceIds 
+        selectedServices: uniqueServiceIds 
       }));
     }
   }, [providerServices]);
@@ -188,12 +194,32 @@ export default function ProviderServices() {
                         : "border-gray-300 hover:border-primary hover:shadow-sm"
                     }`}
                     onClick={() => {
-                      setFormData(prev => ({
-                        ...prev,
-                        selectedServices: isSelected
-                          ? prev.selectedServices.filter(id => id !== category.id)
-                          : [...prev.selectedServices, category.id]
-                      }));
+                      setFormData(prev => {
+                        let newSelectedServices;
+                        if (isSelected) {
+                          // Remove the service (filter out all instances)
+                          newSelectedServices = prev.selectedServices.filter(id => id !== category.id);
+                        } else {
+                          // Add the service only if not already present (prevent duplicates)
+                          newSelectedServices = prev.selectedServices.includes(category.id)
+                            ? prev.selectedServices
+                            : [...prev.selectedServices, category.id];
+                        }
+                        
+                        // Additional safety: remove any duplicates
+                        newSelectedServices = Array.from(new Set(newSelectedServices));
+                        
+                        console.log('Service selection updated:', {
+                          categoryId: category.id,
+                          action: isSelected ? 'removed' : 'added',
+                          newSelection: newSelectedServices
+                        });
+                        
+                        return {
+                          ...prev,
+                          selectedServices: newSelectedServices
+                        };
+                      });
                     }}
                   >
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1 ${

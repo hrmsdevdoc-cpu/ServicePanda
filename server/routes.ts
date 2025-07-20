@@ -120,9 +120,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const providerId = parseInt(req.params.id);
       const { categoryIds } = req.body;
       
-      console.log(`Replacing services for provider ${providerId}:`, categoryIds);
+      // Remove duplicates from category IDs for safety
+      const uniqueCategoryIds = Array.from(new Set(categoryIds as number[]));
       
-      if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+      console.log(`Replacing services for provider ${providerId}:`);
+      console.log(`Original categoryIds:`, categoryIds);
+      console.log(`Deduplicated categoryIds:`, uniqueCategoryIds);
+      
+      if (!Array.isArray(categoryIds) || uniqueCategoryIds.length === 0) {
         return res.status(400).json({ message: "Category IDs are required" });
       }
       
@@ -133,7 +138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Replace all services for this provider
-      await storage.replaceProviderServices(providerId, categoryIds);
+      await storage.replaceProviderServices(providerId, uniqueCategoryIds);
       
       res.json({ message: "Services updated successfully" });
     } catch (error) {
