@@ -152,7 +152,7 @@ function AdminServiceCategorySelector({
     <div className="space-y-4">
       {/* Service Category Grid */}
       <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-        {allCategories.map((category: any) => {
+        {(allCategories as any[])?.map((category: any) => {
           const IconComponent = serviceIcons[category.name as keyof typeof serviceIcons] || Home;
           const isSelected = selectedServices.includes(category.id);
           
@@ -213,7 +213,7 @@ function AdminServiceCategorySelector({
         </p>
         <div className="text-sm text-gray-600">
           {selectedServices.length > 0 
-            ? allCategories
+            ? (allCategories as any[])
                 .filter((cat: any) => selectedServices.includes(cat.id))
                 .map((cat: any) => cat.name)
                 .join(', ')
@@ -232,6 +232,8 @@ interface ServiceProvider {
   email: string;
   mobileNumber: string;
   address: string;
+  businessName?: string;
+  businessAbn?: string;
   status: string;
   documentsUploaded: boolean;
   createdAt: string;
@@ -735,6 +737,18 @@ export default function AdminViewProviders() {
                         <Label className="text-sm font-medium">Address</Label>
                         <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.address}</p>
                       </div>
+                      <div>
+                        <Label className="text-sm font-medium">Business Name</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">
+                          {selectedProvider?.businessName || 'Not provided'}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">ABN/ACN Number</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">
+                          {selectedProvider?.businessAbn || 'Not provided'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   
@@ -797,10 +811,12 @@ export default function AdminViewProviders() {
                           <Switch
                             checked={providerDetails?.providerStatus === 'activated'}
                             onCheckedChange={(checked) => {
-                              providerStatusMutation.mutate({
-                                providerId: selectedProvider?.id,
-                                status: checked ? 'activated' : 'deactivated'
-                              });
+                              if (selectedProvider?.id) {
+                                providerStatusMutation.mutate({
+                                  providerId: selectedProvider.id,
+                                  status: checked ? 'activated' : 'deactivated'
+                                });
+                              }
                             }}
                             disabled={providerStatusMutation.isPending}
                             className="data-[state=checked]:bg-green-600"
@@ -975,14 +991,14 @@ export default function AdminViewProviders() {
                       <div className="border rounded-lg overflow-hidden bg-white" style={{ height: '500px' }}>
                         {viewingDocument.fileName.toLowerCase().endsWith('.pdf') ? (
                           <iframe
-                            src={`/api/provider/documents/view/${viewingDocument.fileName}/${selectedProvider.id}`}
+                            src={`/api/provider/documents/view/${viewingDocument.fileName}/${selectedProvider?.id}`}
                             className="w-full h-full border-0"
                             title={viewingDocument.fileName}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center p-4">
                             <img
-                              src={`/api/provider/documents/view/${viewingDocument.fileName}/${selectedProvider.id}`}
+                              src={`/api/provider/documents/view/${viewingDocument.fileName}/${selectedProvider?.id}`}
                               alt={viewingDocument.fileName}
                               className="max-w-full max-h-full object-contain"
                             />
