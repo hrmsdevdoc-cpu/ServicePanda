@@ -490,7 +490,7 @@ export default function AdminPendingProviders() {
   // State for autocomplete management
   const [autocompleteInstance, setAutocompleteInstance] = useState<any>(null);
 
-  // Modern Google Maps PlaceAutocompleteElement
+  // Working Google Maps autocomplete - fills field only, no auto-submission
   useEffect(() => {
     if (!isViewDialogOpen || activeTab !== 'service-area') {
       return;
@@ -503,19 +503,19 @@ export default function AdminPendingProviders() {
       }
 
       try {
-        // Use clean legacy Autocomplete - no CSS interference  
         const autocomplete = new window.google.maps.places.Autocomplete(
           addressInputRef.current,
           {
             types: ['geocode'],
             componentRestrictions: { country: 'au' },
-            fields: ['formatted_address', 'geometry', 'name', 'place_id']
+            fields: ['formatted_address']
           }
         );
 
+        // ONLY fill the address field - no auto-submission
         autocomplete.addListener('place_changed', () => {
           const place = autocomplete.getPlace();
-          if (place.formatted_address) {
+          if (place && place.formatted_address) {
             setNewServiceArea(prev => ({
               ...prev,
               address: place.formatted_address
@@ -524,8 +524,6 @@ export default function AdminPendingProviders() {
         });
 
         setAutocompleteInstance(autocomplete);
-
-        console.log('Google Maps autocomplete initialized successfully');
       } catch (error) {
         console.error('Autocomplete initialization error:', error);
       }
@@ -853,6 +851,12 @@ export default function AdminPendingProviders() {
                           placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
                           value={newServiceArea.address}
                           onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }
+                          }}
                           className="mt-1"
                         />
                       </div>
