@@ -300,6 +300,18 @@ export function setupProviderAuth(app: Express) {
       }
       
       console.log(`Serving document: ${document.fileName}, MIME: ${document.mimeType}`);
+
+      // Log document viewing activity
+      await storage.logProviderActivity({
+        providerId,
+        activityType: 'document_access',
+        actorType: 'admin',
+        actorId: 'admin',
+        actorName: 'Administrator',
+        description: `Viewed document: ${document.fileName} (${document.documentType})`,
+        oldValue: null,
+        newValue: `${document.documentType}: ${document.fileName}`,
+      });
       
       // Set proper headers for inline viewing in iframe
       const mimeType = document.mimeType || 'application/pdf';

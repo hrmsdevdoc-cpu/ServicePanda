@@ -65,6 +65,151 @@ import {
   Filter
 } from "lucide-react";
 
+// Admin Service Category Selector Component
+interface AdminServiceCategorySelectorProps {
+  providerId: number | undefined;
+  currentServices: any[];
+  onServicesUpdate: () => void;
+}
+
+function AdminServiceCategorySelector({ 
+  providerId, 
+  currentServices = [], 
+  onServicesUpdate 
+}: AdminServiceCategorySelectorProps) {
+  const { toast } = useToast();
+  const [selectedServices, setSelectedServices] = useState<number[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Fetch all service categories
+  const { data: allCategories = [] } = useQuery({
+    queryKey: ['/api/service-categories'],
+    retry: false,
+  });
+
+  // Initialize selected services from current provider services
+  useEffect(() => {
+    if (currentServices.length > 0) {
+      const serviceIds = currentServices.map(service => service.categoryId);
+      setSelectedServices(Array.from(new Set(serviceIds)));
+    }
+  }, [currentServices]);
+
+  const updateServicesMutation = useMutation({
+    mutationFn: async (categoryIds: number[]) => {
+      if (!providerId) throw new Error('Provider ID is required');
+      
+      setIsUpdating(true);
+      const response = await adminApiRequest('POST', `/api/admin/providers/${providerId}/services`, {
+        categoryIds
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Services Updated",
+        description: "Provider service categories have been updated successfully",
+        variant: "default",
+      });
+      onServicesUpdate();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed", 
+        description: error.message || "Failed to update service categories",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setIsUpdating(false);
+    }
+  });
+
+  const handleServiceToggle = (categoryId: number) => {
+    setSelectedServices(prev => {
+      const newSelection = prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId];
+      return newSelection;
+    });
+  };
+
+  const handleSaveServices = () => {
+    updateServicesMutation.mutate(selectedServices);
+  };
+
+  const hasChanges = () => {
+    const currentServiceIds = currentServices.map(s => s.categoryId).sort();
+    const newServiceIds = [...selectedServices].sort();
+    return JSON.stringify(currentServiceIds) !== JSON.stringify(newServiceIds);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Service Category Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {allCategories.map((category: any) => {
+          const isSelected = selectedServices.includes(category.id);
+          return (
+            <div
+              key={category.id}
+              className={`
+                p-4 border-2 rounded-lg cursor-pointer transition-all duration-200
+                ${isSelected 
+                  ? 'border-blue-500 bg-blue-50 shadow-md' 
+                  : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                }
+              `}
+              onClick={() => handleServiceToggle(category.id)}
+            >
+              <div className="text-center">
+                <div className="text-2xl mb-2">{category.icon || '🔧'}</div>
+                <p className="text-sm font-medium text-gray-800">{category.name}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Save Button */}
+      {hasChanges() && (
+        <div className="flex justify-end pt-4 border-t">
+          <Button 
+            onClick={handleSaveServices}
+            disabled={isUpdating}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {isUpdating ? (
+              <>
+                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                Updating...
+              </>
+            ) : (
+              'Save Service Changes'
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Current Services Summary */}
+      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+        <p className="text-sm font-medium text-gray-700 mb-2">
+          Selected Services ({selectedServices.length}):
+        </p>
+        <div className="text-sm text-gray-600">
+          {selectedServices.length > 0 
+            ? allCategories
+                .filter((cat: any) => selectedServices.includes(cat.id))
+                .map((cat: any) => cat.name)
+                .join(', ')
+            : 'No services selected'
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Service icons mapping - same as provider pages
 const serviceIcons = {
   "Domestic Cleaning": Sparkles,
@@ -693,15 +838,25 @@ export default function AdminPendingProviders() {
               <TabsContent value="services" className="space-y-6">
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Provider Services</h3>
+                  <p className="text-sm text-gray-600">Select or deselect service categories for this provider</p>
                   {loadingDetails ? (
                     <div className="text-center py-4">
                       <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
                       <p className="mt-2 text-gray-500">Loading services...</p>
                     </div>
                   ) : (
-                    <ServiceIconGrid 
-                      selectedServices={providerDetails?.services || []}
-                      readOnly={true}
+                    <AdminServiceCategorySelector 
+                      providerId={selectedProvider?.id}
+                      currentServices={providerDetails?.services || []}
+                      onServicesUpdate={() => {
+                        // Refresh provider details and activity logs
+                        queryClient.invalidateQueries({ 
+                          queryKey: ['/api/admin/providers', selectedProvider?.id, 'details'] 
+                        });
+                        queryClient.invalidateQueries({ 
+                          queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity'] 
+                        });
+                      }}
                     />
                   )}
                 </div>

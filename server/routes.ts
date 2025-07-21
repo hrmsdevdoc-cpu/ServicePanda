@@ -136,9 +136,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!provider) {
         return res.status(404).json({ message: "Provider not found" });
       }
+
+      // Get current services for activity logging
+      const currentServices = await storage.getProviderServices(providerId);
+      const currentServiceNames = currentServices.map(s => s.name).sort().join(', ');
+      
+      // Get new service names for logging
+      const allCategories = await storage.getServiceCategories();
+      const newServiceNames = allCategories
+        .filter(cat => uniqueCategoryIds.includes(cat.id))
+        .map(cat => cat.name)
+        .sort()
+        .join(', ');
       
       // Replace all services for this provider
       await storage.replaceProviderServices(providerId, uniqueCategoryIds);
+
+      // Log service update activity (only if services actually changed)
+      if (currentServiceNames !== newServiceNames) {
+        await storage.logProviderActivity({
+          providerId,
+          activityType: 'services_update',
+          actorType: 'provider',
+          actorId: providerId.toString(),
+          actorName: `${provider.firstName} ${provider.lastName}`,
+          description: 'Service categories updated',
+          oldValue: currentServiceNames || 'No services selected',
+          newValue: newServiceNames,
+        });
+      }
       
       res.json({ message: "Services updated successfully" });
     } catch (error) {
@@ -799,16 +825,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Log insurance expiry activity if changed
       const newInsuranceDate = insuranceExpiryDate ? new Date(insuranceExpiryDate) : null;
-      if (oldInsuranceDate?.getTime() !== newInsuranceDate?.getTime()) {
+      
+      // More robust date comparison that handles both Date objects and strings
+      const oldDateString = oldInsuranceDate ? new Date(oldInsuranceDate).toISOString().split('T')[0] : null;
+      const newDateString = newInsuranceDate ? newInsuranceDate.toISOString().split('T')[0] : null;
+      
+      if (oldDateString !== newDateString) {
         await storage.logProviderActivity({
           providerId,
           activityType: 'details_update',
           actorType: 'admin',
           actorId: 'admin',
           actorName: 'Administrator',
-          description: `Insurance expiry date ${newInsuranceDate ? 'updated to ' + newInsuranceDate.toLocaleDateString() : 'cleared'}`,
-          oldValue: oldInsuranceDate?.toISOString() || null,
-          newValue: newInsuranceDate?.toISOString() || null,
+          description: `Insurance expiry date ${newInsuranceDate ? 'updated to ' + newInsuranceDate.toLocaleDateString('en-AU') : 'cleared'}`,
+          oldValue: oldDateString,
+          newValue: newDateString,
         });
       }
       
@@ -828,6 +859,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching service requests:', error);
       res.status(500).json({ message: 'Failed to fetch service requests' });
+    }
+  });
+
+  // Admin endpoint to update provider services
+  app.post('/api/admin/providers/:id/services', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const { categoryIds } = req.body;
+      
+      // Remove duplicates from category IDs for safety
+      const uniqueCategoryIds = Array.from(new Set(categoryIds as number[]));
+      
+      if (!Array.isArray(categoryIds) || uniqueCategoryIds.length === 0) {
+        return res.status(400).json({ message: "Category IDs are required" });
+      }
+      
+      // Verify provider exists
+      const provider = await storage.getServiceProviderById(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+
+      // Get current services for activity logging
+      const currentServices = await storage.getProviderServices(providerId);
+      const currentServiceNames = currentServices.map(s => s.name).sort().join(', ');
+      
+      // Get new service names for logging
+      const allCategories = await storage.getServiceCategories();
+      const newServiceNames = allCategories
+        .filter(cat => uniqueCategoryIds.includes(cat.id))
+        .map(cat => cat.name)
+        .sort()
+        .join(', ');
+      
+      // Replace all services for this provider
+      await storage.replaceProviderServices(providerId, uniqueCategoryIds);
+
+      // Log service update activity (only if services actually changed)
+      if (currentServiceNames !== newServiceNames) {
+        await storage.logProviderActivity({
+          providerId,
+          activityType: 'services_update',
+          actorType: 'admin',
+          actorId: 'admin',
+          actorName: 'Administrator',
+          description: 'Service categories updated by admin',
+          oldValue: currentServiceNames || 'No services selected',
+          newValue: newServiceNames,
+        });
+      }
+      
+      res.json({ message: "Services updated successfully" });
+    } catch (error) {
+      console.error("Error updating provider services:", error);
+      res.status(500).json({ message: "Failed to update provider services" });
     }
   });
 
