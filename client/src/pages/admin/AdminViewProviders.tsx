@@ -13,6 +13,7 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { adminApiRequest } from "@/lib/adminAuth";
 import {
   Shield,
   Search,
@@ -241,28 +242,7 @@ interface ServiceProvider {
   serviceAreas?: Array<{ id: number; suburb: string; postcode: string }>;
 }
 
-// Helper function for admin API requests
-const adminApiRequest = async (method: string, endpoint: string, data?: any) => {
-  const token = localStorage.getItem('adminToken');
-  const options: RequestInit = {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-admin-token': token || '',
-    },
-  };
 
-  if (data && method !== 'GET') {
-    options.body = JSON.stringify(data);
-  }
-
-  const response = await fetch(endpoint, options);
-  if (!response.ok) {
-    const errorData = await response.text();
-    throw new Error(errorData || `HTTP ${response.status}`);
-  }
-  return response;
-};
 
 export default function AdminViewProviders() {
   const { toast } = useToast();

@@ -40,7 +40,7 @@ export default function AdminViewUsers() {
   }, [navigate]);
 
   // All Users Query
-  const { data: allUsers, isLoading } = useQuery({
+  const { data: allUsers, isLoading, error } = useQuery({
     queryKey: ['/api/admin/users'],
     queryFn: async () => {
       const response = await fetch('/api/admin/users', {
@@ -48,8 +48,21 @@ export default function AdminViewUsers() {
           'x-admin-token': localStorage.getItem('adminToken') || '',
         },
       });
+      
+      // Check for 401 Unauthorized (token expired)
+      if (response.status === 401) {
+        localStorage.removeItem('adminToken');
+        navigate('/admin-login');
+        throw new Error('Session expired');
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       return response.json();
     },
+    retry: false, // Don't retry on auth errors
   });
 
   const handleLogout = () => {

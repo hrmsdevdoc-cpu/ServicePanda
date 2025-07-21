@@ -100,8 +100,17 @@ export default function AdminDashboard() {
           'x-admin-token': localStorage.getItem('adminToken') || '',
         },
       });
+      
+      // Check for 401 Unauthorized (token expired)
+      if (response.status === 401) {
+        localStorage.removeItem('adminToken');
+        navigate('/admin-login');
+        throw new Error('Session expired');
+      }
+      
       return response.json();
     },
+    retry: false,
   });
 
   // Pending Providers Query
@@ -113,8 +122,17 @@ export default function AdminDashboard() {
           'x-admin-token': localStorage.getItem('adminToken') || '',
         },
       });
+      
+      // Check for 401 Unauthorized (token expired)
+      if (response.status === 401) {
+        localStorage.removeItem('adminToken');
+        navigate('/admin-login');
+        throw new Error('Session expired');
+      }
+      
       return response.json();
     },
+    retry: false,
   });
 
   // All Providers Query
@@ -126,8 +144,17 @@ export default function AdminDashboard() {
           'x-admin-token': localStorage.getItem('adminToken') || '',
         },
       });
+      
+      // Check for 401 Unauthorized (token expired)
+      if (response.status === 401) {
+        localStorage.removeItem('adminToken');
+        navigate('/admin-login');
+        throw new Error('Session expired');
+      }
+      
       return response.json();
     },
+    retry: false,
   });
 
   // Service Requests Query

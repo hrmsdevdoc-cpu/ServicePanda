@@ -29,6 +29,13 @@ const adminApiRequest = async (method: string, url: string, data?: any) => {
     body: data ? JSON.stringify(data) : undefined,
   });
   
+  // Check for 401 Unauthorized (token expired)
+  if (response.status === 401) {
+    localStorage.removeItem('adminToken');
+    window.location.href = '/admin-login';
+    throw new Error('Session expired');
+  }
+  
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
