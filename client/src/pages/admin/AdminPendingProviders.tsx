@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -331,6 +331,8 @@ export default function AdminPendingProviders() {
   const [activityFilter, setActivityFilter] = useState<'all' | 'admin' | 'provider'>('all');
   const [newServiceArea, setNewServiceArea] = useState({ address: "", radius: 25 });
   const [viewingDocument, setViewingDocument] = useState<any>(null);
+  const [autocompleteInitialized, setAutocompleteInitialized] = useState(false);
+  const addressInputRef = useRef<HTMLInputElement>(null);
 
   // Activity logs query
   const { data: activityLogs, isLoading: isLoadingActivity } = useQuery({
@@ -485,6 +487,52 @@ export default function AdminPendingProviders() {
     },
   });
 
+  // Google Maps Autocomplete initialization
+  const initializeAutocomplete = () => {
+    if (autocompleteInitialized || !addressInputRef.current || !window.google?.maps?.places) {
+      return;
+    }
+
+    try {
+      const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+        componentRestrictions: { country: "au" },
+        fields: ["address_components", "formatted_address", "geometry"],
+        types: ["address"],
+      });
+
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place.formatted_address) {
+          setNewServiceArea(prev => ({ 
+            ...prev, 
+            address: place.formatted_address || "" 
+          }));
+        }
+      });
+
+      setAutocompleteInitialized(true);
+    } catch (error) {
+      console.error('Google Maps autocomplete initialization failed:', error);
+    }
+  };
+
+  const handleAddServiceArea = () => {
+    if (!selectedProvider?.id || !newServiceArea.address.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter a valid address for the service area.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addServiceAreaMutation.mutate({
+      providerId: selectedProvider.id,
+      address: newServiceArea.address,
+      radius: newServiceArea.radius,
+    });
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     navigate('/admin-login');
@@ -494,16 +542,6 @@ export default function AdminPendingProviders() {
     setSelectedProvider(provider);
     setIsViewDialogOpen(true);
     setActiveTab("personal");
-  };
-
-  const handleAddServiceArea = () => {
-    if (!selectedProvider || !newServiceArea.address.trim()) return;
-    
-    addServiceAreaMutation.mutate({
-      providerId: selectedProvider.id,
-      address: newServiceArea.address,
-      radius: newServiceArea.radius,
-    });
   };
 
   const handleSaveNotes = () => {
@@ -792,9 +830,11 @@ export default function AdminPendingProviders() {
                         <Label htmlFor="newAddress" className="text-sm font-medium">Service Location Address *</Label>
                         <Input
                           id="newAddress"
+                          ref={addressInputRef}
                           placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
                           value={newServiceArea.address}
                           onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
+                          onFocus={initializeAutocomplete}
                           className="mt-1"
                         />
                       </div>
