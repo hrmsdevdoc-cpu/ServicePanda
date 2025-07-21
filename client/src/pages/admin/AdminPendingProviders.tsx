@@ -512,10 +512,11 @@ export default function AdminPendingProviders() {
           }
         );
 
-        // ONLY fill the address field - no auto-submission
         autocomplete.addListener('place_changed', () => {
           const place = autocomplete.getPlace();
-          if (place && place.formatted_address) {
+          console.log('Place selected (legacy API):', place);
+          
+          if (place.formatted_address) {
             setNewServiceArea(prev => ({
               ...prev,
               address: place.formatted_address
