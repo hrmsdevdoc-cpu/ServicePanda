@@ -682,14 +682,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get Stripe settings
   app.get('/api/admin/stripe-settings', isAdminAuthenticated, async (req, res) => {
     try {
-      const stripeSecretKey = await storage.getDecryptedSetting('stripe_secret_key');
-      const stripePublicKey = await storage.getDecryptedSetting('stripe_public_key');
+      const stripeKeys = await storage.getDecryptedStripeKeys();
       
-      res.json({
-        secretKey: stripeSecretKey ? '****' + stripeSecretKey.slice(-4) : '',
-        publicKey: stripePublicKey || '',
-        isConfigured: !!(stripeSecretKey && stripePublicKey)
-      });
+      if (stripeKeys) {
+        res.json({
+          secretKey: '****' + stripeKeys.secretKey.slice(-4),
+          publicKey: stripeKeys.publicKey,
+          isConfigured: true
+        });
+      } else {
+        res.json({
+          secretKey: '',
+          publicKey: '',
+          isConfigured: false
+        });
+      }
     } catch (error) {
       console.error('Error fetching Stripe settings:', error);
       res.status(500).json({ message: 'Failed to fetch Stripe settings' });
@@ -699,16 +706,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get Mailgun settings  
   app.get('/api/admin/mailgun-settings', isAdminAuthenticated, async (req, res) => {
     try {
-      const apiKey = await storage.getDecryptedSetting('mailgun_api_key');
-      const domain = await storage.getDecryptedSetting('mailgun_domain');
-      const domainSendingKey = await storage.getDecryptedSetting('mailgun_domain_sending_key');
+      const mailgunKeys = await storage.getDecryptedMailgunKeys();
       
-      res.json({
-        apiKey: apiKey ? '****' + apiKey.slice(-4) : '',
-        domain: domain || '',
-        domainSendingKey: domainSendingKey ? '****' + domainSendingKey.slice(-4) : '',
-        isConfigured: !!(apiKey && domain && domainSendingKey)
-      });
+      if (mailgunKeys) {
+        res.json({
+          apiKey: '****' + mailgunKeys.apiKey.slice(-4),
+          domain: mailgunKeys.domain,
+          domainSendingKey: '****' + mailgunKeys.domainSendingKey.slice(-4),
+          isConfigured: true
+        });
+      } else {
+        res.json({
+          apiKey: '',
+          domain: '',
+          domainSendingKey: '',
+          isConfigured: false
+        });
+      }
     } catch (error) {
       console.error('Error fetching Mailgun settings:', error);
       res.status(500).json({ message: 'Failed to fetch Mailgun settings' });
