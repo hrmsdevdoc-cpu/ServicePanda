@@ -64,7 +64,11 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
  * @returns Promise<boolean> indicating success
  */
 export async function sendPasswordResetEmail(email: string, resetToken: string): Promise<boolean> {
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+  // Use the first Replit domain if available, otherwise fallback to localhost for development
+  const baseUrl = process.env.REPLIT_DOMAINS 
+    ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+    : process.env.FRONTEND_URL || 'http://localhost:3000';
+  const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
   
   const textContent = `
     Password Reset Request
