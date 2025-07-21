@@ -74,6 +74,29 @@
   }
 }
 
+/* Google Maps Autocomplete Styling Fix */
+@layer components {
+  .pac-container {
+    z-index: 9999 !important;
+    border-radius: 6px !important;
+    border: 1px solid hsl(var(--border)) !important;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+  }
+  
+  .pac-item {
+    padding: 8px 12px !important;
+    border-bottom: 1px solid hsl(var(--border)) !important;
+  }
+  
+  .pac-item:hover {
+    background-color: hsl(var(--accent)) !important;
+  }
+  
+  .pac-item-selected {
+    background-color: hsl(var(--accent)) !important;
+  }
+}
+
 /* ServicePanda specific styles */
 .service-card {
   @apply transition-all duration-300 ease-in-out;

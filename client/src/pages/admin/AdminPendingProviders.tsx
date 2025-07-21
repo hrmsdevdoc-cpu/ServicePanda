@@ -503,96 +503,36 @@ export default function AdminPendingProviders() {
       }
 
       try {
-        // Use the new PlaceAutocompleteElement if available, fallback to old Autocomplete
-        if (window.google.maps.places.PlaceAutocompleteElement) {
-          console.log('Using new PlaceAutocompleteElement');
-          
-          const autocompleteElement = new window.google.maps.places.PlaceAutocompleteElement({
+        const autocomplete = new window.google.maps.places.Autocomplete(
+          addressInputRef.current,
+          {
+            types: ['geocode'],
             componentRestrictions: { country: 'au' },
-            requestedLanguage: 'en',
-          });
-          
-          // Style the autocomplete element to match our input styling exactly
-          autocompleteElement.className = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
-          autocompleteElement.style.fontSize = '14px';
-          
-          // Add CSS to hide clear button and style internal input
-          const style = document.createElement('style');
-          style.textContent = `
-            gmp-place-autocomplete-element {
-              display: flex !important;
-              height: 2.5rem !important;
-              width: 100% !important;
-              border-radius: 6px !important;
-              border: 1px solid hsl(var(--border)) !important;
-              background-color: hsl(var(--background)) !important;
-              padding: 8px 12px !important;
-              font-size: 0.875rem !important;
-              transition: border-color 0.2s !important;
-            }
-            gmp-place-autocomplete-element:focus-within {
-              outline: 2px solid transparent !important;
-              outline-offset: 2px !important;
-              box-shadow: 0 0 0 2px hsl(var(--ring)) !important;
-            }
-            gmp-place-autocomplete-element input {
-              background: transparent !important;
-              border: none !important;
-              outline: none !important;
-              padding: 0 !important;
-              margin: 0 !important;
-              width: 100% !important;
-              font-size: inherit !important;
-            }
-            gmp-place-autocomplete-element button {
-              display: none !important;
-            }
-          `;
-          document.head.appendChild(style);
-          
-          // Replace the input with the autocomplete element
-          const parent = addressInputRef.current.parentNode;
-          parent.insertBefore(autocompleteElement, addressInputRef.current);
-          addressInputRef.current.style.display = 'none';
-          
-          autocompleteElement.addEventListener('gmp-placeselect', (event) => {
-            const place = event.place;
-            console.log('Place selected (new API):', place);
-            
-            if (place.formattedAddress) {
-              setNewServiceArea(prev => ({
-                ...prev,
-                address: place.formattedAddress
-              }));
-              // Also update the hidden input for form submission
-              addressInputRef.current.value = place.formattedAddress;
-            }
-          });
-          
-        } else {
-          console.log('Using legacy Autocomplete');
-          
-          const autocomplete = new window.google.maps.places.Autocomplete(
-            addressInputRef.current,
-            {
-              types: ['geocode'],
-              componentRestrictions: { country: 'au' },
-              fields: ['formatted_address', 'geometry', 'name', 'place_id']
-            }
-          );
+            fields: ['formatted_address']
+          }
+        );
 
-          autocomplete.addListener('place_changed', () => {
-            const place = autocomplete.getPlace();
-            console.log('Place selected (legacy API):', place);
-            
-            if (place.formatted_address) {
-              setNewServiceArea(prev => ({
-                ...prev,
-                address: place.formatted_address
-              }));
-            }
-          });
-        }
+        // Add focus styling to match Input component
+        addressInputRef.current.addEventListener('focus', () => {
+          addressInputRef.current.style.outline = 'none';
+          addressInputRef.current.style.boxShadow = '0 0 0 2px hsl(213, 90%, 60%)';
+          addressInputRef.current.style.borderColor = 'hsl(213, 90%, 60%)';
+        });
+        
+        addressInputRef.current.addEventListener('blur', () => {
+          addressInputRef.current.style.boxShadow = '';
+          addressInputRef.current.style.borderColor = 'hsl(214, 32%, 91%)';
+        });
+
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          if (place.formatted_address) {
+            setNewServiceArea(prev => ({
+              ...prev,
+              address: place.formatted_address
+            }));
+          }
+        });
 
         console.log('Google Maps autocomplete initialized successfully');
       } catch (error) {
