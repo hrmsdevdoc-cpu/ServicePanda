@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,14 +61,14 @@ export default function AdminLeadSettings() {
   const { toast } = useToast();
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Local state for settings
+  // Local state for settings - will be updated when data loads
   const [localSettings, setLocalSettings] = useState({
     pricingModel: 'uniform' as 'uniform' | 'category',
-    uniformUniquePrice: 25.00,
-    uniformSharePrice: 12.00,
-    uniqueOfferWindow: 2,
-    maxProvidersPerArea: 10,
-    minProviderRating: 3.0,
+    uniformUniquePrice: 0,
+    uniformSharePrice: 0,
+    uniqueOfferWindow: 0,
+    maxProvidersPerArea: 0,
+    minProviderRating: 0,
     providerRestrictionsActive: false,
   });
 
@@ -76,12 +76,26 @@ export default function AdminLeadSettings() {
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['/api/admin/lead-settings'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/lead-settings');
+      const response = await adminApiRequest('GET', '/api/admin/lead-settings');
       const data = await response.json();
-      setLocalSettings(data); // Update local state when data is fetched
       return data;
     }
   });
+
+  // Update local settings when data is loaded
+  useEffect(() => {
+    if (settings) {
+      setLocalSettings({
+        pricingModel: settings.pricingModel || 'uniform',
+        uniformUniquePrice: settings.uniformUniquePrice || 0,
+        uniformSharePrice: settings.uniformSharePrice || 0,
+        uniqueOfferWindow: settings.uniqueOfferWindow || 0,
+        maxProvidersPerArea: settings.maxProvidersPerArea || 0,
+        minProviderRating: settings.minProviderRating || 0,
+        providerRestrictionsActive: settings.providerRestrictionsActive || false,
+      });
+    }
+  }, [settings]);
 
   // Fetch service categories for category-based pricing
   const { data: categories = [] } = useQuery<any[]>({
