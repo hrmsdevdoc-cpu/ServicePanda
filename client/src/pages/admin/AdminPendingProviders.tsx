@@ -496,7 +496,7 @@ export default function AdminPendingProviders() {
         description: "Document approval status has been changed successfully.",
         variant: "default",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'details'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity'] });
     },
     onError: (error: Error) => {
