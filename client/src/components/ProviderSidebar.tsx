@@ -126,6 +126,7 @@ export default function ProviderSidebar({
                 onClick={() => {
                   setActiveMenuItem("new-leads");
                   setIsMobileMenuOpen(false);
+                  navigate("/provider-dashboard");
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md ${
                   activeMenuItem === "new-leads" 
@@ -144,6 +145,7 @@ export default function ProviderSidebar({
                 onClick={() => {
                   setActiveMenuItem("accepted-leads");
                   setIsMobileMenuOpen(false);
+                  navigate("/provider-dashboard");
                 }}
                 className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                   activeMenuItem === "accepted-leads" 
@@ -194,7 +196,11 @@ export default function ProviderSidebar({
                 Personal Details
               </button>
               <button
-                onClick={() => setActiveMenuItem("services")}
+                onClick={() => {
+                  setActiveMenuItem("services");
+                  setIsMobileMenuOpen(false);
+                  navigate("/provider-dashboard");
+                }}
                 className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                   activeMenuItem === "services" 
                     ? "bg-red-50 text-red-700" 
@@ -204,7 +210,11 @@ export default function ProviderSidebar({
                 Services
               </button>
               <button
-                onClick={() => setActiveMenuItem("service-area")}
+                onClick={() => {
+                  setActiveMenuItem("service-area");
+                  setIsMobileMenuOpen(false);
+                  navigate("/provider-dashboard");
+                }}
                 className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                   activeMenuItem === "service-area" 
                     ? "bg-red-50 text-red-700" 
@@ -214,7 +224,11 @@ export default function ProviderSidebar({
                 Service Area
               </button>
               <button
-                onClick={() => setActiveMenuItem("documents")}
+                onClick={() => {
+                  setActiveMenuItem("documents");
+                  setIsMobileMenuOpen(false);
+                  navigate("/provider-dashboard");
+                }}
                 className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                   activeMenuItem === "documents" 
                     ? "bg-red-50 text-red-700" 
