@@ -29,6 +29,7 @@ import SimpleAdminDashboard from "@/pages/SimpleAdminDashboard";
 import AdminPendingProviders from "@/pages/admin/AdminPendingProviders";
 import AdminViewProviders from "@/pages/admin/AdminViewProviders";
 import AdminViewUsers from "@/pages/admin/AdminViewUsers";
+import AdminLeads from "@/pages/AdminLeads";
 import AdminUserReports from "@/pages/admin/AdminUserReports";
 import AdminProviderReports from "@/pages/admin/AdminProviderReports";
 import AdminDailyReports from "@/pages/admin/AdminDailyReports";
@@ -77,6 +78,7 @@ function Router() {
       <Route path="/admin/providers/pending" component={AdminPendingProviders} />
       <Route path="/admin/providers" component={AdminViewProviders} />
       <Route path="/admin/users" component={AdminViewUsers} />
+      <Route path="/admin/leads" component={AdminLeads} />
       <Route path="/admin/reports/users" component={AdminUserReports} />
       <Route path="/admin/reports/providers" component={AdminProviderReports} />
       <Route path="/admin/reports/daily" component={AdminDailyReports} />

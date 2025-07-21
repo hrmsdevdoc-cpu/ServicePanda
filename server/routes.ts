@@ -1039,6 +1039,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all leads for admin management
+  app.get('/api/admin/leads', isAdminAuthenticated, async (req, res) => {
+    try {
+      const leads = await storage.getLeadsWithMetrics();
+      res.json(leads);
+    } catch (error) {
+      console.error('Error fetching leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
   // Admin settings endpoints - bypass route for initial setup
   app.get('/api/admin/settings', async (req, res) => {
     try {

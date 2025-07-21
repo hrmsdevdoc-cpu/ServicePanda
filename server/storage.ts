@@ -54,7 +54,7 @@ import {
   type InsertProviderActivityLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, desc, asc, inArray, isNotNull, sql } from "drizzle-orm";
 import crypto from "crypto";
 
 export interface IStorage {
@@ -66,6 +66,7 @@ export interface IStorage {
   updateUserLastLogin(id: string): Promise<void>;
   getAllUsers(): Promise<User[]>;
   getUsersWithStats(): Promise<Array<User & { lastLogin?: string; isActive: boolean }>>;
+  getLeadsWithMetrics(): Promise<Array<ServiceRequest & { leadAssignments?: any[] }>>;
   
   // Service provider operations
   createServiceProvider(provider: InsertServiceProvider): Promise<ServiceProvider>;
@@ -266,6 +267,61 @@ export class DatabaseStorage implements IStorage {
       lastLogin: user.lastLogin ? user.lastLogin.toISOString() : undefined,
       isActive: true // For now, assume all users are active
     }));
+  }
+
+  async getLeadsWithMetrics(): Promise<Array<ServiceRequest & { leadAssignments?: any[] }>> {
+    try {
+      // Get all service requests with customer details and category info
+      const requestsData = await db
+        .select({
+          id: serviceRequests.id,
+          customerId: serviceRequests.customerId,
+          customerName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`.as('customerName'),
+          customerEmail: users.email,
+          categoryId: serviceRequests.categoryId,
+          categoryName: serviceCategories.name,
+          serviceType: serviceRequests.serviceType,
+          description: serviceRequests.description,
+          location: serviceRequests.location,
+          suburb: serviceRequests.suburb,
+          postcode: serviceRequests.postcode,
+          preferredDate: serviceRequests.preferredDate,
+          bookingType: serviceRequests.bookingType,
+          status: serviceRequests.status,
+          createdAt: serviceRequests.createdAt,
+        })
+        .from(serviceRequests)
+        .leftJoin(users, eq(serviceRequests.customerId, users.id))
+        .leftJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
+        .orderBy(desc(serviceRequests.createdAt));
+
+      // Get lead assignments for each service request
+      const requestsWithAssignments = await Promise.all(
+        requestsData.map(async (request: any) => {
+          const assignments = await db
+            .select({
+              id: leadAssignments.id,
+              providerId: leadAssignments.providerId,
+              providerName: sql<string>`${serviceProviders.firstName} || ' ' || ${serviceProviders.lastName}`.as('providerName'),
+              status: leadAssignments.status,
+              assignedAt: leadAssignments.createdAt,
+            })
+            .from(leadAssignments)
+            .leftJoin(serviceProviders, eq(leadAssignments.providerId, serviceProviders.id))
+            .where(eq(leadAssignments.requestId, request.id));
+
+          return {
+            ...request,
+            leadAssignments: assignments,
+          };
+        })
+      );
+
+      return requestsWithAssignments;
+    } catch (error) {
+      console.error('Error fetching leads with metrics:', error);
+      throw error;
+    }
   }
 
   // Service provider operations

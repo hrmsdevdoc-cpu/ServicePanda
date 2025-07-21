@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronRight,
   ChevronDown,
+  TrendingUp,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -40,6 +41,12 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
       icon: Users,
       label: "Users",
       href: "/admin/users",
+      subItems: [],
+    },
+    {
+      icon: TrendingUp,
+      label: "Leads",
+      href: "/admin/leads",
       subItems: [],
     },
     {
