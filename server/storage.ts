@@ -100,6 +100,7 @@ export interface IStorage {
   // Document operations
   uploadProviderDocument(document: InsertProviderDocument): Promise<ProviderDocument>;
   getProviderDocuments(providerId: number): Promise<ProviderDocument[]>;
+  getProviderDocument(id: number): Promise<ProviderDocument | undefined>;
   updateDocumentStatus(id: number, status: string): Promise<void>;
   
   // Service request operations
@@ -453,6 +454,14 @@ export class DatabaseStorage implements IStorage {
       .from(providerDocuments)
       .where(eq(providerDocuments.providerId, providerId))
       .orderBy(desc(providerDocuments.uploadedAt));
+  }
+
+  async getProviderDocument(id: number): Promise<ProviderDocument | undefined> {
+    const [document] = await db
+      .select()
+      .from(providerDocuments)
+      .where(eq(providerDocuments.id, id));
+    return document;
   }
 
   async updateDocumentStatus(id: number, status: string): Promise<void> {

@@ -480,6 +480,33 @@ export default function AdminPendingProviders() {
     });
   };
 
+  // Document status toggle mutation
+  const toggleDocumentMutation = useMutation({
+    mutationFn: async ({ documentId, currentStatus }: { documentId: number, currentStatus: string }) => {
+      const newStatus = currentStatus === 'pending' ? 'approved' : 'pending';
+      const response = await adminApiRequest('PUT', `/api/admin/providers/${selectedProvider?.id}/documents/${documentId}/status`, {
+        status: newStatus,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Document Status Updated",
+        description: "Document approval status has been changed successfully.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'details'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter providers based on search term
   const filteredProviders = pendingProviders?.filter((provider: ServiceProvider) => {
     const matchesSearch = 
@@ -846,13 +873,16 @@ export default function AdminPendingProviders() {
                                 </p>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Badge 
-                                  variant={doc.status === 'approved' ? 'default' : 
-                                          doc.status === 'rejected' ? 'destructive' : 'outline'}
-                                  className="capitalize"
+                                <Button
+                                  size="sm"
+                                  variant={doc.status === 'approved' ? 'default' : 'outline'}
+                                  className={`${doc.status === 'approved' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-100 text-orange-700 hover:bg-orange-200'} capitalize`}
+                                  onClick={() => toggleDocumentMutation.mutate({ documentId: doc.id, currentStatus: doc.status })}
+                                  disabled={toggleDocumentMutation.isPending}
                                 >
-                                  {doc.status}
-                                </Badge>
+                                  {toggleDocumentMutation.isPending ? 'Updating...' : 
+                                   doc.status === 'approved' ? 'Approved' : 'Pending'}
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"

@@ -850,6 +850,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Toggle document approval status
+  app.put('/api/admin/providers/:providerId/documents/:documentId/status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.providerId);
+      const documentId = parseInt(req.params.documentId);
+      const { status } = req.body;
+      
+      if (!['pending', 'approved'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be pending or approved.' });
+      }
+
+      // Get current document for activity logging
+      const currentDocument = await storage.getProviderDocument(documentId);
+      if (!currentDocument || currentDocument.providerId !== providerId) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      // Update document status
+      await storage.updateDocumentStatus(documentId, status);
+
+      // Log activity
+      await storage.logProviderActivity({
+        providerId,
+        activityType: 'document_update',
+        actorType: 'admin',
+        actorId: 'admin',
+        actorName: 'Administrator',
+        description: `${currentDocument.documentType.replace('_', ' ')} document ${status === 'approved' ? 'approved' : 'marked as pending'}`,
+        oldValue: currentDocument.status,
+        newValue: status,
+      });
+      
+      res.json({ message: 'Document status updated successfully' });
+    } catch (error) {
+      console.error('Error updating document status:', error);
+      res.status(500).json({ message: 'Failed to update document status' });
+    }
+  });
+
 
 
   app.get('/api/admin/service-requests', isAdminAuthenticated, async (req, res) => {
