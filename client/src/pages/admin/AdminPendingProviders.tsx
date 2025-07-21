@@ -567,10 +567,10 @@ export default function AdminPendingProviders() {
   }, [isViewDialogOpen, activeTab]);
 
   const handleAddServiceArea = () => {
-    if (!selectedProvider?.id || !newServiceArea.address.trim()) {
+    if (!selectedProvider?.id) {
       toast({
         title: "Missing Information", 
-        description: "Please enter a valid address for the service area.",
+        description: "Provider information is missing.",
         variant: "destructive",
       });
       return;
