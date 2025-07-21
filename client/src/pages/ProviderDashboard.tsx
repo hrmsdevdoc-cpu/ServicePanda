@@ -333,7 +333,8 @@ export default function ProviderDashboard() {
     );
   };
 
-  const newLeadsCount = leads.filter((l: any) => l.status === 'pending' || l.status === 'purchased').length;
+  const newLeadsCount = leads.filter((l: any) => l.status === 'pending').length;
+  const acceptedLeadsCount = leads.filter((l: any) => l.status === 'purchased').length;
 
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
@@ -412,13 +413,18 @@ export default function ProviderDashboard() {
                     setActiveMenuItem("accepted-leads");
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md ${
                     activeMenuItem === "accepted-leads" 
                       ? "bg-red-50 text-red-700" 
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  Leads Accepted
+                  <span>Leads Accepted</span>
+                  {acceptedLeadsCount > 0 && (
+                    <Badge className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                      {acceptedLeadsCount}
+                    </Badge>
+                  )}
                 </button>
               </div>
             )}
@@ -771,32 +777,22 @@ export default function ProviderDashboard() {
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
                         <p className="text-gray-600">Loading new leads...</p>
                       </div>
-                    ) : leads.filter((l: any) => l.status === 'pending' || l.status === 'purchased').length === 0 ? (
+                    ) : leads.filter((l: any) => l.status === 'pending').length === 0 ? (
                       <div className="text-center py-8">
                         <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No leads available</h3>
-                        <p className="text-gray-500">New customer requests and purchased leads will appear here.</p>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No new leads</h3>
+                        <p className="text-gray-500">Available customer requests will appear here for purchase.</p>
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {leads.filter((l: any) => l.status === 'pending' || l.status === 'purchased').map((lead: any) => (
+                        {leads.filter((l: any) => l.status === 'pending').map((lead: any) => (
                           <div key={lead.requestId} className="border rounded-lg p-4 hover:bg-gray-50">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                   <h3 className="font-medium">{lead.categoryName}</h3>
-                                  <Badge className={
-                                    lead.status === 'purchased' 
-                                      ? "bg-green-100 text-green-800" 
-                                      : "bg-blue-100 text-blue-800"
-                                  }>
-                                    {lead.status === 'purchased' ? 'Purchased' : 'Available'}
-                                  </Badge>
-                                  {lead.status === 'purchased' && (
-                                    <Badge className="bg-orange-100 text-orange-800">
-                                      ${lead.leadCost}
-                                    </Badge>
-                                  )}
+                                  <Badge className="bg-blue-100 text-blue-800">Available</Badge>
+                                  <Badge className="bg-orange-100 text-orange-800">${lead.leadCost}</Badge>
                                 </div>
                                 <div className="space-y-1 text-sm text-gray-600">
                                   <div className="flex items-center gap-1">
@@ -807,17 +803,95 @@ export default function ProviderDashboard() {
                                     <Calendar className="h-3 w-3" />
                                     {new Date(lead.createdAt).toLocaleDateString()}
                                   </div>
-                                  {lead.status === 'purchased' && lead.customerName && (
-                                    <>
-                                      <div className="flex items-center gap-1">
-                                        <Mail className="h-3 w-3" />
-                                        {lead.customerEmail}
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <Phone className="h-3 w-3" />
-                                        {lead.customerPhone}
-                                      </div>
-                                    </>
+                                  {lead.urgency && (
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {lead.urgency.replace('_', ' ')}
+                                    </div>
+                                  )}
+                                </div>
+                                {lead.description && (
+                                  <p className="text-sm text-gray-700 mt-2 line-clamp-2">{lead.description}</p>
+                                )}
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <Button size="sm" variant="outline">
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  View Details
+                                </Button>
+                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                                  Purchase ${lead.leadCost}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Leads Accepted Content */}
+            {activeMenuItem === "accepted-leads" && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <CheckCircle className="h-5 w-5 mr-2" />
+                      Leads Accepted ({acceptedLeadsCount})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {leadsLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading accepted leads...</p>
+                      </div>
+                    ) : leads.filter((l: any) => l.status === 'purchased').length === 0 ? (
+                      <div className="text-center py-8">
+                        <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No purchased leads</h3>
+                        <p className="text-gray-500">Leads you purchase will appear here with customer contact details.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {leads.filter((l: any) => l.status === 'purchased').map((lead: any) => (
+                          <div key={lead.requestId} className="border rounded-lg p-4 bg-green-50 border-green-200">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="font-medium">{lead.categoryName}</h3>
+                                  <Badge className="bg-green-100 text-green-800">Purchased</Badge>
+                                  <Badge className="bg-orange-100 text-orange-800">${lead.leadCost}</Badge>
+                                </div>
+                                <div className="space-y-1 text-sm text-gray-600">
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {lead.suburb}, {lead.postcode}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    Purchased: {new Date(lead.createdAt).toLocaleDateString()}
+                                  </div>
+                                  {lead.customerEmail && (
+                                    <div className="flex items-center gap-1">
+                                      <Mail className="h-3 w-3" />
+                                      {lead.customerEmail}
+                                    </div>
+                                  )}
+                                  {lead.customerPhone && (
+                                    <div className="flex items-center gap-1">
+                                      <Phone className="h-3 w-3" />
+                                      {lead.customerPhone}
+                                    </div>
+                                  )}
+                                  {lead.urgency && (
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {lead.urgency.replace('_', ' ')}
+                                    </div>
                                   )}
                                 </div>
                                 {lead.description && (
@@ -829,16 +903,10 @@ export default function ProviderDashboard() {
                                   <Eye className="h-3 w-3 mr-1" />
                                   View Details
                                 </Button>
-                                {lead.status === 'pending' && (
-                                  <Button size="sm">
-                                    Purchase ${lead.leadCost}
-                                  </Button>
-                                )}
-                                {lead.status === 'purchased' && (
-                                  <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                                    Contact Customer
-                                  </Button>
-                                )}
+                                <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                  <Phone className="h-3 w-3 mr-1" />
+                                  Contact Customer
+                                </Button>
                               </div>
                             </div>
                           </div>
