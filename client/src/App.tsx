@@ -23,6 +23,15 @@ import AdminSettings from "@/pages/AdminSettings";
 import AdminStripeConfig from "@/pages/AdminStripeConfig";
 import AdminMailgunConfig from "@/pages/AdminMailgunConfig";
 import SimpleAdminDashboard from "@/pages/SimpleAdminDashboard";
+// New Admin Pages
+import AdminPendingProviders from "@/pages/admin/AdminPendingProviders";
+import AdminViewProviders from "@/pages/admin/AdminViewProviders";
+import AdminViewUsers from "@/pages/admin/AdminViewUsers";
+import AdminUserReports from "@/pages/admin/AdminUserReports";
+import AdminProviderReports from "@/pages/admin/AdminProviderReports";
+import AdminDailyReports from "@/pages/admin/AdminDailyReports";
+import AdminStripeSettings from "@/pages/admin/AdminStripeSettings";
+import AdminMailgunSettings from "@/pages/admin/AdminMailgunSettings";
 import RequestService from "@/pages/RequestService";
 
 function Router() {
@@ -58,6 +67,16 @@ function Router() {
       <Route path="/admin/settings" component={AdminSettings} />
       <Route path="/admin/stripe-config" component={AdminStripeConfig} />
       <Route path="/admin/mailgun-config" component={AdminMailgunConfig} />
+      
+      {/* New Admin Routes with Sidebar Layout */}
+      <Route path="/admin/providers/pending" component={AdminPendingProviders} />
+      <Route path="/admin/providers" component={AdminViewProviders} />
+      <Route path="/admin/users" component={AdminViewUsers} />
+      <Route path="/admin/reports/users" component={AdminUserReports} />
+      <Route path="/admin/reports/providers" component={AdminProviderReports} />
+      <Route path="/admin/reports/daily" component={AdminDailyReports} />
+      <Route path="/admin/settings/stripe" component={AdminStripeSettings} />
+      <Route path="/admin/settings/mailgun" component={AdminMailgunSettings} />
       
       {/* Customer routes based on authentication */}
       {!isAuthenticated ? (

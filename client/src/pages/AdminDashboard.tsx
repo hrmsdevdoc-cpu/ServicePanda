@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AdminSidebar } from "@/components/AdminSidebar";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -94,8 +95,10 @@ export default function AdminDashboard() {
   const { data: stats } = useQuery({
     queryKey: ['/api/admin/stats'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/stats', undefined, {
-        'x-admin-token': localStorage.getItem('adminToken') || '',
+      const response = await fetch('/api/admin/stats', {
+        headers: {
+          'x-admin-token': localStorage.getItem('adminToken') || '',
+        },
       });
       return response.json();
     },
@@ -105,8 +108,10 @@ export default function AdminDashboard() {
   const { data: pendingProviders, isLoading: loadingProviders } = useQuery({
     queryKey: ['/api/admin/providers', 'pending'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/providers?status=pending', undefined, {
-        'x-admin-token': localStorage.getItem('adminToken') || '',
+      const response = await fetch('/api/admin/providers?status=pending', {
+        headers: {
+          'x-admin-token': localStorage.getItem('adminToken') || '',
+        },
       });
       return response.json();
     },
@@ -116,8 +121,10 @@ export default function AdminDashboard() {
   const { data: allProviders } = useQuery({
     queryKey: ['/api/admin/providers', 'all'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/providers', undefined, {
-        'x-admin-token': localStorage.getItem('adminToken') || '',
+      const response = await fetch('/api/admin/providers', {
+        headers: {
+          'x-admin-token': localStorage.getItem('adminToken') || '',
+        },
       });
       return response.json();
     },
@@ -127,8 +134,10 @@ export default function AdminDashboard() {
   const { data: serviceRequests } = useQuery({
     queryKey: ['/api/admin/service-requests'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/service-requests', undefined, {
-        'x-admin-token': localStorage.getItem('adminToken') || '',
+      const response = await fetch('/api/admin/service-requests', {
+        headers: {
+          'x-admin-token': localStorage.getItem('adminToken') || '',
+        },
       });
       return response.json();
     },
@@ -137,9 +146,7 @@ export default function AdminDashboard() {
   // Provider Approval Mutation
   const approveProviderMutation = useMutation({
     mutationFn: async ({ providerId, action }: { providerId: number; action: 'approve' | 'reject' }) => {
-      const response = await apiRequest('POST', `/api/admin/providers/${providerId}/${action}`, {}, {
-        'x-admin-token': localStorage.getItem('adminToken') || '',
-      });
+      const response = await apiRequest('POST', `/api/admin/providers/${providerId}/${action}`, {});
       return response.json();
     },
     onSuccess: (data, variables) => {
@@ -180,44 +187,31 @@ export default function AdminDashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+      {/* Sidebar */}
+      <AdminSidebar onLogout={handleLogout} />
+      
+      {/* Main content area */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Header */}
+        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
+          <div className="px-8 py-6">
             <div className="flex items-center">
-              <Shield className="h-8 w-8 text-red-600 mr-3" />
-              <h1 className="text-xl font-bold text-gray-900">ServicePanda Admin</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">Administrator Panel</span>
-              
-              {/* Settings Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Setup</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/admin/stripe-config')}>
-                    <Key className="h-4 w-4 mr-2" />
-                    Stripe Keys
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              
-              <Button variant="outline" onClick={handleLogout}>
-                Logout
-              </Button>
+              <Shield className="h-8 w-8 text-blue-600 mr-3" />
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                  Dashboard Overview
+                </h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Platform statistics and management overview
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Content */}
+        <div className="px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -718,6 +712,7 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
     </div>
   );

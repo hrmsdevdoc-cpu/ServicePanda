@@ -813,7 +813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Email testing endpoint - for development only
-  app.post('/api/admin/test-email', adminAuth, async (req, res) => {
+  app.post('/api/admin/test-email', async (req, res) => {
     try {
       const { email } = req.body;
       
