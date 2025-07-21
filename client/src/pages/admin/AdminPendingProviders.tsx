@@ -13,6 +13,31 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+
+// Admin API request function with authentication
+const adminApiRequest = async (method: string, url: string, data?: any) => {
+  const token = localStorage.getItem('adminToken');
+  const options: RequestInit = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-token': token || '',
+    },
+  };
+
+  if (data && method !== 'GET') {
+    options.body = JSON.stringify(data);
+  }
+
+  const response = await fetch(url, options);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Request failed' }));
+    throw new Error(errorData.message || `HTTP ${response.status}`);
+  }
+  
+  return response;
+};
 import {
   Shield,
   Search,
@@ -154,7 +179,7 @@ export default function AdminPendingProviders() {
     queryFn: async () => {
       if (!selectedProvider) return [];
       const filterParam = activityFilter !== 'all' ? `?actorType=${activityFilter}` : '';
-      const response = await apiRequest('GET', `/api/admin/providers/${selectedProvider.id}/activity${filterParam}`);
+      const response = await adminApiRequest('GET', `/api/admin/providers/${selectedProvider.id}/activity${filterParam}`);
       return response.json();
     },
     enabled: !!selectedProvider && activeTab === 'activity',
@@ -199,7 +224,7 @@ export default function AdminPendingProviders() {
   // Provider Approval Mutation
   const approveProviderMutation = useMutation({
     mutationFn: async ({ providerId, action }: { providerId: number; action: 'approve' | 'reject' }) => {
-      const response = await apiRequest('POST', `/api/admin/providers/${providerId}/${action}`, {});
+      const response = await adminApiRequest('POST', `/api/admin/providers/${providerId}/${action}`, {});
       return response.json();
     },
     onSuccess: (data, variables) => {
@@ -223,7 +248,7 @@ export default function AdminPendingProviders() {
   // Add Service Area Mutation
   const addServiceAreaMutation = useMutation({
     mutationFn: async ({ providerId, address, radius }: { providerId: number; address: string; radius: number }) => {
-      const response = await apiRequest('POST', `/api/admin/providers/${providerId}/service-areas`, {
+      const response = await adminApiRequest('POST', `/api/admin/providers/${providerId}/service-areas`, {
         centerAddress: address,
         radiusKm: radius,
       });
@@ -250,7 +275,7 @@ export default function AdminPendingProviders() {
   // Remove Service Area Mutation
   const removeServiceAreaMutation = useMutation({
     mutationFn: async (areaId: number) => {
-      const response = await apiRequest('DELETE', `/api/admin/service-areas/${areaId}`, {});
+      const response = await adminApiRequest('DELETE', `/api/admin/service-areas/${areaId}`, {});
       return response.json();
     },
     onSuccess: () => {
@@ -277,7 +302,7 @@ export default function AdminPendingProviders() {
       adminNotes: string; 
       insuranceExpiryDate?: string; 
     }) => {
-      const response = await apiRequest('PUT', `/api/admin/providers/${providerId}/notes`, {
+      const response = await adminApiRequest('PUT', `/api/admin/providers/${providerId}/notes`, {
         adminNotes,
         insuranceExpiryDate,
       });
