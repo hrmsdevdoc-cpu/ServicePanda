@@ -981,13 +981,29 @@ export default function AdminPendingProviders() {
                   {/* Notes History Section */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Previous Notes</h3>
+                    {/* Debug information */}
+                    {activityLogs && (
+                      <div className="text-xs text-gray-500 bg-yellow-50 p-2 rounded">
+                        Total activities: {activityLogs.length} | 
+                        Notes: {activityLogs.filter((activity: any) => 
+                          activity.activityType === 'details_update' && 
+                          activity.description.includes('Admin notes updated')
+                        ).length}
+                      </div>
+                    )}
                     {isLoadingActivity ? (
                       <div className="text-center py-4 text-gray-500">Loading notes history...</div>
                     ) : (
                       <div className="space-y-3 max-h-96 overflow-y-auto">
-                        {activityLogs?.filter((activity: any) => activity.activityType.includes('note')).length > 0 ? (
+                        {activityLogs?.filter((activity: any) => 
+                          activity.activityType === 'details_update' && 
+                          activity.description.includes('Admin notes updated')
+                        ).length > 0 ? (
                           activityLogs
-                            .filter((activity: any) => activity.activityType.includes('note'))
+                            .filter((activity: any) => 
+                              activity.activityType === 'details_update' && 
+                              activity.description.includes('Admin notes updated')
+                            )
                             .map((activity: any, index: number) => (
                               <div key={activity.id || index} className="border border-gray-200 rounded-lg p-4 bg-white">
                                 <div className="flex items-center justify-between mb-2">
