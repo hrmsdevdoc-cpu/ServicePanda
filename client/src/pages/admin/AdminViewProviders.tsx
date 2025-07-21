@@ -629,11 +629,24 @@ export default function AdminViewProviders() {
                             {getStatusBadge(provider.status)}
                           </td>
                           <td className="p-3">
-                            <div className="text-sm">
+                            <div className="text-sm max-w-48">
                               {provider.services?.length ? (
-                                <span className="text-blue-600">
-                                  {provider.services.length} service{provider.services.length !== 1 ? 's' : ''}
-                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {provider.services.slice(0, 3).map((service: any, index: number) => {
+                                    const IconComponent = serviceIcons[service.categoryName as keyof typeof serviceIcons] || Wrench;
+                                    return (
+                                      <div key={index} className="flex items-center bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs">
+                                        <IconComponent className="h-3 w-3 mr-1" />
+                                        {service.categoryName}
+                                      </div>
+                                    );
+                                  })}
+                                  {provider.services.length > 3 && (
+                                    <div className="text-xs text-gray-500 px-2 py-1">
+                                      +{provider.services.length - 3} more
+                                    </div>
+                                  )}
+                                </div>
                               ) : (
                                 <span className="text-gray-400">None</span>
                               )}
