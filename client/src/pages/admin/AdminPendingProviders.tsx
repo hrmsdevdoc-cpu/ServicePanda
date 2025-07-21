@@ -409,10 +409,6 @@ export default function AdminPendingProviders() {
   // Add Service Area Mutation
   const addServiceAreaMutation = useMutation({
     mutationFn: async ({ providerId, address, radius }: { providerId: number; address: string; radius: number }) => {
-      console.log('🚨 MUTATION TRIGGERED - addServiceAreaMutation.mutate() was called!');
-      console.log('📍 Call stack:', new Error().stack);
-      console.log('📝 Parameters:', { providerId, address, radius });
-      
       const response = await adminApiRequest('POST', `/api/admin/providers/${providerId}/service-areas`, {
         centerAddress: address,
         radiusKm: radius,
@@ -491,11 +487,8 @@ export default function AdminPendingProviders() {
     },
   });
 
-  // Google Maps Autocomplete initialization - TEMPORARILY DISABLED FOR DEBUGGING
+  // Google Maps Autocomplete initialization - FIXED VERSION
   const initializeAutocomplete = () => {
-    console.log('🔥 AUTOCOMPLETE INITIALIZATION TEMPORARILY DISABLED - Testing if this fixes the auto-save issue');
-    return; // EARLY RETURN TO DISABLE AUTOCOMPLETE
-    
     if (autocompleteInitialized || !addressInputRef.current || !window.google?.maps?.places) {
       return;
     }
@@ -507,17 +500,18 @@ export default function AdminPendingProviders() {
         types: ["address"],
       });
 
+      // Fixed: Use proper event handling that doesn't trigger form submission
       autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        console.log('Google Maps place changed:', place);
-        if (place.formatted_address) {
-          console.log('Setting address to:', place.formatted_address);
-          setNewServiceArea(prev => ({ 
-            ...prev, 
-            address: place.formatted_address || "" 
-          }));
-          console.log('Address updated in state, NOT automatically saving');
-        }
+        // Prevent any automatic form submission by using setTimeout
+        setTimeout(() => {
+          const place = autocomplete.getPlace();
+          if (place.formatted_address) {
+            setNewServiceArea(prev => ({ 
+              ...prev, 
+              address: place.formatted_address || "" 
+            }));
+          }
+        }, 0);
       });
 
       setAutocompleteInitialized(true);
@@ -527,9 +521,6 @@ export default function AdminPendingProviders() {
   };
 
   const handleAddServiceArea = () => {
-    console.log('handleAddServiceArea called - this should only happen when button is clicked');
-    console.log('Provider ID:', selectedProvider?.id, 'Address:', newServiceArea.address);
-    
     if (!selectedProvider?.id || !newServiceArea.address.trim()) {
       toast({
         title: "Missing Information",
@@ -539,7 +530,6 @@ export default function AdminPendingProviders() {
       return;
     }
 
-    console.log('About to call addServiceAreaMutation.mutate');
     addServiceAreaMutation.mutate({
       providerId: selectedProvider.id,
       address: newServiceArea.address,
@@ -841,10 +831,6 @@ export default function AdminPendingProviders() {
                   <CardContent className="space-y-4">
                     <form onSubmit={(e) => {
                       e.preventDefault();
-                      console.log('🚨 FORM SUBMIT PREVENTED - this was likely triggered by Google autocomplete');
-                      console.log('Form submit event details:', e);
-                      console.log('Event target:', e.target);
-                      console.log('This should NOT trigger service area addition');
                       return false;
                     }}>
                       <div className="grid gap-4 md:grid-cols-2">
