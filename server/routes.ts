@@ -881,17 +881,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Provider not found" });
       }
 
-      // Get current services for activity logging
+      // Get current services for activity logging with deduplication
       const currentServices = await storage.getProviderServices(providerId);
-      const currentServiceNames = currentServices.map(s => s.name).sort().join(', ');
+      const currentServiceNames = Array.from(new Set(currentServices.map(s => s.name))).sort().join(', ');
       
-      // Get new service names for logging
+      // Get new service names for logging with deduplication
       const allCategories = await storage.getServiceCategories();
-      const newServiceNames = allCategories
-        .filter(cat => uniqueCategoryIds.includes(cat.id))
-        .map(cat => cat.name)
-        .sort()
-        .join(', ');
+      const newServiceNames = Array.from(new Set(
+        allCategories
+          .filter(cat => uniqueCategoryIds.includes(cat.id))
+          .map(cat => cat.name)
+      )).sort().join(', ');
       
       // Replace all services for this provider
       await storage.replaceProviderServices(providerId, uniqueCategoryIds);
