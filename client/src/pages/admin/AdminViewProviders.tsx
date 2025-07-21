@@ -863,85 +863,86 @@ export default function AdminViewProviders() {
 
               {/* Documents Tab */}
               <TabsContent value="documents" className="space-y-6">
-                <div className="space-y-6">
-                  <h3 className="text-lg font-semibold">Provider Documents</h3>
-                  {isLoadingDocuments ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
-                      <p className="mt-2 text-gray-500">Loading documents...</p>
-                    </div>
-                  ) : providerDocuments && providerDocuments.length > 0 ? (
-                    <div className="grid gap-4">
-                      {providerDocuments.map((doc: any) => (
-                        <div key={doc.id} className="p-4 border rounded-lg">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h4 className="font-medium capitalize">{doc.documentType.replace('_', ' ')}</h4>
-                              <p className="text-sm text-gray-600">{doc.filename}</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">
-                                  {doc.status === 'approved' ? (
-                                    <span className="text-green-600">Approved</span>
-                                  ) : (
-                                    <span className="text-orange-600">Pending</span>
-                                  )}
-                                </span>
-                                <Switch
-                                  checked={doc.status === 'approved'}
-                                  onCheckedChange={(checked) => {
-                                    documentStatusMutation.mutate({
-                                      documentId: doc.id,
-                                      status: checked ? 'approved' : 'pending'
-                                    });
-                                  }}
-                                />
+                <div className="space-y-4">
+                  {!viewingDocument ? (
+                    <>
+                      <h3 className="text-lg font-semibold">Uploaded Documents</h3>
+                      {isLoadingDetails ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+                          <p className="mt-2 text-gray-500">Loading documents...</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-4">
+                          {providerDetails?.documents?.map((doc: any) => (
+                            <div key={doc.id} className="flex items-center justify-between p-4 bg-gray-50 border rounded">
+                              <div>
+                                <p className="font-medium capitalize">{doc.documentType.replace('_', ' ')}</p>
+                                <p className="text-sm text-gray-500">{doc.fileName}</p>
+                                <p className="text-sm text-gray-400">
+                                  Uploaded: {new Date(doc.uploadedAt).toLocaleDateString('en-AU')}
+                                </p>
                               </div>
-                            </div>
-                          </div>
-                          
-                          {/* Inline Document Viewer */}
-                          <div className="mt-4 border rounded-lg bg-gray-50 h-64 overflow-hidden">
-                            {doc.filename?.toLowerCase().match(/\.(jpg|jpeg|png)$/) ? (
-                              <img
-                                src={`/api/admin/providers/${selectedProvider?.id}/documents/view/${doc.filename}`}
-                                alt={doc.documentType}
-                                className="w-full h-full object-contain"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  e.currentTarget.nextElementSibling!.style.display = 'block';
-                                }}
-                              />
-                            ) : (
-                              <iframe
-                                src={`/api/admin/providers/${selectedProvider?.id}/documents/view/${doc.filename}`}
-                                className="w-full h-full border-0"
-                                title={doc.documentType}
-                              />
-                            )}
-                            <div style={{ display: 'none' }} className="flex items-center justify-center h-full text-gray-500">
-                              <div className="text-center">
-                                <FileText className="h-8 w-8 mx-auto mb-2" />
-                                <p>Unable to preview document</p>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="mt-2"
-                                  onClick={() => {
-                                    window.open(`/api/admin/providers/${selectedProvider?.id}/documents/view/${doc.filename}`, '_blank');
-                                  }}
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-sm font-medium ${doc.status === 'approved' ? 'text-green-600' : 'text-orange-600'}`}>
+                                    {doc.status === 'approved' ? 'Approved' : 'Pending'}
+                                  </span>
+                                  <Switch
+                                    checked={doc.status === 'approved'}
+                                    onCheckedChange={() => documentStatusMutation.mutate({ documentId: doc.id, status: doc.status === 'approved' ? 'pending' : 'approved' })}
+                                    disabled={documentStatusMutation.isPending}
+                                    className="data-[state=checked]:bg-green-600"
+                                  />
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setViewingDocument(doc)}
                                 >
-                                  Open in New Tab
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View
                                 </Button>
                               </div>
                             </div>
-                          </div>
+                          )) || (
+                            <p className="text-center py-8 text-gray-500">No documents uploaded</p>
+                          )}
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   ) : (
-                    <p className="text-gray-500 text-center py-8">No documents uploaded</p>
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold capitalize">{viewingDocument.documentType.replace('_', ' ')}</h3>
+                          <p className="text-sm text-gray-500">{viewingDocument.fileName}</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => setViewingDocument(null)}
+                        >
+                          ← Back to Documents
+                        </Button>
+                      </div>
+                      <div className="border rounded-lg overflow-hidden bg-white" style={{ height: '500px' }}>
+                        {viewingDocument.fileName.toLowerCase().endsWith('.pdf') ? (
+                          <iframe
+                            src={`/api/provider/documents/view/${viewingDocument.fileName}/${selectedProvider.id}`}
+                            className="w-full h-full border-0"
+                            title={viewingDocument.fileName}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center p-4">
+                            <img
+                              src={`/api/provider/documents/view/${viewingDocument.fileName}/${selectedProvider.id}`}
+                              alt={viewingDocument.fileName}
+                              className="max-w-full max-h-full object-contain"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               </TabsContent>
