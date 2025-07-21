@@ -675,7 +675,7 @@ export default function AdminViewProviders() {
 
         {/* View Provider Details Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-4xl h-[80vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-5xl h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Eye className="h-5 w-5" />
@@ -712,7 +712,7 @@ export default function AdminViewProviders() {
               </TabsList>
 
               {/* Personal Details Tab */}
-              <TabsContent value="personal" className="space-y-6">
+              <TabsContent value="personal" className="space-y-6 overflow-y-auto max-h-[70vh]">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Personal Information</h3>
@@ -725,18 +725,6 @@ export default function AdminViewProviders() {
                         <Label className="text-sm font-medium">Last Name</Label>
                         <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.lastName}</p>
                       </div>
-                      <div>
-                        <Label className="text-sm font-medium">Email Address</Label>
-                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.email}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Mobile Number</Label>
-                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.mobileNumber}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Address</Label>
-                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.address}</p>
-                      </div>
                       <div className="border-l-4 border-blue-500 pl-3">
                         <Label className="text-sm font-medium text-blue-700">Business Name</Label>
                         <p className="mt-1 p-2 bg-blue-50 rounded border border-blue-200">
@@ -748,6 +736,18 @@ export default function AdminViewProviders() {
                         <p className="mt-1 p-2 bg-blue-50 rounded border border-blue-200">
                           {selectedProvider?.businessAbn || 'Not provided'}
                         </p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Email Address</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.email}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Mobile Number</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.mobileNumber}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Address</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.address}</p>
                       </div>
                     </div>
                   </div>
