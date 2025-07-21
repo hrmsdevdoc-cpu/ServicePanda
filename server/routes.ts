@@ -1660,6 +1660,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/admin/leads/:requestId/initialize', isAdminAuthenticated, async (req, res) => {
+    try {
+      const requestId = parseInt(req.params.requestId);
+      await storage.initializeLeadDistribution(requestId);
+      res.json({ success: true, message: 'Lead distribution initialized' });
+    } catch (error: any) {
+      console.error('Error initializing lead distribution:', error);
+      res.status(500).json({ message: error.message || 'Failed to initialize lead distribution' });
+    }
+  });
+
   app.get('/api/provider/leads', isProviderAuthenticated, async (req, res) => {
     try {
       const providerId = req.provider?.id;
