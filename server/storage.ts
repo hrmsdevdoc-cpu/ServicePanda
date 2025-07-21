@@ -54,10 +54,13 @@ import {
   type InsertProviderActivityLog,
   leadSettings,
   categoryLeadPricing,
+  leadNotes,
   type LeadSettings,
   type InsertLeadSettings,
   type CategoryLeadPricing,
   type InsertCategoryLeadPricing,
+  type LeadNote,
+  type InsertLeadNote,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, isNotNull, sql } from "drizzle-orm";
@@ -187,6 +190,10 @@ export interface IStorage {
   // Activity logging methods
   logProviderActivity(activity: InsertProviderActivityLog): Promise<void>;
   getProviderActivityLogs(providerId: number, actorType?: 'admin' | 'provider'): Promise<ProviderActivityLog[]>;
+
+  // Lead notes operations
+  addLeadNote(leadId: number, note: string, adminName: string): Promise<LeadNote>;
+  getLeadNotes(leadId: number): Promise<LeadNote[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -330,10 +337,14 @@ export class DatabaseStorage implements IStorage {
             providerName: `${assignment.providerFirstName || ''} ${assignment.providerLastName || ''}`.trim(),
           }));
 
+          // Get notes for this lead
+          const notes = await this.getLeadNotes(request.id);
+
           return {
             ...request,
             customerName: `${request.customerFirstName || ''} ${request.customerLastName || ''}`.trim(),
             leadAssignments: formattedAssignments,
+            notes: notes,
           };
         })
       );
@@ -1310,6 +1321,28 @@ export class DatabaseStorage implements IStorage {
       console.error('Error upserting category pricing:', error);
       throw error;
     }
+  }
+
+  // Lead notes operations
+  async addLeadNote(leadId: number, note: string, adminName: string): Promise<LeadNote> {
+    const [newNote] = await db
+      .insert(leadNotes)
+      .values({
+        leadId,
+        note,
+        adminName,
+      })
+      .returning();
+    return newNote;
+  }
+
+  async getLeadNotes(leadId: number): Promise<LeadNote[]> {
+    const notes = await db
+      .select()
+      .from(leadNotes)
+      .where(eq(leadNotes.leadId, leadId))
+      .orderBy(desc(leadNotes.createdAt));
+    return notes;
   }
 }
 

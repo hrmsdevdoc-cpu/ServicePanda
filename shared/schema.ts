@@ -448,6 +448,8 @@ export type InsertProviderPasswordResetToken = z.infer<typeof insertProviderPass
 export type ProviderPasswordResetToken = typeof providerPasswordResetTokens.$inferSelect;
 export type InsertProviderActivityLog = z.infer<typeof insertProviderActivityLogSchema>;
 export type ProviderActivityLog = typeof providerActivityLogs.$inferSelect;
+export type InsertLeadNote = z.infer<typeof insertLeadNoteSchema>;
+export type LeadNote = typeof leadNotes.$inferSelect;
 
 // Lead management settings table
 export const leadSettings = pgTable("lead_settings", {
@@ -471,6 +473,21 @@ export const categoryLeadPricing = pgTable("category_lead_pricing", {
   sharePrice: decimal("share_price", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Lead notes table
+export const leadNotes = pgTable("lead_notes", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").references(() => serviceRequests.id),
+  note: text("note").notNull(),
+  adminName: varchar("admin_name", { length: 255 }).default('admin'),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Insert schemas for lead notes
+export const insertLeadNoteSchema = createInsertSchema(leadNotes).omit({ 
+  id: true, 
+  createdAt: true 
 });
 
 export type LeadSettings = typeof leadSettings.$inferSelect;

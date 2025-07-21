@@ -1050,6 +1050,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add note to a lead
+  app.post('/api/admin/leads/:id/notes', isAdminAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      const { note } = req.body;
+      
+      if (!note || !note.trim()) {
+        return res.status(400).json({ message: 'Note content is required' });
+      }
+      
+      const newNote = await storage.addLeadNote(leadId, note.trim(), 'admin');
+      res.json(newNote);
+    } catch (error) {
+      console.error('Error adding lead note:', error);
+      res.status(500).json({ message: 'Failed to add lead note' });
+    }
+  });
+
   // Lead management settings routes
   app.get('/api/admin/lead-settings', isAdminAuthenticated, async (req, res) => {
     try {

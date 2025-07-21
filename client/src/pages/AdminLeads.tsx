@@ -1,36 +1,71 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Users, MapPin, Calendar, Filter, Search } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { TrendingUp, Users, MapPin, Calendar, Filter, Search, X, FileText, Clock, CheckCircle, AlertCircle, Phone, Mail, User } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AdminSidebar } from "@/components/AdminSidebar";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
+
+// Admin API request helper
+const adminApiRequest = async (method: string, url: string, data?: any) => {
+  const token = localStorage.getItem('adminToken');
+  
+  const response = await fetch(url, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-token': token || '',
+    },
+    body: data ? JSON.stringify(data) : undefined,
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+  }
+  
+  return response;
+};
 
 interface ServiceRequest {
   id: number;
   customerId: string;
   customerName: string;
   customerEmail: string;
+  customerPhone?: string;
   categoryName: string;
   serviceType: string;
   description: string;
   location: string;
   suburb: string;
   postcode: string;
+  state: string;
   preferredDate: string;
   bookingType: string;
   status: string;
   createdAt: string;
+  leadSource?: string;
   leadAssignments?: Array<{
     id: number;
     providerId: number;
     providerName: string;
     status: string;
     assignedAt: string;
+  }>;
+  notes?: Array<{
+    id: number;
+    note: string;
+    createdAt: string;
+    adminName?: string;
   }>;
 }
 
@@ -39,6 +74,10 @@ export default function AdminLeads() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [selectedLead, setSelectedLead] = useState<ServiceRequest | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [newNote, setNewNote] = useState("");
+  const { toast } = useToast();
 
   // Check admin authentication
   useEffect(() => {
@@ -51,11 +90,7 @@ export default function AdminLeads() {
   const { data: leads, isLoading } = useQuery({
     queryKey: ["/api/admin/leads"],
     queryFn: async () => {
-      const response = await fetch('/api/admin/leads', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
+      const response = await adminApiRequest('GET', '/api/admin/leads');
       return response.json();
     },
     select: (data: ServiceRequest[]) => {
@@ -73,6 +108,69 @@ export default function AdminLeads() {
       });
     },
   });
+
+  // Mutation to add notes to a lead
+  const addNoteMutation = useMutation({
+    mutationFn: async ({ leadId, note }: { leadId: number, note: string }) => {
+      const response = await adminApiRequest('POST', `/api/admin/leads/${leadId}/notes`, { note });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Note Added",
+        description: "Lead note has been added successfully.",
+      });
+      setNewNote("");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/leads"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleLeadClick = (lead: ServiceRequest) => {
+    setSelectedLead(lead);
+    setIsPanelOpen(true);
+  };
+
+  const handleAddNote = () => {
+    if (!selectedLead || !newNote.trim()) return;
+    
+    addNoteMutation.mutate({
+      leadId: selectedLead.id,
+      note: newNote.trim(),
+    });
+  };
+
+  const getLeadStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return <Badge variant="default" className="bg-green-100 text-green-800">Active</Badge>;
+      case 'completed':
+        return <Badge variant="default" className="bg-blue-100 text-blue-800">Completed</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const getLeadTypeBadge = (bookingType: string) => {
+    switch (bookingType?.toLowerCase()) {
+      case 'one-time':
+        return <Badge variant="outline" className="text-purple-600">One-time</Badge>;
+      case 'regular':
+        return <Badge variant="outline" className="text-blue-600">Regular</Badge>;
+      case 'emergency':
+        return <Badge variant="outline" className="text-red-600">Emergency</Badge>;
+      case 'quote-only':
+        return <Badge variant="outline" className="text-orange-600">Quote Only</Badge>;
+      default:
+        return <Badge variant="outline">{bookingType || 'Standard'}</Badge>;
+    }
+  };
 
   const { data: categories } = useQuery({
     queryKey: ["/api/service-categories"],
@@ -136,234 +234,290 @@ export default function AdminLeads() {
       <AdminSidebar onLogout={handleLogout} />
       
       {/* Main content area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden">
         {/* Header */}
         <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <TrendingUp className="h-8 w-8 text-blue-600 mr-3" />
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-                    Lead Management
-                  </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Manage service requests and track provider responses
-                  </p>
-                </div>
+          <div className="px-6 py-4">
+            <div className="flex items-center">
+              <TrendingUp className="h-8 w-8 text-blue-600 mr-3" />
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+                  Lead Management
+                </h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Manage service requests and track provider responses
+                </p>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="flex h-[calc(100vh-100px)]">
+          {/* List View */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {/* Filters */}
+            <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search leads..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories?.map((category: any) => (
+                      <SelectItem key={category.id} value={category.name}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
+            {/* Table Header */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-4">
+              <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-200 dark:border-gray-700 font-medium text-sm text-gray-600 dark:text-gray-400">
+                <div className="col-span-1">Lead ID</div>
+                <div className="col-span-1">State</div>
+                <div className="col-span-1">Suburb</div>
+                <div className="col-span-1">Source</div>
+                <div className="col-span-1">Lead Date</div>
+                <div className="col-span-1">Job Date</div>
+                <div className="col-span-2">Customer</div>
+                <div className="col-span-1">Type</div>
+                <div className="col-span-1">Offered</div>
+                <div className="col-span-1">Accepted</div>
+                <div className="col-span-1">Pending</div>
+                <div className="col-span-1">Status</div>
+              </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{leads?.length || 0}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {leads?.filter(lead => lead.status === "pending" || lead.status === "assigned").length || 0}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {leads?.filter(lead => lead.status === "completed").length || 0}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Providers/Lead</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {leads?.length ? 
-                Math.round((leads.reduce((sum, lead) => sum + (lead.leadAssignments?.length || 0), 0) / leads.length) * 10) / 10 
-                : 0}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              {/* Table Rows */}
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {leads?.map((lead) => {
+                  const metrics = getLeadMetrics(lead.leadAssignments);
+                  
+                  return (
+                    <div 
+                      key={lead.id} 
+                      className="grid grid-cols-12 gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                      onClick={() => handleLeadClick(lead)}
+                    >
+                      <div className="col-span-1 font-medium text-blue-600">#{lead.id}</div>
+                      <div className="col-span-1 text-sm">{lead.state || 'NSW'}</div>
+                      <div className="col-span-1 text-sm">{lead.suburb}</div>
+                      <div className="col-span-1 text-sm">{lead.leadSource || 'Website'}</div>
+                      <div className="col-span-1 text-sm">{format(new Date(lead.createdAt), "MMM d")}</div>
+                      <div className="col-span-1 text-sm">
+                        {lead.preferredDate ? format(new Date(lead.preferredDate), "MMM d") : '-'}
+                      </div>
+                      <div className="col-span-2 text-sm">
+                        <div className="font-medium">{lead.customerName}</div>
+                        <div className="text-gray-500 text-xs">{lead.customerEmail}</div>
+                        {lead.customerPhone && <div className="text-gray-500 text-xs">{lead.customerPhone}</div>}
+                      </div>
+                      <div className="col-span-1">{getLeadTypeBadge(lead.bookingType)}</div>
+                      <div className="col-span-1 text-center font-medium">{metrics.totalOffered}</div>
+                      <div className="col-span-1 text-center font-medium text-green-600">{metrics.totalAccepted}</div>
+                      <div className="col-span-1 text-center font-medium text-orange-600">{metrics.totalPending}</div>
+                      <div className="col-span-1">{getLeadStatusBadge(lead.status)}</div>
+                    </div>
+                  );
+                })}
+              </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search leads..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+              {leads?.length === 0 && (
+                <div className="p-12 text-center">
+                  <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No leads found</h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {searchTerm || statusFilter !== "all" || categoryFilter !== "all" 
+                      ? "Try adjusting your filters to see more results." 
+                      : "No service requests have been submitted yet."}
+                  </p>
+                </div>
+              )}
             </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="assigned">Assigned</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories?.map((category: any) => (
-                  <SelectItem key={category.id} value={category.name}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Leads List */}
-      <div className="space-y-4">
-        {leads?.map((lead) => {
-          const metrics = getLeadMetrics(lead.leadAssignments);
-          
-          return (
-            <Card key={lead.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold">{lead.categoryName}</h3>
-                      {getStatusBadge(lead.status)}
-                      {getBookingTypeBadge(lead.bookingType)}
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        {lead.customerName} ({lead.customerEmail})
+          {/* Right Side Panel */}
+          <Sheet open={isPanelOpen} onOpenChange={setIsPanelOpen}>
+            <SheetContent side="right" className="w-full sm:w-[400px] md:w-[500px] p-0">
+              {selectedLead && (
+                <div className="h-full flex flex-col">
+                  {/* Panel Header */}
+                  <SheetHeader className="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <SheetTitle className="text-xl">Lead #{selectedLead.id}</SheetTitle>
+                        <p className="text-sm text-gray-500 mt-1">{selectedLead.categoryName}</p>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        {lead.suburb}, {lead.postcode}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {format(new Date(lead.createdAt), "MMM d, yyyy")}
-                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => setIsPanelOpen(false)}>
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
-                  </div>
-                  <div className="text-right space-y-1">
-                    <div className="text-2xl font-bold text-blue-600">#{lead.id}</div>
-                    <div className="text-sm text-gray-500">
-                      {lead.preferredDate && format(new Date(lead.preferredDate), "MMM d, yyyy")}
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">Description</h4>
-                  <p className="text-gray-600 dark:text-gray-400">{lead.description}</p>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                    <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">Providers Offered</div>
-                    <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{metrics.totalOffered}</div>
-                  </div>
-                  
-                  <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-                    <div className="text-sm text-green-600 dark:text-green-400 font-medium">Providers Accepted</div>
-                    <div className="text-2xl font-bold text-green-700 dark:text-green-300">{metrics.totalAccepted}</div>
-                  </div>
-                  
-                  <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg">
-                    <div className="text-sm text-orange-600 dark:text-orange-400 font-medium">Pending Responses</div>
-                    <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">{metrics.totalPending}</div>
-                  </div>
-                </div>
-                
-                {lead.leadAssignments && lead.leadAssignments.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-2">Provider Responses</h4>
-                    <div className="space-y-2">
-                      {lead.leadAssignments.map((assignment) => (
-                        <div key={assignment.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                          <span className="font-medium">{assignment.providerName}</span>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={assignment.status === "accepted" ? "default" : "secondary"}>
-                              {assignment.status}
-                            </Badge>
-                            <span className="text-sm text-gray-500">
-                              {format(new Date(assignment.assignedAt), "MMM d, yyyy")}
-                            </span>
+                  </SheetHeader>
+
+                  {/* Panel Content */}
+                  <div className="flex-1 flex flex-col">
+                    {/* Top 65% - Details */}
+                    <div className="flex-1 p-6 overflow-y-auto">
+                      {/* Action Buttons */}
+                      <div className="grid grid-cols-2 gap-3 mb-6">
+                        <Button variant="outline" size="sm" className="justify-start">
+                          <User className="h-4 w-4 mr-2" />
+                          Customer Info
+                        </Button>
+                        <Button variant="outline" size="sm" className="justify-start">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          Location
+                        </Button>
+                        <Button variant="outline" size="sm" className="justify-start">
+                          <Phone className="h-4 w-4 mr-2" />
+                          Call Customer
+                        </Button>
+                        <Button variant="outline" size="sm" className="justify-start">
+                          <Mail className="h-4 w-4 mr-2" />
+                          Email Customer
+                        </Button>
+                      </div>
+
+                      {/* Lead Details */}
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">Customer Details</Label>
+                          <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div className="font-medium">{selectedLead.customerName}</div>
+                            <div className="text-sm text-gray-600">{selectedLead.customerEmail}</div>
+                            {selectedLead.customerPhone && (
+                              <div className="text-sm text-gray-600">{selectedLead.customerPhone}</div>
+                            )}
                           </div>
                         </div>
-                      ))}
+
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">Location</Label>
+                          <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div>{selectedLead.location}</div>
+                            <div className="text-sm text-gray-600">{selectedLead.suburb}, {selectedLead.postcode}</div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">Service Description</Label>
+                          <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <p className="text-sm">{selectedLead.description}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium text-gray-600">Lead Date</Label>
+                            <div className="mt-1 text-sm">{format(new Date(selectedLead.createdAt), "MMM d, yyyy")}</div>
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-gray-600">Preferred Date</Label>
+                            <div className="mt-1 text-sm">
+                              {selectedLead.preferredDate ? format(new Date(selectedLead.preferredDate), "MMM d, yyyy") : 'Not specified'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Provider Responses */}
+                        {selectedLead.leadAssignments && selectedLead.leadAssignments.length > 0 && (
+                          <div>
+                            <Label className="text-sm font-medium text-gray-600">Provider Responses</Label>
+                            <div className="mt-2 space-y-2">
+                              {selectedLead.leadAssignments.map((assignment) => (
+                                <div key={assignment.id} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium">{assignment.providerName}</span>
+                                    <Badge variant={assignment.status === "accepted" ? "default" : "secondary"}>
+                                      {assignment.status}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {format(new Date(assignment.assignedAt), "MMM d, yyyy 'at' h:mm a")}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom 35% - Notes Section */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 p-6 space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Add Note</Label>
+                        <div className="mt-2 flex gap-2">
+                          <Textarea
+                            placeholder="Add a note about this lead..."
+                            value={newNote}
+                            onChange={(e) => setNewNote(e.target.value)}
+                            className="flex-1 min-h-[60px]"
+                          />
+                          <Button 
+                            onClick={handleAddNote}
+                            disabled={!newNote.trim() || addNoteMutation.isPending}
+                            size="sm"
+                          >
+                            {addNoteMutation.isPending ? "Adding..." : "Add"}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Existing Notes */}
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Activity & Notes</Label>
+                        <div className="mt-2 max-h-40 overflow-y-auto space-y-2">
+                          {selectedLead.notes && selectedLead.notes.length > 0 ? (
+                            selectedLead.notes.map((note) => (
+                              <div key={note.id} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div className="text-sm">{note.note}</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {format(new Date(note.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                                  {note.adminName && ` by ${note.adminName}`}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-sm text-gray-500 text-center py-4">
+                              No notes or activity yet
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-        
-        {leads?.length === 0 && (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No leads found</h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                {searchTerm || statusFilter !== "all" || categoryFilter !== "all" 
-                  ? "Try adjusting your filters to see more results." 
-                  : "No service requests have been submitted yet."}
-              </p>
-            </CardContent>
-          </Card>
-        )}
+                </div>
+              )}
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
-      </div>
-    </div>
     </div>
   );
 }
