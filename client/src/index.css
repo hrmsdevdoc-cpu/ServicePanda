@@ -95,6 +95,21 @@
   .pac-item-selected {
     background-color: hsl(var(--accent)) !important;
   }
+
+  /* Force Google Maps input to match our Input styling exactly */
+  input[data-testid], input.pac-target-input {
+    outline: none !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 6px !important;
+    background-color: hsl(var(--background)) !important;
+  }
+  
+  input[data-testid]:focus, input.pac-target-input:focus {
+    outline: 2px solid transparent !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px hsl(var(--ring)) !important;
+    border-color: hsl(var(--ring)) !important;
+  }
 }
 
 /* ServicePanda specific styles */
