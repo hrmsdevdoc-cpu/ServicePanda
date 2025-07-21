@@ -692,7 +692,7 @@ export default function AdminPendingProviders() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => window.open(`/api/provider/documents/view/${doc.fileName}/${selectedProvider.id}`, '_blank')}
+                              onClick={() => window.open(`/api/admin/documents/view/${doc.fileName}/${selectedProvider.id}`, '_blank')}
                             >
                               <Eye className="h-4 w-4 mr-1" />
                               View

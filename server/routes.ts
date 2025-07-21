@@ -718,6 +718,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin document viewing endpoint
+  app.get('/api/admin/documents/view/:filename/:providerId', isAdminAuthenticated, async (req, res) => {
+    try {
+      const filename = req.params.filename;
+      const providerId = parseInt(req.params.providerId);
+      
+      console.log(`Admin document view request: ${filename} for provider ${providerId}`);
+      
+      // Verify provider exists
+      const provider = await storage.getServiceProviderById(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+      
+      // Get document from database to verify it exists
+      const documents = await storage.getProviderDocuments(providerId);
+      const document = documents.find((doc: any) => doc.filePath.includes(filename));
+      
+      if (!document) {
+        console.log(`Document not found: ${filename} for provider ${providerId}`);
+        console.log('Available documents:', documents.map((doc: any) => ({ fileName: doc.fileName, filePath: doc.filePath })));
+        return res.status(404).json({ message: "Document not found or access denied" });
+      }
+      
+      console.log(`Admin serving document: ${document.fileName}, MIME: ${document.mimeType}`);
+      
+      // Set proper headers for inline viewing
+      const mimeType = document.mimeType || 'application/pdf';
+      
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      // Serve the file
+      res.sendFile(path.resolve(document.filePath));
+      
+    } catch (error) {
+      console.error("Error serving admin document:", error);
+      res.status(500).json({ message: "Failed to serve document" });
+    }
+  });
+
   app.get('/api/admin/service-requests', isAdminAuthenticated, async (req, res) => {
     try {
       const serviceRequests = await storage.getAllServiceRequestsForAdmin();
