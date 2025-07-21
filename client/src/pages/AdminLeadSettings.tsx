@@ -142,8 +142,66 @@ export default function AdminLeadSettings() {
     }
   };
 
+  const handleCategoryPricingToggle = (categoryId: number, categoryName: string, hasCustomPrice: boolean) => {
+    setHasChanges(true);
+    
+    // Get current category pricing or create new array
+    const currentCategoryPricing = settings?.categoryPricing || [];
+    
+    let updatedCategoryPricing;
+    if (hasCustomPrice) {
+      // Enable custom pricing - add or update category
+      const existingIndex = currentCategoryPricing.findIndex((cat: any) => cat.categoryId === categoryId);
+      if (existingIndex >= 0) {
+        // Update existing
+        updatedCategoryPricing = currentCategoryPricing.map((cat: any) =>
+          cat.categoryId === categoryId ? { ...cat, hasCustomPrice: true } : cat
+        );
+      } else {
+        // Add new with default values from uniform pricing
+        updatedCategoryPricing = [...currentCategoryPricing, {
+          categoryId,
+          categoryName,
+          uniquePrice: localSettings.uniformUniquePrice,
+          sharePrice: localSettings.uniformSharePrice,
+          hasCustomPrice: true
+        }];
+      }
+    } else {
+      // Disable custom pricing - mark as not custom
+      updatedCategoryPricing = currentCategoryPricing.map((cat: any) =>
+        cat.categoryId === categoryId ? { ...cat, hasCustomPrice: false } : cat
+      );
+    }
+    
+    // Update both local and server state
+    const newSettings = { ...settings, categoryPricing: updatedCategoryPricing };
+    queryClient.setQueryData(['/api/admin/lead-settings'], newSettings);
+  };
+
+  const handleCategoryPriceChange = (categoryId: number, priceType: 'uniquePrice' | 'sharePrice', value: number) => {
+    setHasChanges(true);
+    
+    // Get current category pricing
+    const currentCategoryPricing = settings?.categoryPricing || [];
+    
+    // Update the specific category price
+    const updatedCategoryPricing = currentCategoryPricing.map((cat: any) =>
+      cat.categoryId === categoryId ? { ...cat, [priceType]: value } : cat
+    );
+    
+    // Update server state
+    const newSettings = { ...settings, categoryPricing: updatedCategoryPricing };
+    queryClient.setQueryData(['/api/admin/lead-settings'], newSettings);
+  };
+
   const handleSave = () => {
-    saveMutation.mutate(localSettings);
+    // Combine local settings with updated category pricing from server state
+    const settingsToSave = {
+      ...localSettings,
+      categoryPricing: settings?.categoryPricing || []
+    };
+    saveMutation.mutate(settingsToSave);
   };
 
   if (settingsLoading) {
@@ -216,7 +274,10 @@ export default function AdminLeadSettings() {
 
             {/* Uniform Pricing Section */}
             <div className="space-y-4">
-              <h4 className="font-medium text-gray-900 dark:text-white">Uniform Pricing (All Categories)</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-gray-900 dark:text-white">Uniform Pricing (All Categories)</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Default pricing for all categories without custom pricing</p>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="uniquePrice">Unique Lead Price</Label>
@@ -250,6 +311,90 @@ export default function AdminLeadSettings() {
                     Price when shared with up to 3 providers
                   </p>
                 </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Category-Specific Pricing Overrides */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-gray-900 dark:text-white">Category Pricing Overrides</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Set custom pricing for specific categories</p>
+              </div>
+              
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {categories.map((category: any) => {
+                  const categorySettings = settings?.categoryPricing?.find((cat: any) => cat.categoryId === category.id) || {
+                    categoryId: category.id,
+                    categoryName: category.name,
+                    uniquePrice: localSettings.uniformUniquePrice,
+                    sharePrice: localSettings.uniformSharePrice,
+                    hasCustomPrice: false
+                  };
+                  
+                  return (
+                    <div key={category.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                              {category.name.charAt(0)}
+                            </span>
+                          </div>
+                          <div>
+                            <h5 className="font-medium text-gray-900 dark:text-white">{category.name}</h5>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {categorySettings.hasCustomPrice ? 
+                                `Custom: $${categorySettings.uniquePrice}/$${categorySettings.sharePrice}` : 
+                                `Using uniform: $${localSettings.uniformUniquePrice}/$${localSettings.uniformSharePrice}`
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor={`custom-${category.id}`} className="text-sm">Custom Pricing</Label>
+                          <Switch
+                            id={`custom-${category.id}`}
+                            checked={categorySettings.hasCustomPrice}
+                            onCheckedChange={(checked) => handleCategoryPricingToggle(category.id, category.name, checked)}
+                          />
+                        </div>
+                      </div>
+                      
+                      {categorySettings.hasCustomPrice && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                          <div className="space-y-2">
+                            <Label htmlFor={`unique-${category.id}`}>Unique Lead Price</Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-3 text-gray-500">$</span>
+                              <Input
+                                id={`unique-${category.id}`}
+                                type="number"
+                                value={categorySettings.uniquePrice}
+                                className="pl-8"
+                                onChange={(e) => handleCategoryPriceChange(category.id, 'uniquePrice', parseFloat(e.target.value) || 0)}
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`share-${category.id}`}>3-Share Lead Price</Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-3 text-gray-500">$</span>
+                              <Input
+                                id={`share-${category.id}`}
+                                type="number"
+                                value={categorySettings.sharePrice}
+                                className="pl-8"
+                                onChange={(e) => handleCategoryPriceChange(category.id, 'sharePrice', parseFloat(e.target.value) || 0)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </CardContent>
@@ -355,78 +500,9 @@ export default function AdminLeadSettings() {
           </CardContent>
         </Card>
 
-        {/* Category-Specific Pricing (conditionally shown) */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-blue-600" />
-              <CardTitle>Category-Specific Pricing</CardTitle>
-            </div>
-            <CardDescription>
-              Set different prices for each service category
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {categories.map((category: any) => (
-                <div key={category.id} className="p-4 border rounded-lg space-y-3">
-                  <h4 className="font-medium">{category.name}</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Unique Lead Price</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-3 text-gray-500">$</span>
-                        <Input
-                          type="number"
-                          placeholder="25.00"
-                          className="pl-8"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>3-Share Lead Price</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-3 text-gray-500">$</span>
-                        <Input
-                          type="number"
-                          placeholder="12.00"
-                          className="pl-8"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Lead Distribution Algorithm */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-blue-600" />
-              <CardTitle>Lead Distribution Algorithm</CardTitle>
-            </div>
-            <CardDescription>
-              How the system distributes leads to providers
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg space-y-3">
-              <h4 className="font-medium text-blue-900 dark:text-blue-100">Distribution Process</h4>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800 dark:text-blue-200">
-                <li>New lead comes in and matches providers in the service area</li>
-                <li>Providers are ranked by rating (highest first)</li>
-                <li>Top-rated providers receive unique lead offer notification</li>
-                <li>2-minute window for providers to accept unique lead</li>
-                <li>If not accepted, lead becomes 3-share at reduced price</li>
-                <li>Up to 3 providers can purchase the 3-share lead</li>
-                <li>Lead is considered served when unique OR 3 providers accept</li>
-              </ol>
-            </div>
-          </CardContent>
-        </Card>
+
+
       </div>
     </div>
   );

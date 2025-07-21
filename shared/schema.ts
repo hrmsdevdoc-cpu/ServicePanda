@@ -458,6 +458,7 @@ export const leadSettings = pgTable("lead_settings", {
   uniqueOfferWindow: integer("unique_offer_window").default(2), // minutes
   maxProvidersPerArea: integer("max_providers_per_area").default(10),
   minProviderRating: decimal("min_provider_rating", { precision: 3, scale: 1 }).default('3.0'),
+  providerRestrictionsActive: boolean("provider_restrictions_active").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

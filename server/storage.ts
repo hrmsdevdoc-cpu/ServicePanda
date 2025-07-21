@@ -52,6 +52,12 @@ import {
   providerActivityLogs,
   type ProviderActivityLog,
   type InsertProviderActivityLog,
+  leadSettings,
+  categoryLeadPricing,
+  type LeadSettings,
+  type InsertLeadSettings,
+  type CategoryLeadPricing,
+  type InsertCategoryLeadPricing,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, isNotNull, sql } from "drizzle-orm";
@@ -1152,34 +1158,158 @@ export class DatabaseStorage implements IStorage {
 
   // Lead management settings methods
   async getLeadSettings(): Promise<any> {
-    // Return default settings for now until database is updated
-    return {
-      id: 1,
-      pricingModel: 'uniform',
-      uniformUniquePrice: 25.00,
-      uniformSharePrice: 12.00,
-      uniqueOfferWindow: 2,
-      maxProvidersPerArea: 10,
-      minProviderRating: 3.0,
-      providerRestrictionsActive: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    try {
+      const [settings] = await db.select().from(leadSettings).limit(1);
+      if (settings) {
+        // Convert decimal strings to numbers
+        return {
+          ...settings,
+          uniformUniquePrice: parseFloat(settings.uniformUniquePrice || '25.00'),
+          uniformSharePrice: parseFloat(settings.uniformSharePrice || '12.00'),
+          minProviderRating: parseFloat(settings.minProviderRating || '3.0'),
+        };
+      }
+      
+      // Return default settings if none exist
+      return {
+        id: 1,
+        pricingModel: 'uniform',
+        uniformUniquePrice: 25.00,
+        uniformSharePrice: 12.00,
+        uniqueOfferWindow: 2,
+        maxProvidersPerArea: 10,
+        minProviderRating: 3.0,
+        providerRestrictionsActive: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      console.error('Error fetching lead settings:', error);
+      // Return default settings on error
+      return {
+        id: 1,
+        pricingModel: 'uniform',
+        uniformUniquePrice: 25.00,
+        uniformSharePrice: 12.00,
+        uniqueOfferWindow: 2,
+        maxProvidersPerArea: 10,
+        minProviderRating: 3.0,
+        providerRestrictionsActive: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
   }
 
   async upsertLeadSettings(settings: any): Promise<any> {
-    // For now, just return the updated settings
-    // This will be implemented once database is updated
-    return {
-      ...settings,
-      id: 1,
-      updatedAt: new Date(),
-    };
+    try {
+      const settingsData = {
+        pricingModel: settings.pricingModel || 'uniform',
+        uniformUniquePrice: settings.uniformUniquePrice?.toString() || '25.00',
+        uniformSharePrice: settings.uniformSharePrice?.toString() || '12.00',
+        uniqueOfferWindow: settings.uniqueOfferWindow || 2,
+        maxProvidersPerArea: settings.maxProvidersPerArea || 10,
+        minProviderRating: settings.minProviderRating?.toString() || '3.0',
+        providerRestrictionsActive: settings.providerRestrictionsActive || false,
+        updatedAt: new Date(),
+      };
+
+      // Check if settings exist
+      const [existingSettings] = await db.select().from(leadSettings).limit(1);
+      
+      let result;
+      if (existingSettings) {
+        // Update existing settings
+        [result] = await db
+          .update(leadSettings)
+          .set(settingsData)
+          .where(eq(leadSettings.id, existingSettings.id))
+          .returning();
+      } else {
+        // Insert new settings
+        [result] = await db
+          .insert(leadSettings)
+          .values(settingsData)
+          .returning();
+      }
+
+      // Handle category pricing if provided
+      if (settings.categoryPricing && Array.isArray(settings.categoryPricing)) {
+        await this.upsertCategoryPricing(settings.categoryPricing);
+      }
+
+      return {
+        ...result,
+        uniformUniquePrice: parseFloat(result.uniformUniquePrice || '25.00'),
+        uniformSharePrice: parseFloat(result.uniformSharePrice || '12.00'),
+        minProviderRating: parseFloat(result.minProviderRating || '3.0'),
+      };
+    } catch (error) {
+      console.error('Error upserting lead settings:', error);
+      throw error;
+    }
   }
 
   async getCategoryLeadPricing(): Promise<any[]> {
-    // Return empty array for now
-    return [];
+    try {
+      const categoryPricing = await db
+        .select({
+          id: categoryLeadPricing.id,
+          categoryId: categoryLeadPricing.categoryId,
+          categoryName: serviceCategories.name,
+          uniquePrice: categoryLeadPricing.uniquePrice,
+          sharePrice: categoryLeadPricing.sharePrice,
+          hasCustomPrice: sql<boolean>`true`.as('hasCustomPrice'),
+          createdAt: categoryLeadPricing.createdAt,
+          updatedAt: categoryLeadPricing.updatedAt,
+        })
+        .from(categoryLeadPricing)
+        .leftJoin(serviceCategories, eq(categoryLeadPricing.categoryId, serviceCategories.id))
+        .orderBy(serviceCategories.name);
+
+      return categoryPricing.map(item => ({
+        ...item,
+        uniquePrice: parseFloat(item.uniquePrice || '25.00'),
+        sharePrice: parseFloat(item.sharePrice || '12.00'),
+      }));
+    } catch (error) {
+      console.error('Error fetching category lead pricing:', error);
+      return [];
+    }
+  }
+
+  async upsertCategoryPricing(categoryPricingData: any[]): Promise<void> {
+    try {
+      for (const category of categoryPricingData) {
+        if (category.hasCustomPrice) {
+          // Upsert category with custom pricing
+          await db
+            .insert(categoryLeadPricing)
+            .values({
+              categoryId: category.categoryId,
+              uniquePrice: category.uniquePrice?.toString() || '25.00',
+              sharePrice: category.sharePrice?.toString() || '12.00',
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: categoryLeadPricing.categoryId,
+              set: {
+                uniquePrice: category.uniquePrice?.toString() || '25.00',
+                sharePrice: category.sharePrice?.toString() || '12.00',
+                updatedAt: new Date(),
+              },
+            });
+        } else {
+          // Remove custom pricing if disabled
+          await db
+            .delete(categoryLeadPricing)
+            .where(eq(categoryLeadPricing.categoryId, category.categoryId));
+        }
+      }
+    } catch (error) {
+      console.error('Error upserting category pricing:', error);
+      throw error;
+    }
   }
 }
 
