@@ -718,71 +718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin document viewing endpoint with token support
-  app.get('/api/admin/documents/view/:filename/:providerId', async (req, res) => {
-    // Check for admin authentication - either header or query param
-    const adminToken = req.headers['x-admin-token'] || req.query.token;
-    
-    if (!adminToken) {
-      console.log('Admin document access - no token provided');
-      return res.status(401).json({ message: "Admin authentication required" });
-    }
-    
-    // Verify admin token using the same secret as adminAuth
-    try {
-      const jwt = await import('jsonwebtoken');
-      const JWT_SECRET = process.env.JWT_SECRET || "admin-jwt-secret-key";
-      const decoded = jwt.verify(adminToken as string, JWT_SECRET);
-      if (!decoded || (decoded as any).role !== 'admin') {
-        console.log('Admin document access - invalid token');
-        return res.status(401).json({ message: "Admin authentication required" });
-      }
-      console.log('Admin document access - token verified');
-    } catch (error) {
-      console.log('Admin document access - token verification failed:', error);
-      return res.status(401).json({ message: "Admin authentication required" });
-    }
-    try {
-      const filename = req.params.filename;
-      const providerId = parseInt(req.params.providerId);
-      
-      console.log(`Admin document view request: ${filename} for provider ${providerId}`);
-      
-      // Verify provider exists
-      const provider = await storage.getServiceProviderById(providerId);
-      if (!provider) {
-        return res.status(404).json({ message: "Provider not found" });
-      }
-      
-      // Get document from database to verify it exists
-      const documents = await storage.getProviderDocuments(providerId);
-      const document = documents.find((doc: any) => doc.filePath.includes(filename));
-      
-      if (!document) {
-        console.log(`Document not found: ${filename} for provider ${providerId}`);
-        console.log('Available documents:', documents.map((doc: any) => ({ fileName: doc.fileName, filePath: doc.filePath })));
-        return res.status(404).json({ message: "Document not found or access denied" });
-      }
-      
-      console.log(`Admin serving document: ${document.fileName}, MIME: ${document.mimeType}`);
-      
-      // Set proper headers for inline viewing
-      const mimeType = document.mimeType || 'application/pdf';
-      
-      res.setHeader('Content-Type', mimeType);
-      res.setHeader('Content-Disposition', 'inline');
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      
-      // Serve the file
-      res.sendFile(path.resolve(document.filePath));
-      
-    } catch (error) {
-      console.error("Error serving admin document:", error);
-      res.status(500).json({ message: "Failed to serve document" });
-    }
-  });
+
 
   app.get('/api/admin/service-requests', isAdminAuthenticated, async (req, res) => {
     try {

@@ -142,6 +142,7 @@ export default function AdminPendingProviders() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
   const [newServiceArea, setNewServiceArea] = useState({ address: "", radius: 25 });
+  const [viewingDocument, setViewingDocument] = useState<any>(null);
 
   // Check admin authentication
   useEffect(() => {
@@ -664,49 +665,81 @@ export default function AdminPendingProviders() {
               {/* Documents Tab */}
               <TabsContent value="documents" className="space-y-6">
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Uploaded Documents</h3>
-                  {loadingDetails ? (
-                    <div className="text-center py-4">
-                      <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
-                      <p className="mt-2 text-gray-500">Loading documents...</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-4">
-                      {providerDetails?.documents?.map((doc: any) => (
-                        <div key={doc.id} className="flex items-center justify-between p-4 bg-gray-50 border rounded">
-                          <div>
-                            <p className="font-medium capitalize">{doc.documentType.replace('_', ' ')}</p>
-                            <p className="text-sm text-gray-500">{doc.fileName}</p>
-                            <p className="text-sm text-gray-400">
-                              Uploaded: {new Date(doc.uploadedAt).toLocaleDateString('en-AU')}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant={doc.status === 'approved' ? 'default' : 
-                                      doc.status === 'rejected' ? 'destructive' : 'outline'}
-                              className="capitalize"
-                            >
-                              {doc.status}
-                            </Badge>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                const adminToken = localStorage.getItem('adminToken');
-                                const url = `/api/admin/documents/view/${doc.fileName}/${selectedProvider.id}?token=${adminToken}`;
-                                window.open(url, '_blank');
-                              }}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
-                          </div>
+                  {!viewingDocument ? (
+                    <>
+                      <h3 className="text-lg font-semibold">Uploaded Documents</h3>
+                      {loadingDetails ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+                          <p className="mt-2 text-gray-500">Loading documents...</p>
                         </div>
-                      )) || (
-                        <p className="text-center py-8 text-gray-500">No documents uploaded</p>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-4">
+                          {providerDetails?.documents?.map((doc: any) => (
+                            <div key={doc.id} className="flex items-center justify-between p-4 bg-gray-50 border rounded">
+                              <div>
+                                <p className="font-medium capitalize">{doc.documentType.replace('_', ' ')}</p>
+                                <p className="text-sm text-gray-500">{doc.fileName}</p>
+                                <p className="text-sm text-gray-400">
+                                  Uploaded: {new Date(doc.uploadedAt).toLocaleDateString('en-AU')}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  variant={doc.status === 'approved' ? 'default' : 
+                                          doc.status === 'rejected' ? 'destructive' : 'outline'}
+                                  className="capitalize"
+                                >
+                                  {doc.status}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setViewingDocument(doc)}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View
+                                </Button>
+                              </div>
+                            </div>
+                          )) || (
+                            <p className="text-center py-8 text-gray-500">No documents uploaded</p>
+                          )}
+                        </div>
                       )}
-                    </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold capitalize">{viewingDocument.documentType.replace('_', ' ')}</h3>
+                          <p className="text-sm text-gray-500">{viewingDocument.fileName}</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => setViewingDocument(null)}
+                        >
+                          ← Back to Documents
+                        </Button>
+                      </div>
+                      <div className="border rounded-lg overflow-hidden bg-white" style={{ height: '500px' }}>
+                        {viewingDocument.fileName.toLowerCase().endsWith('.pdf') ? (
+                          <iframe
+                            src={`/api/provider/documents/view/${viewingDocument.fileName}/${selectedProvider.id}`}
+                            className="w-full h-full border-0"
+                            title={viewingDocument.fileName}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center p-4">
+                            <img
+                              src={`/api/provider/documents/view/${viewingDocument.fileName}/${selectedProvider.id}`}
+                              alt={viewingDocument.fileName}
+                              className="max-w-full max-h-full object-contain"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               </TabsContent>
