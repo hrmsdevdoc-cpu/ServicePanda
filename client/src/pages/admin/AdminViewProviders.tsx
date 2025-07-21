@@ -717,13 +717,30 @@ export default function AdminViewProviders() {
                     <h3 className="text-lg font-semibold">Official Use</h3>
                     <div className="grid grid-cols-1 gap-4">
                       <div>
-                        <Label className="text-sm font-medium">Insurance Expiry Date</Label>
-                        <p className="mt-1 p-2 bg-gray-50 rounded border">
-                          {providerDetails?.insuranceExpiryDate ? 
-                            new Date(providerDetails.insuranceExpiryDate).toLocaleDateString('en-AU') : 
-                            'Not set'
-                          }
-                        </p>
+                        <Label htmlFor="insuranceExpiry" className="text-sm font-medium">
+                          Insurance Expiry Date
+                        </Label>
+                        <Input
+                          id="insuranceExpiry"
+                          type="date"
+                          defaultValue={providerDetails?.insuranceExpiryDate ? 
+                            new Date(providerDetails.insuranceExpiryDate).toISOString().split('T')[0] : ''}
+                          className="mt-1"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            const insuranceExpiryElement = document.getElementById('insuranceExpiry') as HTMLInputElement;
+                            saveNotesMutation.mutate({
+                              notes: providerDetails?.adminNotes || '',
+                              insuranceExpiryDate: insuranceExpiryElement?.value || undefined,
+                            });
+                          }}
+                          disabled={saveNotesMutation.isPending}
+                          className="mt-2 bg-blue-600 hover:bg-blue-700"
+                        >
+                          {saveNotesMutation.isPending ? 'Saving...' : 'Save Insurance Date'}
+                        </Button>
                       </div>
                       
                       <div>
