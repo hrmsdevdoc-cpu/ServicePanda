@@ -101,6 +101,11 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 - **Production Ready**: Complete activity tracking system operational with proper error handling, authentication, and comprehensive logging infrastructure
 
 ### Complete Admin Provider Review System Implementation Completed (January 21, 2025) ✅
+
+### Known Issues to Fix Later (January 21, 2025)
+- **Pending Applications Insurance Date Save Bug**: Insurance expiry date entered and saved in Pending Applications Personal Details tab is not being saved to database - field remains NULL despite UI showing save success. Needs investigation of saveNotesMutation functionality in AdminPendingProviders.tsx
+
+### Complete Admin Provider Review System Implementation Completed (January 21, 2025) ✅
 - **Professional Toggle Switch Interface**: Replaced static badges with interactive toggle switch components using shadcn/ui Switch for intuitive document approval workflow
 - **Visual Status Indicators**: Implemented color-coded status labels - "Approved" (green) and "Pending" (orange) with corresponding toggle switch states
 - **Seamless Toggle Functionality**: Admins can flip toggle switches to instantly change document status between pending and approved with proper API integration
