@@ -406,33 +406,9 @@ export default function AdminPendingProviders() {
     },
   });
 
-  // Add Service Area Mutation with robust validation and debouncing
+  // Simple Add Service Area Mutation - no blocking validation
   const addServiceAreaMutation = useMutation({
     mutationFn: async ({ providerId, address, radius }: { providerId: number; address: string; radius: number }) => {
-      const now = Date.now();
-      
-      // Debounce rapid calls (prevent calls within 2 seconds)
-      if (now - lastMutationTime < 2000) {
-        console.log('MUTATION BLOCKED: Too rapid, likely autocomplete interference');
-        throw new Error('Please wait before adding another service area');
-      }
-      
-      // Validate address completeness (must be reasonable length and contain space)
-      if (!address || address.length < 10 || !address.includes(' ')) {
-        console.log('MUTATION BLOCKED: Address appears incomplete:', address);
-        throw new Error('Please enter a complete address');
-      }
-      
-      // Only allow if user explicitly initiated
-      if (!isUserInitiated) {
-        console.log('MUTATION BLOCKED: Not user initiated');
-        throw new Error('Please click the Add button to save');
-      }
-      
-      console.log('MUTATION EXECUTING: User-initiated service area addition:', address);
-      setLastMutationTime(now);
-      setIsUserInitiated(false); // Reset flag after use
-      
       const response = await adminApiRequest('POST', `/api/admin/providers/${providerId}/service-areas`, {
         centerAddress: address,
         radiusKm: radius,
@@ -511,9 +487,8 @@ export default function AdminPendingProviders() {
     },
   });
 
-  // State for debouncing and validation
-  const [lastMutationTime, setLastMutationTime] = useState(0);
-  const [isUserInitiated, setIsUserInitiated] = useState(false);
+  // State for autocomplete management
+  const [autocompleteInstance, setAutocompleteInstance] = useState<any>(null);
 
   // Modern Google Maps PlaceAutocompleteElement
   useEffect(() => {
@@ -528,58 +503,27 @@ export default function AdminPendingProviders() {
       }
 
       try {
-        // Use the new PlaceAutocompleteElement if available, fallback to old Autocomplete
-        if (window.google.maps.places.PlaceAutocompleteElement) {
-          console.log('Using new PlaceAutocompleteElement');
-          
-          const autocompleteElement = new window.google.maps.places.PlaceAutocompleteElement({
+        // Use clean legacy Autocomplete - no CSS interference  
+        const autocomplete = new window.google.maps.places.Autocomplete(
+          addressInputRef.current,
+          {
+            types: ['geocode'],
             componentRestrictions: { country: 'au' },
-            requestedLanguage: 'en',
-          });
-          
-          // Replace the input with the autocomplete element
-          const parent = addressInputRef.current.parentNode;
-          parent.insertBefore(autocompleteElement, addressInputRef.current);
-          addressInputRef.current.style.display = 'none';
-          
-          autocompleteElement.addEventListener('gmp-placeselect', (event) => {
-            const place = event.place;
-            console.log('Place selected (new API):', place);
-            
-            if (place.formattedAddress) {
-              setNewServiceArea(prev => ({
-                ...prev,
-                address: place.formattedAddress
-              }));
-              // Also update the hidden input for form submission
-              addressInputRef.current.value = place.formattedAddress;
-            }
-          });
-          
-        } else {
-          console.log('Using legacy Autocomplete');
-          
-          const autocomplete = new window.google.maps.places.Autocomplete(
-            addressInputRef.current,
-            {
-              types: ['geocode'],
-              componentRestrictions: { country: 'au' },
-              fields: ['formatted_address', 'geometry', 'name', 'place_id']
-            }
-          );
+            fields: ['formatted_address', 'geometry', 'name', 'place_id']
+          }
+        );
 
-          autocomplete.addListener('place_changed', () => {
-            const place = autocomplete.getPlace();
-            console.log('Place selected (legacy API):', place);
-            
-            if (place.formatted_address) {
-              setNewServiceArea(prev => ({
-                ...prev,
-                address: place.formatted_address
-              }));
-            }
-          });
-        }
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          if (place.formatted_address) {
+            setNewServiceArea(prev => ({
+              ...prev,
+              address: place.formatted_address
+            }));
+          }
+        });
+
+        setAutocompleteInstance(autocomplete);
 
         console.log('Google Maps autocomplete initialized successfully');
       } catch (error) {
