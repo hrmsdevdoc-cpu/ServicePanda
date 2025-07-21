@@ -531,8 +531,12 @@ export default function AdminPendingProviders() {
       // Handle place selection with proper event isolation
       autocomplete.addListener("place_changed", () => {
         const place = autocomplete.getPlace();
+        console.log('Google Maps place selected:', place);
         if (place.formatted_address) {
-          // Only update the input field - DO NOT trigger any form submissions
+          // Force update the input field directly and through state
+          if (addressInputRef.current) {
+            addressInputRef.current.value = place.formatted_address;
+          }
           setNewServiceArea(prev => ({ 
             ...prev, 
             address: place.formatted_address || "" 
