@@ -1096,8 +1096,8 @@ export default function ProviderSignup() {
                   <strong>9 AM to 5 PM, Monday to Friday</strong>
                 </p>
               </div>
-              <Button onClick={() => navigate("/")}>
-                Back to Home
+              <Button onClick={() => navigate("/provider-login")}>
+                Login Now
               </Button>
             </CardContent>
           </Card>
