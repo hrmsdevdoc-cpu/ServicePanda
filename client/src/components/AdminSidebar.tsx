@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -8,6 +9,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -16,6 +18,7 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ onLogout }: AdminSidebarProps) {
   const [location] = useLocation();
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
   const menuItems = [
     {
@@ -71,6 +74,18 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
     return subItems.some(item => location === item.href);
   };
 
+  const toggleMenu = (href: string) => {
+    setExpandedMenus(prev => 
+      prev.includes(href) 
+        ? prev.filter(item => item !== href)
+        : [...prev, href]
+    );
+  };
+
+  const isMenuExpanded = (href: string) => {
+    return expandedMenus.includes(href) || hasActiveSubItem(menuItems.find(item => item.href === href)?.subItems || []);
+  };
+
   return (
     <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen">
       {/* Header */}
@@ -91,7 +106,7 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
         <div className="space-y-2">
           {menuItems.map((item) => (
             <div key={item.href}>
-              <Link href={item.href}>
+              {item.subItems.length > 0 ? (
                 <Button
                   variant={isActiveRoute(item.href) || hasActiveSubItem(item.subItems) ? "default" : "ghost"}
                   className={`w-full justify-start ${
@@ -99,17 +114,34 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
                       ? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
+                  onClick={() => toggleMenu(item.href)}
                 >
                   <item.icon className="h-4 w-4 mr-3" />
                   {item.label}
-                  {item.subItems.length > 0 && (
+                  {isMenuExpanded(item.href) ? (
+                    <ChevronDown className="h-4 w-4 ml-auto" />
+                  ) : (
                     <ChevronRight className="h-4 w-4 ml-auto" />
                   )}
                 </Button>
-              </Link>
+              ) : (
+                <Link href={item.href}>
+                  <Button
+                    variant={isActiveRoute(item.href) ? "default" : "ghost"}
+                    className={`w-full justify-start ${
+                      isActiveRoute(item.href)
+                        ? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <item.icon className="h-4 w-4 mr-3" />
+                    {item.label}
+                  </Button>
+                </Link>
+              )}
               
               {/* Sub-items */}
-              {item.subItems.length > 0 && (isActiveRoute(item.href) || hasActiveSubItem(item.subItems)) && (
+              {item.subItems.length > 0 && isMenuExpanded(item.href) && (
                 <div className="ml-4 mt-2 space-y-1">
                   {item.subItems.map((subItem) => (
                     <Link key={subItem.href} href={subItem.href}>
