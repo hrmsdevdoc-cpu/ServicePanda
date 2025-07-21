@@ -502,11 +502,14 @@ export default function AdminPendingProviders() {
 
       autocomplete.addListener("place_changed", () => {
         const place = autocomplete.getPlace();
+        console.log('Google Maps place changed:', place);
         if (place.formatted_address) {
+          console.log('Setting address to:', place.formatted_address);
           setNewServiceArea(prev => ({ 
             ...prev, 
             address: place.formatted_address || "" 
           }));
+          console.log('Address updated in state, NOT automatically saving');
         }
       });
 
@@ -517,6 +520,9 @@ export default function AdminPendingProviders() {
   };
 
   const handleAddServiceArea = () => {
+    console.log('handleAddServiceArea called - this should only happen when button is clicked');
+    console.log('Provider ID:', selectedProvider?.id, 'Address:', newServiceArea.address);
+    
     if (!selectedProvider?.id || !newServiceArea.address.trim()) {
       toast({
         title: "Missing Information",
@@ -526,6 +532,7 @@ export default function AdminPendingProviders() {
       return;
     }
 
+    console.log('About to call addServiceAreaMutation.mutate');
     addServiceAreaMutation.mutate({
       providerId: selectedProvider.id,
       address: newServiceArea.address,
@@ -835,6 +842,12 @@ export default function AdminPendingProviders() {
                           value={newServiceArea.address}
                           onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
                           onFocus={initializeAutocomplete}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              console.log('Enter key pressed in address input - prevented default');
+                            }
+                          }}
                           className="mt-1"
                         />
                       </div>
