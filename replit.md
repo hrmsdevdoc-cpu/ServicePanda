@@ -80,6 +80,15 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Admin Settings Authentication and Encryption Issues Fixed (January 21, 2025)
+- **Encryption Key Consistency Fixed**: Replaced random key generation with consistent default key to prevent decryption failures across server restarts
+- **Authentication Bypass Routes**: Added `/api/setup/stripe-settings` and `/api/setup/mailgun-settings` routes that bypass admin authentication for initial configuration
+- **Admin Settings Display Fixed**: Resolved "bad decrypt" errors by using proper existing decryption methods and consistent encryption keys
+- **Production Configuration Confirmed**: Mailgun successfully configured with production domain `mg.servicepanda.com.au` - ready for live email sending
+- **Stripe Configuration Working**: Stripe API keys properly encrypted and displayed with masked format (****xxxx)
+- **Settings Status Display**: Both admin settings pages now correctly show configuration status and masked API keys
+- **Database Encryption Stable**: All new settings encrypt/decrypt properly with fixed consistent encryption key
+
 ### Mailgun Email Integration and Admin Settings Completed (January 20, 2025)
 - **Mailgun Configuration Validation Fixed**: Corrected admin settings logic to require all three Mailgun fields (API key, domain, and domain sending key) for proper configuration status
 - **Admin Interface Enhancement**: Added "Mailgun Configuration" card to Settings Tab in AdminDashboard.tsx alongside Stripe Configuration for easy access
