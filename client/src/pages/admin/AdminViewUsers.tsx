@@ -13,6 +13,7 @@ import {
   Users,
   Mail,
   Calendar,
+  Phone,
 } from "lucide-react";
 
 interface User {
@@ -20,6 +21,7 @@ interface User {
   firstName: string;
   lastName: string;
   email: string;
+  phoneNumber?: string;
   createdAt: string;
   lastLogin?: string;
   isActive: boolean;
@@ -60,7 +62,8 @@ export default function AdminViewUsers() {
     const matchesSearch = 
       user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.phoneNumber && user.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesSearch;
   });
@@ -122,6 +125,7 @@ export default function AdminViewUsers() {
                       <tr className="border-b">
                         <th className="text-left p-3">User</th>
                         <th className="text-left p-3">Email</th>
+                        <th className="text-left p-3">Phone</th>
                         <th className="text-left p-3">Status</th>
                         <th className="text-left p-3">Joined</th>
                         <th className="text-left p-3">Last Login</th>
@@ -134,13 +138,18 @@ export default function AdminViewUsers() {
                           <td className="p-3">
                             <div>
                               <p className="font-medium">{user.firstName} {user.lastName}</p>
-                              <p className="text-gray-500 text-xs">ID: {user.id}</p>
                             </div>
                           </td>
                           <td className="p-3">
                             <div className="flex items-center">
                               <Mail className="h-3 w-3 mr-2 text-gray-400" />
                               <span className="text-sm">{user.email}</span>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center">
+                              <Phone className="h-3 w-3 mr-2 text-gray-400" />
+                              <span className="text-sm">{user.phoneNumber || '-'}</span>
                             </div>
                           </td>
                           <td className="p-3">
