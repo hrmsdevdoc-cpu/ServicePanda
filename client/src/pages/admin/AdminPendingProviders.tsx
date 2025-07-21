@@ -147,25 +147,36 @@ function AdminServiceCategorySelector({
   return (
     <div className="space-y-4">
       {/* Service Category Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
         {allCategories.map((category: any) => {
+          const IconComponent = serviceIcons[category.name as keyof typeof serviceIcons] || Home;
           const isSelected = selectedServices.includes(category.id);
+          
           return (
             <div
               key={category.id}
-              className={`
-                p-4 border-2 rounded-lg cursor-pointer transition-all duration-200
-                ${isSelected 
-                  ? 'border-blue-500 bg-blue-50 shadow-md' 
-                  : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                }
-              `}
+              className={`relative border-2 rounded-lg p-2 text-center cursor-pointer transition-all duration-200 ${
+                isSelected 
+                  ? "border-primary bg-blue-50 shadow-md" 
+                  : "border-gray-300 hover:border-primary hover:shadow-sm"
+              }`}
               onClick={() => handleServiceToggle(category.id)}
             >
-              <div className="text-center">
-                <div className="text-2xl mb-2">{category.icon || '🔧'}</div>
-                <p className="text-sm font-medium text-gray-800">{category.name}</p>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1 ${
+                isSelected ? "bg-primary text-white" : "bg-blue-100"
+              }`}>
+                <IconComponent className={`h-4 w-4 ${isSelected ? "text-white" : "text-primary"}`} />
               </div>
+              <span className={`text-xs font-medium leading-tight block ${
+                isSelected ? "text-primary" : "text-gray-600"
+              }`}>
+                {category.name}
+              </span>
+              {isSelected && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-2.5 w-2.5 text-white" />
+                </div>
+              )}
             </div>
           );
         })}
@@ -764,74 +775,117 @@ export default function AdminPendingProviders() {
 
               {/* Service Area Tab */}
               <TabsContent value="service-area" className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Add New Service Area</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="col-span-2">
-                      <Label htmlFor="newAddress" className="text-sm font-medium">Address</Label>
-                      <Input
-                        id="newAddress"
-                        placeholder="Enter service center address..."
-                        value={newServiceArea.address}
-                        onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
-                        className="mt-1"
-                      />
+                {/* Add Service Area Form */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Plus className="h-5 w-5 text-green-600" />
+                      Add New Service Area
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="newAddress" className="text-sm font-medium">Service Location Address *</Label>
+                        <Input
+                          id="newAddress"
+                          placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                          value={newServiceArea.address}
+                          onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newRadius" className="text-sm font-medium">Service Radius (km) *</Label>
+                        <Input
+                          id="newRadius"
+                          type="number"
+                          min="1"
+                          max="100"
+                          placeholder="25"
+                          value={newServiceArea.radius}
+                          onChange={(e) => setNewServiceArea(prev => ({ ...prev, radius: parseInt(e.target.value) || 25 }))}
+                          className="mt-1"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="newRadius" className="text-sm font-medium">Range (km)</Label>
-                      <Input
-                        id="newRadius"
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={newServiceArea.radius}
-                        onChange={(e) => setNewServiceArea(prev => ({ ...prev, radius: parseInt(e.target.value) || 25 }))}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                  <Button 
-                    onClick={handleAddServiceArea}
-                    disabled={!newServiceArea.address.trim() || addServiceAreaMutation.isPending}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Service Area
-                  </Button>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Current Service Areas</h3>
-                  {loadingDetails ? (
-                    <div className="text-center py-4">
-                      <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
-                      <p className="mt-2 text-gray-500">Loading service areas...</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {providerDetails?.serviceAreas?.map((area: any) => (
-                        <div key={area.id} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
-                          <div>
-                            <p className="font-medium">{area.centerAddress || area.areaName}</p>
-                            <p className="text-sm text-gray-500">
-                              {area.radiusKm ? `${area.radiusKm}km radius` : 'Suburb-based area'}
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => removeServiceAreaMutation.mutate(area.id)}
-                            disabled={removeServiceAreaMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )) || (
-                        <p className="text-center py-8 text-gray-500">No service areas configured</p>
+                    
+                    <Button 
+                      onClick={handleAddServiceArea}
+                      disabled={!newServiceArea.address.trim() || addServiceAreaMutation.isPending}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      {addServiceAreaMutation.isPending ? (
+                        <>
+                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Service Area
+                        </>
                       )}
-                    </div>
-                  )}
-                </div>
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Current Service Areas */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-blue-600" />
+                      Current Service Areas ({providerDetails?.serviceAreas?.length || 0})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingDetails ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+                        <p className="mt-2 text-gray-500">Loading service areas...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {providerDetails?.serviceAreas?.map((area: any) => (
+                          <div 
+                            key={area.id} 
+                            className="flex items-center justify-between p-4 border rounded-lg bg-white hover:shadow-sm transition-shadow"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <MapPin className="h-4 w-4 text-green-600" />
+                                <span className="font-medium">
+                                  {area.areaName || `Service Area ${area.id}`}
+                                </span>
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                  {area.radiusKm}km radius
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-600 ml-6">
+                                {area.centerAddress}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeServiceAreaMutation.mutate(area.id)}
+                              disabled={removeServiceAreaMutation.isPending}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )) || (
+                          <div className="text-center py-8">
+                            <MapPin className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500 font-medium">No service areas configured</p>
+                            <p className="text-sm text-gray-400">Add a service area to get started</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Services Tab */}
