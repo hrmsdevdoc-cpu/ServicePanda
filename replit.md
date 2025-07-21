@@ -91,6 +91,7 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 - **Storage Layer Integration**: Enhanced IStorage interface and DatabaseStorage class with provider-specific password reset methods using type-safe Drizzle ORM operations
 - **Provider Login Integration**: Added "Forgot your password?" link to provider login page with seamless navigation to password reset flow
 - **Production Ready**: Complete password reset system fully operational with proper error handling, logging, and production email service integration
+- **Domain URL Fix**: Corrected provider password reset emails to use proper Replit domain instead of localhost URLs
 
 ### Admin Settings Authentication and Encryption Issues Fixed (January 21, 2025)
 - **Encryption Key Consistency Fixed**: Replaced random key generation with consistent default key to prevent decryption failures across server restarts

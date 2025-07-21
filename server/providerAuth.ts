@@ -124,8 +124,12 @@ export function setupProviderAuth(app: Express) {
           expiresAt,
         });
 
-        // Send password reset email
-        const resetUrl = `${req.protocol}://${req.get('host')}/provider-reset-password?token=${token}`;
+        // Send password reset email with correct domain
+        const host = req.get('host');
+        const baseUrl = host?.includes('localhost') 
+          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+          : `${req.protocol}://${host}`;
+        const resetUrl = `${baseUrl}/provider-reset-password?token=${token}`;
         
         const emailSent = await sendEmail({
           to: email,
