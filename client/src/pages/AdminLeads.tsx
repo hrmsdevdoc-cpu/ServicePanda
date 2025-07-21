@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { TrendingUp, Users, MapPin, Calendar, Filter, Search, X, FileText, Clock, CheckCircle, AlertCircle, Phone, Mail, User } from "lucide-react";
+import { TrendingUp, Users, MapPin, Calendar, Filter, Search, X, FileText, Clock, CheckCircle, AlertCircle, Phone, Mail, User, Globe } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -172,7 +172,7 @@ export default function AdminLeads() {
     }
   };
 
-  const { data: categories } = useQuery({
+  const { data: categories = [] } = useQuery({
     queryKey: ["/api/service-categories"],
   });
 
@@ -298,14 +298,18 @@ export default function AdminLeads() {
 
             {/* Table Header */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-4">
-              <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-200 dark:border-gray-700 font-medium text-sm text-gray-600 dark:text-gray-400">
-                <div className="col-span-1">Lead ID</div>
+              <div className="grid grid-cols-16 gap-2 p-4 border-b border-gray-200 dark:border-gray-700 font-medium text-sm text-gray-600 dark:text-gray-400">
+                <div className="col-span-1">ID</div>
                 <div className="col-span-1">State</div>
                 <div className="col-span-1">Suburb</div>
-                <div className="col-span-1">Source</div>
+                <div className="col-span-1 flex items-center justify-center">
+                  <Globe className="h-4 w-4" />
+                </div>
                 <div className="col-span-1">Lead Date</div>
                 <div className="col-span-1">Job Date</div>
-                <div className="col-span-2">Customer</div>
+                <div className="col-span-2">Customer Name</div>
+                <div className="col-span-2">Email</div>
+                <div className="col-span-1">Phone</div>
                 <div className="col-span-1">Type</div>
                 <div className="col-span-1">Offered</div>
                 <div className="col-span-1">Accepted</div>
@@ -321,26 +325,29 @@ export default function AdminLeads() {
                   return (
                     <div 
                       key={lead.id} 
-                      className="grid grid-cols-12 gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                      className="grid grid-cols-16 gap-2 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                       onClick={() => handleLeadClick(lead)}
                     >
-                      <div className="col-span-1 font-medium text-blue-600">#{lead.id}</div>
+                      <div className="col-span-1 font-medium text-blue-600 text-sm">#{lead.id}</div>
                       <div className="col-span-1 text-sm">{lead.state || 'NSW'}</div>
                       <div className="col-span-1 text-sm">{lead.suburb}</div>
-                      <div className="col-span-1 text-sm">{lead.leadSource || 'Website'}</div>
+                      <div className="col-span-1 flex items-center justify-center">
+                        <Globe className="h-3 w-3 text-gray-400" title={lead.leadSource || 'Website'} />
+                      </div>
                       <div className="col-span-1 text-sm">{format(new Date(lead.createdAt), "MMM d")}</div>
                       <div className="col-span-1 text-sm">
                         {lead.preferredDate ? format(new Date(lead.preferredDate), "MMM d") : '-'}
                       </div>
-                      <div className="col-span-2 text-sm">
-                        <div className="font-medium">{lead.customerName}</div>
-                        <div className="text-gray-500 text-xs">{lead.customerEmail}</div>
-                        {lead.customerPhone && <div className="text-gray-500 text-xs">{lead.customerPhone}</div>}
+                      <div className="col-span-2 text-sm font-medium truncate">{lead.customerName}</div>
+                      <div className="col-span-2 text-sm text-gray-600 truncate">{lead.customerEmail}</div>
+                      <div className="col-span-1 text-sm text-gray-600">{lead.customerPhone || '-'}</div>
+                      <div className="col-span-1 flex items-center gap-1">
+                        {getLeadTypeBadge(lead.bookingType)}
+                        {lead.status === 'active' && <Badge variant="outline" className="text-green-600 text-xs px-1 py-0">Active</Badge>}
                       </div>
-                      <div className="col-span-1">{getLeadTypeBadge(lead.bookingType)}</div>
-                      <div className="col-span-1 text-center font-medium">{metrics.totalOffered}</div>
-                      <div className="col-span-1 text-center font-medium text-green-600">{metrics.totalAccepted}</div>
-                      <div className="col-span-1 text-center font-medium text-orange-600">{metrics.totalPending}</div>
+                      <div className="col-span-1 text-center font-medium text-sm">{metrics.totalOffered}</div>
+                      <div className="col-span-1 text-center font-medium text-green-600 text-sm">{metrics.totalAccepted}</div>
+                      <div className="col-span-1 text-center font-medium text-orange-600 text-sm">{metrics.totalPending}</div>
                       <div className="col-span-1">{getLeadStatusBadge(lead.status)}</div>
                     </div>
                   );
