@@ -339,7 +339,7 @@ export default function AdminPendingProviders() {
       const response = await adminApiRequest('GET', `/api/admin/providers/${selectedProvider.id}/activity${filterParam}`);
       return response.json();
     },
-    enabled: !!selectedProvider && activeTab === 'activity',
+    enabled: !!selectedProvider && (activeTab === 'activity' || activeTab === 'notes'),
     staleTime: 0,
     gcTime: 0,
   });
@@ -420,9 +420,15 @@ export default function AdminPendingProviders() {
       return response.json();
     },
     onSuccess: () => {
+      // Clear the note input field
+      const newNoteElement = document.getElementById('newNote') as HTMLTextAreaElement;
+      if (newNoteElement) {
+        newNoteElement.value = '';
+      }
+      
       toast({
-        title: "Information Saved",
-        description: "Admin notes and insurance expiry date have been saved successfully.",
+        title: "Note Added",
+        description: "Admin note has been saved successfully.",
         variant: "default",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id] });
@@ -431,7 +437,7 @@ export default function AdminPendingProviders() {
     },
     onError: (error) => {
       toast({
-        title: "Failed to Save Notes",
+        title: "Failed to Save Note",
         description: error.message,
         variant: "destructive",
       });
@@ -459,13 +465,22 @@ export default function AdminPendingProviders() {
   const handleSaveNotes = () => {
     if (!selectedProvider) return;
     
-    const adminNotesElement = document.getElementById('adminNotes') as HTMLTextAreaElement;
-    const insuranceExpiryElement = document.getElementById('insuranceExpiry') as HTMLInputElement;
+    const newNoteElement = document.getElementById('newNote') as HTMLTextAreaElement;
+    const newNoteValue = newNoteElement?.value?.trim();
+    
+    if (!newNoteValue) {
+      toast({
+        title: "No Note Added",
+        description: "Please enter a note before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     saveNotesMutation.mutate({
       providerId: selectedProvider.id,
-      adminNotes: adminNotesElement?.value || '',
-      insuranceExpiryDate: insuranceExpiryElement?.value || undefined,
+      adminNotes: newNoteValue,
+      insuranceExpiryDate: undefined, // Keep existing insurance date
     });
   };
 
@@ -939,18 +954,18 @@ export default function AdminPendingProviders() {
 
               {/* Notes Tab */}
               <TabsContent value="notes" className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Admin Notes</h3>
+                <div className="space-y-6">
+                  {/* Add New Note Section */}
                   <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Add New Note</h3>
                     <div>
-                      <Label htmlFor="adminNotes" className="text-sm font-medium">
-                        Internal Notes (visible to admin only)
+                      <Label htmlFor="newNote" className="text-sm font-medium">
+                        Internal Note (visible to admin only)
                       </Label>
                       <Textarea
-                        id="adminNotes"
-                        placeholder="Add internal notes about this provider application..."
-                        defaultValue={selectedProvider.adminNotes || ''}
-                        className="mt-1 min-h-[120px]"
+                        id="newNote"
+                        placeholder="Add a new note about this provider..."
+                        className="mt-1 min-h-[80px]"
                       />
                     </div>
                     <Button 
@@ -959,8 +974,53 @@ export default function AdminPendingProviders() {
                       disabled={saveNotesMutation.isPending}
                     >
                       <StickyNote className="h-4 w-4 mr-2" />
-                      {saveNotesMutation.isPending ? 'Saving Notes...' : 'Save Notes'}
+                      {saveNotesMutation.isPending ? 'Adding Note...' : 'Add Note'}
                     </Button>
+                  </div>
+
+                  {/* Notes History Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Previous Notes</h3>
+                    {isLoadingActivity ? (
+                      <div className="text-center py-4 text-gray-500">Loading notes history...</div>
+                    ) : (
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {activityLogs?.filter((activity: any) => activity.activityType.includes('note')).length > 0 ? (
+                          activityLogs
+                            .filter((activity: any) => activity.activityType.includes('note'))
+                            .map((activity: any, index: number) => (
+                              <div key={activity.id || index} className="border border-gray-200 rounded-lg p-4 bg-white">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="default" className="bg-blue-600">
+                                      {activity.actorName || 'Admin'}
+                                    </Badge>
+                                    <span className="text-sm text-gray-600">added a note</span>
+                                  </div>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(activity.timestamp).toLocaleString('en-AU', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="bg-gray-50 rounded p-3">
+                                  <p className="text-sm text-gray-700">{activity.newValue || activity.description}</p>
+                                </div>
+                              </div>
+                            ))
+                        ) : (
+                          <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg bg-gray-50">
+                            <StickyNote className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                            <p>No notes have been added yet.</p>
+                            <p className="text-xs mt-1">Add your first note above to track important information.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </TabsContent>
