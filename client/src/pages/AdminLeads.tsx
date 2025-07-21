@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp, Users, MapPin, Calendar, Filter, Search } from "lucide-react";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { AdminSidebar } from "@/components/AdminSidebar";
 
 interface ServiceRequest {
   id: number;
@@ -33,12 +35,29 @@ interface ServiceRequest {
 }
 
 export default function AdminLeads() {
+  const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
+  // Check admin authentication
+  useEffect(() => {
+    const adminToken = localStorage.getItem('adminToken');
+    if (!adminToken) {
+      navigate('/admin-login');
+    }
+  }, [navigate]);
+
   const { data: leads, isLoading } = useQuery({
     queryKey: ["/api/admin/leads"],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/leads', {
+        headers: {
+          'x-admin-token': localStorage.getItem('adminToken') || '',
+        },
+      });
+      return response.json();
+    },
     select: (data: ServiceRequest[]) => {
       return data.filter((lead) => {
         const matchesSearch = 
@@ -58,6 +77,11 @@ export default function AdminLeads() {
   const { data: categories } = useQuery({
     queryKey: ["/api/service-categories"],
   });
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    navigate('/admin-login');
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -93,25 +117,48 @@ export default function AdminLeads() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+        <AdminSidebar onLogout={handleLogout} />
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6">
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Lead Management</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage service requests and track provider responses
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+      {/* Sidebar */}
+      <AdminSidebar onLogout={handleLogout} />
+      
+      {/* Main content area */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Header */}
+        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
+          <div className="px-8 py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <TrendingUp className="h-8 w-8 text-blue-600 mr-3" />
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                    Lead Management
+                  </h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Manage service requests and track provider responses
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Content */}
+        <div className="p-6 space-y-6">
+
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -315,6 +362,8 @@ export default function AdminLeads() {
           </Card>
         )}
       </div>
+      </div>
+    </div>
     </div>
   );
 }

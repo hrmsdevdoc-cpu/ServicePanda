@@ -276,19 +276,25 @@ export class DatabaseStorage implements IStorage {
         .select({
           id: serviceRequests.id,
           customerId: serviceRequests.customerId,
-          customerName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`.as('customerName'),
-          customerEmail: users.email,
           categoryId: serviceRequests.categoryId,
-          categoryName: serviceCategories.name,
-          serviceType: serviceRequests.serviceType,
           description: serviceRequests.description,
-          location: serviceRequests.location,
-          suburb: serviceRequests.suburb,
           postcode: serviceRequests.postcode,
+          suburb: serviceRequests.suburb,
+          propertyType: serviceRequests.propertyType,
+          urgency: serviceRequests.urgency,
+          budget: serviceRequests.budget,
           preferredDate: serviceRequests.preferredDate,
           bookingType: serviceRequests.bookingType,
+          scheduledDate: serviceRequests.scheduledDate,
           status: serviceRequests.status,
           createdAt: serviceRequests.createdAt,
+          updatedAt: serviceRequests.updatedAt,
+          // Customer info
+          customerFirstName: users.firstName,
+          customerLastName: users.lastName,
+          customerEmail: users.email,
+          // Category info
+          categoryName: serviceCategories.name,
         })
         .from(serviceRequests)
         .leftJoin(users, eq(serviceRequests.customerId, users.id))
@@ -302,17 +308,26 @@ export class DatabaseStorage implements IStorage {
             .select({
               id: leadAssignments.id,
               providerId: leadAssignments.providerId,
-              providerName: sql<string>`${serviceProviders.firstName} || ' ' || ${serviceProviders.lastName}`.as('providerName'),
               status: leadAssignments.status,
               assignedAt: leadAssignments.createdAt,
+              // Provider info
+              providerFirstName: serviceProviders.firstName,
+              providerLastName: serviceProviders.lastName,
             })
             .from(leadAssignments)
             .leftJoin(serviceProviders, eq(leadAssignments.providerId, serviceProviders.id))
             .where(eq(leadAssignments.requestId, request.id));
 
+          // Format the data for frontend consumption
+          const formattedAssignments = assignments.map(assignment => ({
+            ...assignment,
+            providerName: `${assignment.providerFirstName || ''} ${assignment.providerLastName || ''}`.trim(),
+          }));
+
           return {
             ...request,
-            leadAssignments: assignments,
+            customerName: `${request.customerFirstName || ''} ${request.customerLastName || ''}`.trim(),
+            leadAssignments: formattedAssignments,
           };
         })
       );
