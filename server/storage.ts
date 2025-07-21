@@ -1839,27 +1839,11 @@ export class DatabaseStorage implements IStorage {
 
   async getProviderActivityHistory(providerId: number): Promise<any[]> {
     try {
-      // Get comprehensive activity history including:
-      // 1. Offers received
-      // 2. Offers expired/missed
-      // 3. Leads purchased
-      // 4. Price drop notifications (shared phase)
-      // 5. Lead status changes
-      
+      // Get basic activity history for this provider's offers
       const activities = await db
         .select({
           id: leadOffers.id,
           requestId: leadOffers.requestId,
-          activityType: sql<string>`
-            CASE 
-              WHEN ${leadOffers.status} = 'purchased' THEN 'lead_purchased'
-              WHEN ${leadOffers.status} = 'expired' AND ${leadOffers.offerType} = 'unique' THEN 'offer_expired'
-              WHEN ${leadOffers.status} = 'pending' AND ${leadOffers.isCurrentOffer} = true AND ${leadOffers.offerType} = 'unique' THEN 'new_offer'
-              WHEN ${leadOffers.status} = 'pending' AND ${leadOffers.offerType} = 'shared' THEN 'price_drop'
-              WHEN ${leadOffers.status} = 'purchased' AND ${leadOffers.providerId} != ${providerId} THEN 'lead_lost'
-              ELSE 'other'
-            END
-          `,
           categoryName: serviceCategories.name,
           suburb: serviceRequests.suburb,
           postcode: serviceRequests.postcode,
@@ -1872,33 +1856,11 @@ export class DatabaseStorage implements IStorage {
           createdAt: leadOffers.createdAt,
           description: serviceRequests.description,
           urgency: serviceRequests.urgency,
-          // Check if lead was purchased by another provider
-          purchasedByOther: sql<boolean>`
-            EXISTS(
-              SELECT 1 FROM ${leadOffers} lo2 
-              WHERE lo2.requestId = ${leadOffers.requestId} 
-              AND lo2.status = 'purchased' 
-              AND lo2.providerId != ${providerId}
-            )
-          `
         })
         .from(leadOffers)
         .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
         .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
-        .where(
-          or(
-            eq(leadOffers.providerId, providerId),
-            // Include leads purchased by others that this provider had offers for
-            and(
-              sql`EXISTS(
-                SELECT 1 FROM ${leadOffers} lo_check 
-                WHERE lo_check.requestId = ${leadOffers.requestId} 
-                AND lo_check.providerId = ${providerId}
-              )`,
-              eq(leadOffers.status, 'purchased')
-            )
-          )
-        )
+        .where(eq(leadOffers.providerId, providerId))
         .orderBy(desc(leadOffers.createdAt))
         .limit(20);
 
@@ -1908,11 +1870,7 @@ export class DatabaseStorage implements IStorage {
         let activityType = '';
         let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'default';
 
-        if (activity.status === 'purchased' && activity.purchasedByOther) {
-          message = `Lead lost - Someone else purchased this ${activity.categoryName} lead in ${activity.suburb}`;
-          activityType = 'lead_lost';
-          variant = 'destructive';
-        } else if (activity.status === 'purchased') {
+        if (activity.status === 'purchased') {
           message = `Lead purchased - ${activity.categoryName} in ${activity.suburb}`;
           activityType = 'lead_purchased';
           variant = 'default';
