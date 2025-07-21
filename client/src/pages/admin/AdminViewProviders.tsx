@@ -737,15 +737,15 @@ export default function AdminViewProviders() {
                         <Label className="text-sm font-medium">Address</Label>
                         <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.address}</p>
                       </div>
-                      <div>
-                        <Label className="text-sm font-medium">Business Name</Label>
-                        <p className="mt-1 p-2 bg-gray-50 rounded border">
+                      <div className="border-l-4 border-blue-500 pl-3">
+                        <Label className="text-sm font-medium text-blue-700">Business Name</Label>
+                        <p className="mt-1 p-2 bg-blue-50 rounded border border-blue-200">
                           {selectedProvider?.businessName || 'Not provided'}
                         </p>
                       </div>
-                      <div>
-                        <Label className="text-sm font-medium">ABN/ACN Number</Label>
-                        <p className="mt-1 p-2 bg-gray-50 rounded border">
+                      <div className="border-l-4 border-blue-500 pl-3">
+                        <Label className="text-sm font-medium text-blue-700">ABN/ACN Number</Label>
+                        <p className="mt-1 p-2 bg-blue-50 rounded border border-blue-200">
                           {selectedProvider?.businessAbn || 'Not provided'}
                         </p>
                       </div>
