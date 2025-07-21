@@ -339,6 +339,8 @@ export default function AdminPendingProviders() {
       return response.json();
     },
     enabled: !!selectedProvider && activeTab === 'activity',
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Check admin authentication
@@ -440,6 +442,13 @@ export default function AdminPendingProviders() {
   };
 
   const handleViewProvider = (provider: ServiceProvider) => {
+    // Force clear ALL activity cache before opening
+    queryClient.invalidateQueries({ 
+      queryKey: ['/api/admin/providers', provider.id, 'activity'] 
+    });
+    queryClient.removeQueries({ 
+      queryKey: ['/api/admin/providers', provider.id, 'activity'] 
+    });
     setSelectedProvider(provider);
     setIsViewDialogOpen(true);
     setActiveTab("personal");
