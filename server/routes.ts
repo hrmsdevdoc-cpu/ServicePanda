@@ -718,8 +718,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin document viewing endpoint
-  app.get('/api/admin/documents/view/:filename/:providerId', isAdminAuthenticated, async (req, res) => {
+  // Admin document viewing endpoint with token support
+  app.get('/api/admin/documents/view/:filename/:providerId', async (req, res) => {
+    // Check for admin authentication - either header or query param
+    const adminToken = req.headers['x-admin-token'] || req.query.token;
+    
+    if (!adminToken) {
+      console.log('Admin document access - no token provided');
+      return res.status(401).json({ message: "Admin authentication required" });
+    }
+    
+    // Verify admin token using the same secret as adminAuth
+    try {
+      const jwt = await import('jsonwebtoken');
+      const JWT_SECRET = process.env.JWT_SECRET || "admin-jwt-secret-key";
+      const decoded = jwt.verify(adminToken as string, JWT_SECRET);
+      if (!decoded || (decoded as any).role !== 'admin') {
+        console.log('Admin document access - invalid token');
+        return res.status(401).json({ message: "Admin authentication required" });
+      }
+      console.log('Admin document access - token verified');
+    } catch (error) {
+      console.log('Admin document access - token verification failed:', error);
+      return res.status(401).json({ message: "Admin authentication required" });
+    }
     try {
       const filename = req.params.filename;
       const providerId = parseInt(req.params.providerId);

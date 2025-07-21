@@ -692,7 +692,11 @@ export default function AdminPendingProviders() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => window.open(`/api/admin/documents/view/${doc.fileName}/${selectedProvider.id}`, '_blank')}
+                              onClick={() => {
+                                const adminToken = localStorage.getItem('adminToken');
+                                const url = `/api/admin/documents/view/${doc.fileName}/${selectedProvider.id}?token=${adminToken}`;
+                                window.open(url, '_blank');
+                              }}
                             >
                               <Eye className="h-4 w-4 mr-1" />
                               View
