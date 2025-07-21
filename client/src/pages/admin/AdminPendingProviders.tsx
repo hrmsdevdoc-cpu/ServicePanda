@@ -244,6 +244,8 @@ interface ServiceProvider {
   email: string;
   mobileNumber: string;
   address: string;
+  businessName?: string;
+  businessAbn?: string;
   status: string;
   documentsUploaded: boolean;
   createdAt: string;
@@ -716,6 +718,18 @@ export default function AdminPendingProviders() {
                       <div>
                         <Label className="text-sm font-medium">Last Name</Label>
                         <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider.lastName}</p>
+                      </div>
+                      <div className="border-l-4 border-blue-500 pl-3">
+                        <Label className="text-sm font-medium text-blue-700">Business Name</Label>
+                        <p className="mt-1 p-2 bg-blue-50 rounded border border-blue-200">
+                          {selectedProvider.businessName || 'Not provided'}
+                        </p>
+                      </div>
+                      <div className="border-l-4 border-blue-500 pl-3">
+                        <Label className="text-sm font-medium text-blue-700">ABN/ACN Number</Label>
+                        <p className="mt-1 p-2 bg-blue-50 rounded border border-blue-200">
+                          {selectedProvider.businessAbn || 'Not provided'}
+                        </p>
                       </div>
                       <div>
                         <Label className="text-sm font-medium">Email Address</Label>
