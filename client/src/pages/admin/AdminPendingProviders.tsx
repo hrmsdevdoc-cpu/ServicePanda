@@ -491,8 +491,11 @@ export default function AdminPendingProviders() {
     },
   });
 
-  // Google Maps Autocomplete initialization
+  // Google Maps Autocomplete initialization - TEMPORARILY DISABLED FOR DEBUGGING
   const initializeAutocomplete = () => {
+    console.log('🔥 AUTOCOMPLETE INITIALIZATION TEMPORARILY DISABLED - Testing if this fixes the auto-save issue');
+    return; // EARLY RETURN TO DISABLE AUTOCOMPLETE
+    
     if (autocompleteInitialized || !addressInputRef.current || !window.google?.maps?.places) {
       return;
     }
@@ -836,57 +839,73 @@ export default function AdminPendingProviders() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="newAddress" className="text-sm font-medium">Service Location Address *</Label>
-                        <Input
-                          id="newAddress"
-                          ref={addressInputRef}
-                          placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
-                          value={newServiceArea.address}
-                          onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
-                          onFocus={initializeAutocomplete}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              console.log('Enter key pressed in address input - prevented default');
-                            }
-                          }}
-                          className="mt-1"
-                        />
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      console.log('🚨 FORM SUBMIT PREVENTED - this was likely triggered by Google autocomplete');
+                      console.log('Form submit event details:', e);
+                      console.log('Event target:', e.target);
+                      console.log('This should NOT trigger service area addition');
+                      return false;
+                    }}>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="newAddress" className="text-sm font-medium">Service Location Address *</Label>
+                          <Input
+                            id="newAddress"
+                            ref={addressInputRef}
+                            placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                            value={newServiceArea.address}
+                            onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
+                            onFocus={initializeAutocomplete}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                console.log('Enter key pressed in address input - prevented default');
+                              }
+                            }}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="newRadius" className="text-sm font-medium">Service Radius (km) *</Label>
+                          <Input
+                            id="newRadius"
+                            type="number"
+                            min="1"
+                            max="100"
+                            placeholder="25"
+                            value={newServiceArea.radius}
+                            onChange={(e) => setNewServiceArea(prev => ({ ...prev, radius: parseInt(e.target.value) || 25 }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                console.log('Enter key pressed in radius input - prevented default');
+                              }
+                            }}
+                            className="mt-1"
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="newRadius" className="text-sm font-medium">Service Radius (km) *</Label>
-                        <Input
-                          id="newRadius"
-                          type="number"
-                          min="1"
-                          max="100"
-                          placeholder="25"
-                          value={newServiceArea.radius}
-                          onChange={(e) => setNewServiceArea(prev => ({ ...prev, radius: parseInt(e.target.value) || 25 }))}
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                    
-                    <Button 
-                      onClick={handleAddServiceArea}
-                      disabled={!newServiceArea.address.trim() || addServiceAreaMutation.isPending}
-                      className="w-full bg-green-600 hover:bg-green-700"
-                    >
-                      {addServiceAreaMutation.isPending ? (
-                        <>
-                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                          Adding...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Service Area
-                        </>
-                      )}
-                    </Button>
+                      
+                      <Button 
+                        type="button"
+                        onClick={handleAddServiceArea}
+                        disabled={!newServiceArea.address.trim() || addServiceAreaMutation.isPending}
+                        className="w-full bg-green-600 hover:bg-green-700 mt-4"
+                      >
+                        {addServiceAreaMutation.isPending ? (
+                          <>
+                            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                            Adding...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Service Area
+                          </>
+                        )}
+                      </Button>
+                    </form>
                   </CardContent>
                 </Card>
 
