@@ -821,33 +821,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getServiceProvidersForAdmin(status?: string): Promise<any[]> {
-    // Get all providers with their service information
-    const baseQuery = db
-      .select({
-        id: serviceProviders.id,
-        firstName: serviceProviders.firstName,
-        lastName: serviceProviders.lastName,
-        email: serviceProviders.email,
-        mobileNumber: serviceProviders.mobileNumber,
-        address: serviceProviders.address,
-        status: serviceProviders.status,
-        providerStatus: serviceProviders.providerStatus,
-        createdAt: serviceProviders.createdAt,
-        updatedAt: serviceProviders.updatedAt,
-        businessName: serviceProviders.businessName,
-        abnNumber: serviceProviders.abnNumber,
-        insuranceExpiryDate: serviceProviders.insuranceExpiryDate,
-        adminNotes: serviceProviders.adminNotes,
-      })
-      .from(serviceProviders);
-    
+    // Get all providers first
     let providers;
     if (status) {
-      providers = await baseQuery
+      providers = await db
+        .select()
+        .from(serviceProviders)
         .where(eq(serviceProviders.status, status))
         .orderBy(desc(serviceProviders.createdAt));
     } else {
-      providers = await baseQuery.orderBy(desc(serviceProviders.createdAt));
+      providers = await db
+        .select()
+        .from(serviceProviders)
+        .orderBy(desc(serviceProviders.createdAt));
     }
 
     // Get services for each provider
