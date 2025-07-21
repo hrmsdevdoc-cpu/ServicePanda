@@ -160,15 +160,15 @@ export default function AdminLeads() {
   const getLeadTypeBadge = (bookingType: string) => {
     switch (bookingType?.toLowerCase()) {
       case 'one-time':
-        return <Badge variant="outline" className="text-purple-600">One-time</Badge>;
+        return <Badge variant="outline" className="text-purple-600 text-xs px-2 py-0 h-5">One-time</Badge>;
       case 'regular':
-        return <Badge variant="outline" className="text-blue-600">Regular</Badge>;
+        return <Badge variant="outline" className="text-blue-600 text-xs px-2 py-0 h-5">Regular</Badge>;
       case 'emergency':
-        return <Badge variant="outline" className="text-red-600">Emergency</Badge>;
+        return <Badge variant="outline" className="text-red-600 text-xs px-2 py-0 h-5">Emergency</Badge>;
       case 'quote-only':
-        return <Badge variant="outline" className="text-orange-600">Quote Only</Badge>;
+        return <Badge variant="outline" className="text-orange-600 text-xs px-2 py-0 h-5">Quote Only</Badge>;
       default:
-        return <Badge variant="outline">{bookingType || 'Standard'}</Badge>;
+        return <Badge variant="outline" className="text-xs px-2 py-0 h-5">{bookingType || 'Standard'}</Badge>;
     }
   };
 
@@ -296,63 +296,65 @@ export default function AdminLeads() {
               </div>
             </div>
 
-            {/* Table Header */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-4">
-              <div className="grid grid-cols-16 gap-2 p-4 border-b border-gray-200 dark:border-gray-700 font-medium text-sm text-gray-600 dark:text-gray-400">
-                <div className="col-span-1">ID</div>
-                <div className="col-span-1">State</div>
-                <div className="col-span-1">Suburb</div>
-                <div className="col-span-1 flex items-center justify-center">
-                  <Globe className="h-4 w-4" />
-                </div>
-                <div className="col-span-1">Lead Date</div>
-                <div className="col-span-1">Job Date</div>
-                <div className="col-span-2">Customer Name</div>
-                <div className="col-span-2">Email</div>
-                <div className="col-span-1">Phone</div>
-                <div className="col-span-1">Type</div>
-                <div className="col-span-1">Offered</div>
-                <div className="col-span-1">Accepted</div>
-                <div className="col-span-1">Pending</div>
-                <div className="col-span-1">Status</div>
-              </div>
-
-              {/* Table Rows */}
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {leads?.map((lead) => {
-                  const metrics = getLeadMetrics(lead.leadAssignments);
-                  
-                  return (
-                    <div 
-                      key={lead.id} 
-                      className="grid grid-cols-16 gap-2 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                      onClick={() => handleLeadClick(lead)}
-                    >
-                      <div className="col-span-1 font-medium text-blue-600 text-sm">#{lead.id}</div>
-                      <div className="col-span-1 text-sm">{lead.state || 'NSW'}</div>
-                      <div className="col-span-1 text-sm">{lead.suburb}</div>
-                      <div className="col-span-1 flex items-center justify-center">
-                        <Globe className="h-3 w-3 text-gray-400" title={lead.leadSource || 'Website'} />
-                      </div>
-                      <div className="col-span-1 text-sm">{format(new Date(lead.createdAt), "MMM d")}</div>
-                      <div className="col-span-1 text-sm">
-                        {lead.preferredDate ? format(new Date(lead.preferredDate), "MMM d") : '-'}
-                      </div>
-                      <div className="col-span-2 text-sm font-medium truncate">{lead.customerName}</div>
-                      <div className="col-span-2 text-sm text-gray-600 truncate">{lead.customerEmail}</div>
-                      <div className="col-span-1 text-sm text-gray-600">{lead.customerPhone || '-'}</div>
-                      <div className="col-span-1 flex items-center gap-1">
-                        {getLeadTypeBadge(lead.bookingType)}
-                        {lead.status === 'active' && <Badge variant="outline" className="text-green-600 text-xs px-1 py-0">Active</Badge>}
-                      </div>
-                      <div className="col-span-1 text-center font-medium text-sm">{metrics.totalOffered}</div>
-                      <div className="col-span-1 text-center font-medium text-green-600 text-sm">{metrics.totalAccepted}</div>
-                      <div className="col-span-1 text-center font-medium text-orange-600 text-sm">{metrics.totalPending}</div>
-                      <div className="col-span-1">{getLeadStatusBadge(lead.status)}</div>
-                    </div>
-                  );
-                })}
-              </div>
+            {/* Table */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr className="border-b border-gray-200 dark:border-gray-600">
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">ID</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">State</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Suburb</th>
+                    <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400"><Globe className="h-3 w-3 mx-auto" /></th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Lead Date</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Job Date</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Customer Name</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Email</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Phone</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Type</th>
+                    <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Offered</th>
+                    <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Accepted</th>
+                    <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Pending</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-600">
+                  {leads?.map((lead) => {
+                    const metrics = getLeadMetrics(lead.leadAssignments);
+                    
+                    return (
+                      <tr 
+                        key={lead.id} 
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                        onClick={() => handleLeadClick(lead)}
+                      >
+                        <td className="px-2 py-1 font-medium text-blue-600">#{lead.id}</td>
+                        <td className="px-2 py-1">{lead.state || 'NSW'}</td>
+                        <td className="px-2 py-1 max-w-20 truncate">{lead.suburb}</td>
+                        <td className="px-2 py-1 text-center">
+                          <Globe className="h-3 w-3 text-gray-400 mx-auto" title={lead.leadSource || 'Website'} />
+                        </td>
+                        <td className="px-2 py-1">{format(new Date(lead.createdAt), "MMM d")}</td>
+                        <td className="px-2 py-1">
+                          {lead.preferredDate ? format(new Date(lead.preferredDate), "MMM d") : '-'}
+                        </td>
+                        <td className="px-2 py-1 font-medium max-w-32 truncate">{lead.customerName}</td>
+                        <td className="px-2 py-1 text-gray-600 max-w-40 truncate">{lead.customerEmail}</td>
+                        <td className="px-2 py-1 text-gray-600 max-w-24 truncate">{lead.customerPhone || '-'}</td>
+                        <td className="px-2 py-1">
+                          <span className="inline-flex items-center gap-1">
+                            {getLeadTypeBadge(lead.bookingType)}
+                            {lead.status === 'active' && <span className="text-green-600 text-xs">●</span>}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1 text-center font-medium">{metrics.totalOffered}</td>
+                        <td className="px-2 py-1 text-center font-medium text-green-600">{metrics.totalAccepted}</td>
+                        <td className="px-2 py-1 text-center font-medium text-orange-600">{metrics.totalPending}</td>
+                        <td className="px-2 py-1">{getLeadStatusBadge(lead.status)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
 
               {leads?.length === 0 && (
                 <div className="p-12 text-center">
