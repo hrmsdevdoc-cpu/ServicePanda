@@ -1106,6 +1106,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
+  // Public Stripe config endpoint for frontend (no auth required)
+  app.get('/api/config/stripe', async (req, res) => {
+    try {
+      const stripeKeys = await storage.getDecryptedStripeKeys();
+      
+      if (stripeKeys && stripeKeys.publicKey) {
+        res.json({
+          publicKey: stripeKeys.publicKey,
+          configured: true
+        });
+      } else {
+        res.json({
+          publicKey: null,
+          configured: false
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching Stripe config:', error);
+      res.status(500).json({ message: 'Failed to fetch Stripe config' });
+    }
+  });
+
   // Get Stripe settings
   app.get('/api/admin/stripe-settings', isAdminAuthenticated, async (req, res) => {
     try {
@@ -1385,6 +1407,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Secure Stripe Payment Methods - using Stripe Elements
+  app.post('/api/provider/:id/stripe-payment-methods', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      
+      // Verify provider ownership
+      if (req.provider.id !== providerId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get Stripe keys
+      const stripeKeys = await storage.getDecryptedStripeKeys();
+      if (!stripeKeys) {
+        return res.status(500).json({ message: "Stripe not configured" });
+      }
+
+      const stripe = new (await import('stripe')).default(stripeKeys.secretKey);
+
+      const { paymentMethodId } = req.body;
+
+      if (!paymentMethodId) {
+        return res.status(400).json({ message: "Payment method ID is required" });
+      }
+
+      // Get provider details
+      const provider = await storage.getServiceProvider(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+
+      // Create or get Stripe customer
+      let stripeCustomerId = provider.stripeCustomerId;
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: provider.email,
+          name: `${provider.firstName} ${provider.lastName}`,
+          metadata: {
+            providerId: providerId.toString()
+          }
+        });
+        stripeCustomerId = customer.id;
+        
+        // Update provider with Stripe customer ID
+        await storage.updateProviderStripeCustomerId(providerId, stripeCustomerId);
+      }
+
+      // Attach payment method to customer
+      await stripe.paymentMethods.attach(paymentMethodId, {
+        customer: stripeCustomerId,
+      });
+
+      // Retrieve the payment method details
+      const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+
+      // Check if this is the first payment method for this provider
+      const existingMethods = await storage.getProviderPaymentMethods(providerId);
+      const isFirstCard = existingMethods.length === 0;
+
+      // Store payment method reference in our database
+      const paymentMethodData = {
+        providerId,
+        stripeCustomerId,
+        stripePaymentMethodId: paymentMethod.id,
+        cardBrand: paymentMethod.card?.brand || 'unknown',
+        cardLastFour: paymentMethod.card?.last4 || '0000',
+        cardExpMonth: paymentMethod.card?.exp_month || 0,
+        cardExpYear: paymentMethod.card?.exp_year || 0,
+        isPrimary: isFirstCard, // First card is automatically primary
+        isActive: true
+      };
+
+      const newPaymentMethod = await storage.addProviderPaymentMethod(paymentMethodData);
+      
+      // If this was set as primary, update other methods
+      if (isFirstCard) {
+        await storage.updateProviderPaymentMethodPrimary(providerId, newPaymentMethod.id);
+      }
+      
+      res.json(newPaymentMethod);
+    } catch (error: any) {
+      console.error("Error adding payment method:", error);
+      res.status(500).json({ message: error.message || "Failed to add payment method" });
+    }
+  });
+
+  // Legacy endpoint (keep for backward compatibility but mark as deprecated)
   app.post('/api/provider/:id/payment-methods', isProviderAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
