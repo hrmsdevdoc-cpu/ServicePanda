@@ -637,7 +637,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/providers/:id/approve', isAdminAuthenticated, async (req, res) => {
     try {
       const providerId = parseInt(req.params.id);
+      
+      // Get current status for activity logging
+      const currentProvider = await storage.getServiceProviderById(providerId);
+      const oldStatus = currentProvider?.status || 'pending';
+      
       await storage.updateServiceProviderStatus(providerId, 'approved');
+
+      // Log approval activity
+      await storage.logProviderActivity({
+        providerId,
+        activityType: 'status_change',
+        actorType: 'admin',
+        actorId: 'admin',
+        actorName: 'Administrator',
+        description: 'Provider application approved',
+        oldValue: oldStatus,
+        newValue: 'approved',
+      });
+
       res.json({ message: 'Provider approved successfully' });
     } catch (error) {
       console.error('Error approving provider:', error);
@@ -648,7 +666,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/providers/:id/reject', isAdminAuthenticated, async (req, res) => {
     try {
       const providerId = parseInt(req.params.id);
+      
+      // Get current status for activity logging
+      const currentProvider = await storage.getServiceProviderById(providerId);
+      const oldStatus = currentProvider?.status || 'pending';
+      
       await storage.updateServiceProviderStatus(providerId, 'rejected');
+
+      // Log rejection activity
+      await storage.logProviderActivity({
+        providerId,
+        activityType: 'status_change',
+        actorType: 'admin',
+        actorId: 'admin',
+        actorName: 'Administrator',
+        description: 'Provider application rejected',
+        oldValue: oldStatus,
+        newValue: 'rejected',
+      });
+
       res.json({ message: 'Provider rejected successfully' });
     } catch (error) {
       console.error('Error rejecting provider:', error);
@@ -706,10 +742,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const providerId = parseInt(req.params.id);
       const { adminNotes, insuranceExpiryDate } = req.body;
       
+      // Get current provider data for activity logging
+      const currentProvider = await storage.getServiceProviderById(providerId);
+      const oldNotes = currentProvider?.adminNotes || '';
+      const oldInsuranceDate = currentProvider?.insuranceExpiryDate;
+      
       await storage.updateProviderAdminFields(providerId, {
         adminNotes,
         insuranceExpiryDate: insuranceExpiryDate ? new Date(insuranceExpiryDate) : null,
       });
+
+      // Log admin notes activity if changed
+      if (adminNotes !== oldNotes) {
+        await storage.logProviderActivity({
+          providerId,
+          activityType: 'details_update',
+          actorType: 'admin',
+          actorId: 'admin',
+          actorName: 'Administrator',
+          description: `Admin notes ${adminNotes ? 'updated' : 'cleared'}`,
+          oldValue: oldNotes,
+          newValue: adminNotes,
+        });
+      }
+
+      // Log insurance expiry activity if changed
+      const newInsuranceDate = insuranceExpiryDate ? new Date(insuranceExpiryDate) : null;
+      if (oldInsuranceDate?.getTime() !== newInsuranceDate?.getTime()) {
+        await storage.logProviderActivity({
+          providerId,
+          activityType: 'details_update',
+          actorType: 'admin',
+          actorId: 'admin',
+          actorName: 'Administrator',
+          description: `Insurance expiry date ${newInsuranceDate ? 'updated to ' + newInsuranceDate.toLocaleDateString() : 'cleared'}`,
+          oldValue: oldInsuranceDate?.toISOString() || null,
+          newValue: newInsuranceDate?.toISOString() || null,
+        });
+      }
       
       res.json({ message: 'Provider admin fields updated successfully' });
     } catch (error) {
@@ -727,6 +797,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching service requests:', error);
       res.status(500).json({ message: 'Failed to fetch service requests' });
+    }
+  });
+
+  // Get provider activity logs
+  app.get('/api/admin/providers/:id/activity', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const actorType = req.query.actorType as 'admin' | 'provider' | undefined;
+      
+      const activities = await storage.getProviderActivityLogs(providerId, actorType);
+      res.json(activities);
+    } catch (error) {
+      console.error('Error fetching provider activities:', error);
+      res.status(500).json({ message: 'Failed to fetch provider activities' });
     }
   });
 

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -34,7 +35,9 @@ import {
   TreePine,
   Bug,
   Sparkles,
-  Building
+  Building,
+  Clock,
+  Filter
 } from "lucide-react";
 
 // Service icons mapping - same as provider pages
@@ -90,7 +93,7 @@ function ServiceIconGrid({ selectedServices, readOnly = false }: {
   ];
 
   // Get selected service names for comparison - ensure unique values
-  const selectedServiceNames = [...new Set(selectedServices.map(service => service.categoryName || service.name))];
+  const selectedServiceNames = Array.from(new Set(selectedServices.map(service => service.categoryName || service.name)));
   console.log('ServiceIconGrid - selectedServiceNames:', selectedServiceNames);
 
   return (
@@ -141,8 +144,21 @@ export default function AdminPendingProviders() {
   const [selectedProvider, setSelectedProvider] = useState<ServiceProvider | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
+  const [activityFilter, setActivityFilter] = useState<'all' | 'admin' | 'provider'>('all');
   const [newServiceArea, setNewServiceArea] = useState({ address: "", radius: 25 });
   const [viewingDocument, setViewingDocument] = useState<any>(null);
+
+  // Activity logs query
+  const { data: activityLogs, isLoading: isLoadingActivity } = useQuery({
+    queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity', activityFilter],
+    queryFn: async () => {
+      if (!selectedProvider) return [];
+      const filterParam = activityFilter !== 'all' ? `?actorType=${activityFilter}` : '';
+      const response = await apiRequest('GET', `/api/admin/providers/${selectedProvider.id}/activity${filterParam}`);
+      return response.json();
+    },
+    enabled: !!selectedProvider && activeTab === 'activity',
+  });
 
   // Check admin authentication
   useEffect(() => {
@@ -472,7 +488,7 @@ export default function AdminPendingProviders() {
 
           {selectedProvider && (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="personal" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   Personal Details
@@ -492,6 +508,10 @@ export default function AdminPendingProviders() {
                 <TabsTrigger value="notes" className="flex items-center gap-2">
                   <StickyNote className="h-4 w-4" />
                   Notes
+                </TabsTrigger>
+                <TabsTrigger value="activity" className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Activity
                 </TabsTrigger>
               </TabsList>
 
@@ -769,6 +789,69 @@ export default function AdminPendingProviders() {
                       {saveNotesMutation.isPending ? 'Saving Notes...' : 'Save Notes'}
                     </Button>
                   </div>
+                </div>
+              </TabsContent>
+
+              {/* Activity Tab */}
+              <TabsContent value="activity" className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Provider Activity History</h3>
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-gray-500" />
+                      <Select value={activityFilter} onValueChange={(value: 'all' | 'admin' | 'provider') => setActivityFilter(value)}>
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Filter by..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Activity</SelectItem>
+                          <SelectItem value="admin">Admin Only</SelectItem>
+                          <SelectItem value="provider">Provider Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {isLoadingActivity ? (
+                    <div className="text-center py-6 text-gray-500">Loading activity logs...</div>
+                  ) : activityLogs && activityLogs.length > 0 ? (
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {activityLogs.map((activity: any, index: number) => (
+                        <div key={activity.id || index} className="border-l-4 border-blue-500 pl-4 py-3 bg-gray-50 rounded-r">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={activity.actorType === 'admin' ? 'default' : 'outline'}>
+                                {activity.actorType === 'admin' ? 'Admin' : 'Provider'}
+                              </Badge>
+                              <span className="text-sm font-medium">{activity.actorName}</span>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {new Date(activity.timestamp).toLocaleString('en-AU')}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700 mb-2">{activity.description}</p>
+                          {(activity.oldValue || activity.newValue) && (
+                            <div className="text-xs space-y-1">
+                              {activity.oldValue && (
+                                <div className="text-red-600">
+                                  <span className="font-medium">Previous:</span> {activity.oldValue}
+                                </div>
+                              )}
+                              {activity.newValue && (
+                                <div className="text-green-600">
+                                  <span className="font-medium">Updated:</span> {activity.newValue}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-gray-500">
+                      No activity logs found for this provider.
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 

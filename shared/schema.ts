@@ -247,6 +247,20 @@ export const providerPasswordResetTokens = pgTable("provider_password_reset_toke
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Provider activity logs for tracking all changes and actions
+export const providerActivityLogs = pgTable("provider_activity_logs", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  activityType: varchar("activity_type", { length: 50 }).notNull(), // 'status_change', 'service_update', 'area_update', 'details_update', 'document_update'
+  actorType: varchar("actor_type", { length: 20 }).notNull(), // 'admin', 'provider'
+  actorId: varchar("actor_id", { length: 50 }), // admin username or provider ID
+  actorName: varchar("actor_name", { length: 100 }), // display name
+  description: text("description").notNull(), // human-readable description
+  oldValue: text("old_value"), // JSON string of old data
+  newValue: text("new_value"), // JSON string of new data
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   serviceRequests: many(serviceRequests),
@@ -259,6 +273,7 @@ export const serviceProvidersRelations = relations(serviceProviders, ({ many }) 
   serviceAreas: many(providerServiceAreas),
   documents: many(providerDocuments),
   leadAssignments: many(leadAssignments),
+  activityLogs: many(providerActivityLogs),
 }));
 
 export const serviceCategoriesRelations = relations(serviceCategories, ({ many }) => ({
@@ -318,6 +333,10 @@ export const sentEmailsRelations = relations(sentEmails, ({ one }) => ({
 
 export const userActivityLogsRelations = relations(userActivityLogs, ({ one }) => ({
   user: one(users, { fields: [userActivityLogs.userId], references: [users.id] }),
+}));
+
+export const providerActivityLogsRelations = relations(providerActivityLogs, ({ one }) => ({
+  provider: one(serviceProviders, { fields: [providerActivityLogs.providerId], references: [serviceProviders.id] }),
 }));
 
 // Insert schemas
@@ -385,6 +404,10 @@ export const insertProviderPasswordResetTokenSchema = createInsertSchema(provide
   id: true, 
   createdAt: true 
 });
+export const insertProviderActivityLogSchema = createInsertSchema(providerActivityLogs).omit({ 
+  id: true, 
+  timestamp: true 
+});
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
@@ -421,3 +444,5 @@ export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 
 export type InsertProviderPasswordResetToken = z.infer<typeof insertProviderPasswordResetTokenSchema>;
 export type ProviderPasswordResetToken = typeof providerPasswordResetTokens.$inferSelect;
+export type InsertProviderActivityLog = z.infer<typeof insertProviderActivityLogSchema>;
+export type ProviderActivityLog = typeof providerActivityLogs.$inferSelect;

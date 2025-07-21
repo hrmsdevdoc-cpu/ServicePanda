@@ -49,6 +49,9 @@ import {
   providerPasswordResetTokens,
   type InsertProviderPasswordResetToken,
   type ProviderPasswordResetToken,
+  providerActivityLogs,
+  type ProviderActivityLog,
+  type InsertProviderActivityLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, isNotNull } from "drizzle-orm";
@@ -168,6 +171,10 @@ export interface IStorage {
   getProviderPasswordResetToken(token: string): Promise<ProviderPasswordResetToken | undefined>;
   markProviderTokenAsUsed(token: string): Promise<void>;
   updateProviderPassword(providerId: number, hashedPassword: string): Promise<ServiceProvider>;
+
+  // Activity logging methods
+  logProviderActivity(activity: InsertProviderActivityLog): Promise<void>;
+  getProviderActivityLogs(providerId: number, actorType?: 'admin' | 'provider'): Promise<ProviderActivityLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1000,6 +1007,25 @@ export class DatabaseStorage implements IStorage {
       .where(eq(serviceProviders.id, providerId))
       .returning();
     return provider;
+  }
+
+  // Activity logging methods
+  async logProviderActivity(activity: InsertProviderActivityLog): Promise<void> {
+    await db.insert(providerActivityLogs).values(activity);
+  }
+
+  async getProviderActivityLogs(providerId: number, actorType?: 'admin' | 'provider'): Promise<ProviderActivityLog[]> {
+    const conditions = [eq(providerActivityLogs.providerId, providerId)];
+    
+    if (actorType) {
+      conditions.push(eq(providerActivityLogs.actorType, actorType));
+    }
+
+    return await db
+      .select()
+      .from(providerActivityLogs)
+      .where(and(...conditions))
+      .orderBy(desc(providerActivityLogs.timestamp));
   }
 
 }
