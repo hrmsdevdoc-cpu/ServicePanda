@@ -332,6 +332,7 @@ export default function AdminPendingProviders() {
   const [newServiceArea, setNewServiceArea] = useState({ address: "", radius: 25 });
   const [viewingDocument, setViewingDocument] = useState<any>(null);
   const [autocompleteInitialized, setAutocompleteInitialized] = useState(false);
+  const [autocompleteInstance, setAutocompleteInstance] = useState<any>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
 
   // Activity logs query
@@ -488,7 +489,6 @@ export default function AdminPendingProviders() {
   });
 
   // State for autocomplete management
-  const [autocompleteInstance, setAutocompleteInstance] = useState<any>(null);
 
   // Initialize autocomplete when dialog opens and Google Maps is available
   useEffect(() => {
@@ -510,6 +510,9 @@ export default function AdminPendingProviders() {
             requestedLanguage: 'en',
           });
           
+          // Store reference to autocomplete element for later access
+          setAutocompleteInstance(autocompleteElement);
+          
           // Hide the original input and insert the autocomplete element
           addressInputRef.current.style.display = 'none';
           addressInputRef.current.parentNode.insertBefore(autocompleteElement, addressInputRef.current);
@@ -527,17 +530,14 @@ export default function AdminPendingProviders() {
             
             if (place.formattedAddress) {
               console.log('Setting address to:', place.formattedAddress);
+              // Store the address in a way we can reliably access it
+              autocompleteElement.selectedAddress = place.formattedAddress;
               setNewServiceArea(prev => ({
                 ...prev,
                 address: place.formattedAddress
               }));
               // Sync with hidden input
               addressInputRef.current.value = place.formattedAddress;
-              
-              // Force a re-render to ensure state is updated
-              setTimeout(() => {
-                console.log('Current state address:', newServiceArea.address);
-              }, 100);
             }
             return false;
           });
@@ -584,15 +584,30 @@ export default function AdminPendingProviders() {
       return;
     }
 
+    // Get the address from multiple sources
+    let addressToSend = '';
+    
+    // First try to get from the autocomplete element's stored value
+    if (autocompleteInstance && autocompleteInstance.selectedAddress) {
+      addressToSend = autocompleteInstance.selectedAddress;
+    }
+    // Then try from the React state
+    else if (newServiceArea.address) {
+      addressToSend = newServiceArea.address;
+    }
+    // Finally try from the input field value
+    else if (addressInputRef.current?.value) {
+      addressToSend = addressInputRef.current.value;
+    }
+
     console.log('Adding service area with data:', {
       providerId: selectedProvider.id,
-      address: newServiceArea.address,
+      address: addressToSend,
       radius: newServiceArea.radius,
-      inputValue: addressInputRef.current?.value
+      stateAddress: newServiceArea.address,
+      inputValue: addressInputRef.current?.value,
+      autocompleteAddress: autocompleteInstance?.selectedAddress
     });
-
-    // Use the input value if state is empty
-    const addressToSend = newServiceArea.address || addressInputRef.current?.value || '';
 
     addServiceAreaMutation.mutate({
       providerId: selectedProvider.id,
