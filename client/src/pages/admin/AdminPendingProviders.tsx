@@ -515,8 +515,38 @@ export default function AdminPendingProviders() {
   const [lastMutationTime, setLastMutationTime] = useState(0);
   const [isUserInitiated, setIsUserInitiated] = useState(false);
 
-  // Google Maps autocomplete DISABLED to prevent interference
-  // Using manual address entry only for reliable operation
+  // Google Maps Autocomplete with proper event isolation
+  const initializeAutocomplete = () => {
+    if (autocompleteInitialized || !addressInputRef.current || !window.google?.maps?.places) {
+      return;
+    }
+
+    try {
+      const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+        componentRestrictions: { country: "au" },
+        fields: ["address_components", "formatted_address", "geometry"],
+        types: ["address"],
+      });
+
+      // Handle place selection with proper event isolation
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place.formatted_address) {
+          // Only update the input field - DO NOT trigger any form submissions
+          setNewServiceArea(prev => ({ 
+            ...prev, 
+            address: place.formatted_address || "" 
+          }));
+          console.log('Autocomplete updated address field:', place.formatted_address);
+        }
+      });
+
+      setAutocompleteInitialized(true);
+      console.log('Google Maps autocomplete initialized successfully');
+    } catch (error) {
+      console.error('Google Maps autocomplete initialization failed:', error);
+    }
+  };
 
   const handleAddServiceArea = () => {
     const now = Date.now();
@@ -878,7 +908,7 @@ export default function AdminPendingProviders() {
                             placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
                             value={newServiceArea.address}
                             onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
-
+                            onFocus={initializeAutocomplete}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
