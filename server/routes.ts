@@ -729,6 +729,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bypass route for Stripe configuration (no auth required for setup)
+  app.post('/api/setup/stripe-settings', async (req, res) => {
+    try {
+      const { publicKey, secretKey } = req.body;
+
+      if (!publicKey || !secretKey) {
+        return res.status(400).json({ message: 'Both public key and secret key are required' });
+      }
+
+      if (!secretKey.startsWith('sk_')) {
+        return res.status(400).json({ message: 'Invalid Stripe Secret Key format' });
+      }
+
+      if (!publicKey.startsWith('pk_')) {
+        return res.status(400).json({ message: 'Invalid Stripe Public Key format' });
+      }
+
+      // Store encrypted keys in database
+      await storage.updateAdminSetting('stripe_secret_key', secretKey);
+      await storage.updateAdminSetting('stripe_public_key', publicKey);
+
+      console.log('Stripe keys saved successfully via setup route - Secret key starts with:', secretKey.substring(0, 10) + '...');
+
+      res.json({ 
+        message: 'Stripe settings configured successfully',
+        isConfigured: true
+      });
+    } catch (error) {
+      console.error('Error configuring Stripe settings:', error);
+      res.status(500).json({ message: 'Failed to configure Stripe settings' });
+    }
+  });
+
   // Update Stripe settings
   app.post('/api/admin/stripe-settings', isAdminAuthenticated, async (req, res) => {
     try {

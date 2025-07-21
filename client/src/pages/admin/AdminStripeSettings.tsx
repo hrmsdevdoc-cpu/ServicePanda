@@ -59,7 +59,7 @@ export default function AdminStripeSettings() {
   // Save Stripe settings mutation
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiRequest('POST', '/api/admin/stripe-settings', data);
+      const response = await apiRequest('POST', '/api/setup/stripe-settings', data);
       return response.json();
     },
     onSuccess: () => {

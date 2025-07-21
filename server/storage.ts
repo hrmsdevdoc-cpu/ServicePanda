@@ -158,7 +158,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  private readonly ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+  private readonly ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'servicepanda-encryption-key-default-32chars';
   private readonly ALGORITHM = 'aes-256-gcm';
 
   private encrypt(text: string): string {
