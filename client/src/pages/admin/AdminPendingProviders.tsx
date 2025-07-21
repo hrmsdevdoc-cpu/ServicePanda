@@ -515,80 +515,80 @@ export default function AdminPendingProviders() {
   const [lastMutationTime, setLastMutationTime] = useState(0);
   const [isUserInitiated, setIsUserInitiated] = useState(false);
 
-  // Working Google Maps autocomplete with detailed debugging
+  // Modern Google Maps PlaceAutocompleteElement
   useEffect(() => {
-    console.log('=== AUTOCOMPLETE USEEFFECT TRIGGERED ===');
-    console.log('isViewDialogOpen:', isViewDialogOpen);
-    console.log('activeTab:', activeTab);
-    console.log('addressInputRef.current:', addressInputRef.current);
-    console.log('window.google:', !!window.google);
-    console.log('window.google.maps:', !!window.google?.maps);
-    console.log('window.google.maps.places:', !!window.google?.maps?.places);
-    
     if (!isViewDialogOpen || activeTab !== 'service-area') {
-      console.log('Not initializing autocomplete - dialog closed or wrong tab');
       return;
     }
 
     const initAutocomplete = () => {
-      console.log('=== INIT AUTOCOMPLETE FUNCTION CALLED ===');
-      console.log('addressInputRef.current in init:', addressInputRef.current);
-      console.log('Google Maps available in init:', !!window.google?.maps?.places);
-      
-      if (!addressInputRef.current) {
-        console.log('No address input ref, trying again in 100ms...');
-        setTimeout(initAutocomplete, 100);
-        return;
-      }
-      
-      if (!window.google?.maps?.places) {
-        console.log('Google Maps Places API not ready, trying again in 100ms...');
+      if (!addressInputRef.current || !window.google?.maps?.places) {
         setTimeout(initAutocomplete, 100);
         return;
       }
 
       try {
-        console.log('=== CREATING AUTOCOMPLETE INSTANCE ===');
-        
-        const autocomplete = new window.google.maps.places.Autocomplete(
-          addressInputRef.current,
-          {
-            types: ['geocode'],
-            componentRestrictions: { country: 'au' },
-            fields: ['formatted_address', 'geometry', 'name', 'place_id']
-          }
-        );
-
-        console.log('Autocomplete instance created:', autocomplete);
-
-        autocomplete.addListener('place_changed', () => {
-          console.log('=== PLACE CHANGED EVENT TRIGGERED ===');
-          const place = autocomplete.getPlace();
-          console.log('Place object:', place);
+        // Use the new PlaceAutocompleteElement if available, fallback to old Autocomplete
+        if (window.google.maps.places.PlaceAutocompleteElement) {
+          console.log('Using new PlaceAutocompleteElement');
           
-          if (place.formatted_address) {
-            console.log('Setting address to:', place.formatted_address);
-            setNewServiceArea(prev => ({
-              ...prev,
-              address: place.formatted_address
-            }));
-          } else {
-            console.log('No formatted_address in place object');
-          }
-        });
+          const autocompleteElement = new window.google.maps.places.PlaceAutocompleteElement({
+            componentRestrictions: { country: 'au' },
+            requestedLanguage: 'en',
+          });
+          
+          // Replace the input with the autocomplete element
+          const parent = addressInputRef.current.parentNode;
+          parent.insertBefore(autocompleteElement, addressInputRef.current);
+          addressInputRef.current.style.display = 'none';
+          
+          autocompleteElement.addEventListener('gmp-placeselect', (event) => {
+            const place = event.place;
+            console.log('Place selected (new API):', place);
+            
+            if (place.formattedAddress) {
+              setNewServiceArea(prev => ({
+                ...prev,
+                address: place.formattedAddress
+              }));
+              // Also update the hidden input for form submission
+              addressInputRef.current.value = place.formattedAddress;
+            }
+          });
+          
+        } else {
+          console.log('Using legacy Autocomplete');
+          
+          const autocomplete = new window.google.maps.places.Autocomplete(
+            addressInputRef.current,
+            {
+              types: ['geocode'],
+              componentRestrictions: { country: 'au' },
+              fields: ['formatted_address', 'geometry', 'name', 'place_id']
+            }
+          );
 
-        console.log('=== AUTOCOMPLETE SETUP COMPLETE ===');
+          autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            console.log('Place selected (legacy API):', place);
+            
+            if (place.formatted_address) {
+              setNewServiceArea(prev => ({
+                ...prev,
+                address: place.formatted_address
+              }));
+            }
+          });
+        }
+
+        console.log('Google Maps autocomplete initialized successfully');
       } catch (error) {
-        console.error('=== AUTOCOMPLETE ERROR ===', error);
+        console.error('Autocomplete initialization error:', error);
       }
     };
 
-    console.log('Setting timeout for autocomplete initialization...');
-    const timer = setTimeout(initAutocomplete, 800);
-    return () => {
-      console.log('Clearing autocomplete timer');
-      clearTimeout(timer);
-    };
+    const timer = setTimeout(initAutocomplete, 500);
+    return () => clearTimeout(timer);
   }, [isViewDialogOpen, activeTab]);
 
   const handleAddServiceArea = () => {

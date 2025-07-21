@@ -1,0 +1,67 @@
+=== AUTOCOMPLETE USEEFFECT TRIGGERED ===
+AdminPendingProviders.tsx:521 isViewDialogOpen: false
+AdminPendingProviders.tsx:522 activeTab: personal
+AdminPendingProviders.tsx:523 addressInputRef.current: null
+AdminPendingProviders.tsx:524 window.google: false
+AdminPendingProviders.tsx:525 window.google.maps: false
+AdminPendingProviders.tsx:526 window.google.maps.places: false
+AdminPendingProviders.tsx:529 Not initializing autocomplete - dialog closed or wrong tab
+js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:1374 Google Maps JavaScript API has been loaded directly without loading=async. This can result in suboptimal performance. For best-practice loading patterns please see https://goo.gle/js-api-loading
+bda @ js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:1374
+google.maps.Load @ js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:14
+(anonymous) @ js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:1618
+(anonymous) @ js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:1618Understand this warning
+AdminPendingProviders.tsx:520 === AUTOCOMPLETE USEEFFECT TRIGGERED ===
+AdminPendingProviders.tsx:521 isViewDialogOpen: true
+AdminPendingProviders.tsx:522 activeTab: personal
+AdminPendingProviders.tsx:523 addressInputRef.current: null
+AdminPendingProviders.tsx:524 window.google: true
+AdminPendingProviders.tsx:525 window.google.maps: true
+AdminPendingProviders.tsx:526 window.google.maps.places: true
+AdminPendingProviders.tsx:529 Not initializing autocomplete - dialog closed or wrong tab
+@radix-ui_react-dialog.js?v=ad3f85fd:339 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ @radix-ui_react-dialog.js?v=ad3f85fd:339
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=ad3f85fd:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=ad3f85fd:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=ad3f85fd:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=ad3f85fd:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=ad3f85fd:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=ad3f85fd:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=ad3f85fd:19447
+commitRootImpl @ chunk-RPCDYKBN.js?v=ad3f85fd:19416
+commitRoot @ chunk-RPCDYKBN.js?v=ad3f85fd:19277
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=ad3f85fd:18895
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=ad3f85fd:9119
+(anonymous) @ chunk-RPCDYKBN.js?v=ad3f85fd:18627Understand this warning
+AdminPendingProviders.tsx:520 === AUTOCOMPLETE USEEFFECT TRIGGERED ===
+AdminPendingProviders.tsx:521 isViewDialogOpen: true
+AdminPendingProviders.tsx:522 activeTab: service-area
+AdminPendingProviders.tsx:523 addressInputRef.current: null
+AdminPendingProviders.tsx:524 window.google: true
+AdminPendingProviders.tsx:525 window.google.maps: true
+AdminPendingProviders.tsx:526 window.google.maps.places: true
+AdminPendingProviders.tsx:586 Setting timeout for autocomplete initialization...
+AdminPendingProviders.tsx:534 === INIT AUTOCOMPLETE FUNCTION CALLED ===
+AdminPendingProviders.tsx:535 addressInputRef.current in init: <input data-replit-metadata=​"client/​src/​pages/​admin/​AdminPendingProviders.tsx:​906:​24" data-component-name=​"Input" class=​"flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:​border-0 file:​bg-transparent file:​text-sm file:​font-medium file:​text-foreground placeholder:​text-muted-foreground focus-visible:​outline-none focus-visible:​ring-2 focus-visible:​ring-ring focus-visible:​ring-offset-2 disabled:​cursor-not-allowed disabled:​opacity-50 md:​text-sm mt-1 pac-target-input" id=​"newAddress" placeholder=​"Enter full address (e.g., 123 Main St, Brisbane QLD 4000)​" value autocomplete=​"off">​flex
+AdminPendingProviders.tsx:536 Google Maps available in init: true
+AdminPendingProviders.tsx:551 === CREATING AUTOCOMPLETE INSTANCE ===
+js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:94 As of March 1st, 2025, google.maps.places.Autocomplete is not available to new customers. Please use google.maps.places.PlaceAutocompleteElement instead. At this time, google.maps.places.Autocomplete is not scheduled to be discontinued, but google.maps.places.PlaceAutocompleteElement is recommended over google.maps.places.Autocomplete. While google.maps.places.Autocomplete will continue to receive bug fixes for any major regressions, existing bugs in google.maps.places.Autocomplete will not be addressed. At least 12 months notice will be given before support is discontinued. Please see https://developers.google.com/maps/legacy for additional details and https://developers.google.com/maps/documentation/javascript/places-migration-overview for the migration guide.
+GF @ js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:94
+initAutocomplete @ AdminPendingProviders.tsx:553
+setTimeout
+(anonymous) @ AdminPendingProviders.tsx:587
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=ad3f85fd:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=ad3f85fd:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=ad3f85fd:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=ad3f85fd:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=ad3f85fd:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=ad3f85fd:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=ad3f85fd:19447
+commitRootImpl @ chunk-RPCDYKBN.js?v=ad3f85fd:19416
+commitRoot @ chunk-RPCDYKBN.js?v=ad3f85fd:19277
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=ad3f85fd:18895
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=ad3f85fd:9119
+(anonymous) @ chunk-RPCDYKBN.js?v=ad3f85fd:18627Understand this warning
+AdminPendingProviders.tsx:562 Autocomplete instance created: GF {}
+AdminPendingProviders.tsx:580 === AUTOCOMPLETE SETUP COMPLETE ===
+AdminPendingProviders.tsx:422 MUTATION BLOCKED: Address appears incomplete: 32 j
