@@ -912,7 +912,7 @@ export default function AdminPendingProviders() {
                     <Button 
                       type="button"
                       onClick={handleAddServiceArea}
-                      disabled={!newServiceArea.address.trim() || addServiceAreaMutation.isPending}
+                      disabled={addServiceAreaMutation.isPending}
                       className="w-full bg-green-600 hover:bg-green-700 mt-4"
                     >
                       {addServiceAreaMutation.isPending ? (
