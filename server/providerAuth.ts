@@ -285,9 +285,17 @@ export function setupProviderAuth(app: Express) {
       
       // Get document from database to verify ownership
       const documents = await storage.getProviderDocuments(providerId);
-      const document = documents.find((doc: any) => doc.filePath.includes(filename));
+      console.log('Available documents:', documents.map((doc: any) => ({ fileName: doc.fileName, filePath: doc.filePath })));
+      
+      // Try to find document by fileName or filePath
+      const document = documents.find((doc: any) => 
+        doc.fileName === filename || 
+        doc.filePath.includes(filename) ||
+        doc.filePath.endsWith(filename)
+      );
       
       if (!document) {
+        console.log(`Document not found: ${filename} for provider ${providerId}`);
         return res.status(404).json({ message: "Document not found or access denied" });
       }
       
