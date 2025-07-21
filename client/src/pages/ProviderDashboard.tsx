@@ -1261,7 +1261,7 @@ export default function ProviderDashboard() {
 
 
             {/* Other menu items (coming soon) */}
-            {(activeMenuItem === "accepted-leads" || activeMenuItem === "billing" || activeMenuItem === "help") && (
+            {(activeMenuItem === "billing" || activeMenuItem === "help") && (
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
