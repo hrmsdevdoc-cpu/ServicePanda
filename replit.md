@@ -85,7 +85,8 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 - **Personal Details Tab Enhancement**: Created two-column layout displaying provider information with official admin fields including editable insurance expiry date tracking
 - **Service Area Management System**: Built complete CRUD functionality for service areas with add/remove capabilities, address input, radius controls, and real-time updates
 - **Services Display Integration**: Implemented visual service cards showing all selected provider services with category names and professional blue styling
-- **Document Viewer Integration**: Connected existing document system with status display, upload dates, and functional view buttons opening documents in new windows
+- **Inline Document Viewer System**: Implemented seamless inline document viewing within Documents tab using iframe for PDFs and image display for images, eliminating authentication issues
+- **Enhanced Document Lookup**: Added flexible document matching logic supporting multiple filename formats and URL encoding variations
 - **Admin Notes and Insurance Tracking**: Created admin-specific notes system with textarea input, save functionality, and insurance expiry date management for official use
 - **Database Schema Enhancement**: Successfully added `insurance_expiry_date` and `admin_notes` columns to service_providers table via SQL commands
 - **Backend API Endpoints**: Implemented complete server-side infrastructure including `/api/admin/providers/:id/details`, service area management endpoints, and notes saving functionality
