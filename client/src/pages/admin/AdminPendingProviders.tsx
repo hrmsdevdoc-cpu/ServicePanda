@@ -95,7 +95,7 @@ function ServiceIconGrid({ selectedServices, readOnly = false }: {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         {allCategories.map((category) => {
           const IconComponent = serviceIcons[category.name as keyof typeof serviceIcons] || Home;
           const isSelected = selectedServiceNames.includes(category.name);
@@ -114,10 +114,10 @@ function ServiceIconGrid({ selectedServices, readOnly = false }: {
               }`}>
                 <IconComponent className={`h-3 w-3 ${isSelected ? "text-white" : "text-primary"}`} />
               </div>
-              <span className={`text-xs font-medium leading-tight ${
+              <span className={`text-xs font-medium leading-tight block ${
                 isSelected ? "text-primary" : "text-gray-600"
               }`}>
-                {category.name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
+                {category.name}
               </span>
               {isSelected && (
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
