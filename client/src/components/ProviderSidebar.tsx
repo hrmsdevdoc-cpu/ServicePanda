@@ -180,6 +180,20 @@ export default function ProviderSidebar({
           {expandedMenus.includes("settings") && (
             <div className="ml-6 space-y-1">
               <button
+                onClick={() => {
+                  setActiveMenuItem("Personal Details");
+                  setIsMobileMenuOpen(false);
+                  navigate("/provider-personal-details");
+                }}
+                className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                  activeMenuItem === "Personal Details" 
+                    ? "bg-red-50 text-red-700" 
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Personal Details
+              </button>
+              <button
                 onClick={() => setActiveMenuItem("services")}
                 className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                   activeMenuItem === "services" 

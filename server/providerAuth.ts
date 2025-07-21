@@ -228,6 +228,41 @@ export function setupProviderAuth(app: Express) {
     }
   });
 
+  // Update provider profile endpoint
+  app.put('/api/provider/:id/profile', isProviderAuthenticated, async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const { firstName, lastName, mobileNumber, address, businessName, businessAbn } = req.body;
+      
+      // Verify provider can only update their own profile
+      if (providerId !== req.provider.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Validation
+      if (!firstName || !lastName || !mobileNumber || !address) {
+        return res.status(400).json({ message: "Required fields: firstName, lastName, mobileNumber, address" });
+      }
+
+      // Update provider
+      const updatedProvider = await storage.updateServiceProvider(providerId, {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        mobileNumber: mobileNumber.trim(),
+        address: address.trim(),
+        businessName: businessName ? businessName.trim() : null,
+        businessAbn: businessAbn ? businessAbn.trim() : null,
+      });
+
+      // Return updated profile without password
+      const { password, ...profileData } = updatedProvider;
+      res.json(profileData);
+    } catch (error) {
+      console.error("Error updating provider profile:", error);
+      res.status(500).json({ message: "Failed to update provider profile" });
+    }
+  });
+
   // Provider leads endpoint
   app.get('/api/provider/leads', isProviderAuthenticated, async (req: any, res) => {
     try {
