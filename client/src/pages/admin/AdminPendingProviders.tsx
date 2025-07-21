@@ -515,43 +515,52 @@ export default function AdminPendingProviders() {
   const [lastMutationTime, setLastMutationTime] = useState(0);
   const [isUserInitiated, setIsUserInitiated] = useState(false);
 
-  // Working Google Maps autocomplete
-  const initializeAutocomplete = () => {
-    console.log('Autocomplete init called', { 
-      initialized: autocompleteInitialized, 
-      hasRef: !!addressInputRef.current, 
-      hasGoogle: !!window.google?.maps?.places 
-    });
-    
-    if (autocompleteInitialized || !addressInputRef.current || !window.google?.maps?.places) {
+  // Working Google Maps autocomplete - copied from LocationServiceAreaForm
+  useEffect(() => {
+    if (!isViewDialogOpen || activeTab !== 'service-area' || !addressInputRef.current) {
       return;
     }
 
-    try {
-      const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-        componentRestrictions: { country: "au" },
-        fields: ["formatted_address"],
-        types: ["address"],
-      });
+    const initAutocomplete = () => {
+      if (!window.google?.maps?.places) {
+        setTimeout(initAutocomplete, 100);
+        return;
+      }
 
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        console.log('Place selected:', place);
-        if (place && place.formatted_address) {
-          console.log('Setting address:', place.formatted_address);
-          setNewServiceArea(prev => ({ 
-            ...prev, 
-            address: place.formatted_address 
-          }));
-        }
-      });
+      try {
+        console.log('Creating autocomplete with Places API...');
+        
+        const autocomplete = new window.google.maps.places.Autocomplete(
+          addressInputRef.current,
+          {
+            types: ['geocode'],
+            componentRestrictions: { country: 'au' },
+            fields: ['formatted_address', 'geometry', 'name', 'place_id']
+          }
+        );
 
-      setAutocompleteInitialized(true);
-      console.log('Autocomplete initialized successfully');
-    } catch (error) {
-      console.error('Autocomplete error:', error);
-    }
-  };
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          console.log('Place selected:', place);
+          
+          if (place.formatted_address) {
+            setNewServiceArea(prev => ({
+              ...prev,
+              address: place.formatted_address
+            }));
+            console.log('Address set to:', place.formatted_address);
+          }
+        });
+
+        console.log('Address autocomplete enabled successfully');
+      } catch (error) {
+        console.error('Autocomplete initialization error:', error);
+      }
+    };
+
+    const timer = setTimeout(initAutocomplete, 500);
+    return () => clearTimeout(timer);
+  }, [isViewDialogOpen, activeTab]);
 
   const handleAddServiceArea = () => {
     if (!selectedProvider?.id || !newServiceArea.address.trim()) {
@@ -871,7 +880,6 @@ export default function AdminPendingProviders() {
                           placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
                           value={newServiceArea.address}
                           onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
-                          onFocus={initializeAutocomplete}
                           className="mt-1"
                         />
                       </div>
