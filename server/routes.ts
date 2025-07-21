@@ -677,79 +677,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bypass route for initial Stripe configuration
-  app.put('/api/setup/stripe', async (req, res) => {
+
+
+  // Get Stripe settings
+  app.get('/api/admin/stripe-settings', isAdminAuthenticated, async (req, res) => {
     try {
-      const { stripeSecretKey, stripePublicKey } = req.body;
-
-      console.log('Received Stripe setup request:', { 
-        hasSecretKey: !!stripeSecretKey, 
-        hasPublicKey: !!stripePublicKey,
-        secretKeyStart: stripeSecretKey ? stripeSecretKey.substring(0, 10) : 'none'
+      const stripeSecretKey = await storage.getDecryptedSetting('stripe_secret_key');
+      const stripePublicKey = await storage.getDecryptedSetting('stripe_public_key');
+      
+      res.json({
+        secretKey: stripeSecretKey ? '****' + stripeSecretKey.slice(-4) : '',
+        publicKey: stripePublicKey || '',
+        isConfigured: !!(stripeSecretKey && stripePublicKey)
       });
+    } catch (error) {
+      console.error('Error fetching Stripe settings:', error);
+      res.status(500).json({ message: 'Failed to fetch Stripe settings' });
+    }
+  });
 
-      if (!stripeSecretKey || !stripePublicKey) {
-        return res.status(400).json({ message: 'Both Stripe keys are required' });
+  // Get Mailgun settings  
+  app.get('/api/admin/mailgun-settings', isAdminAuthenticated, async (req, res) => {
+    try {
+      const apiKey = await storage.getDecryptedSetting('mailgun_api_key');
+      const domain = await storage.getDecryptedSetting('mailgun_domain');
+      const domainSendingKey = await storage.getDecryptedSetting('mailgun_domain_sending_key');
+      
+      res.json({
+        apiKey: apiKey ? '****' + apiKey.slice(-4) : '',
+        domain: domain || '',
+        domainSendingKey: domainSendingKey ? '****' + domainSendingKey.slice(-4) : '',
+        isConfigured: !!(apiKey && domain && domainSendingKey)
+      });
+    } catch (error) {
+      console.error('Error fetching Mailgun settings:', error);
+      res.status(500).json({ message: 'Failed to fetch Mailgun settings' });
+    }
+  });
+
+  // Update Stripe settings
+  app.post('/api/admin/stripe-settings', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { publicKey, secretKey } = req.body;
+
+      if (!publicKey || !secretKey) {
+        return res.status(400).json({ message: 'Both public key and secret key are required' });
       }
 
-      if (!stripeSecretKey.startsWith('sk_')) {
+      if (!secretKey.startsWith('sk_')) {
         return res.status(400).json({ message: 'Invalid Stripe Secret Key format' });
       }
 
-      if (!stripePublicKey.startsWith('pk_')) {
+      if (!publicKey.startsWith('pk_')) {
         return res.status(400).json({ message: 'Invalid Stripe Public Key format' });
       }
 
       // Store encrypted keys in database
-      await storage.updateAdminSetting('stripe_secret_key', stripeSecretKey);
-      await storage.updateAdminSetting('stripe_public_key', stripePublicKey);
+      await storage.updateAdminSetting('stripe_secret_key', secretKey);
+      await storage.updateAdminSetting('stripe_public_key', publicKey);
 
-      console.log('Stripe keys saved successfully - Secret key starts with:', stripeSecretKey.substring(0, 10) + '...');
-
-      res.json({ 
-        message: 'Settings updated successfully',
-        stripeConfigured: true
-      });
-    } catch (error) {
-      console.error('Error updating admin settings:', error);
-      res.status(500).json({ message: 'Failed to update admin settings' });
-    }
-  });
-
-  app.put('/api/admin/settings', async (req, res) => {
-    try {
-      const { stripeSecretKey, stripePublicKey } = req.body;
-
-      if (!stripeSecretKey || !stripePublicKey) {
-        return res.status(400).json({ message: 'Both Stripe keys are required' });
-      }
-
-      if (!stripeSecretKey.startsWith('sk_')) {
-        return res.status(400).json({ message: 'Invalid Stripe Secret Key format' });
-      }
-
-      if (!stripePublicKey.startsWith('pk_')) {
-        return res.status(400).json({ message: 'Invalid Stripe Public Key format' });
-      }
-
-      // Store encrypted keys in database
-      await storage.updateAdminSetting('stripe_secret_key', stripeSecretKey);
-      await storage.updateAdminSetting('stripe_public_key', stripePublicKey);
-
-      console.log('Stripe keys saved successfully - Secret key starts with:', stripeSecretKey.substring(0, 10) + '...');
+      console.log('Stripe keys saved successfully - Secret key starts with:', secretKey.substring(0, 10) + '...');
 
       res.json({ 
         message: 'Settings updated successfully',
-        stripeConfigured: true
+        isConfigured: true
       });
     } catch (error) {
-      console.error('Error updating admin settings:', error);
-      res.status(500).json({ message: 'Failed to update admin settings' });
+      console.error('Error updating Stripe settings:', error);
+      res.status(500).json({ message: 'Failed to update Stripe settings' });
     }
   });
 
-  // Admin Mailgun configuration endpoint
-  app.post('/api/admin/mailgun-config', async (req, res) => {
+  // Update Mailgun settings (renamed from mailgun-config)
+  app.post('/api/admin/mailgun-settings', isAdminAuthenticated, async (req, res) => {
     try {
       const { apiKey, domain, domainSendingKey } = req.body;
 
@@ -766,7 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         message: 'Mailgun configuration updated successfully',
-        mailgunConfigured: true
+        isConfigured: true
       });
     } catch (error) {
       console.error('Error updating Mailgun settings:', error);
