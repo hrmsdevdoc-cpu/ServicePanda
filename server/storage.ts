@@ -306,6 +306,7 @@ export class DatabaseStorage implements IStorage {
           customerFirstName: users.firstName,
           customerLastName: users.lastName,
           customerEmail: users.email,
+          customerPhoneNumber: users.phoneNumber,
           // Category info
           categoryName: serviceCategories.name,
         })
@@ -343,6 +344,7 @@ export class DatabaseStorage implements IStorage {
           return {
             ...request,
             customerName: `${request.customerFirstName || ''} ${request.customerLastName || ''}`.trim(),
+            customerPhone: request.customerPhoneNumber,
             leadAssignments: formattedAssignments,
             notes: notes,
           };
