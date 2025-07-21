@@ -62,6 +62,7 @@ import {
   Sparkles,
   Building
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 // Admin Service Category Selector Component
 interface AdminServiceCategorySelectorProps {
@@ -872,17 +873,18 @@ export default function AdminPendingProviders() {
                                   Uploaded: {new Date(doc.uploadedAt).toLocaleDateString('en-AU')}
                                 </p>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant={doc.status === 'approved' ? 'default' : 'outline'}
-                                  className={`${doc.status === 'approved' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-100 text-orange-700 hover:bg-orange-200'} capitalize`}
-                                  onClick={() => toggleDocumentMutation.mutate({ documentId: doc.id, currentStatus: doc.status })}
-                                  disabled={toggleDocumentMutation.isPending}
-                                >
-                                  {toggleDocumentMutation.isPending ? 'Updating...' : 
-                                   doc.status === 'approved' ? 'Approved' : 'Pending'}
-                                </Button>
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-sm font-medium ${doc.status === 'approved' ? 'text-green-600' : 'text-orange-600'}`}>
+                                    {doc.status === 'approved' ? 'Approved' : 'Pending'}
+                                  </span>
+                                  <Switch
+                                    checked={doc.status === 'approved'}
+                                    onCheckedChange={() => toggleDocumentMutation.mutate({ documentId: doc.id, currentStatus: doc.status })}
+                                    disabled={toggleDocumentMutation.isPending}
+                                    className="data-[state=checked]:bg-green-600"
+                                  />
+                                </div>
                                 <Button
                                   size="sm"
                                   variant="outline"
