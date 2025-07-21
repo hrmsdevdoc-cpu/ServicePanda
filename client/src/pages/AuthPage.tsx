@@ -21,6 +21,7 @@ interface RegisterData {
   password: string;
   firstName: string;
   lastName: string;
+  phoneNumber: string;
 }
 
 export default function AuthPage() {
@@ -45,6 +46,7 @@ export default function AuthPage() {
     password: "",
     firstName: "",
     lastName: "",
+    phoneNumber: "",
   });
 
   const loginMutation = useMutation({
@@ -243,6 +245,17 @@ export default function AuthPage() {
                       value={registerData.email}
                       onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
                       placeholder="Enter your email"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="register-phone">Phone Number</Label>
+                    <Input
+                      id="register-phone"
+                      type="tel"
+                      value={registerData.phoneNumber}
+                      onChange={(e) => setRegisterData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                      placeholder="Enter your phone number"
                       required
                     />
                   </div>

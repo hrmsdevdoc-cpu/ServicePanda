@@ -94,9 +94,9 @@ export function setupAuth(app: Express) {
   // Registration endpoint
   app.post("/api/register", async (req, res, next) => {
     try {
-      const { email, password, firstName, lastName } = req.body;
+      const { email, password, firstName, lastName, phoneNumber } = req.body;
 
-      if (!email || !password || !firstName || !lastName) {
+      if (!email || !password || !firstName || !lastName || !phoneNumber) {
         return res.status(400).json({ message: "All fields are required" });
       }
 
@@ -117,6 +117,7 @@ export function setupAuth(app: Express) {
         user = await storage.updateUser(existingUser.id, {
           firstName,
           lastName,
+          phoneNumber,
           password: hashedPassword,
         });
       } else {
@@ -127,6 +128,7 @@ export function setupAuth(app: Express) {
           email,
           firstName,
           lastName,
+          phoneNumber,
           password: hashedPassword,
         });
       }
@@ -142,6 +144,7 @@ export function setupAuth(app: Express) {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          phoneNumber: user.phoneNumber,
         });
       });
     } catch (error) {

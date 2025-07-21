@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   password: varchar("password"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
+  phoneNumber: varchar("phone_number"),
   profileImageUrl: varchar("profile_image_url"),
   lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow(),

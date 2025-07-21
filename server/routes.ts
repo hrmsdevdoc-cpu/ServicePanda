@@ -542,20 +542,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const { firstName, lastName } = req.body;
+      const { firstName, lastName, phoneNumber } = req.body;
       
       if (!firstName || !lastName) {
         return res.status(400).json({ message: "First name and last name are required" });
       }
       
-      const updatedUser = await storage.updateUser(userId, { firstName, lastName });
+      const updatedUser = await storage.updateUser(userId, { firstName, lastName, phoneNumber });
       
       // Log user activity
       await storage.logUserActivity({
         userId,
         userType: "customer",
         action: "profile_updated",
-        details: { firstName, lastName },
+        details: { firstName, lastName, phoneNumber },
         ipAddress: req.ip,
         userAgent: req.get('User-Agent') || '',
       });

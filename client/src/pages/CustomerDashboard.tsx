@@ -46,6 +46,7 @@ export default function CustomerDashboard() {
   const [profileData, setProfileData] = useState({
     firstName: "",
     lastName: "",
+    phoneNumber: "",
   });
 
   const { data: categories = [] } = useQuery({
@@ -58,7 +59,7 @@ export default function CustomerDashboard() {
 
   // Profile update mutation
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { firstName: string; lastName: string }) => {
+    mutationFn: async (data: { firstName: string; lastName: string; phoneNumber?: string }) => {
       const response = await apiRequest("PUT", "/api/auth/user", data);
       return response.json();
     },
@@ -89,6 +90,7 @@ export default function CustomerDashboard() {
   const handleProfileUpdate = () => {
     const firstName = (profileData.firstName || user?.firstName || "").trim();
     const lastName = (profileData.lastName || user?.lastName || "").trim();
+    const phoneNumber = (profileData.phoneNumber || user?.phoneNumber || "").trim();
     
     if (!firstName || !lastName) {
       toast({
@@ -99,7 +101,7 @@ export default function CustomerDashboard() {
       return;
     }
 
-    updateProfileMutation.mutate({ firstName, lastName });
+    updateProfileMutation.mutate({ firstName, lastName, phoneNumber });
   };
 
   return (
@@ -415,6 +417,16 @@ export default function CustomerDashboard() {
                         value={profileData.lastName !== "" ? profileData.lastName : (user?.lastName || "")}
                         onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value.trim() }))}
                         placeholder="Enter your last name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phoneNumber">Phone Number</Label>
+                      <Input
+                        id="phoneNumber"
+                        type="tel"
+                        value={profileData.phoneNumber !== "" ? profileData.phoneNumber : (user?.phoneNumber || "")}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, phoneNumber: e.target.value.trim() }))}
+                        placeholder="Enter your phone number"
                       />
                     </div>
                     <div>
