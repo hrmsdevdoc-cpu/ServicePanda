@@ -111,6 +111,9 @@ function AdminServiceCategorySelector({
         description: "Provider service categories have been updated successfully",
         variant: "default",
       });
+      // Invalidate all related provider data caches
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', providerId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers'] });
       onServicesUpdate();
     },
     onError: (error: any) => {
