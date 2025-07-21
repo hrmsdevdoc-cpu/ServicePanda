@@ -63,6 +63,8 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  getUsersWithStats(): Promise<Array<User & { lastLogin?: string; isActive: boolean }>>;
   
   // Service provider operations
   createServiceProvider(provider: InsertServiceProvider): Promise<ServiceProvider>;
@@ -238,6 +240,25 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .orderBy(desc(users.createdAt));
+  }
+
+  async getUsersWithStats(): Promise<Array<User & { lastLogin?: string; isActive: boolean }>> {
+    const allUsers = await this.getAllUsers();
+    
+    // For now, return users with basic active status
+    // Can be enhanced later with real last login tracking
+    return allUsers.map(user => ({
+      ...user,
+      lastLogin: undefined, // Will need to implement session tracking for this
+      isActive: true // For now, assume all users are active
+    }));
   }
 
   // Service provider operations
