@@ -354,9 +354,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(australianSuburbs.suburb));
   }
 
-  async addProviderServiceArea(area: InsertProviderServiceArea): Promise<void> {
-    await db.insert(providerServiceAreas).values(area);
-  }
+
 
   // New location-based service area methods
   async addProviderLocationServiceArea(serviceAreaData: {
@@ -393,6 +391,14 @@ export class DatabaseStorage implements IStorage {
         eq(providerServiceAreas.providerId, providerId),
         eq(providerServiceAreas.id, areaId)
       ));
+  }
+
+  async getServiceAreaById(areaId: number): Promise<ProviderServiceArea | undefined> {
+    const [serviceArea] = await db
+      .select()
+      .from(providerServiceAreas)
+      .where(eq(providerServiceAreas.id, areaId));
+    return serviceArea;
   }
 
   async getProviderServiceAreas(providerId: number): Promise<AustralianSuburb[]> {

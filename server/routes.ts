@@ -710,11 +710,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const providerId = parseInt(req.params.id);
       const { centerAddress, radiusKm } = req.body;
       
-      const serviceArea = await storage.addProviderServiceArea({
+      const serviceArea = await storage.addProviderLocationServiceArea({
         providerId,
         centerAddress,
         radiusKm,
         areaName: null, // Let admin optionally specify this later
+      });
+
+      // Log service area addition activity
+      await storage.logProviderActivity({
+        providerId,
+        activityType: 'service_area_update',
+        actorType: 'admin',
+        actorId: 'admin',
+        actorName: 'Administrator',
+        description: `Service area added: ${centerAddress} (${radiusKm}km radius)`,
+        oldValue: null,
+        newValue: `${centerAddress} - ${radiusKm}km radius`,
       });
       
       res.json(serviceArea);
@@ -728,7 +740,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/admin/service-areas/:id', isAdminAuthenticated, async (req, res) => {
     try {
       const areaId = parseInt(req.params.id);
+      
+      // Get service area details before deletion for activity logging
+      const serviceAreaDetails = await storage.getServiceAreaById(areaId);
+      
       await storage.removeProviderServiceArea(areaId);
+
+      // Log service area removal activity
+      if (serviceAreaDetails) {
+        await storage.logProviderActivity({
+          providerId: serviceAreaDetails.providerId,
+          activityType: 'service_area_update',
+          actorType: 'admin',
+          actorId: 'admin',
+          actorName: 'Administrator',
+          description: `Service area removed: ${serviceAreaDetails.centerAddress} (${serviceAreaDetails.radiusKm}km radius)`,
+          oldValue: `${serviceAreaDetails.centerAddress} - ${serviceAreaDetails.radiusKm}km radius`,
+          newValue: null,
+        });
+      }
+      
       res.json({ message: 'Service area removed successfully' });
     } catch (error) {
       console.error('Error removing service area:', error);
