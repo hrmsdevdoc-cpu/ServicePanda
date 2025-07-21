@@ -69,12 +69,14 @@ interface AdminServiceCategorySelectorProps {
   providerId: number | undefined;
   currentServices: any[];
   onServicesUpdate: () => void;
+  queryClient: any;
 }
 
 function AdminServiceCategorySelector({ 
   providerId, 
   currentServices = [], 
-  onServicesUpdate 
+  onServicesUpdate,
+  queryClient
 }: AdminServiceCategorySelectorProps) {
   const { toast } = useToast();
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
@@ -844,6 +846,7 @@ export default function AdminViewProviders() {
                     <AdminServiceCategorySelector 
                       providerId={selectedProvider?.id}
                       currentServices={providerDetails?.services || []}
+                      queryClient={queryClient}
                       onServicesUpdate={() => {
                         // Refresh provider details and activity logs
                         queryClient.invalidateQueries({ 
