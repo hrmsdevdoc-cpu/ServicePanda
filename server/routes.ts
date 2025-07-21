@@ -795,6 +795,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bypass route for Mailgun configuration (no auth required for setup)
+  app.post('/api/setup/mailgun-settings', async (req, res) => {
+    try {
+      const { apiKey, domain, domainSendingKey } = req.body;
+
+      if (!apiKey || !domain || !domainSendingKey) {
+        return res.status(400).json({ message: 'API key, domain, and domain sending key are all required' });
+      }
+
+      // Store encrypted keys in database
+      await storage.updateAdminSetting('mailgun_api_key', apiKey);
+      await storage.updateAdminSetting('mailgun_domain', domain);
+      await storage.updateAdminSetting('mailgun_domain_sending_key', domainSendingKey);
+
+      console.log('Mailgun keys saved successfully via setup route - API key starts with:', apiKey.substring(0, 10) + '...', 'Domain:', domain);
+
+      res.json({ 
+        message: 'Mailgun configuration updated successfully',
+        isConfigured: true
+      });
+    } catch (error) {
+      console.error('Error configuring Mailgun settings:', error);
+      res.status(500).json({ message: 'Failed to configure Mailgun settings' });
+    }
+  });
+
   // Update Mailgun settings (renamed from mailgun-config)
   app.post('/api/admin/mailgun-settings', isAdminAuthenticated, async (req, res) => {
     try {

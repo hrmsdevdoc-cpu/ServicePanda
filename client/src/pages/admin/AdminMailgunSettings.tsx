@@ -63,7 +63,7 @@ export default function AdminMailgunSettings() {
   // Save Mailgun settings mutation
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiRequest('POST', '/api/admin/mailgun-settings', data);
+      const response = await apiRequest('POST', '/api/setup/mailgun-settings', data);
       return response.json();
     },
     onSuccess: () => {
