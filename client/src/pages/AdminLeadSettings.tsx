@@ -12,6 +12,26 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Settings, Clock, DollarSign, Users, Star } from "lucide-react";
 import { AdminSidebar } from "@/components/AdminSidebar";
 
+// Admin API request helper with proper token handling
+const adminApiRequest = async (method: string, url: string, data?: any) => {
+  const token = localStorage.getItem('adminToken');
+  
+  const response = await fetch(url, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: data ? JSON.stringify(data) : undefined,
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  return response;
+};
+
 interface LeadSettings {
   // Pricing Model
   pricingModel: 'uniform' | 'category'; // uniform for all leads, category for per-category pricing
@@ -69,8 +89,9 @@ export default function AdminLeadSettings() {
 
   // Mutation to save lead settings
   const saveMutation = useMutation({
-    mutationFn: async (updatedSettings: LeadSettings) => {
-      await apiRequest('PUT', '/api/admin/lead-settings', updatedSettings);
+    mutationFn: async (updatedSettings: any) => {
+      const response = await adminApiRequest('PUT', '/api/admin/lead-settings', updatedSettings);
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -205,7 +226,7 @@ export default function AdminLeadSettings() {
                       type="number"
                       value={localSettings.uniformUniquePrice}
                       className="pl-8"
-                      onChange={(e) => handleSettingChange('uniformUniquePrice', parseFloat(e.target.value))}
+                      onChange={(e) => handleSettingChange('uniformUniquePrice', parseFloat(e.target.value) || 0)}
                     />
                   </div>
                   <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -221,7 +242,7 @@ export default function AdminLeadSettings() {
                       type="number"
                       value={localSettings.uniformSharePrice}
                       className="pl-8"
-                      onChange={(e) => handleSettingChange('uniformSharePrice', parseFloat(e.target.value))}
+                      onChange={(e) => handleSettingChange('uniformSharePrice', parseFloat(e.target.value) || 0)}
                     />
                   </div>
                   <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -255,7 +276,7 @@ export default function AdminLeadSettings() {
                     value={localSettings.uniqueOfferWindow}
                     min="1"
                     max="10"
-                    onChange={(e) => handleSettingChange('uniqueOfferWindow', parseInt(e.target.value))}
+                    onChange={(e) => handleSettingChange('uniqueOfferWindow', parseInt(e.target.value) || 1)}
                   />
                   <span className="text-sm text-gray-600 dark:text-gray-400">minutes</span>
                 </div>
@@ -304,7 +325,7 @@ export default function AdminLeadSettings() {
                     value={localSettings.maxProvidersPerArea}
                     min="1"
                     max="50"
-                    onChange={(e) => handleSettingChange('maxProvidersPerArea', parseInt(e.target.value))}
+                    onChange={(e) => handleSettingChange('maxProvidersPerArea', parseInt(e.target.value) || 1)}
                   />
                   <p className="text-xs text-gray-600 dark:text-gray-400">
                     Maximum number of providers to consider for each lead
@@ -320,7 +341,7 @@ export default function AdminLeadSettings() {
                       min="1.0"
                       max="5.0"
                       step="0.1"
-                      onChange={(e) => handleSettingChange('minProviderRating', parseFloat(e.target.value))}
+                      onChange={(e) => handleSettingChange('minProviderRating', parseFloat(e.target.value) || 1.0)}
                     />
                     <Star className="h-4 w-4 text-yellow-500" />
                   </div>
