@@ -143,7 +143,7 @@ export default function AdminViewProviders() {
   });
 
   // Provider Services Query for popup
-  const { data: providerServices } = useQuery({
+  const { data: providerServices, isLoading: isLoadingServices } = useQuery({
     queryKey: ['/api/admin/providers', selectedProvider?.id, 'services'],
     queryFn: async () => {
       if (!selectedProvider) return [];
@@ -151,10 +151,12 @@ export default function AdminViewProviders() {
       return response.json();
     },
     enabled: !!selectedProvider && activeTab === 'services',
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Provider Documents Query for popup
-  const { data: providerDocuments } = useQuery({
+  const { data: providerDocuments, isLoading: isLoadingDocuments } = useQuery({
     queryKey: ['/api/admin/providers', selectedProvider?.id, 'documents'],
     queryFn: async () => {
       if (!selectedProvider) return [];
@@ -162,6 +164,8 @@ export default function AdminViewProviders() {
       return response.json();
     },
     enabled: !!selectedProvider && activeTab === 'documents',
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Activity logs query for popup
@@ -631,29 +635,55 @@ export default function AdminViewProviders() {
               </TabsContent>
 
               {/* Services Tab */}
-              <TabsContent value="services" className="flex-1 overflow-y-auto p-4">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Selected Services</h3>
-                  {providerServices && providerServices.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {providerServices.map((service: any) => (
-                        <div key={service.id} className="p-3 border rounded-lg bg-blue-50 border-blue-200">
-                          <p className="font-medium text-blue-900">{service.name}</p>
-                          <p className="text-sm text-blue-700">{service.categoryName}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-center py-8">No services selected</p>
-                  )}
-                </div>
+              <TabsContent value="services" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Briefcase className="h-5 w-5 text-blue-600" />
+                      Services Offered ({providerServices?.length || 0})
+                    </CardTitle>
+                    <p className="text-sm text-gray-600">View provider's selected service categories</p>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingServices ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+                        <p className="mt-2 text-gray-500">Loading services...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {providerServices?.map((service: any) => (
+                          <div 
+                            key={service.id} 
+                            className="p-4 border rounded-lg bg-white"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Briefcase className="h-4 w-4 text-blue-600" />
+                              <span className="font-medium">{service.name}</span>
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                {service.categoryName}
+                              </Badge>
+                            </div>
+                          </div>
+                        )) || (
+                          <p className="text-gray-500 text-center py-8">No services selected</p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Documents Tab */}
-              <TabsContent value="documents" className="flex-1 overflow-y-auto p-4">
+              <TabsContent value="documents" className="space-y-6">
                 <div className="space-y-6">
                   <h3 className="text-lg font-semibold">Provider Documents</h3>
-                  {providerDocuments && providerDocuments.length > 0 ? (
+                  {isLoadingDocuments ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+                      <p className="mt-2 text-gray-500">Loading documents...</p>
+                    </div>
+                  ) : providerDocuments && providerDocuments.length > 0 ? (
                     <div className="grid gap-4">
                       {providerDocuments.map((doc: any) => (
                         <div key={doc.id} className="p-4 border rounded-lg">
