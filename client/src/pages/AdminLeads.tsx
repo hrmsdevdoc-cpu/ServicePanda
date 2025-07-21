@@ -341,10 +341,15 @@ export default function AdminLeads() {
                         <td className="px-2 py-1 text-gray-600 max-w-40 truncate">{lead.customerEmail}</td>
                         <td className="px-2 py-1 text-gray-600 max-w-24 truncate">{lead.customerPhone || '-'}</td>
                         <td className="px-2 py-1">
-                          <span className="inline-flex items-center gap-1">
-                            {getLeadTypeBadge(lead.bookingType)}
-                            {lead.status === 'active' && <span className="text-green-600 text-xs">●</span>}
-                          </span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1">
+                              {getLeadTypeBadge(lead.bookingType)}
+                              {lead.status === 'active' && <span className="text-green-600 text-xs">●</span>}
+                            </span>
+                            <span className="text-xs text-gray-500 truncate max-w-20" title={lead.categoryName}>
+                              {lead.categoryName}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-2 py-1 text-center font-medium">{metrics.totalOffered}</td>
                         <td className="px-2 py-1 text-center font-medium text-green-600">{metrics.totalAccepted}</td>
