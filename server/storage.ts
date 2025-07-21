@@ -46,6 +46,9 @@ import {
   passwordResetTokens,
   type InsertPasswordResetToken,
   type PasswordResetToken,
+  providerPasswordResetTokens,
+  type InsertProviderPasswordResetToken,
+  type ProviderPasswordResetToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, isNotNull } from "drizzle-orm";
@@ -155,6 +158,12 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markTokenAsUsed(token: string): Promise<void>;
   updateUserPassword(userId: string, hashedPassword: string): Promise<User>;
+
+  // Provider password reset operations
+  createProviderPasswordResetToken(token: InsertProviderPasswordResetToken): Promise<ProviderPasswordResetToken>;
+  getProviderPasswordResetToken(token: string): Promise<ProviderPasswordResetToken | undefined>;
+  markProviderTokenAsUsed(token: string): Promise<void>;
+  updateProviderPassword(providerId: number, hashedPassword: string): Promise<ServiceProvider>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -875,6 +884,42 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  // Provider password reset operations
+  async createProviderPasswordResetToken(token: InsertProviderPasswordResetToken): Promise<ProviderPasswordResetToken> {
+    const [resetToken] = await db
+      .insert(providerPasswordResetTokens)
+      .values(token)
+      .returning();
+    return resetToken;
+  }
+
+  async getProviderPasswordResetToken(token: string): Promise<ProviderPasswordResetToken | undefined> {
+    const [resetToken] = await db
+      .select()
+      .from(providerPasswordResetTokens)
+      .where(eq(providerPasswordResetTokens.token, token));
+    return resetToken;
+  }
+
+  async markProviderTokenAsUsed(token: string): Promise<void> {
+    await db
+      .update(providerPasswordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(providerPasswordResetTokens.token, token));
+  }
+
+  async updateProviderPassword(providerId: number, hashedPassword: string): Promise<ServiceProvider> {
+    const [provider] = await db
+      .update(serviceProviders)
+      .set({ 
+        password: hashedPassword,
+        updatedAt: new Date()
+      })
+      .where(eq(serviceProviders.id, providerId))
+      .returning();
+    return provider;
   }
 
 }

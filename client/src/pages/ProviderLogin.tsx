@@ -172,14 +172,7 @@ export default function ProviderLogin() {
                 <button
                   type="button"
                   className="text-sm text-primary hover:text-primary/80 font-medium"
-                  onClick={() => {
-                    // TODO: Implement forgot password
-                    toast({
-                      title: "Coming Soon",
-                      description: "Password reset functionality will be available soon.",
-                      variant: "default",
-                    });
-                  }}
+                  onClick={() => navigate("/provider-forgot-password")}
                 >
                   Forgot your password?
                 </button>

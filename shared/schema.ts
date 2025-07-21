@@ -234,6 +234,16 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Provider password reset tokens
+export const providerPasswordResetTokens = pgTable("provider_password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   serviceRequests: many(serviceRequests),
@@ -368,6 +378,10 @@ export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTo
   id: true, 
   createdAt: true 
 });
+export const insertProviderPasswordResetTokenSchema = createInsertSchema(providerPasswordResetTokens).omit({ 
+  id: true, 
+  createdAt: true 
+});
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
@@ -401,3 +415,6 @@ export type InsertProviderPaymentMethod = z.infer<typeof insertProviderPaymentMe
 export type ProviderPaymentMethod = typeof providerPaymentMethods.$inferSelect;
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+export type InsertProviderPasswordResetToken = z.infer<typeof insertProviderPasswordResetTokenSchema>;
+export type ProviderPasswordResetToken = typeof providerPasswordResetTokens.$inferSelect;

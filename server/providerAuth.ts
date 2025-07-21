@@ -6,6 +6,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { ServiceProvider } from "@shared/schema";
 import path from "path";
+import { sendEmail } from "./emailService";
 
 declare global {
   namespace Express {
@@ -96,6 +97,110 @@ export function setupProviderAuth(app: Express) {
   // Provider logout endpoint
   app.post("/api/provider/logout", (req, res) => {
     res.json({ message: "Logged out successfully" });
+  });
+
+  // Provider forgot password endpoint
+  app.post("/api/provider/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email address is required" });
+      }
+
+      // Check if provider exists (but don't reveal if they don't for security)
+      const provider = await storage.getServiceProviderByEmail(email);
+      
+      if (provider) {
+        // Generate secure token
+        const token = randomBytes(32).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour expiry
+
+        // Store token in database
+        await storage.createProviderPasswordResetToken({
+          providerId: provider.id,
+          token,
+          expiresAt,
+        });
+
+        // Send password reset email
+        const resetUrl = `${req.protocol}://${req.get('host')}/provider-reset-password?token=${token}`;
+        
+        const emailSent = await sendEmail({
+          to: email,
+          subject: 'ServicePanda Partners - Reset Your Password',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Reset Your Password</h2>
+              <p>Hi ${provider.firstName},</p>
+              <p>You requested a password reset for your ServicePanda Partners account. Click the link below to reset your password:</p>
+              <p><a href="${resetUrl}" style="background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Reset Password</a></p>
+              <p>This link will expire in 1 hour.</p>
+              <p>If you didn't request this password reset, you can safely ignore this email.</p>
+              <p>Thanks,<br>ServicePanda Team</p>
+            </div>
+          `
+        });
+
+        if (!emailSent) {
+          console.error('Failed to send password reset email for provider:', email);
+          return res.status(500).json({ message: "Failed to send reset email" });
+        }
+      }
+
+      // Always send success response to prevent email enumeration
+      res.json({ message: "If an account with that email exists, we've sent a password reset link." });
+    } catch (error) {
+      console.error("Provider forgot password error:", error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
+  // Provider reset password endpoint
+  app.post("/api/provider/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and new password are required" });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+
+      // Get token from database
+      const resetToken = await storage.getProviderPasswordResetToken(token);
+      
+      if (!resetToken) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Check if token has expired
+      if (new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ message: "Reset token has expired" });
+      }
+
+      // Check if token has already been used
+      if (resetToken.usedAt) {
+        return res.status(400).json({ message: "Reset token has already been used" });
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(password);
+      
+      // Update provider password
+      await storage.updateProviderPassword(resetToken.providerId, hashedPassword);
+      
+      // Mark token as used
+      await storage.markProviderTokenAsUsed(token);
+
+      res.json({ message: "Password has been reset successfully" });
+    } catch (error) {
+      console.error("Provider reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
   });
 
   // Provider profile endpoint

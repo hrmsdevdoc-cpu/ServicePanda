@@ -12,6 +12,8 @@ import ResetPassword from "@/pages/ResetPassword";
 import CustomerDashboard from "@/pages/CustomerDashboard";
 import ProviderSignup from "@/pages/ProviderSignup";
 import ProviderLogin from "@/pages/ProviderLogin";
+import ProviderForgotPassword from "@/pages/ProviderForgotPassword";
+import ProviderResetPassword from "@/pages/ProviderResetPassword";
 import AdminLogin from "@/pages/AdminLogin";
 import ProviderDashboard from "@/pages/ProviderDashboard";
 import ProviderPayment from "@/pages/ProviderPayment";
@@ -53,6 +55,8 @@ function Router() {
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/provider-signup" component={ProviderSignup} />
       <Route path="/provider-login" component={ProviderLogin} />
+      <Route path="/provider-forgot-password" component={ProviderForgotPassword} />
+      <Route path="/provider-reset-password" component={ProviderResetPassword} />
       <Route path="/admin-login" component={AdminLogin} />
       
       {/* Provider routes - accessible with provider authentication */}
