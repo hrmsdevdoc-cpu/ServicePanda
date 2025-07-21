@@ -94,6 +94,7 @@ export interface IStorage {
   updateServiceProvider(id: number, updates: Partial<ServiceProvider>): Promise<ServiceProvider>;
   updateProviderStatus(id: number, providerStatus: string): Promise<void>;
   getServiceProvidersByStatus(status: string): Promise<ServiceProvider[]>;
+  getServiceProvidersForAdmin(status?: string): Promise<any[]>;
   
   // Service category operations
   getServiceCategories(): Promise<ServiceCategory[]>;
@@ -819,16 +820,58 @@ export class DatabaseStorage implements IStorage {
     return result.length;
   }
 
-  async getServiceProvidersForAdmin(status?: string): Promise<ServiceProvider[]> {
-    const query = db.select().from(serviceProviders);
+  async getServiceProvidersForAdmin(status?: string): Promise<any[]> {
+    // Get all providers with their service information
+    const baseQuery = db
+      .select({
+        id: serviceProviders.id,
+        firstName: serviceProviders.firstName,
+        lastName: serviceProviders.lastName,
+        email: serviceProviders.email,
+        mobileNumber: serviceProviders.mobileNumber,
+        address: serviceProviders.address,
+        status: serviceProviders.status,
+        providerStatus: serviceProviders.providerStatus,
+        createdAt: serviceProviders.createdAt,
+        updatedAt: serviceProviders.updatedAt,
+        businessName: serviceProviders.businessName,
+        abnNumber: serviceProviders.abnNumber,
+        insuranceExpiryDate: serviceProviders.insuranceExpiryDate,
+        adminNotes: serviceProviders.adminNotes,
+      })
+      .from(serviceProviders);
     
+    let providers;
     if (status) {
-      return await query
+      providers = await baseQuery
         .where(eq(serviceProviders.status, status))
         .orderBy(desc(serviceProviders.createdAt));
+    } else {
+      providers = await baseQuery.orderBy(desc(serviceProviders.createdAt));
     }
-    
-    return await query.orderBy(desc(serviceProviders.createdAt));
+
+    // Get services for each provider
+    const providersWithServices = await Promise.all(
+      providers.map(async (provider) => {
+        const services = await db
+          .select({
+            id: providerServices.id,
+            categoryId: providerServices.categoryId,
+            categoryName: serviceCategories.name,
+            categoryIcon: serviceCategories.icon,
+          })
+          .from(providerServices)
+          .innerJoin(serviceCategories, eq(providerServices.categoryId, serviceCategories.id))
+          .where(eq(providerServices.providerId, provider.id));
+
+        return {
+          ...provider,
+          services: services,
+        };
+      })
+    );
+
+    return providersWithServices;
   }
 
   async updateServiceProviderStatus(id: number, status: string): Promise<void> {
