@@ -311,6 +311,7 @@ export default function AdminLeads() {
                     <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Email</th>
                     <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Phone</th>
                     <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Type</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Category</th>
                     <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Offered</th>
                     <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Accepted</th>
                     <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Pending</th>
@@ -341,15 +342,13 @@ export default function AdminLeads() {
                         <td className="px-2 py-1 text-gray-600 max-w-40 truncate">{lead.customerEmail}</td>
                         <td className="px-2 py-1 text-gray-600 max-w-24 truncate">{lead.customerPhone || '-'}</td>
                         <td className="px-2 py-1">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="inline-flex items-center gap-1">
-                              {getLeadTypeBadge(lead.bookingType)}
-                              {lead.status === 'active' && <span className="text-green-600 text-xs">●</span>}
-                            </span>
-                            <span className="text-xs text-gray-500 truncate max-w-20" title={lead.categoryName}>
-                              {lead.categoryName}
-                            </span>
-                          </div>
+                          <span className="inline-flex items-center gap-1">
+                            {getLeadTypeBadge(lead.bookingType)}
+                            {lead.status === 'active' && <span className="text-green-600 text-xs">●</span>}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1 text-xs text-gray-600 max-w-24 truncate" title={lead.categoryName}>
+                          {lead.categoryName}
                         </td>
                         <td className="px-2 py-1 text-center font-medium">{metrics.totalOffered}</td>
                         <td className="px-2 py-1 text-center font-medium text-green-600">{metrics.totalAccepted}</td>
