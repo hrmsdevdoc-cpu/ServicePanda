@@ -510,45 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin routes
-  app.get('/api/admin/providers', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.id;
-      
-      // TODO: Add admin role check
-      const providers = await storage.getServiceProvidersByStatus("pending");
-      res.json(providers);
-    } catch (error) {
-      console.error("Error fetching pending providers:", error);
-      res.status(500).json({ message: "Failed to fetch pending providers" });
-    }
-  });
-
-  // Approve service provider
-  app.post('/api/admin/providers/:id/approve', isAuthenticated, async (req: any, res) => {
-    try {
-      const providerId = parseInt(req.params.id);
-      const userId = req.user.id;
-      
-      // TODO: Add admin role check
-      await storage.updateServiceProvider(providerId, { status: "approved" });
-      
-      // Log admin activity
-      await storage.logUserActivity({
-        userId,
-        userType: "admin",
-        action: "provider_approved",
-        details: { providerId },
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent') || '',
-      });
-      
-      res.json({ message: "Service provider approved successfully" });
-    } catch (error) {
-      console.error("Error approving service provider:", error);
-      res.status(500).json({ message: "Failed to approve service provider" });
-    }
-  });
+  // Admin routes (duplicates removed - proper admin routes are defined below with isAdminAuthenticated)
 
   // Update user profile
   app.put('/api/auth/user', isAuthenticated, async (req: any, res) => {

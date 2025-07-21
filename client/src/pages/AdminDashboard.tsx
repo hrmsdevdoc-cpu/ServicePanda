@@ -173,7 +173,7 @@ export default function AdminDashboard() {
   };
 
   // Filter providers based on search term and status
-  const filteredProviders = allProviders?.filter((provider: ServiceProvider) => {
+  const filteredProviders = Array.isArray(allProviders) ? allProviders.filter((provider: ServiceProvider) => {
     const matchesSearch = 
       provider.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       provider.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
       provider.status === providerFilter;
 
     return matchesSearch && matchesFilter;
-  });
+  }) : [];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
@@ -288,7 +288,7 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {pendingProviders?.slice(0, 5).map((provider: ServiceProvider) => (
+                    {Array.isArray(pendingProviders) && pendingProviders.slice(0, 5).map((provider: ServiceProvider) => (
                       <div key={provider.id} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{provider.firstName} {provider.lastName}</p>
@@ -415,7 +415,7 @@ export default function AdminDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <UserCheck className="h-5 w-5 mr-2" />
-                  Provider Approvals ({pendingProviders?.length || 0} pending)
+                  Provider Approvals ({Array.isArray(pendingProviders) ? pendingProviders.length : 0} pending)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -424,7 +424,7 @@ export default function AdminDashboard() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                     <p className="text-gray-600 mt-2">Loading applications...</p>
                   </div>
-                ) : pendingProviders?.length > 0 ? (
+                ) : Array.isArray(pendingProviders) && pendingProviders.length > 0 ? (
                   <div className="space-y-6">
                     {pendingProviders.map((provider: ServiceProvider) => (
                       <div key={provider.id} className="border border-gray-200 rounded-lg p-6">
@@ -498,7 +498,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {serviceRequests?.map((request: ServiceRequest) => (
+                      {Array.isArray(serviceRequests) && serviceRequests.map((request: ServiceRequest) => (
                         <tr key={request.id} className="border-b hover:bg-gray-50">
                           <td className="p-3">
                             <div>
