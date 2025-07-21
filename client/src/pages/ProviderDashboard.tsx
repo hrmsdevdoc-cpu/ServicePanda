@@ -447,6 +447,12 @@ export default function ProviderDashboard() {
             {expandedMenus.includes("settings") && (
               <div className="ml-6 space-y-1">
                 <button
+                  onClick={() => navigate("/provider-personal-details")}
+                  className="w-full flex items-center px-3 py-2 text-sm rounded-md text-gray-600 hover:bg-gray-50"
+                >
+                  Personal Details
+                </button>
+                <button
                   onClick={() => setActiveMenuItem("services")}
                   className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
                     activeMenuItem === "services" 
