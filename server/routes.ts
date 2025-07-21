@@ -268,8 +268,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const suburbId of suburbIds) {
         await storage.addProviderServiceArea({ 
           providerId, 
-          suburbId,
-          centerAddress: "Legacy suburb-based area" // Temporary workaround
+          centerAddress: "Legacy suburb-based area", // Temporary workaround
+          radiusKm: 10 // Default radius for legacy areas
         });
       }
       
@@ -758,7 +758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         providerId,
         centerAddress,
         radiusKm,
-        areaName: null, // Let admin optionally specify this later
+        areaName: undefined, // Let admin optionally specify this later
       });
 
       // Log service area addition activity
@@ -1673,7 +1673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/provider/leads', isProviderAuthenticated, async (req, res) => {
     try {
-      const providerId = req.provider?.id;
+      const providerId = (req as any).provider?.id;
       if (!providerId) {
         return res.status(401).json({ message: 'Provider authentication required' });
       }
@@ -1688,7 +1688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/provider/activity', isProviderAuthenticated, async (req, res) => {
     try {
-      const providerId = req.provider?.id;
+      const providerId = (req as any).provider?.id;
       if (!providerId) {
         return res.status(401).json({ message: 'Provider authentication required' });
       }
@@ -1704,7 +1704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/provider/leads/:requestId/purchase', isProviderAuthenticated, async (req, res) => {
     try {
       const requestId = parseInt(req.params.requestId);
-      const providerId = req.provider?.id;
+      const providerId = (req as any).provider?.id;
       
       if (!providerId) {
         return res.status(401).json({ message: 'Provider authentication required' });

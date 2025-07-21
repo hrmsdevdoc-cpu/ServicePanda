@@ -37,6 +37,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Import storage for the expiration checker
+  const { storage } = await import("./storage");
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -61,11 +64,22 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
+  
+  // Start expired offer checker - runs every minute
+  setInterval(async () => {
+    try {
+      await storage.processExpiredOffers();
+    } catch (error) {
+      console.error('Error in expired offer checker:', error);
+    }
+  }, 60000); // Check every minute
+  
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    log('Lead expiration checker started - checking every minute');
   });
 })();

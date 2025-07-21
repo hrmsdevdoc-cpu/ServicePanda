@@ -1434,7 +1434,8 @@ export class DatabaseStorage implements IStorage {
           leadCost: leadCost.toString(),
           status: 'pending',
           sortOrder: i,
-          expiresAt: new Date(Date.now() + leadSettings.uniqueOfferWindow * 60 * 1000),
+          // Don't set expiresAt here - will be set when offer becomes active
+          expiresAt: null,
         });
       }
 
@@ -1541,14 +1542,16 @@ export class DatabaseStorage implements IStorage {
 
       // Activate next offer
       const leadSettings = await this.getLeadSettings();
+      const offerStartTime = new Date();
       const offerEndTime = new Date(Date.now() + leadSettings.uniqueOfferWindow * 60 * 1000);
 
       await db
         .update(leadOffers)
         .set({
           isCurrentOffer: true,
-          offerStartTime: new Date(),
+          offerStartTime,
           offerEndTime,
+          expiresAt: offerEndTime, // Set proper expiration time when activated
         })
         .where(eq(leadOffers.id, nextOffer.id));
 
@@ -1595,6 +1598,7 @@ export class DatabaseStorage implements IStorage {
       );
 
       // Create shared offers for all eligible providers
+      const offerStartTime = new Date();
       for (const provider of eligibleProviders) {
         await db.insert(leadOffers).values({
           requestId,
@@ -1603,6 +1607,9 @@ export class DatabaseStorage implements IStorage {
           leadCost: leadCost.toString(),
           status: 'pending',
           isCurrentOffer: true,
+          offerStartTime,
+          // Shared offers don't expire individually
+          expiresAt: null,
         });
       }
 
@@ -1736,6 +1743,45 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error ending lead distribution:', error);
       throw error;
+    }
+  }
+
+  // Check for expired offers and advance to next provider
+  async processExpiredOffers(): Promise<void> {
+    try {
+      const now = new Date();
+      
+      // Find expired unique offers that are still marked as current
+      const expiredOffers = await db
+        .select()
+        .from(leadOffers)
+        .where(
+          and(
+            eq(leadOffers.status, 'pending'),
+            eq(leadOffers.isCurrentOffer, true),
+            eq(leadOffers.offerType, 'unique'),
+            sql`${leadOffers.expiresAt} IS NOT NULL`,
+            sql`${leadOffers.expiresAt} <= ${now}`
+          )
+        );
+
+      for (const expiredOffer of expiredOffers) {
+        console.log(`Processing expired offer ${expiredOffer.id} for request ${expiredOffer.requestId}`);
+        
+        // Mark offer as expired
+        await db
+          .update(leadOffers)
+          .set({ 
+            status: 'expired', 
+            isCurrentOffer: false 
+          })
+          .where(eq(leadOffers.id, expiredOffer.id));
+
+        // Move to next provider or shared phase
+        await this.activateNextUniqueOffer(expiredOffer.requestId);
+      }
+    } catch (error) {
+      console.error('Error processing expired offers:', error);
     }
   }
 

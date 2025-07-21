@@ -143,11 +143,19 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
                       <span className="text-sm font-medium">${offer.leadCost}</span>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex flex-col items-end space-y-1">
                     {getStatusBadge(offer.status, offer.isCurrentOffer)}
+                    <div className="text-xs text-gray-500">
+                      Started: {formatTime(offer.offerStartTime)}
+                    </div>
                     {offer.purchasedAt && (
                       <div className="text-xs text-gray-500">
                         Purchased: {formatTime(offer.purchasedAt)}
+                      </div>
+                    )}
+                    {!offer.purchasedAt && (
+                      <div className="text-xs text-gray-500">
+                        Expires: {formatTime(offer.expiresAt)}
                       </div>
                     )}
                   </div>
@@ -185,11 +193,19 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
                         <span className="text-sm font-medium">${offer.leadCost}</span>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-3">
+                    <div className="flex flex-col items-end space-y-1">
                       {getStatusBadge(offer.status, offer.isCurrentOffer)}
+                      <div className="text-xs text-gray-500">
+                        Started: {formatTime(offer.offerStartTime)}
+                      </div>
                       {offer.purchasedAt && (
                         <div className="text-xs text-gray-500">
                           Purchased: {formatTime(offer.purchasedAt)}
+                        </div>
+                      )}
+                      {!offer.purchasedAt && (
+                        <div className="text-xs text-gray-500">
+                          Expires: {formatTime(offer.expiresAt)}
                         </div>
                       )}
                     </div>
