@@ -409,6 +409,10 @@ export default function AdminPendingProviders() {
   // Add Service Area Mutation
   const addServiceAreaMutation = useMutation({
     mutationFn: async ({ providerId, address, radius }: { providerId: number; address: string; radius: number }) => {
+      console.log('🚨 MUTATION TRIGGERED - addServiceAreaMutation.mutate() was called!');
+      console.log('📍 Call stack:', new Error().stack);
+      console.log('📝 Parameters:', { providerId, address, radius });
+      
       const response = await adminApiRequest('POST', `/api/admin/providers/${providerId}/service-areas`, {
         centerAddress: address,
         radiusKm: radius,
