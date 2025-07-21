@@ -57,6 +57,9 @@ export const serviceProviders = pgTable("service_providers", {
   licenseInfo: text("license_info"),
   policeCheckInfo: text("police_check_info"),
   insuranceCertificateInfo: text("insurance_certificate_info"),
+  // Admin fields for official use
+  insuranceExpiryDate: timestamp("insurance_expiry_date"),
+  adminNotes: text("admin_notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

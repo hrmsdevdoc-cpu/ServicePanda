@@ -133,6 +133,10 @@ export interface IStorage {
   getServiceProvidersForAdmin(status?: string): Promise<ServiceProvider[]>;
   updateServiceProviderStatus(id: number, status: string): Promise<void>;
   getAllServiceRequestsForAdmin(): Promise<ServiceRequest[]>;
+  getProviderDetailsForAdmin(providerId: number): Promise<any>;
+  addProviderServiceArea(serviceAreaData: { providerId: number; centerAddress: string; radiusKm: number; areaName?: string | null; }): Promise<ProviderServiceArea>;
+  removeProviderServiceArea(areaId: number): Promise<void>;
+  updateProviderAdminFields(providerId: number, fields: { adminNotes?: string; insuranceExpiryDate?: Date | null; }): Promise<void>;
 
   // Admin settings operations
   getAdminSettings(): Promise<{ stripeConfigured: boolean; mailgunConfigured: boolean }>;
@@ -664,6 +668,82 @@ export class DatabaseStorage implements IStorage {
       .update(serviceProviders)
       .set({ status, updatedAt: new Date() })
       .where(eq(serviceProviders.id, id));
+  }
+
+  // Get detailed provider information for admin review
+  async getProviderDetailsForAdmin(providerId: number): Promise<any> {
+    // Get basic provider info
+    const provider = await this.getServiceProvider(providerId);
+    if (!provider) {
+      throw new Error('Provider not found');
+    }
+
+    // Get provider services with category names
+    const services = await db
+      .select({
+        id: providerServices.id,
+        categoryId: providerServices.categoryId,
+        name: serviceCategories.name,
+        categoryName: serviceCategories.name,
+      })
+      .from(providerServices)
+      .innerJoin(serviceCategories, eq(providerServices.categoryId, serviceCategories.id))
+      .where(eq(providerServices.providerId, providerId));
+
+    // Get service areas
+    const serviceAreas = await db
+      .select()
+      .from(providerServiceAreas)
+      .where(eq(providerServiceAreas.providerId, providerId));
+
+    // Get documents
+    const documents = await db
+      .select()
+      .from(providerDocuments)
+      .where(eq(providerDocuments.providerId, providerId))
+      .orderBy(desc(providerDocuments.uploadedAt));
+
+    return {
+      ...provider,
+      services,
+      serviceAreas,
+      documents,
+    };
+  }
+
+  // Add service area for provider (admin function)
+  async addProviderServiceArea(serviceAreaData: {
+    providerId: number;
+    centerAddress: string;
+    radiusKm: number;
+    areaName?: string | null;
+  }): Promise<ProviderServiceArea> {
+    const [result] = await db
+      .insert(providerServiceAreas)
+      .values(serviceAreaData)
+      .returning();
+    return result;
+  }
+
+  // Remove service area (admin function)
+  async removeProviderServiceArea(areaId: number): Promise<void> {
+    await db
+      .delete(providerServiceAreas)
+      .where(eq(providerServiceAreas.id, areaId));
+  }
+
+  // Update provider admin-specific fields
+  async updateProviderAdminFields(providerId: number, fields: {
+    adminNotes?: string;
+    insuranceExpiryDate?: Date | null;
+  }): Promise<void> {
+    await db
+      .update(serviceProviders)
+      .set({ 
+        ...fields,
+        updatedAt: new Date() 
+      })
+      .where(eq(serviceProviders.id, providerId));
   }
 
   async getAllServiceRequestsForAdmin(): Promise<ServiceRequest[]> {

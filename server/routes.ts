@@ -656,6 +656,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get detailed provider information for admin review
+  app.get('/api/admin/providers/:id/details', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const providerDetails = await storage.getProviderDetailsForAdmin(providerId);
+      res.json(providerDetails);
+    } catch (error) {
+      console.error('Error fetching provider details:', error);
+      res.status(500).json({ message: 'Failed to fetch provider details' });
+    }
+  });
+
+  // Add service area for provider (admin function)
+  app.post('/api/admin/providers/:id/service-areas', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const { centerAddress, radiusKm } = req.body;
+      
+      const serviceArea = await storage.addProviderServiceArea({
+        providerId,
+        centerAddress,
+        radiusKm,
+        areaName: null, // Let admin optionally specify this later
+      });
+      
+      res.json(serviceArea);
+    } catch (error) {
+      console.error('Error adding service area:', error);
+      res.status(500).json({ message: 'Failed to add service area' });
+    }
+  });
+
+  // Remove service area (admin function)
+  app.delete('/api/admin/service-areas/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const areaId = parseInt(req.params.id);
+      await storage.removeProviderServiceArea(areaId);
+      res.json({ message: 'Service area removed successfully' });
+    } catch (error) {
+      console.error('Error removing service area:', error);
+      res.status(500).json({ message: 'Failed to remove service area' });
+    }
+  });
+
+  // Update provider admin notes and insurance expiry
+  app.put('/api/admin/providers/:id/notes', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const { adminNotes, insuranceExpiryDate } = req.body;
+      
+      await storage.updateProviderAdminFields(providerId, {
+        adminNotes,
+        insuranceExpiryDate: insuranceExpiryDate ? new Date(insuranceExpiryDate) : null,
+      });
+      
+      res.json({ message: 'Provider admin fields updated successfully' });
+    } catch (error) {
+      console.error('Error updating provider admin fields:', error);
+      res.status(500).json({ message: 'Failed to update provider admin fields' });
+    }
+  });
+
   app.get('/api/admin/service-requests', isAdminAuthenticated, async (req, res) => {
     try {
       const serviceRequests = await storage.getAllServiceRequestsForAdmin();

@@ -3,6 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -15,6 +19,12 @@ import {
   XCircle,
   Eye,
   FileText,
+  User,
+  MapPin,
+  Briefcase,
+  StickyNote,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 interface ServiceProvider {
@@ -27,6 +37,8 @@ interface ServiceProvider {
   status: string;
   documentsUploaded: boolean;
   createdAt: string;
+  insuranceExpiryDate?: string;
+  adminNotes?: string;
   services?: Array<{ id: number; name: string; categoryName: string }>;
   serviceAreas?: Array<{ id: number; suburb: string; postcode: string }>;
 }
@@ -35,6 +47,10 @@ export default function AdminPendingProviders() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProvider, setSelectedProvider] = useState<ServiceProvider | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("personal");
+  const [newServiceArea, setNewServiceArea] = useState({ address: "", radius: 25 });
 
   // Check admin authentication
   useEffect(() => {
@@ -57,6 +73,21 @@ export default function AdminPendingProviders() {
     },
   });
 
+  // Fetch detailed provider information
+  const { data: providerDetails, isLoading: loadingDetails } = useQuery({
+    queryKey: ['/api/admin/providers', selectedProvider?.id],
+    queryFn: async () => {
+      if (!selectedProvider?.id) return null;
+      const response = await fetch(`/api/admin/providers/${selectedProvider.id}/details`, {
+        headers: {
+          'x-admin-token': localStorage.getItem('adminToken') || '',
+        },
+      });
+      return response.json();
+    },
+    enabled: !!selectedProvider?.id,
+  });
+
   // Provider Approval Mutation
   const approveProviderMutation = useMutation({
     mutationFn: async ({ providerId, action }: { providerId: number; action: 'approve' | 'reject' }) => {
@@ -70,6 +101,7 @@ export default function AdminPendingProviders() {
         variant: "default",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/providers'] });
+      setIsViewDialogOpen(false);
     },
     onError: (error) => {
       toast({
@@ -80,9 +112,119 @@ export default function AdminPendingProviders() {
     },
   });
 
+  // Add Service Area Mutation
+  const addServiceAreaMutation = useMutation({
+    mutationFn: async ({ providerId, address, radius }: { providerId: number; address: string; radius: number }) => {
+      const response = await apiRequest('POST', `/api/admin/providers/${providerId}/service-areas`, {
+        centerAddress: address,
+        radiusKm: radius,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Service Area Added",
+        description: "New service area has been added successfully.",
+        variant: "default",
+      });
+      setNewServiceArea({ address: "", radius: 25 });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to Add Service Area",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Remove Service Area Mutation
+  const removeServiceAreaMutation = useMutation({
+    mutationFn: async (areaId: number) => {
+      const response = await apiRequest('DELETE', `/api/admin/service-areas/${areaId}`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Service Area Removed",
+        description: "Service area has been removed successfully.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to Remove Service Area",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Save Provider Notes Mutation
+  const saveNotesMutation = useMutation({
+    mutationFn: async ({ providerId, adminNotes, insuranceExpiryDate }: { 
+      providerId: number; 
+      adminNotes: string; 
+      insuranceExpiryDate?: string; 
+    }) => {
+      const response = await apiRequest('PUT', `/api/admin/providers/${providerId}/notes`, {
+        adminNotes,
+        insuranceExpiryDate,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Notes Saved",
+        description: "Admin notes and insurance expiry date have been saved successfully.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to Save Notes",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     navigate('/admin-login');
+  };
+
+  const handleViewProvider = (provider: ServiceProvider) => {
+    setSelectedProvider(provider);
+    setIsViewDialogOpen(true);
+    setActiveTab("personal");
+  };
+
+  const handleAddServiceArea = () => {
+    if (!selectedProvider || !newServiceArea.address.trim()) return;
+    
+    addServiceAreaMutation.mutate({
+      providerId: selectedProvider.id,
+      address: newServiceArea.address,
+      radius: newServiceArea.radius,
+    });
+  };
+
+  const handleSaveNotes = () => {
+    if (!selectedProvider) return;
+    
+    const adminNotesElement = document.getElementById('adminNotes') as HTMLTextAreaElement;
+    const insuranceExpiryElement = document.getElementById('insuranceExpiry') as HTMLInputElement;
+    
+    saveNotesMutation.mutate({
+      providerId: selectedProvider.id,
+      adminNotes: adminNotesElement?.value || '',
+      insuranceExpiryDate: insuranceExpiryElement?.value || undefined,
+    });
   };
 
   // Filter providers based on search term
@@ -182,7 +324,7 @@ export default function AdminPendingProviders() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => navigate(`/admin/providers/${provider.id}`)}
+                                onClick={() => handleViewProvider(provider)}
                               >
                                 <Eye className="h-3 w-3 mr-1" />
                                 View
@@ -225,6 +367,318 @@ export default function AdminPendingProviders() {
           </Card>
         </div>
       </div>
+
+      {/* Provider Review Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Provider Application Review - {selectedProvider?.firstName} {selectedProvider?.lastName}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedProvider && (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="personal" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Personal Details
+                </TabsTrigger>
+                <TabsTrigger value="service-area" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Service Area
+                </TabsTrigger>
+                <TabsTrigger value="services" className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  Services
+                </TabsTrigger>
+                <TabsTrigger value="documents" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Documents
+                </TabsTrigger>
+                <TabsTrigger value="notes" className="flex items-center gap-2">
+                  <StickyNote className="h-4 w-4" />
+                  Notes
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Personal Details Tab */}
+              <TabsContent value="personal" className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Personal Information</h3>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">First Name</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider.firstName}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Last Name</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider.lastName}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Email Address</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider.email}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Mobile Number</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider.mobileNumber}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Address</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider.address}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Official Use</h3>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <Label htmlFor="insuranceExpiry" className="text-sm font-medium">
+                          Insurance Expiry Date
+                        </Label>
+                        <Input
+                          id="insuranceExpiry"
+                          type="date"
+                          defaultValue={selectedProvider.insuranceExpiryDate ? 
+                            new Date(selectedProvider.insuranceExpiryDate).toISOString().split('T')[0] : ''}
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium">Application Status</Label>
+                        <Badge 
+                          variant={selectedProvider.status === 'pending' ? 'outline' : 
+                                  selectedProvider.status === 'approved' ? 'default' : 'destructive'}
+                          className="mt-1 capitalize"
+                        >
+                          {selectedProvider.status}
+                        </Badge>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium">Application Date</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">
+                          {new Date(selectedProvider.createdAt).toLocaleDateString('en-AU')}
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium">Documents Status</Label>
+                        <Badge 
+                          variant={selectedProvider.documentsUploaded ? 'default' : 'destructive'}
+                          className="mt-1"
+                        >
+                          {selectedProvider.documentsUploaded ? 'Complete' : 'Missing'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Service Area Tab */}
+              <TabsContent value="service-area" className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Add New Service Area</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="col-span-2">
+                      <Label htmlFor="newAddress" className="text-sm font-medium">Address</Label>
+                      <Input
+                        id="newAddress"
+                        placeholder="Enter service center address..."
+                        value={newServiceArea.address}
+                        onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="newRadius" className="text-sm font-medium">Range (km)</Label>
+                      <Input
+                        id="newRadius"
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={newServiceArea.radius}
+                        onChange={(e) => setNewServiceArea(prev => ({ ...prev, radius: parseInt(e.target.value) || 25 }))}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handleAddServiceArea}
+                    disabled={!newServiceArea.address.trim() || addServiceAreaMutation.isPending}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Service Area
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Current Service Areas</h3>
+                  {loadingDetails ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+                      <p className="mt-2 text-gray-500">Loading service areas...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {providerDetails?.serviceAreas?.map((area: any) => (
+                        <div key={area.id} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
+                          <div>
+                            <p className="font-medium">{area.centerAddress || area.areaName}</p>
+                            <p className="text-sm text-gray-500">
+                              {area.radiusKm ? `${area.radiusKm}km radius` : 'Suburb-based area'}
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => removeServiceAreaMutation.mutate(area.id)}
+                            disabled={removeServiceAreaMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )) || (
+                        <p className="text-center py-8 text-gray-500">No service areas configured</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Services Tab */}
+              <TabsContent value="services" className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Selected Services</h3>
+                  {loadingDetails ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+                      <p className="mt-2 text-gray-500">Loading services...</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      {providerDetails?.services?.map((service: any) => (
+                        <div key={service.id} className="p-3 bg-blue-50 border border-blue-200 rounded">
+                          <p className="font-medium text-blue-900">{service.categoryName}</p>
+                          <p className="text-sm text-blue-700">{service.name}</p>
+                        </div>
+                      )) || (
+                        <p className="col-span-2 text-center py-8 text-gray-500">No services selected</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Documents Tab */}
+              <TabsContent value="documents" className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Uploaded Documents</h3>
+                  {loadingDetails ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+                      <p className="mt-2 text-gray-500">Loading documents...</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                      {providerDetails?.documents?.map((doc: any) => (
+                        <div key={doc.id} className="flex items-center justify-between p-4 bg-gray-50 border rounded">
+                          <div>
+                            <p className="font-medium capitalize">{doc.documentType.replace('_', ' ')}</p>
+                            <p className="text-sm text-gray-500">{doc.fileName}</p>
+                            <p className="text-sm text-gray-400">
+                              Uploaded: {new Date(doc.uploadedAt).toLocaleDateString('en-AU')}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              variant={doc.status === 'approved' ? 'default' : 
+                                      doc.status === 'rejected' ? 'destructive' : 'outline'}
+                              className="capitalize"
+                            >
+                              {doc.status}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(`/api/provider/documents/view/${doc.fileName}/${selectedProvider.id}`, '_blank')}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      )) || (
+                        <p className="text-center py-8 text-gray-500">No documents uploaded</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Notes Tab */}
+              <TabsContent value="notes" className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Admin Notes</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="adminNotes" className="text-sm font-medium">
+                        Internal Notes (visible to admin only)
+                      </Label>
+                      <Textarea
+                        id="adminNotes"
+                        placeholder="Add internal notes about this provider application..."
+                        defaultValue={selectedProvider.adminNotes || ''}
+                        className="mt-1 min-h-[120px]"
+                      />
+                    </div>
+                    <Button 
+                      className="w-full"
+                      onClick={handleSaveNotes}
+                      disabled={saveNotesMutation.isPending}
+                    >
+                      <StickyNote className="h-4 w-4 mr-2" />
+                      {saveNotesMutation.isPending ? 'Saving Notes...' : 'Save Notes'}
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Action buttons at the bottom of dialog */}
+              <div className="flex items-center justify-between pt-6 border-t">
+                <div className="flex space-x-3">
+                  <Button
+                    variant="default"
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => approveProviderMutation.mutate({ providerId: selectedProvider.id, action: 'approve' })}
+                    disabled={approveProviderMutation.isPending}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {approveProviderMutation.isPending ? 'Approving...' : 'Approve Provider'}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => approveProviderMutation.mutate({ providerId: selectedProvider.id, action: 'reject' })}
+                    disabled={approveProviderMutation.isPending}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    {approveProviderMutation.isPending ? 'Rejecting...' : 'Reject Provider'}
+                  </Button>
+                </div>
+                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
