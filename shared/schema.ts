@@ -49,6 +49,8 @@ export const serviceProviders = pgTable("service_providers", {
   password: varchar("password").notNull(),
   mobileNumber: varchar("mobile_number").notNull(),
   address: text("address").notNull(),
+  businessName: varchar("business_name"),
+  businessAbn: varchar("business_abn"),
   status: varchar("status").default("pending"), // pending, approved, rejected
   providerStatus: varchar("provider_status").default("deactivated"), // activated, deactivated
   documentsUploaded: boolean("documents_uploaded").default(false),

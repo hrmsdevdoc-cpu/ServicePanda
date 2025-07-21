@@ -33,10 +33,10 @@ export function setupProviderAuth(app: Express) {
   // Provider registration endpoint  
   app.post("/api/provider/register", async (req, res, next) => {
     try {
-      const { email, password, firstName, lastName, mobileNumber, address } = req.body;
+      const { email, password, firstName, lastName, mobileNumber, address, businessName, businessAbn } = req.body;
 
       if (!email || !password || !firstName || !lastName || !mobileNumber || !address) {
-        return res.status(400).json({ message: "All fields are required" });
+        return res.status(400).json({ message: "All required fields must be provided" });
       }
 
       // Check for existing provider - enforce unique emails
@@ -54,6 +54,8 @@ export function setupProviderAuth(app: Express) {
         lastName,
         mobileNumber,
         address,
+        businessName: businessName || null,
+        businessAbn: businessAbn || null,
       });
 
       res.status(201).json({

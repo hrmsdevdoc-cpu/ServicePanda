@@ -174,6 +174,8 @@ export default function ProviderSignup() {
     password: "",
     mobileNumber: "",
     address: "",
+    businessName: "",
+    businessAbn: "",
     parsedAddress: null as any,
     selectedServices: [] as number[],
     selectedState: "",
@@ -250,6 +252,8 @@ export default function ProviderSignup() {
         email: providerProfileData.email || "",
         mobileNumber: providerProfileData.mobileNumber || "",
         address: providerProfileData.address || "",
+        businessName: providerProfileData.businessName || "",
+        businessAbn: providerProfileData.businessAbn || "",
       }));
     }
   }, [providerProfileData]);
@@ -345,6 +349,8 @@ export default function ProviderSignup() {
           lastName: data.lastName,
           mobileNumber: data.mobileNumber,
           address: data.address,
+          businessName: data.businessName,
+          businessAbn: data.businessAbn,
         });
         
         const provider = await response.json();
@@ -537,6 +543,8 @@ export default function ProviderSignup() {
       password: formData.password.trim(),
       mobileNumber: formData.mobileNumber.trim(),
       address: formData.address.trim(),
+      businessName: formData.businessName.trim(),
+      businessAbn: formData.businessAbn.trim(),
     });
   };
 
@@ -736,6 +744,27 @@ export default function ProviderSignup() {
                   placeholder="Enter your mobile number (e.g., 0412 345 678)"
                   className={hasAttemptedSubmit && (!formData.mobileNumber.trim() || (formData.mobileNumber && !/^(\+61|0)[2-9]\d{8}$/.test(formData.mobileNumber.replace(/[\s\-\(\)]/g, '')))) ? "border-red-300 focus:border-red-500" : ""}
                 />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <Label htmlFor="businessName">Business Name</Label>
+                  <Input
+                    id="businessName"
+                    value={formData.businessName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, businessName: e.target.value }))}
+                    placeholder="Enter your business name (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="businessAbn">Business ABN/ACN</Label>
+                  <Input
+                    id="businessAbn"
+                    value={formData.businessAbn}
+                    onChange={(e) => setFormData(prev => ({ ...prev, businessAbn: e.target.value }))}
+                    placeholder="Enter your ABN or ACN (optional)"
+                  />
+                </div>
               </div>
               
               <div>
