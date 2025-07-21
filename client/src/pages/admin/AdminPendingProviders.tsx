@@ -512,18 +512,6 @@ export default function AdminPendingProviders() {
           }
         );
 
-        // Add focus styling to match Input component
-        addressInputRef.current.addEventListener('focus', () => {
-          addressInputRef.current.style.outline = 'none';
-          addressInputRef.current.style.boxShadow = '0 0 0 2px hsl(213, 90%, 60%)';
-          addressInputRef.current.style.borderColor = 'hsl(213, 90%, 60%)';
-        });
-        
-        addressInputRef.current.addEventListener('blur', () => {
-          addressInputRef.current.style.boxShadow = '';
-          addressInputRef.current.style.borderColor = 'hsl(214, 32%, 91%)';
-        });
-
         autocomplete.addListener('place_changed', () => {
           const place = autocomplete.getPlace();
           if (place.formatted_address) {
