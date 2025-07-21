@@ -512,37 +512,39 @@ export default function AdminPendingProviders() {
             requestedLanguage: 'en',
           });
           
-          // Style the autocomplete element to match our input styling
-          autocompleteElement.style.width = '100%';
-          autocompleteElement.style.height = '40px';
-          autocompleteElement.style.border = '1px solid #d1d5db';
-          autocompleteElement.style.borderRadius = '6px';
-          autocompleteElement.style.padding = '8px 12px';
+          // Style the autocomplete element to match our input styling exactly
+          autocompleteElement.className = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
           autocompleteElement.style.fontSize = '14px';
-          autocompleteElement.style.fontFamily = 'inherit';
-          autocompleteElement.style.backgroundColor = '#ffffff';
-          autocompleteElement.style.outline = 'none';
-          autocompleteElement.style.transition = 'border-color 0.2s';
           
-          // Hide any clear/cross buttons and match exact Input component styling
+          // Add CSS to hide clear button and style internal input
           const style = document.createElement('style');
           style.textContent = `
-            gmp-place-autocomplete-element::part(text-input) {
-              border: 1px solid hsl(var(--border)) !important;
+            gmp-place-autocomplete-element {
+              display: flex !important;
+              height: 2.5rem !important;
+              width: 100% !important;
               border-radius: 6px !important;
-              padding: 8px 12px !important;
-              font-size: 14px !important;
+              border: 1px solid hsl(var(--border)) !important;
               background-color: hsl(var(--background)) !important;
-              height: 40px !important;
-              outline: none !important;
+              padding: 8px 12px !important;
+              font-size: 0.875rem !important;
+              transition: border-color 0.2s !important;
             }
-            gmp-place-autocomplete-element::part(text-input):focus-visible {
-              outline: none !important;
-              ring: 2px solid hsl(var(--ring)) !important;
-              ring-offset: 2px !important;
+            gmp-place-autocomplete-element:focus-within {
+              outline: 2px solid transparent !important;
+              outline-offset: 2px !important;
               box-shadow: 0 0 0 2px hsl(var(--ring)) !important;
             }
-            gmp-place-autocomplete-element::part(clear-button) {
+            gmp-place-autocomplete-element input {
+              background: transparent !important;
+              border: none !important;
+              outline: none !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              width: 100% !important;
+              font-size: inherit !important;
+            }
+            gmp-place-autocomplete-element button {
               display: none !important;
             }
           `;
