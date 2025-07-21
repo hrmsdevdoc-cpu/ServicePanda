@@ -373,7 +373,7 @@ export default function AdminViewProviders() {
   const saveNotesMutation = useMutation({
     mutationFn: async ({ notes, insuranceExpiryDate }: { notes: string; insuranceExpiryDate?: string }) => {
       if (!selectedProvider) return;
-      const response = await adminApiRequest('PUT', `/api/admin/providers/${selectedProvider.id}/details`, {
+      const response = await adminApiRequest('PUT', `/api/admin/providers/${selectedProvider.id}/notes`, {
         adminNotes: notes,
         insuranceExpiryDate: insuranceExpiryDate || null,
       });
@@ -381,18 +381,14 @@ export default function AdminViewProviders() {
     },
     onSuccess: () => {
       toast({
-        title: "Notes Saved",
-        description: "Admin notes have been updated successfully.",
+        title: "Insurance Date Saved",
+        description: "Insurance expiry date has been updated successfully.",
         variant: "default",
       });
+      // Invalidate all relevant caches to refresh the display
       queryClient.invalidateQueries({ queryKey: ['/api/admin/providers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'details'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity'] });
-      
-      // Clear the notes input
-      const newNoteElement = document.getElementById('newNote') as HTMLTextAreaElement;
-      if (newNoteElement) {
-        newNoteElement.value = '';
-      }
     },
     onError: (error) => {
       toast({
@@ -731,10 +727,19 @@ export default function AdminViewProviders() {
                           size="sm"
                           onClick={() => {
                             const insuranceExpiryElement = document.getElementById('insuranceExpiry') as HTMLInputElement;
-                            saveNotesMutation.mutate({
-                              notes: providerDetails?.adminNotes || '',
-                              insuranceExpiryDate: insuranceExpiryElement?.value || undefined,
-                            });
+                            const insuranceDate = insuranceExpiryElement?.value;
+                            if (insuranceDate) {
+                              saveNotesMutation.mutate({
+                                notes: providerDetails?.adminNotes || '',
+                                insuranceExpiryDate: insuranceDate,
+                              });
+                            } else {
+                              toast({
+                                title: "Please select a date",
+                                description: "Please select an insurance expiry date before saving.",
+                                variant: "destructive",
+                              });
+                            }
                           }}
                           disabled={saveNotesMutation.isPending}
                           className="mt-2 bg-blue-600 hover:bg-blue-700"
