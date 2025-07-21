@@ -40,12 +40,25 @@ export default function AdminLeadSettings() {
   const { toast } = useToast();
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Local state for settings
+  const [localSettings, setLocalSettings] = useState({
+    pricingModel: 'uniform' as 'uniform' | 'category',
+    uniformUniquePrice: 25.00,
+    uniformSharePrice: 12.00,
+    uniqueOfferWindow: 2,
+    maxProvidersPerArea: 10,
+    minProviderRating: 3.0,
+    providerRestrictionsActive: false,
+  });
+
   // Fetch current lead settings
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['/api/admin/lead-settings'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/admin/lead-settings');
-      return await response.json();
+      const data = await response.json();
+      setLocalSettings(data); // Update local state when data is fetched
+      return data;
     }
   });
 
@@ -79,15 +92,14 @@ export default function AdminLeadSettings() {
   const handleSettingChange = (field: string, value: any) => {
     setHasChanges(true);
     
-    if (!settings) return;
-    
-    // Update settings with new value
-    const newSettings = { ...settings, [field]: value };
+    // Update local settings
+    const newLocalSettings = { ...localSettings, [field]: value };
+    setLocalSettings(newLocalSettings);
     
     // Special handling for uniform price changes - auto-update categories without custom pricing
     if (field === 'uniformUniquePrice' || field === 'uniformSharePrice') {
-      if (newSettings.categoryPricing) {
-        newSettings.categoryPricing = newSettings.categoryPricing.map((cat: any) => {
+      if (settings?.categoryPricing) {
+        const newCategoryPricing = settings.categoryPricing.map((cat: any) => {
           if (!cat.hasCustomPrice) {
             return {
               ...cat,
@@ -97,17 +109,19 @@ export default function AdminLeadSettings() {
           }
           return cat;
         });
+        
+        // Update the settings data with new category pricing
+        queryClient.setQueryData(['/api/admin/lead-settings'], {
+          ...settings,
+          ...newLocalSettings,
+          categoryPricing: newCategoryPricing,
+        });
       }
     }
-    
-    // Update the settings data directly for immediate UI updates
-    queryClient.setQueryData(['/api/admin/lead-settings'], newSettings);
   };
 
   const handleSave = () => {
-    if (settings) {
-      saveMutation.mutate(settings);
-    }
+    saveMutation.mutate(localSettings);
   };
 
   if (settingsLoading) {
@@ -189,7 +203,7 @@ export default function AdminLeadSettings() {
                     <Input
                       id="uniquePrice"
                       type="number"
-                      placeholder="25.00"
+                      value={localSettings.uniformUniquePrice}
                       className="pl-8"
                       onChange={(e) => handleSettingChange('uniformUniquePrice', parseFloat(e.target.value))}
                     />
@@ -205,7 +219,7 @@ export default function AdminLeadSettings() {
                     <Input
                       id="sharePrice"
                       type="number"
-                      placeholder="12.00"
+                      value={localSettings.uniformSharePrice}
                       className="pl-8"
                       onChange={(e) => handleSettingChange('uniformSharePrice', parseFloat(e.target.value))}
                     />
@@ -238,7 +252,7 @@ export default function AdminLeadSettings() {
                   <Input
                     id="uniqueWindow"
                     type="number"
-                    defaultValue="2"
+                    value={localSettings.uniqueOfferWindow}
                     min="1"
                     max="10"
                     onChange={(e) => handleSettingChange('uniqueOfferWindow', parseInt(e.target.value))}
@@ -274,20 +288,20 @@ export default function AdminLeadSettings() {
                 </p>
               </div>
               <Switch
-                checked={settings?.providerRestrictionsActive || false}
+                checked={localSettings.providerRestrictionsActive}
                 onCheckedChange={(checked) => handleSettingChange('providerRestrictionsActive', checked)}
               />
             </div>
             
             {/* Provider Restrictions Settings - Only show when active */}
-            {settings?.providerRestrictionsActive && (
+            {localSettings.providerRestrictionsActive && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="maxProviders">Max Providers Per Service Area</Label>
                   <Input
                     id="maxProviders"
                     type="number"
-                    value={settings?.maxProvidersPerArea || 10}
+                    value={localSettings.maxProvidersPerArea}
                     min="1"
                     max="50"
                     onChange={(e) => handleSettingChange('maxProvidersPerArea', parseInt(e.target.value))}
@@ -302,7 +316,7 @@ export default function AdminLeadSettings() {
                     <Input
                       id="minRating"
                       type="number"
-                      value={settings?.minProviderRating || 3.0}
+                      value={localSettings.minProviderRating}
                       min="1.0"
                       max="5.0"
                       step="0.1"
