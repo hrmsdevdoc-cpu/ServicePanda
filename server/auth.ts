@@ -69,6 +69,10 @@ export function setupAuth(app: Express) {
           if (!user || !user.password || !(await comparePasswords(password, user.password))) {
             return done(null, false, { message: "Invalid email or password" });
           }
+          
+          // Update last login time
+          await storage.updateUserLastLogin(user.id);
+          
           return done(null, user);
         } catch (error) {
           return done(error);
@@ -127,8 +131,12 @@ export function setupAuth(app: Express) {
         });
       }
 
-      req.login(user, (err) => {
+      req.login(user, async (err) => {
         if (err) return next(err);
+        
+        // Update last login time for new registration
+        await storage.updateUserLastLogin(user.id);
+        
         res.status(201).json({
           id: user.id,
           email: user.email,

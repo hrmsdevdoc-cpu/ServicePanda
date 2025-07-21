@@ -63,6 +63,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User>;
+  updateUserLastLogin(id: string): Promise<void>;
   getAllUsers(): Promise<User[]>;
   getUsersWithStats(): Promise<Array<User & { lastLogin?: string; isActive: boolean }>>;
   
@@ -249,14 +250,20 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(users.createdAt));
   }
 
+  async updateUserLastLogin(id: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ lastLogin: new Date() })
+      .where(eq(users.id, id));
+  }
+
   async getUsersWithStats(): Promise<Array<User & { lastLogin?: string; isActive: boolean }>> {
     const allUsers = await this.getAllUsers();
     
-    // For now, return users with basic active status
-    // Can be enhanced later with real last login tracking
+    // Return users with real last login data from database
     return allUsers.map(user => ({
       ...user,
-      lastLogin: undefined, // Will need to implement session tracking for this
+      lastLogin: user.lastLogin ? user.lastLogin.toISOString() : undefined,
       isActive: true // For now, assume all users are active
     }));
   }
