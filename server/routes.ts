@@ -667,8 +667,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get current status for activity logging
       const currentProvider = await storage.getServiceProviderById(providerId);
       const oldStatus = currentProvider?.status || 'pending';
+      const oldProviderStatus = currentProvider?.providerStatus || 'deactivated';
       
       await storage.updateServiceProviderStatus(providerId, 'approved');
+
+      // Automatically activate provider when approved (if currently pending)
+      if (oldStatus === 'pending' && oldProviderStatus === 'deactivated') {
+        await storage.updateProviderStatus(providerId, 'activated');
+        
+        // Log provider activation activity
+        await storage.logProviderActivity({
+          providerId,
+          activityType: 'status_change',
+          actorType: 'admin',
+          actorId: 'admin',
+          actorName: 'Administrator',
+          description: 'Provider automatically activated upon approval',
+          oldValue: 'deactivated',
+          newValue: 'activated',
+        });
+      }
 
       // Log approval activity
       await storage.logProviderActivity({
@@ -953,6 +971,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating provider services:", error);
       res.status(500).json({ message: "Failed to update provider services" });
+    }
+  });
+
+  // Admin endpoint to update provider status (activated/deactivated)
+  app.put('/api/admin/providers/:id/provider-status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const { providerStatus } = req.body;
+      
+      if (!providerStatus || !['activated', 'deactivated'].includes(providerStatus)) {
+        return res.status(400).json({ message: "Valid provider status is required (activated or deactivated)" });
+      }
+      
+      // Get current provider for activity logging
+      const currentProvider = await storage.getServiceProviderById(providerId);
+      if (!currentProvider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+      
+      const oldStatus = currentProvider.providerStatus || 'deactivated';
+      
+      // Update provider status
+      await storage.updateProviderStatus(providerId, providerStatus);
+
+      // Log provider status change activity
+      await storage.logProviderActivity({
+        providerId,
+        activityType: 'status_change',
+        actorType: 'admin',
+        actorId: 'admin',
+        actorName: 'Administrator',
+        description: `Provider status changed from ${oldStatus} to ${providerStatus}`,
+        oldValue: oldStatus,
+        newValue: providerStatus,
+      });
+      
+      res.json({ message: 'Provider status updated successfully' });
+    } catch (error) {
+      console.error('Error updating provider status:', error);
+      res.status(500).json({ message: 'Failed to update provider status' });
     }
   });
 

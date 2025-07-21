@@ -427,6 +427,33 @@ export default function AdminViewProviders() {
     },
   });
 
+  // Provider status mutation
+  const providerStatusMutation = useMutation({
+    mutationFn: async ({ providerId, status }: { providerId: number; status: string }) => {
+      const response = await adminApiRequest('PUT', `/api/admin/providers/${providerId}/provider-status`, {
+        providerStatus: status,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Provider Status Updated",
+        description: "Provider status has been changed successfully.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'details'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Delete service area mutation  
   const deleteServiceAreaMutation = useMutation({
     mutationFn: async (serviceAreaId: number) => {
@@ -759,6 +786,26 @@ export default function AdminViewProviders() {
                         >
                           {selectedProvider?.status}
                         </Badge>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium">Provider Status</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-sm font-medium ${providerDetails?.providerStatus === 'activated' ? 'text-green-600' : 'text-red-600'}`}>
+                            {providerDetails?.providerStatus === 'activated' ? 'Activated' : 'Deactivated'}
+                          </span>
+                          <Switch
+                            checked={providerDetails?.providerStatus === 'activated'}
+                            onCheckedChange={(checked) => {
+                              providerStatusMutation.mutate({
+                                providerId: selectedProvider?.id,
+                                status: checked ? 'activated' : 'deactivated'
+                              });
+                            }}
+                            disabled={providerStatusMutation.isPending}
+                            className="data-[state=checked]:bg-green-600"
+                          />
+                        </div>
                       </div>
                       
                       <div>

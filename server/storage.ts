@@ -70,6 +70,7 @@ export interface IStorage {
   getServiceProviderById(id: number): Promise<ServiceProvider | undefined>;
   getServiceProviderByEmail(email: string): Promise<ServiceProvider | undefined>;
   updateServiceProvider(id: number, updates: Partial<ServiceProvider>): Promise<ServiceProvider>;
+  updateProviderStatus(id: number, providerStatus: string): Promise<void>;
   getServiceProvidersByStatus(status: string): Promise<ServiceProvider[]>;
   
   // Service category operations
@@ -279,6 +280,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(serviceProviders.id, id))
       .returning();
     return provider;
+  }
+
+  async updateProviderStatus(id: number, providerStatus: string): Promise<void> {
+    await db
+      .update(serviceProviders)
+      .set({ providerStatus, updatedAt: new Date() })
+      .where(eq(serviceProviders.id, id));
   }
 
   async getServiceProvidersByStatus(status: string): Promise<ServiceProvider[]> {
