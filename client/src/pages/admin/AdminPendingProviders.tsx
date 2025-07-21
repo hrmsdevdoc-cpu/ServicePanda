@@ -49,8 +49,6 @@ import {
   MapPin,
   Briefcase,
   StickyNote,
-  Plus,
-  Trash2,
   Home,
   Wrench,
   Zap,
@@ -329,11 +327,7 @@ export default function AdminPendingProviders() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
   const [activityFilter, setActivityFilter] = useState<'all' | 'admin' | 'provider'>('all');
-  const [newServiceArea, setNewServiceArea] = useState({ address: "", radius: 25 });
   const [viewingDocument, setViewingDocument] = useState<any>(null);
-  const [autocompleteInitialized, setAutocompleteInitialized] = useState(false);
-  const [autocompleteInstance, setAutocompleteInstance] = useState<any>(null);
-  const addressInputRef = useRef<HTMLInputElement>(null);
 
   // Activity logs query
   const { data: activityLogs, isLoading: isLoadingActivity } = useQuery({
@@ -407,55 +401,7 @@ export default function AdminPendingProviders() {
     },
   });
 
-  // Simple Add Service Area Mutation - no blocking validation
-  const addServiceAreaMutation = useMutation({
-    mutationFn: async ({ providerId, address, radius }: { providerId: number; address: string; radius: number }) => {
-      const response = await adminApiRequest('POST', `/api/admin/providers/${providerId}/service-areas`, {
-        centerAddress: address,
-        radiusKm: radius,
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Service Area Added",
-        description: "New service area has been added successfully.",
-        variant: "default",
-      });
-      setNewServiceArea({ address: "", radius: 25 });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Failed to Add Service Area",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
-  // Remove Service Area Mutation
-  const removeServiceAreaMutation = useMutation({
-    mutationFn: async (areaId: number) => {
-      const response = await adminApiRequest('DELETE', `/api/admin/service-areas/${areaId}`, {});
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Service Area Removed",
-        description: "Service area has been removed successfully.",
-        variant: "default",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Failed to Remove Service Area",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   // Save Provider Notes Mutation
   const saveNotesMutation = useMutation({
@@ -487,79 +433,6 @@ export default function AdminPendingProviders() {
       });
     },
   });
-
-  // State for autocomplete management
-
-  // Initialize autocomplete when dialog opens and Google Maps is available
-  useEffect(() => {
-    if (!isViewDialogOpen || !activeTab || activeTab !== 'service-area') {
-      return;
-    }
-
-    const initAutocomplete = () => {
-      if (!addressInputRef.current || !window.google?.maps?.places) {
-        setTimeout(initAutocomplete, 100);
-        return;
-      }
-
-      try {
-        console.log('Creating autocomplete with Places API...');
-        
-        const autocomplete = new window.google.maps.places.Autocomplete(
-          addressInputRef.current,
-          {
-            types: ['geocode'],
-            componentRestrictions: { country: 'au' },
-            fields: ['formatted_address', 'geometry', 'name', 'place_id']
-          }
-        );
-
-        autocomplete.addListener('place_changed', () => {
-          const place = autocomplete.getPlace();
-          console.log('Place selected:', place);
-          
-          if (place.formatted_address) {
-            console.log('Setting address to:', place.formatted_address);
-            setNewServiceArea(prev => ({
-              ...prev,
-              address: place.formatted_address
-            }));
-          }
-        });
-
-        setAutocompleteInstance(autocomplete);
-        console.log('Address autocomplete enabled successfully');
-      } catch (error) {
-        console.error('Autocomplete initialization error:', error);
-      }
-    };
-
-    const timer = setTimeout(initAutocomplete, 300);
-    return () => clearTimeout(timer);
-  }, [isViewDialogOpen, activeTab]);
-
-  const handleAddServiceArea = () => {
-    if (!selectedProvider?.id) {
-      toast({
-        title: "Missing Information", 
-        description: "Provider information is missing.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log('Adding service area with data:', {
-      providerId: selectedProvider.id,
-      address: newServiceArea.address,
-      radius: newServiceArea.radius,
-    });
-
-    addServiceAreaMutation.mutate({
-      providerId: selectedProvider.id,
-      address: newServiceArea.address,
-      radius: newServiceArea.radius,
-    });
-  };
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -844,77 +717,14 @@ export default function AdminPendingProviders() {
 
               {/* Service Area Tab */}
               <TabsContent value="service-area" className="space-y-6">
-                {/* Add Service Area Form */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Plus className="h-5 w-5 text-green-600" />
-                      Add New Service Area
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="newAddress" className="text-sm font-medium">Service Location Address *</Label>
-                        <Input
-                          id="newAddress"
-                          ref={addressInputRef}
-                          placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
-                          value={newServiceArea.address}
-                          onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              return false;
-                            }
-                          }}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="newRadius" className="text-sm font-medium">Service Radius (km) *</Label>
-                        <Input
-                          id="newRadius"
-                          type="number"
-                          min="1"
-                          max="100"
-                          placeholder="25"
-                          value={newServiceArea.radius}
-                          onChange={(e) => setNewServiceArea(prev => ({ ...prev, radius: parseInt(e.target.value) || 25 }))}
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                    
-                    <Button 
-                      type="button"
-                      onClick={handleAddServiceArea}
-                      disabled={addServiceAreaMutation.isPending}
-                      className="w-full bg-green-600 hover:bg-green-700 mt-4"
-                    >
-                      {addServiceAreaMutation.isPending ? (
-                        <>
-                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                          Adding...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Service Area
-                        </>
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Current Service Areas */}
+                {/* Current Service Areas - View Only */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <MapPin className="h-5 w-5 text-blue-600" />
-                      Current Service Areas ({providerDetails?.serviceAreas?.length || 0})
+                      Service Areas ({providerDetails?.serviceAreas?.length || 0})
                     </CardTitle>
+                    <p className="text-sm text-gray-600">View provider's configured service areas</p>
                   </CardHeader>
                   <CardContent>
                     {loadingDetails ? (
@@ -927,37 +737,26 @@ export default function AdminPendingProviders() {
                         {providerDetails?.serviceAreas?.map((area: any) => (
                           <div 
                             key={area.id} 
-                            className="flex items-center justify-between p-4 border rounded-lg bg-white hover:shadow-sm transition-shadow"
+                            className="p-4 border rounded-lg bg-white"
                           >
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <MapPin className="h-4 w-4 text-green-600" />
-                                <span className="font-medium">
-                                  {area.areaName || `Service Area ${area.id}`}
-                                </span>
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                  {area.radiusKm}km radius
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-gray-600 ml-6">
-                                {area.centerAddress}
-                              </p>
+                            <div className="flex items-center gap-2 mb-1">
+                              <MapPin className="h-4 w-4 text-green-600" />
+                              <span className="font-medium">
+                                {area.areaName || `Service Area ${area.id}`}
+                              </span>
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                {area.radiusKm}km radius
+                              </Badge>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => removeServiceAreaMutation.mutate(area.id)}
-                              disabled={removeServiceAreaMutation.isPending}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <p className="text-sm text-gray-600 ml-6">
+                              {area.centerAddress}
+                            </p>
                           </div>
                         )) || (
                           <div className="text-center py-8">
                             <MapPin className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                             <p className="text-gray-500 font-medium">No service areas configured</p>
-                            <p className="text-sm text-gray-400">Add a service area to get started</p>
+                            <p className="text-sm text-gray-400">Provider can configure service areas from their dashboard</p>
                           </div>
                         )}
                       </div>
