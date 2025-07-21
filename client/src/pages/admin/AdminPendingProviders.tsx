@@ -524,15 +524,23 @@ export default function AdminPendingProviders() {
           autocompleteElement.style.outline = 'none';
           autocompleteElement.style.transition = 'border-color 0.2s';
           
-          // Hide any clear/cross buttons
+          // Hide any clear/cross buttons and match exact Input component styling
           const style = document.createElement('style');
           style.textContent = `
             gmp-place-autocomplete-element::part(text-input) {
-              border: 1px solid #d1d5db !important;
+              border: 1px solid hsl(var(--border)) !important;
               border-radius: 6px !important;
               padding: 8px 12px !important;
               font-size: 14px !important;
+              background-color: hsl(var(--background)) !important;
+              height: 40px !important;
               outline: none !important;
+            }
+            gmp-place-autocomplete-element::part(text-input):focus-visible {
+              outline: none !important;
+              ring: 2px solid hsl(var(--ring)) !important;
+              ring-offset: 2px !important;
+              box-shadow: 0 0 0 2px hsl(var(--ring)) !important;
             }
             gmp-place-autocomplete-element::part(clear-button) {
               display: none !important;
