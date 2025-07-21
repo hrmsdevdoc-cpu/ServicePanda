@@ -1156,11 +1156,12 @@ export class DatabaseStorage implements IStorage {
     return {
       id: 1,
       pricingModel: 'uniform',
-      uniformUniquePrice: '25.00',
-      uniformSharePrice: '12.00',
+      uniformUniquePrice: 25.00,
+      uniformSharePrice: 12.00,
       uniqueOfferWindow: 2,
       maxProvidersPerArea: 10,
-      minProviderRating: '3.0',
+      minProviderRating: 3.0,
+      providerRestrictionsActive: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

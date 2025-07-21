@@ -22,6 +22,7 @@ interface LeadSettings {
   uniqueOfferWindow: number; // minutes for unique lead offer
   
   // Provider Selection Rules
+  providerRestrictionsActive: boolean; // Enable/disable provider restrictions
   maxProvidersPerArea: number;
   minProviderRating: number;
   
@@ -31,6 +32,7 @@ interface LeadSettings {
     categoryName: string;
     uniquePrice: number;
     sharePrice: number;
+    hasCustomPrice: boolean; // Track if category has custom pricing
   }[];
 }
 
@@ -48,7 +50,7 @@ export default function AdminLeadSettings() {
   });
 
   // Fetch service categories for category-based pricing
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] } = useQuery<any[]>({
     queryKey: ['/api/service-categories'],
   });
 
@@ -76,7 +78,30 @@ export default function AdminLeadSettings() {
 
   const handleSettingChange = (field: string, value: any) => {
     setHasChanges(true);
-    // This would update local state - simplified for now
+    
+    if (!settings) return;
+    
+    // Update settings with new value
+    const newSettings = { ...settings, [field]: value };
+    
+    // Special handling for uniform price changes - auto-update categories without custom pricing
+    if (field === 'uniformUniquePrice' || field === 'uniformSharePrice') {
+      if (newSettings.categoryPricing) {
+        newSettings.categoryPricing = newSettings.categoryPricing.map((cat: any) => {
+          if (!cat.hasCustomPrice) {
+            return {
+              ...cat,
+              uniquePrice: field === 'uniformUniquePrice' ? parseFloat(value) : cat.uniquePrice,
+              sharePrice: field === 'uniformSharePrice' ? parseFloat(value) : cat.sharePrice,
+            };
+          }
+          return cat;
+        });
+      }
+    }
+    
+    // Update the settings data directly for immediate UI updates
+    queryClient.setQueryData(['/api/admin/lead-settings'], newSettings);
   };
 
   const handleSave = () => {
@@ -240,40 +265,57 @@ export default function AdminLeadSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="maxProviders">Max Providers Per Service Area</Label>
-                <Input
-                  id="maxProviders"
-                  type="number"
-                  defaultValue="10"
-                  min="1"
-                  max="50"
-                  onChange={(e) => handleSettingChange('maxProvidersPerArea', parseInt(e.target.value))}
-                />
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Maximum number of providers to consider for each lead
+            {/* Provider Restrictions Toggle */}
+            <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <div className="space-y-1">
+                <Label className="text-base font-medium">Provider Restrictions</Label>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Enable provider limits and rating requirements. Keep disabled initially since providers start with zero ratings.
                 </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="minRating">Minimum Provider Rating</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="minRating"
-                    type="number"
-                    defaultValue="3.0"
-                    min="1.0"
-                    max="5.0"
-                    step="0.1"
-                    onChange={(e) => handleSettingChange('minProviderRating', parseFloat(e.target.value))}
-                  />
-                  <Star className="h-4 w-4 text-yellow-500" />
-                </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Minimum rating required for providers to receive lead offers
-                </p>
-              </div>
+              <Switch
+                checked={settings?.providerRestrictionsActive || false}
+                onCheckedChange={(checked) => handleSettingChange('providerRestrictionsActive', checked)}
+              />
             </div>
+            
+            {/* Provider Restrictions Settings - Only show when active */}
+            {settings?.providerRestrictionsActive && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="maxProviders">Max Providers Per Service Area</Label>
+                  <Input
+                    id="maxProviders"
+                    type="number"
+                    value={settings?.maxProvidersPerArea || 10}
+                    min="1"
+                    max="50"
+                    onChange={(e) => handleSettingChange('maxProvidersPerArea', parseInt(e.target.value))}
+                  />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Maximum number of providers to consider for each lead
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="minRating">Minimum Provider Rating</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="minRating"
+                      type="number"
+                      value={settings?.minProviderRating || 3.0}
+                      min="1.0"
+                      max="5.0"
+                      step="0.1"
+                      onChange={(e) => handleSettingChange('minProviderRating', parseFloat(e.target.value))}
+                    />
+                    <Star className="h-4 w-4 text-yellow-500" />
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Minimum rating required for providers to receive lead offers
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
