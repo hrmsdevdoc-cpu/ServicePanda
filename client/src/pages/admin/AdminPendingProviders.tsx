@@ -512,7 +512,8 @@ export default function AdminPendingProviders() {
           }
         );
 
-        autocomplete.addListener('place_changed', () => {
+        autocomplete.addListener('place_changed', (e) => {
+          if (e && e.preventDefault) e.preventDefault();
           const place = autocomplete.getPlace();
           if (place.formatted_address) {
             setNewServiceArea(prev => ({
@@ -854,6 +855,7 @@ export default function AdminPendingProviders() {
                             if (e.key === 'Enter') {
                               e.preventDefault();
                               e.stopPropagation();
+                              return false;
                             }
                           }}
                           className="mt-1"
