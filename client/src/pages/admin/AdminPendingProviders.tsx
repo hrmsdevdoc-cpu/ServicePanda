@@ -51,6 +51,8 @@ import {
   StickyNote,
   Home,
   Wrench,
+  Clock,
+  Filter,
   Zap,
   Droplets,
   Car,
@@ -58,9 +60,7 @@ import {
   TreePine,
   Bug,
   Sparkles,
-  Building,
-  Clock,
-  Filter
+  Building
 } from "lucide-react";
 
 // Admin Service Category Selector Component
@@ -420,12 +420,13 @@ export default function AdminPendingProviders() {
     },
     onSuccess: () => {
       toast({
-        title: "Notes Saved",
+        title: "Information Saved",
         description: "Admin notes and insurance expiry date have been saved successfully.",
         variant: "default",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/providers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity'] });
     },
     onError: (error) => {
       toast({
@@ -463,6 +464,18 @@ export default function AdminPendingProviders() {
     saveNotesMutation.mutate({
       providerId: selectedProvider.id,
       adminNotes: adminNotesElement?.value || '',
+      insuranceExpiryDate: insuranceExpiryElement?.value || undefined,
+    });
+  };
+
+  const handleSaveInsuranceDate = () => {
+    if (!selectedProvider) return;
+    
+    const insuranceExpiryElement = document.getElementById('insuranceExpiry') as HTMLInputElement;
+    
+    saveNotesMutation.mutate({
+      providerId: selectedProvider.id,
+      adminNotes: selectedProvider.adminNotes || '', // Keep existing notes
       insuranceExpiryDate: insuranceExpiryElement?.value || undefined,
     });
   };
@@ -690,6 +703,14 @@ export default function AdminPendingProviders() {
                             new Date(selectedProvider.insuranceExpiryDate).toISOString().split('T')[0] : ''}
                           className="mt-1"
                         />
+                        <Button
+                          size="sm"
+                          onClick={handleSaveInsuranceDate}
+                          disabled={saveNotesMutation.isPending}
+                          className="mt-2 bg-blue-600 hover:bg-blue-700"
+                        >
+                          {saveNotesMutation.isPending ? 'Saving...' : 'Save Insurance Date'}
+                        </Button>
                       </div>
                       
                       <div>
