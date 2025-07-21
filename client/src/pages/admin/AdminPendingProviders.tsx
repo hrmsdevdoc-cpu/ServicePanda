@@ -528,20 +528,16 @@ export default function AdminPendingProviders() {
         types: ["address"],
       });
 
-      // Handle place selection with proper event isolation
+      // Handle place selection - ONLY update address field
       autocomplete.addListener("place_changed", () => {
         const place = autocomplete.getPlace();
-        console.log('Google Maps place selected:', place);
         if (place.formatted_address) {
-          // Force update the input field directly and through state
-          if (addressInputRef.current) {
-            addressInputRef.current.value = place.formatted_address;
-          }
+          // Update only the address field - no form submission
           setNewServiceArea(prev => ({ 
             ...prev, 
-            address: place.formatted_address || "" 
+            address: place.formatted_address 
           }));
-          console.log('Autocomplete updated address field:', place.formatted_address);
+          console.log('✓ Address filled from Google Maps:', place.formatted_address);
         }
       });
 
@@ -567,11 +563,11 @@ export default function AdminPendingProviders() {
       return;
     }
 
-    // Validate address is substantial (at least 10 characters and contains space - typical for addresses)
-    if (!selectedProvider?.id || !newServiceArea.address.trim() || newServiceArea.address.length < 10 || !newServiceArea.address.includes(' ')) {
+    // Validate address is not empty
+    if (!selectedProvider?.id || !newServiceArea.address.trim()) {
       toast({
         title: "Missing Information", 
-        description: "Please enter a complete, valid address for the service area (e.g., '123 Main St, Brisbane QLD 4000').",
+        description: "Please enter a valid address for the service area.",
         variant: "destructive",
       });
       return;
