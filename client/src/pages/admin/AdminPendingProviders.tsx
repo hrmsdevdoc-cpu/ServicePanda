@@ -849,86 +849,52 @@ export default function AdminPendingProviders() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div 
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Form submission blocked completely');
-                        return false;
-                      }}
-                      onClick={(e) => {
-                        // Prevent any unwanted form submissions
-                        console.log('Click event on service area container');
-                      }}
-                    >
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Inner form submit prevented');
-                        return false;
-                      }}>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="newAddress" className="text-sm font-medium">Service Location Address *</Label>
-                          <Input
-                            id="newAddress"
-                            ref={addressInputRef}
-                            placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
-                            value={newServiceArea.address}
-                            onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
-                            onFocus={initializeAutocomplete}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                return false;
-                              }
-                            }}
-                            autoComplete="off"
-                            className="mt-1"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="newRadius" className="text-sm font-medium">Service Radius (km) *</Label>
-                          <Input
-                            id="newRadius"
-                            type="number"
-                            min="1"
-                            max="100"
-                            placeholder="25"
-                            value={newServiceArea.radius}
-                            onChange={(e) => setNewServiceArea(prev => ({ ...prev, radius: parseInt(e.target.value) || 25 }))}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                console.log('Enter key pressed in radius input - prevented default');
-                              }
-                            }}
-                            className="mt-1"
-                          />
-                        </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="newAddress" className="text-sm font-medium">Service Location Address *</Label>
+                        <Input
+                          id="newAddress"
+                          ref={addressInputRef}
+                          placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                          value={newServiceArea.address}
+                          onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
+                          onFocus={initializeAutocomplete}
+                          className="mt-1"
+                        />
                       </div>
-                      
-                      <Button 
-                        type="button"
-                        onClick={handleAddServiceArea}
-                        disabled={!newServiceArea.address.trim() || addServiceAreaMutation.isPending}
-                        className="w-full bg-green-600 hover:bg-green-700 mt-4"
-                      >
-                        {addServiceAreaMutation.isPending ? (
-                          <>
-                            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                            Adding...
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Service Area
-                          </>
-                        )}
-                      </Button>
-                      </form>
+                      <div className="space-y-2">
+                        <Label htmlFor="newRadius" className="text-sm font-medium">Service Radius (km) *</Label>
+                        <Input
+                          id="newRadius"
+                          type="number"
+                          min="1"
+                          max="100"
+                          placeholder="25"
+                          value={newServiceArea.radius}
+                          onChange={(e) => setNewServiceArea(prev => ({ ...prev, radius: parseInt(e.target.value) || 25 }))}
+                          className="mt-1"
+                        />
+                      </div>
                     </div>
+                    
+                    <Button 
+                      type="button"
+                      onClick={handleAddServiceArea}
+                      disabled={!newServiceArea.address.trim() || addServiceAreaMutation.isPending}
+                      className="w-full bg-green-600 hover:bg-green-700 mt-4"
+                    >
+                      {addServiceAreaMutation.isPending ? (
+                        <>
+                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Service Area
+                        </>
+                      )}
+                    </Button>
                   </CardContent>
                 </Card>
 
