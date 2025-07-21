@@ -72,7 +72,7 @@ import {
   type InsertLeadDistributionLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, inArray, isNotNull, sql } from "drizzle-orm";
+import { eq, and, or, desc, asc, inArray, isNotNull, sql } from "drizzle-orm";
 import crypto from "crypto";
 
 export interface IStorage {
