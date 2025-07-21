@@ -512,6 +512,34 @@ export default function AdminPendingProviders() {
             requestedLanguage: 'en',
           });
           
+          // Style the autocomplete element to match our input styling
+          autocompleteElement.style.width = '100%';
+          autocompleteElement.style.height = '40px';
+          autocompleteElement.style.border = '1px solid #d1d5db';
+          autocompleteElement.style.borderRadius = '6px';
+          autocompleteElement.style.padding = '8px 12px';
+          autocompleteElement.style.fontSize = '14px';
+          autocompleteElement.style.fontFamily = 'inherit';
+          autocompleteElement.style.backgroundColor = '#ffffff';
+          autocompleteElement.style.outline = 'none';
+          autocompleteElement.style.transition = 'border-color 0.2s';
+          
+          // Hide any clear/cross buttons
+          const style = document.createElement('style');
+          style.textContent = `
+            gmp-place-autocomplete-element::part(text-input) {
+              border: 1px solid #d1d5db !important;
+              border-radius: 6px !important;
+              padding: 8px 12px !important;
+              font-size: 14px !important;
+              outline: none !important;
+            }
+            gmp-place-autocomplete-element::part(clear-button) {
+              display: none !important;
+            }
+          `;
+          document.head.appendChild(style);
+          
           // Replace the input with the autocomplete element
           const parent = addressInputRef.current.parentNode;
           parent.insertBefore(autocompleteElement, addressInputRef.current);
