@@ -58,7 +58,7 @@ export default function AdminViewUsers() {
   };
 
   // Filter users based on search term
-  const filteredUsers = allUsers?.filter((user: User) => {
+  const filteredUsers = Array.isArray(allUsers) ? allUsers.filter((user: User) => {
     const matchesSearch = 
       user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -66,7 +66,7 @@ export default function AdminViewUsers() {
       (user.phoneNumber && user.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesSearch;
-  });
+  }) : [];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
