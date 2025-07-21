@@ -68,6 +68,7 @@ function Router() {
       
       {/* Admin routes - accessible with admin authentication */}
       <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin-dashboard" component={AdminDashboard} />
       <Route path="/admin/settings" component={AdminSettings} />
       <Route path="/admin/stripe-config" component={AdminStripeConfig} />
       <Route path="/admin/mailgun-config" component={AdminMailgunConfig} />
