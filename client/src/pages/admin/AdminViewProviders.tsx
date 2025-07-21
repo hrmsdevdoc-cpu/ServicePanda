@@ -32,6 +32,7 @@ export default function AdminViewProviders() {
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   // Check admin authentication
   useEffect(() => {
@@ -54,23 +55,36 @@ export default function AdminViewProviders() {
     },
   });
 
+  // Service Categories Query
+  const { data: serviceCategories } = useQuery({
+    queryKey: ['/api/service-categories'],
+    queryFn: async () => {
+      const response = await fetch('/api/service-categories');
+      return response.json();
+    },
+  });
+
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     navigate('/admin-login');
   };
 
-  // Filter providers based on search term and status
+  // Filter providers based on search term, status, and service category
   const filteredProviders = allProviders?.filter((provider: ServiceProvider) => {
     const matchesSearch = 
       provider.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       provider.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       provider.email.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesFilter = 
+    const matchesStatus = 
       statusFilter === 'all' || 
       provider.status === statusFilter;
 
-    return matchesSearch && matchesFilter;
+    const matchesCategory = 
+      categoryFilter === 'all' || 
+      (provider.services && provider.services.some(service => service.categoryName === categoryFilter));
+
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
   const getStatusBadge = (status: string) => {
@@ -134,6 +148,18 @@ export default function AdminViewProviders() {
                   <option value="pending">Pending</option>
                   <option value="approved">Approved</option>
                   <option value="rejected">Rejected</option>
+                </select>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="all">All Services</option>
+                  {serviceCategories?.map((category: any) => (
+                    <option key={category.id} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
                 </select>
                 <Badge variant="outline">
                   {filteredProviders?.length || 0} Total
