@@ -333,7 +333,7 @@ export default function ProviderDashboard() {
     );
   };
 
-  const newLeadsCount = leads.filter((l: any) => l.status === 'new').length;
+  const newLeadsCount = leads.filter((l: any) => l.status === 'pending' || l.status === 'purchased').length;
 
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
@@ -771,31 +771,54 @@ export default function ProviderDashboard() {
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
                         <p className="text-gray-600">Loading new leads...</p>
                       </div>
-                    ) : leads.filter((l: any) => l.status === 'new').length === 0 ? (
+                    ) : leads.filter((l: any) => l.status === 'pending' || l.status === 'purchased').length === 0 ? (
                       <div className="text-center py-8">
                         <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No new leads</h3>
-                        <p className="text-gray-500">New customer requests will appear here.</p>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No leads available</h3>
+                        <p className="text-gray-500">New customer requests and purchased leads will appear here.</p>
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {leads.filter((l: any) => l.status === 'new').map((lead: any) => (
-                          <div key={lead.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                        {leads.filter((l: any) => l.status === 'pending' || l.status === 'purchased').map((lead: any) => (
+                          <div key={lead.requestId} className="border rounded-lg p-4 hover:bg-gray-50">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="font-medium">{lead.service}</h3>
-                                  <Badge className="bg-blue-100 text-blue-800">New</Badge>
+                                  <h3 className="font-medium">{lead.categoryName}</h3>
+                                  <Badge className={
+                                    lead.status === 'purchased' 
+                                      ? "bg-green-100 text-green-800" 
+                                      : "bg-blue-100 text-blue-800"
+                                  }>
+                                    {lead.status === 'purchased' ? 'Purchased' : 'Available'}
+                                  </Badge>
+                                  {lead.status === 'purchased' && (
+                                    <Badge className="bg-orange-100 text-orange-800">
+                                      ${lead.leadCost}
+                                    </Badge>
+                                  )}
                                 </div>
                                 <div className="space-y-1 text-sm text-gray-600">
                                   <div className="flex items-center gap-1">
                                     <MapPin className="h-3 w-3" />
-                                    {lead.location}
+                                    {lead.suburb}, {lead.postcode}
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
                                     {new Date(lead.createdAt).toLocaleDateString()}
                                   </div>
+                                  {lead.status === 'purchased' && lead.customerName && (
+                                    <>
+                                      <div className="flex items-center gap-1">
+                                        <Mail className="h-3 w-3" />
+                                        {lead.customerEmail}
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <Phone className="h-3 w-3" />
+                                        {lead.customerPhone}
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                                 {lead.description && (
                                   <p className="text-sm text-gray-700 mt-2">{lead.description}</p>
@@ -804,11 +827,18 @@ export default function ProviderDashboard() {
                               <div className="flex gap-2 ml-4">
                                 <Button size="sm" variant="outline">
                                   <Eye className="h-3 w-3 mr-1" />
-                                  View
+                                  View Details
                                 </Button>
-                                <Button size="sm">
-                                  Respond
-                                </Button>
+                                {lead.status === 'pending' && (
+                                  <Button size="sm">
+                                    Purchase ${lead.leadCost}
+                                  </Button>
+                                )}
+                                {lead.status === 'purchased' && (
+                                  <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                    Contact Customer
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </div>
