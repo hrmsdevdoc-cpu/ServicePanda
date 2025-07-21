@@ -263,18 +263,7 @@ export function setupProviderAuth(app: Express) {
     }
   });
 
-  // Provider leads endpoint
-  app.get('/api/provider/leads', isProviderAuthenticated, async (req: any, res) => {
-    try {
-      const providerId = req.provider.id;
-      // For now return empty array - will implement lead matching later
-      const leads: any[] = [];
-      res.json(leads);
-    } catch (error) {
-      console.error("Error fetching provider leads:", error);
-      res.status(500).json({ message: "Failed to fetch leads" });
-    }
-  });
+
 
   // Provider services endpoint
   app.get('/api/provider/services', isProviderAuthenticated, async (req: any, res) => {

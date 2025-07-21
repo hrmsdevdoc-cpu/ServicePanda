@@ -1793,6 +1793,8 @@ export class DatabaseStorage implements IStorage {
           requestId: serviceRequests.id,
           categoryName: serviceCategories.name,
           customerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+          customerEmail: users.email,
+          customerPhone: users.phoneNumber,
           suburb: serviceRequests.suburb,
           postcode: serviceRequests.postcode,
           preferredDate: serviceRequests.preferredDate,
@@ -1805,6 +1807,7 @@ export class DatabaseStorage implements IStorage {
           status: leadOffers.status,
           isCurrentOffer: leadOffers.isCurrentOffer,
           expiresAt: leadOffers.expiresAt,
+          purchasedAt: leadOffers.purchasedAt,
           createdAt: serviceRequests.createdAt,
         })
         .from(leadOffers)
@@ -1814,8 +1817,10 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(leadOffers.providerId, providerId),
-            eq(leadOffers.status, 'pending'),
-            eq(leadOffers.isCurrentOffer, true)
+            or(
+              and(eq(leadOffers.status, 'pending'), eq(leadOffers.isCurrentOffer, true)),
+              eq(leadOffers.status, 'purchased')
+            )
           )
         )
         .orderBy(desc(serviceRequests.createdAt));
