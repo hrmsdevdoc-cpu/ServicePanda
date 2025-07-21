@@ -515,20 +515,40 @@ export default function AdminPendingProviders() {
   const [lastMutationTime, setLastMutationTime] = useState(0);
   const [isUserInitiated, setIsUserInitiated] = useState(false);
 
-  // Working Google Maps autocomplete - copied from LocationServiceAreaForm
+  // Working Google Maps autocomplete with detailed debugging
   useEffect(() => {
-    if (!isViewDialogOpen || activeTab !== 'service-area' || !addressInputRef.current) {
+    console.log('=== AUTOCOMPLETE USEEFFECT TRIGGERED ===');
+    console.log('isViewDialogOpen:', isViewDialogOpen);
+    console.log('activeTab:', activeTab);
+    console.log('addressInputRef.current:', addressInputRef.current);
+    console.log('window.google:', !!window.google);
+    console.log('window.google.maps:', !!window.google?.maps);
+    console.log('window.google.maps.places:', !!window.google?.maps?.places);
+    
+    if (!isViewDialogOpen || activeTab !== 'service-area') {
+      console.log('Not initializing autocomplete - dialog closed or wrong tab');
       return;
     }
 
     const initAutocomplete = () => {
+      console.log('=== INIT AUTOCOMPLETE FUNCTION CALLED ===');
+      console.log('addressInputRef.current in init:', addressInputRef.current);
+      console.log('Google Maps available in init:', !!window.google?.maps?.places);
+      
+      if (!addressInputRef.current) {
+        console.log('No address input ref, trying again in 100ms...');
+        setTimeout(initAutocomplete, 100);
+        return;
+      }
+      
       if (!window.google?.maps?.places) {
+        console.log('Google Maps Places API not ready, trying again in 100ms...');
         setTimeout(initAutocomplete, 100);
         return;
       }
 
       try {
-        console.log('Creating autocomplete with Places API...');
+        console.log('=== CREATING AUTOCOMPLETE INSTANCE ===');
         
         const autocomplete = new window.google.maps.places.Autocomplete(
           addressInputRef.current,
@@ -539,27 +559,36 @@ export default function AdminPendingProviders() {
           }
         );
 
+        console.log('Autocomplete instance created:', autocomplete);
+
         autocomplete.addListener('place_changed', () => {
+          console.log('=== PLACE CHANGED EVENT TRIGGERED ===');
           const place = autocomplete.getPlace();
-          console.log('Place selected:', place);
+          console.log('Place object:', place);
           
           if (place.formatted_address) {
+            console.log('Setting address to:', place.formatted_address);
             setNewServiceArea(prev => ({
               ...prev,
               address: place.formatted_address
             }));
-            console.log('Address set to:', place.formatted_address);
+          } else {
+            console.log('No formatted_address in place object');
           }
         });
 
-        console.log('Address autocomplete enabled successfully');
+        console.log('=== AUTOCOMPLETE SETUP COMPLETE ===');
       } catch (error) {
-        console.error('Autocomplete initialization error:', error);
+        console.error('=== AUTOCOMPLETE ERROR ===', error);
       }
     };
 
-    const timer = setTimeout(initAutocomplete, 500);
-    return () => clearTimeout(timer);
+    console.log('Setting timeout for autocomplete initialization...');
+    const timer = setTimeout(initAutocomplete, 800);
+    return () => {
+      console.log('Clearing autocomplete timer');
+      clearTimeout(timer);
+    };
   }, [isViewDialogOpen, activeTab]);
 
   const handleAddServiceArea = () => {
