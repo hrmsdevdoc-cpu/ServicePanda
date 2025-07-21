@@ -503,68 +503,32 @@ export default function AdminPendingProviders() {
       }
 
       try {
-        // Use modern PlaceAutocompleteElement API
-        if (window.google.maps.places.PlaceAutocompleteElement) {
-          const autocompleteElement = new window.google.maps.places.PlaceAutocompleteElement({
+        console.log('Creating autocomplete with Places API...');
+        
+        const autocomplete = new window.google.maps.places.Autocomplete(
+          addressInputRef.current,
+          {
+            types: ['geocode'],
             componentRestrictions: { country: 'au' },
-            requestedLanguage: 'en',
-          });
-          
-          // Store reference to autocomplete element for later access
-          setAutocompleteInstance(autocompleteElement);
-          
-          // Hide the original input and insert the autocomplete element
-          addressInputRef.current.style.display = 'none';
-          addressInputRef.current.parentNode.insertBefore(autocompleteElement, addressInputRef.current);
-          
-          // Style the element to match our input
-          autocompleteElement.style.width = '100%';
-          autocompleteElement.style.height = '40px';
-          
-          autocompleteElement.addEventListener('gmp-placeselect', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const place = event.place;
-            
-            console.log('Place selected from modern API:', place);
-            
-            if (place.formattedAddress) {
-              console.log('Setting address to:', place.formattedAddress);
-              // Store the address in a way we can reliably access it
-              autocompleteElement.selectedAddress = place.formattedAddress;
-              setNewServiceArea(prev => ({
-                ...prev,
-                address: place.formattedAddress
-              }));
-              // Sync with hidden input
-              addressInputRef.current.value = place.formattedAddress;
-            }
-            return false;
-          });
-          
-        } else {
-          // Fallback to legacy API
-          const autocomplete = new window.google.maps.places.Autocomplete(
-            addressInputRef.current,
-            {
-              types: ['geocode'],
-              componentRestrictions: { country: 'au' },
-              fields: ['formatted_address']
-            }
-          );
+            fields: ['formatted_address', 'geometry', 'name', 'place_id']
+          }
+        );
 
-          autocomplete.addListener('place_changed', () => {
-            const place = autocomplete.getPlace();
-            if (place.formatted_address) {
-              setNewServiceArea(prev => ({
-                ...prev,
-                address: place.formatted_address
-              }));
-            }
-          });
-        }
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          console.log('Place selected:', place);
+          
+          if (place.formatted_address) {
+            console.log('Setting address to:', place.formatted_address);
+            setNewServiceArea(prev => ({
+              ...prev,
+              address: place.formatted_address
+            }));
+          }
+        });
 
-        console.log('Google Maps autocomplete initialized successfully');
+        setAutocompleteInstance(autocomplete);
+        console.log('Address autocomplete enabled successfully');
       } catch (error) {
         console.error('Autocomplete initialization error:', error);
       }
@@ -584,34 +548,15 @@ export default function AdminPendingProviders() {
       return;
     }
 
-    // Get the address from multiple sources
-    let addressToSend = '';
-    
-    // First try to get from the autocomplete element's stored value
-    if (autocompleteInstance && autocompleteInstance.selectedAddress) {
-      addressToSend = autocompleteInstance.selectedAddress;
-    }
-    // Then try from the React state
-    else if (newServiceArea.address) {
-      addressToSend = newServiceArea.address;
-    }
-    // Finally try from the input field value
-    else if (addressInputRef.current?.value) {
-      addressToSend = addressInputRef.current.value;
-    }
-
     console.log('Adding service area with data:', {
       providerId: selectedProvider.id,
-      address: addressToSend,
+      address: newServiceArea.address,
       radius: newServiceArea.radius,
-      stateAddress: newServiceArea.address,
-      inputValue: addressInputRef.current?.value,
-      autocompleteAddress: autocompleteInstance?.selectedAddress
     });
 
     addServiceAreaMutation.mutate({
       providerId: selectedProvider.id,
-      address: addressToSend,
+      address: newServiceArea.address,
       radius: newServiceArea.radius,
     });
   };
