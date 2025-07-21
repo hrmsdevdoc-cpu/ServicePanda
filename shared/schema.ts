@@ -188,6 +188,54 @@ export const leadAssignments = pgTable("lead_assignments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Provider ratings table
+export const providerRatings = pgTable("provider_ratings", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  rating: decimal("rating", { precision: 3, scale: 1 }).notNull().default("5.0"),
+  totalReviews: integer("total_reviews").default(0),
+  averageResponseTime: integer("average_response_time").default(30), // minutes
+  completionRate: decimal("completion_rate", { precision: 5, scale: 2 }).default("100.00"), // percentage
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Lead offer tracking table - tracks individual lead offers to providers
+export const leadOffers = pgTable("lead_offers", {
+  id: serial("id").primaryKey(),
+  requestId: integer("request_id").references(() => serviceRequests.id).notNull(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  offerType: varchar("offer_type").notNull(), // 'unique' or 'shared'
+  leadCost: decimal("lead_cost", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status").default("pending"), // pending, purchased, expired, declined
+  offerStartTime: timestamp("offer_start_time").defaultNow(),
+  offerEndTime: timestamp("offer_end_time"),
+  purchasedAt: timestamp("purchased_at"),
+  expiresAt: timestamp("expires_at"),
+  sortOrder: integer("sort_order").default(0), // for rating-based ordering
+  isCurrentOffer: boolean("is_current_offer").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Lead distribution log - tracks the complete lead distribution process
+export const leadDistributionLog = pgTable("lead_distribution_log", {
+  id: serial("id").primaryKey(),
+  requestId: integer("request_id").references(() => serviceRequests.id).notNull(),
+  distributionPhase: varchar("distribution_phase").notNull(), // 'unique' or 'shared'
+  currentOfferProviderId: integer("current_offer_provider_id").references(() => serviceProviders.id),
+  nextOfferProviderId: integer("next_offer_provider_id").references(() => serviceProviders.id),
+  totalEligibleProviders: integer("total_eligible_providers").default(0),
+  uniqueOffersCompleted: integer("unique_offers_completed").default(0),
+  sharedOffersPurchased: integer("shared_offers_purchased").default(0),
+  maxSharedOffers: integer("max_shared_offers").default(3),
+  phaseStartTime: timestamp("phase_start_time").defaultNow(),
+  currentOfferEndTime: timestamp("current_offer_end_time"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Email templates and sent emails
 export const emailTemplates = pgTable("email_templates", {
   id: serial("id").primaryKey(),
@@ -413,6 +461,21 @@ export const insertProviderActivityLogSchema = createInsertSchema(providerActivi
   id: true, 
   timestamp: true 
 });
+export const insertProviderRatingSchema = createInsertSchema(providerRatings).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertLeadOfferSchema = createInsertSchema(leadOffers).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertLeadDistributionLogSchema = createInsertSchema(leadDistributionLog).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
@@ -453,6 +516,12 @@ export type InsertProviderActivityLog = z.infer<typeof insertProviderActivityLog
 export type ProviderActivityLog = typeof providerActivityLogs.$inferSelect;
 export type InsertLeadNote = z.infer<typeof insertLeadNoteSchema>;
 export type LeadNote = typeof leadNotes.$inferSelect;
+export type InsertProviderRating = z.infer<typeof insertProviderRatingSchema>;
+export type ProviderRating = typeof providerRatings.$inferSelect;
+export type InsertLeadOffer = z.infer<typeof insertLeadOfferSchema>;
+export type LeadOffer = typeof leadOffers.$inferSelect;
+export type InsertLeadDistributionLog = z.infer<typeof insertLeadDistributionLogSchema>;
+export type LeadDistributionLog = typeof leadDistributionLog.$inferSelect;
 
 // Lead management settings table
 export const leadSettings = pgTable("lead_settings", {

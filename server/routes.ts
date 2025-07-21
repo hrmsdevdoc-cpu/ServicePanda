@@ -1633,6 +1633,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Lead Sharing System endpoints
+  app.post('/api/service-requests', async (req, res) => {
+    try {
+      const serviceRequestData = insertServiceRequestSchema.parse(req.body);
+      const newRequest = await storage.createServiceRequest(serviceRequestData);
+      
+      // Initialize lead distribution automatically
+      await storage.initializeLeadDistribution(newRequest.id);
+      
+      res.status(201).json(newRequest);
+    } catch (error: any) {
+      console.error('Error creating service request:', error);
+      res.status(500).json({ message: error.message || 'Failed to create service request' });
+    }
+  });
+
+  app.get('/api/admin/leads/:requestId/offer-details', isAdminAuthenticated, async (req, res) => {
+    try {
+      const requestId = parseInt(req.params.requestId);
+      const offerDetails = await storage.getLeadOfferDetails(requestId);
+      res.json(offerDetails);
+    } catch (error: any) {
+      console.error('Error fetching lead offer details:', error);
+      res.status(500).json({ message: error.message || 'Failed to fetch lead offer details' });
+    }
+  });
+
+  app.get('/api/provider/leads', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = req.provider?.id;
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+      
+      const activeLeads = await storage.getProviderActiveLeads(providerId);
+      res.json(activeLeads);
+    } catch (error: any) {
+      console.error('Error fetching provider leads:', error);
+      res.status(500).json({ message: error.message || 'Failed to fetch provider leads' });
+    }
+  });
+
+  app.post('/api/provider/leads/:requestId/purchase', isProviderAuthenticated, async (req, res) => {
+    try {
+      const requestId = parseInt(req.params.requestId);
+      const providerId = req.provider?.id;
+      
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+      
+      const result = await storage.purchaseLead(requestId, providerId);
+      
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error: any) {
+      console.error('Error purchasing lead:', error);
+      res.status(500).json({ message: error.message || 'Failed to purchase lead' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

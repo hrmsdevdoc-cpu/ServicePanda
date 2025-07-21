@@ -61,6 +61,15 @@ import {
   type InsertCategoryLeadPricing,
   type LeadNote,
   type InsertLeadNote,
+  providerRatings,
+  leadOffers,
+  leadDistributionLog,
+  type ProviderRating,
+  type InsertProviderRating,
+  type LeadOffer,
+  type InsertLeadOffer,
+  type LeadDistributionLog,
+  type InsertLeadDistributionLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, isNotNull, sql } from "drizzle-orm";
@@ -194,6 +203,17 @@ export interface IStorage {
   // Lead notes operations
   addLeadNote(leadId: number, note: string, adminName: string): Promise<LeadNote>;
   getLeadNotes(leadId: number): Promise<LeadNote[]>;
+
+  // Lead sharing system operations
+  initializeLeadDistribution(requestId: number): Promise<void>;
+  getEligibleProviders(categoryId: number, postcode: string): Promise<Array<{providerId: number, rating: number, firstName: string, lastName: string}>>;
+  getLeadCost(categoryId: number, offerType: 'unique' | 'shared'): Promise<number>;
+  activateNextUniqueOffer(requestId: number): Promise<void>;
+  startSharedPhase(requestId: number): Promise<void>;
+  purchaseLead(requestId: number, providerId: number): Promise<{success: boolean, message: string}>;
+  endLeadDistribution(requestId: number): Promise<void>;
+  getLeadOfferDetails(requestId: number): Promise<any>;
+  getProviderActiveLeads(providerId: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1345,6 +1365,441 @@ export class DatabaseStorage implements IStorage {
       .where(eq(leadNotes.leadId, leadId))
       .orderBy(desc(leadNotes.createdAt));
     return notes;
+  }
+
+  // Lead Sharing System Methods
+  async initializeLeadDistribution(requestId: number): Promise<void> {
+    try {
+      const request = await this.getServiceRequest(requestId);
+      if (!request) throw new Error('Service request not found');
+
+      // Find eligible providers based on service category and service areas
+      const eligibleProviders = await this.getEligibleProviders(request.categoryId, request.postcode);
+      
+      if (eligibleProviders.length === 0) {
+        console.log(`No eligible providers found for request ${requestId}`);
+        return;
+      }
+
+      // Create distribution log
+      await db
+        .insert(leadDistributionLog)
+        .values({
+          requestId,
+          distributionPhase: 'unique',
+          totalEligibleProviders: eligibleProviders.length,
+          isActive: true,
+        });
+
+      // Create lead offers for all eligible providers (rating-based order)
+      const leadSettings = await this.getLeadSettings();
+      const leadCost = await this.getLeadCost(request.categoryId, 'unique');
+
+      for (let i = 0; i < eligibleProviders.length; i++) {
+        const provider = eligibleProviders[i];
+        await db.insert(leadOffers).values({
+          requestId,
+          providerId: provider.providerId,
+          offerType: 'unique',
+          leadCost: leadCost.toString(),
+          status: 'pending',
+          sortOrder: i,
+          expiresAt: new Date(Date.now() + leadSettings.uniqueOfferWindow * 60 * 1000),
+        });
+      }
+
+      // Start the first offer
+      await this.activateNextUniqueOffer(requestId);
+    } catch (error) {
+      console.error('Error initializing lead distribution:', error);
+      throw error;
+    }
+  }
+
+  async getEligibleProviders(categoryId: number, postcode: string): Promise<Array<{providerId: number, rating: number, firstName: string, lastName: string}>> {
+    try {
+      // Get providers who offer this service category and cover this postcode
+      const eligibleProviders = await db
+        .select({
+          providerId: serviceProviders.id,
+          rating: providerRatings.rating,
+          firstName: serviceProviders.firstName,
+          lastName: serviceProviders.lastName,
+          totalReviews: providerRatings.totalReviews,
+          averageResponseTime: providerRatings.averageResponseTime,
+        })
+        .from(serviceProviders)
+        .innerJoin(providerServices, eq(serviceProviders.id, providerServices.providerId))
+        .innerJoin(providerRatings, eq(serviceProviders.id, providerRatings.providerId))
+        .innerJoin(providerServiceAreas, eq(serviceProviders.id, providerServiceAreas.providerId))
+        .innerJoin(australianSuburbs, eq(providerServiceAreas.suburbId, australianSuburbs.id))
+        .where(
+          and(
+            eq(providerServices.categoryId, categoryId),
+            eq(australianSuburbs.postcode, postcode),
+            eq(serviceProviders.status, 'approved'),
+            eq(serviceProviders.providerStatus, 'activated')
+          )
+        )
+        .orderBy(
+          desc(providerRatings.rating),
+          desc(providerRatings.totalReviews),
+          asc(providerRatings.averageResponseTime)
+        );
+
+      return eligibleProviders.map(p => ({
+        providerId: p.providerId,
+        rating: parseFloat(p.rating?.toString() || '5.0'),
+        firstName: p.firstName,
+        lastName: p.lastName,
+      }));
+    } catch (error) {
+      console.error('Error getting eligible providers:', error);
+      return [];
+    }
+  }
+
+  async getLeadCost(categoryId: number, offerType: 'unique' | 'shared'): Promise<number> {
+    try {
+      // Check for category-specific pricing
+      const [categoryPricing] = await db
+        .select()
+        .from(categoryLeadPricing)
+        .where(eq(categoryLeadPricing.categoryId, categoryId))
+        .limit(1);
+
+      if (categoryPricing) {
+        return parseFloat(offerType === 'unique' ? categoryPricing.uniquePrice : categoryPricing.sharePrice);
+      }
+
+      // Use uniform pricing
+      const settings = await this.getLeadSettings();
+      return offerType === 'unique' ? settings.uniformUniquePrice : settings.uniformSharePrice;
+    } catch (error) {
+      console.error('Error getting lead cost:', error);
+      return offerType === 'unique' ? 25.00 : 12.00;
+    }
+  }
+
+  async activateNextUniqueOffer(requestId: number): Promise<void> {
+    try {
+      // Deactivate current offers
+      await db
+        .update(leadOffers)
+        .set({ isCurrentOffer: false })
+        .where(eq(leadOffers.requestId, requestId));
+
+      // Find next pending unique offer
+      const [nextOffer] = await db
+        .select()
+        .from(leadOffers)
+        .where(
+          and(
+            eq(leadOffers.requestId, requestId),
+            eq(leadOffers.offerType, 'unique'),
+            eq(leadOffers.status, 'pending')
+          )
+        )
+        .orderBy(asc(leadOffers.sortOrder))
+        .limit(1);
+
+      if (!nextOffer) {
+        // No more unique offers, move to shared phase
+        await this.startSharedPhase(requestId);
+        return;
+      }
+
+      // Activate next offer
+      const leadSettings = await this.getLeadSettings();
+      const offerEndTime = new Date(Date.now() + leadSettings.uniqueOfferWindow * 60 * 1000);
+
+      await db
+        .update(leadOffers)
+        .set({
+          isCurrentOffer: true,
+          offerStartTime: new Date(),
+          offerEndTime,
+        })
+        .where(eq(leadOffers.id, nextOffer.id));
+
+      // Update distribution log
+      await db
+        .update(leadDistributionLog)
+        .set({
+          currentOfferProviderId: nextOffer.providerId,
+          currentOfferEndTime: offerEndTime,
+        })
+        .where(
+          and(
+            eq(leadDistributionLog.requestId, requestId),
+            eq(leadDistributionLog.isActive, true)
+          )
+        );
+
+      console.log(`Activated unique offer for provider ${nextOffer.providerId}, expires at ${offerEndTime}`);
+    } catch (error) {
+      console.error('Error activating next unique offer:', error);
+      throw error;
+    }
+  }
+
+  async startSharedPhase(requestId: number): Promise<void> {
+    try {
+      // Create shared offers for all eligible providers
+      const eligibleProviders = await db
+        .select({
+          providerId: leadOffers.providerId,
+        })
+        .from(leadOffers)
+        .where(
+          and(
+            eq(leadOffers.requestId, requestId),
+            eq(leadOffers.offerType, 'unique')
+          )
+        )
+        .groupBy(leadOffers.providerId);
+
+      const leadCost = await this.getLeadCost(
+        (await this.getServiceRequest(requestId))?.categoryId || 1,
+        'shared'
+      );
+
+      // Create shared offers for all eligible providers
+      for (const provider of eligibleProviders) {
+        await db.insert(leadOffers).values({
+          requestId,
+          providerId: provider.providerId,
+          offerType: 'shared',
+          leadCost: leadCost.toString(),
+          status: 'pending',
+          isCurrentOffer: true,
+        });
+      }
+
+      // Update distribution log to shared phase
+      await db
+        .update(leadDistributionLog)
+        .set({
+          distributionPhase: 'shared',
+          phaseStartTime: new Date(),
+          currentOfferProviderId: null,
+          currentOfferEndTime: null,
+        })
+        .where(
+          and(
+            eq(leadDistributionLog.requestId, requestId),
+            eq(leadDistributionLog.isActive, true)
+          )
+        );
+
+      console.log(`Started shared phase for request ${requestId}`);
+    } catch (error) {
+      console.error('Error starting shared phase:', error);
+      throw error;
+    }
+  }
+
+  async purchaseLead(requestId: number, providerId: number): Promise<{success: boolean, message: string}> {
+    try {
+      // Find active offer for this provider
+      const [offer] = await db
+        .select()
+        .from(leadOffers)
+        .where(
+          and(
+            eq(leadOffers.requestId, requestId),
+            eq(leadOffers.providerId, providerId),
+            eq(leadOffers.status, 'pending'),
+            eq(leadOffers.isCurrentOffer, true)
+          )
+        )
+        .limit(1);
+
+      if (!offer) {
+        return { success: false, message: 'No active offer found for this provider' };
+      }
+
+      // Check if offer has expired
+      if (offer.expiresAt && new Date() > offer.expiresAt) {
+        await db
+          .update(leadOffers)
+          .set({ status: 'expired', isCurrentOffer: false })
+          .where(eq(leadOffers.id, offer.id));
+        return { success: false, message: 'Offer has expired' };
+      }
+
+      // Mark offer as purchased
+      await db
+        .update(leadOffers)
+        .set({
+          status: 'purchased',
+          purchasedAt: new Date(),
+          isCurrentOffer: false,
+        })
+        .where(eq(leadOffers.id, offer.id));
+
+      if (offer.offerType === 'unique') {
+        // For unique offers, move to next provider or shared phase
+        await this.activateNextUniqueOffer(requestId);
+      } else {
+        // For shared offers, check if we've reached the limit
+        const [distributionLog] = await db
+          .select()
+          .from(leadDistributionLog)
+          .where(
+            and(
+              eq(leadDistributionLog.requestId, requestId),
+              eq(leadDistributionLog.isActive, true)
+            )
+          )
+          .limit(1);
+
+        if (distributionLog) {
+          const newSharedCount = distributionLog.sharedOffersPurchased + 1;
+          await db
+            .update(leadDistributionLog)
+            .set({ sharedOffersPurchased: newSharedCount })
+            .where(eq(leadDistributionLog.id, distributionLog.id));
+
+          if (newSharedCount >= distributionLog.maxSharedOffers) {
+            // End distribution process
+            await this.endLeadDistribution(requestId);
+          }
+        }
+      }
+
+      return { success: true, message: 'Lead purchased successfully' };
+    } catch (error) {
+      console.error('Error purchasing lead:', error);
+      return { success: false, message: 'Failed to purchase lead' };
+    }
+  }
+
+  async endLeadDistribution(requestId: number): Promise<void> {
+    try {
+      // Mark all pending offers as expired
+      await db
+        .update(leadOffers)
+        .set({ 
+          status: 'expired', 
+          isCurrentOffer: false 
+        })
+        .where(
+          and(
+            eq(leadOffers.requestId, requestId),
+            eq(leadOffers.status, 'pending')
+          )
+        );
+
+      // Mark distribution log as inactive
+      await db
+        .update(leadDistributionLog)
+        .set({ isActive: false })
+        .where(
+          and(
+            eq(leadDistributionLog.requestId, requestId),
+            eq(leadDistributionLog.isActive, true)
+          )
+        );
+
+      console.log(`Ended lead distribution for request ${requestId}`);
+    } catch (error) {
+      console.error('Error ending lead distribution:', error);
+      throw error;
+    }
+  }
+
+  async getLeadOfferDetails(requestId: number): Promise<any> {
+    try {
+      const offerDetails = await db
+        .select({
+          offerId: leadOffers.id,
+          providerId: leadOffers.providerId,
+          providerFirstName: serviceProviders.firstName,
+          providerLastName: serviceProviders.lastName,
+          providerEmail: serviceProviders.email,
+          rating: providerRatings.rating,
+          offerType: leadOffers.offerType,
+          status: leadOffers.status,
+          leadCost: leadOffers.leadCost,
+          sortOrder: leadOffers.sortOrder,
+          isCurrentOffer: leadOffers.isCurrentOffer,
+          offerStartTime: leadOffers.offerStartTime,
+          offerEndTime: leadOffers.offerEndTime,
+          purchasedAt: leadOffers.purchasedAt,
+          expiresAt: leadOffers.expiresAt,
+        })
+        .from(leadOffers)
+        .leftJoin(serviceProviders, eq(leadOffers.providerId, serviceProviders.id))
+        .leftJoin(providerRatings, eq(leadOffers.providerId, providerRatings.providerId))
+        .where(eq(leadOffers.requestId, requestId))
+        .orderBy(asc(leadOffers.sortOrder), desc(leadOffers.createdAt));
+
+      const [distributionLog] = await db
+        .select()
+        .from(leadDistributionLog)
+        .where(eq(leadDistributionLog.requestId, requestId))
+        .orderBy(desc(leadDistributionLog.createdAt))
+        .limit(1);
+
+      return {
+        distributionLog,
+        offers: offerDetails.map(offer => ({
+          ...offer,
+          providerName: `${offer.providerFirstName} ${offer.providerLastName}`,
+          leadCost: parseFloat(offer.leadCost || '0'),
+          rating: parseFloat(offer.rating?.toString() || '5.0'),
+        })),
+      };
+    } catch (error) {
+      console.error('Error getting lead offer details:', error);
+      return { distributionLog: null, offers: [] };
+    }
+  }
+
+  async getProviderActiveLeads(providerId: number): Promise<any[]> {
+    try {
+      const activeLeads = await db
+        .select({
+          requestId: serviceRequests.id,
+          categoryName: serviceCategories.name,
+          customerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+          suburb: serviceRequests.suburb,
+          postcode: serviceRequests.postcode,
+          preferredDate: serviceRequests.preferredDate,
+          bookingType: serviceRequests.bookingType,
+          description: serviceRequests.description,
+          urgency: serviceRequests.urgency,
+          budget: serviceRequests.budget,
+          offerType: leadOffers.offerType,
+          leadCost: leadOffers.leadCost,
+          status: leadOffers.status,
+          isCurrentOffer: leadOffers.isCurrentOffer,
+          expiresAt: leadOffers.expiresAt,
+          createdAt: serviceRequests.createdAt,
+        })
+        .from(leadOffers)
+        .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
+        .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
+        .innerJoin(users, eq(serviceRequests.customerId, users.id))
+        .where(
+          and(
+            eq(leadOffers.providerId, providerId),
+            eq(leadOffers.status, 'pending'),
+            eq(leadOffers.isCurrentOffer, true)
+          )
+        )
+        .orderBy(desc(serviceRequests.createdAt));
+
+      return activeLeads.map(lead => ({
+        ...lead,
+        leadCost: parseFloat(lead.leadCost || '0'),
+        budget: parseFloat(lead.budget?.toString() || '0'),
+      }));
+    } catch (error) {
+      console.error('Error getting provider active leads:', error);
+      return [];
+    }
   }
 }
 

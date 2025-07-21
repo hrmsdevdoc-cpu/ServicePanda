@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { TrendingUp, Users, MapPin, Calendar, Filter, Search, X, FileText, Clock, CheckCircle, AlertCircle, Phone, Mail, User, Globe } from "lucide-react";
+import { TrendingUp, Users, MapPin, Calendar, Filter, Search, X, FileText, Clock, CheckCircle, AlertCircle, Phone, Mail, User, Globe, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
+import { AdminLeadOfferDetails } from "@/components/AdminLeadOfferDetails";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AdminSidebar } from "@/components/AdminSidebar";
@@ -77,6 +78,8 @@ export default function AdminLeads() {
   const [selectedLead, setSelectedLead] = useState<ServiceRequest | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
+  const [isOfferDetailsOpen, setIsOfferDetailsOpen] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Check admin authentication
@@ -137,6 +140,31 @@ export default function AdminLeads() {
     setIsPanelOpen(true);
   };
 
+  const handleViewOfferDetails = (requestId: number) => {
+    setSelectedRequestId(requestId);
+    setIsOfferDetailsOpen(true);
+  };
+
+  // Query for lead offer details
+  const { data: offerDetails } = useQuery({
+    queryKey: ["/api/admin/leads", selectedRequestId, "offer-details"],
+    queryFn: async () => {
+      if (!selectedRequestId) return null;
+      const response = await adminApiRequest('GET', `/api/admin/leads/${selectedRequestId}/offer-details`);
+      return response.json();
+    },
+    enabled: !!selectedRequestId && isOfferDetailsOpen,
+  });
+
+  // Query for service categories to use in filters
+  const { data: categories = [] } = useQuery({
+    queryKey: ["/api/service-categories"],
+    queryFn: async () => {
+      const response = await fetch('/api/service-categories');
+      return response.json();
+    },
+  });
+
   const handleAddNote = () => {
     if (!selectedLead || !newNote.trim()) return;
     
@@ -171,10 +199,6 @@ export default function AdminLeads() {
         return <Badge variant="outline" className="text-xs px-2 py-0 h-5">{bookingType || 'Standard'}</Badge>;
     }
   };
-
-  const { data: categories = [] } = useQuery({
-    queryKey: ["/api/service-categories"],
-  });
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -316,6 +340,7 @@ export default function AdminLeads() {
                     <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Accepted</th>
                     <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Pending</th>
                     <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Status</th>
+                    <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-600">
@@ -332,7 +357,7 @@ export default function AdminLeads() {
                         <td className="px-2 py-1">{lead.state || 'NSW'}</td>
                         <td className="px-2 py-1 max-w-20 truncate">{lead.suburb}</td>
                         <td className="px-2 py-1 text-center">
-                          <Globe className="h-3 w-3 text-gray-400 mx-auto" title={lead.leadSource || 'Website'} />
+                          <Globe className="h-3 w-3 text-gray-400 mx-auto" />
                         </td>
                         <td className="px-2 py-1">{format(new Date(lead.createdAt), "MMM d")}</td>
                         <td className="px-2 py-1">
@@ -354,6 +379,20 @@ export default function AdminLeads() {
                         <td className="px-2 py-1 text-center font-medium text-green-600">{metrics.totalAccepted}</td>
                         <td className="px-2 py-1 text-center font-medium text-orange-600">{metrics.totalPending}</td>
                         <td className="px-2 py-1">{getLeadStatusBadge(lead.status)}</td>
+                        <td className="px-2 py-1 text-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewOfferDetails(lead.id);
+                            }}
+                            className="text-blue-600 border-blue-300 hover:bg-blue-50 text-xs px-2 py-1"
+                          >
+                            <BarChart3 className="h-3 w-3 mr-1" />
+                            Offers
+                          </Button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -531,6 +570,17 @@ export default function AdminLeads() {
           </Sheet>
         </div>
       </div>
+
+      {/* Lead Offer Details Popup */}
+      <AdminLeadOfferDetails
+        isOpen={isOfferDetailsOpen}
+        onClose={() => {
+          setIsOfferDetailsOpen(false);
+          setSelectedRequestId(null);
+        }}
+        requestId={selectedRequestId || 0}
+        offerDetails={offerDetails}
+      />
     </div>
   );
 }
