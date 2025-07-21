@@ -523,13 +523,21 @@ export default function AdminPendingProviders() {
             event.stopPropagation();
             const place = event.place;
             
+            console.log('Place selected from modern API:', place);
+            
             if (place.formattedAddress) {
+              console.log('Setting address to:', place.formattedAddress);
               setNewServiceArea(prev => ({
                 ...prev,
                 address: place.formattedAddress
               }));
               // Sync with hidden input
               addressInputRef.current.value = place.formattedAddress;
+              
+              // Force a re-render to ensure state is updated
+              setTimeout(() => {
+                console.log('Current state address:', newServiceArea.address);
+              }, 100);
             }
             return false;
           });
@@ -576,9 +584,19 @@ export default function AdminPendingProviders() {
       return;
     }
 
-    addServiceAreaMutation.mutate({
+    console.log('Adding service area with data:', {
       providerId: selectedProvider.id,
       address: newServiceArea.address,
+      radius: newServiceArea.radius,
+      inputValue: addressInputRef.current?.value
+    });
+
+    // Use the input value if state is empty
+    const addressToSend = newServiceArea.address || addressInputRef.current?.value || '';
+
+    addServiceAreaMutation.mutate({
+      providerId: selectedProvider.id,
+      address: addressToSend,
       radius: newServiceArea.radius,
     });
   };
