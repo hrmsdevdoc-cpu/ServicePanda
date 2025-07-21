@@ -132,6 +132,13 @@ export default function ProviderDashboard() {
     retry: false,
   });
 
+  // Fetch provider activity history
+  const { data: activities = [], isLoading: activitiesLoading } = useQuery({
+    queryKey: ["/api/provider/activity"],
+    enabled: !!provider?.id,
+    retry: false,
+  });
+
   // Set initial selected services when data loads
   useEffect(() => {
     if (services && services.length > 0) {
@@ -708,49 +715,60 @@ export default function ProviderDashboard() {
                 {/* Recent Activity */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
+                    <CardTitle className="flex items-center">
+                      <Bell className="h-5 w-5 mr-2" />
+                      Recent Activity
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {leadsLoading ? (
+                    {activitiesLoading ? (
                       <div className="text-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
                         <p className="text-gray-600">Loading recent activity...</p>
                       </div>
-                    ) : leads.length === 0 ? (
+                    ) : activities.length === 0 ? (
                       <div className="text-center py-8">
-                        <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-lg font-medium text-gray-900 mb-2">No recent activity</h3>
                         <p className="text-gray-500 mb-4">
-                          When customers request services in your area, they'll appear here.
+                          Your lead activity and notifications will appear here.
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        {leads.slice(0, 5).map((lead: any) => (
-                          <div key={lead.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {activities.slice(0, 10).map((activity: any, index: number) => (
+                          <div key={activity.id || index} className="border rounded-lg p-3 hover:bg-gray-50">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="font-medium">{lead.service}</h3>
-                                  <Badge variant="outline">{lead.status}</Badge>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge variant={activity.variant || 'default'} className="text-xs">
+                                    {activity.activityType === 'lead_purchased' && <CheckCircle className="h-3 w-3 mr-1" />}
+                                    {activity.activityType === 'lead_lost' && <XCircle className="h-3 w-3 mr-1" />}
+                                    {activity.activityType === 'offer_expired' && <Clock className="h-3 w-3 mr-1" />}
+                                    {activity.activityType === 'new_offer' && <Target className="h-3 w-3 mr-1" />}
+                                    {activity.activityType === 'price_drop' && <AlertCircle className="h-3 w-3 mr-1" />}
+                                    {activity.activityType === 'lead_purchased' && 'PURCHASED'}
+                                    {activity.activityType === 'lead_lost' && 'LOST'}
+                                    {activity.activityType === 'offer_expired' && 'EXPIRED'}
+                                    {activity.activityType === 'new_offer' && 'NEW OFFER'}
+                                    {activity.activityType === 'price_drop' && 'PRICE DROP'}
+                                  </Badge>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(activity.timestamp).toLocaleDateString()} {new Date(activity.timestamp).toLocaleTimeString()}
+                                  </span>
                                 </div>
-                                <div className="space-y-1 text-sm text-gray-600">
-                                  <div className="flex items-center gap-1">
-                                    <MapPin className="h-3 w-3" />
-                                    {lead.location}
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {new Date(lead.createdAt).toLocaleDateString()}
-                                  </div>
+                                <p className="text-sm text-gray-800">{activity.message}</p>
+                                {activity.description && (
+                                  <p className="text-xs text-gray-600 mt-1 truncate">{activity.description}</p>
+                                )}
+                              </div>
+                              {activity.activityType === 'new_offer' && (
+                                <div className="ml-2">
+                                  <Badge variant="outline" className="text-green-600 border-green-600">
+                                    ${activity.leadCost}
+                                  </Badge>
                                 </div>
-                              </div>
-                              <div className="flex gap-2 ml-4">
-                                <Button size="sm" variant="outline">
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  View
-                                </Button>
-                              </div>
+                              )}
                             </div>
                           </div>
                         ))}

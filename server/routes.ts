@@ -1675,6 +1675,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/provider/activity', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = req.provider?.id;
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+      
+      const activities = await storage.getProviderActivityHistory(providerId);
+      res.json(activities);
+    } catch (error: any) {
+      console.error('Error fetching provider activity:', error);
+      res.status(500).json({ message: error.message || 'Failed to fetch activity history' });
+    }
+  });
+
   app.post('/api/provider/leads/:requestId/purchase', isProviderAuthenticated, async (req, res) => {
     try {
       const requestId = parseInt(req.params.requestId);

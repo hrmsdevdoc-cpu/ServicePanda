@@ -215,6 +215,7 @@ export interface IStorage {
   endLeadDistribution(requestId: number): Promise<void>;
   getLeadOfferDetails(requestId: number): Promise<any>;
   getProviderActiveLeads(providerId: number): Promise<any[]>;
+  getProviderActivityHistory(providerId: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1832,6 +1833,116 @@ export class DatabaseStorage implements IStorage {
       }));
     } catch (error) {
       console.error('Error getting provider active leads:', error);
+      return [];
+    }
+  }
+
+  async getProviderActivityHistory(providerId: number): Promise<any[]> {
+    try {
+      // Get comprehensive activity history including:
+      // 1. Offers received
+      // 2. Offers expired/missed
+      // 3. Leads purchased
+      // 4. Price drop notifications (shared phase)
+      // 5. Lead status changes
+      
+      const activities = await db
+        .select({
+          id: leadOffers.id,
+          requestId: leadOffers.requestId,
+          activityType: sql<string>`
+            CASE 
+              WHEN ${leadOffers.status} = 'purchased' THEN 'lead_purchased'
+              WHEN ${leadOffers.status} = 'expired' AND ${leadOffers.offerType} = 'unique' THEN 'offer_expired'
+              WHEN ${leadOffers.status} = 'pending' AND ${leadOffers.isCurrentOffer} = true AND ${leadOffers.offerType} = 'unique' THEN 'new_offer'
+              WHEN ${leadOffers.status} = 'pending' AND ${leadOffers.offerType} = 'shared' THEN 'price_drop'
+              WHEN ${leadOffers.status} = 'purchased' AND ${leadOffers.providerId} != ${providerId} THEN 'lead_lost'
+              ELSE 'other'
+            END
+          `,
+          categoryName: serviceCategories.name,
+          suburb: serviceRequests.suburb,
+          postcode: serviceRequests.postcode,
+          leadCost: leadOffers.leadCost,
+          offerType: leadOffers.offerType,
+          status: leadOffers.status,
+          isCurrentOffer: leadOffers.isCurrentOffer,
+          expiresAt: leadOffers.expiresAt,
+          purchasedAt: leadOffers.purchasedAt,
+          createdAt: leadOffers.createdAt,
+          description: serviceRequests.description,
+          urgency: serviceRequests.urgency,
+          // Check if lead was purchased by another provider
+          purchasedByOther: sql<boolean>`
+            EXISTS(
+              SELECT 1 FROM ${leadOffers} lo2 
+              WHERE lo2.requestId = ${leadOffers.requestId} 
+              AND lo2.status = 'purchased' 
+              AND lo2.providerId != ${providerId}
+            )
+          `
+        })
+        .from(leadOffers)
+        .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
+        .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
+        .where(
+          or(
+            eq(leadOffers.providerId, providerId),
+            // Include leads purchased by others that this provider had offers for
+            and(
+              sql`EXISTS(
+                SELECT 1 FROM ${leadOffers} lo_check 
+                WHERE lo_check.requestId = ${leadOffers.requestId} 
+                AND lo_check.providerId = ${providerId}
+              )`,
+              eq(leadOffers.status, 'purchased')
+            )
+          )
+        )
+        .orderBy(desc(leadOffers.createdAt))
+        .limit(20);
+
+      // Transform activities with proper messages
+      const processedActivities = activities.map(activity => {
+        let message = '';
+        let activityType = '';
+        let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'default';
+
+        if (activity.status === 'purchased' && activity.purchasedByOther) {
+          message = `Lead lost - Someone else purchased this ${activity.categoryName} lead in ${activity.suburb}`;
+          activityType = 'lead_lost';
+          variant = 'destructive';
+        } else if (activity.status === 'purchased') {
+          message = `Lead purchased - ${activity.categoryName} in ${activity.suburb}`;
+          activityType = 'lead_purchased';
+          variant = 'default';
+        } else if (activity.status === 'expired' && activity.offerType === 'unique') {
+          message = `Offer expired - ${activity.categoryName} lead in ${activity.suburb} (was $${activity.leadCost})`;
+          activityType = 'offer_expired';
+          variant = 'secondary';
+        } else if (activity.status === 'pending' && activity.isCurrentOffer && activity.offerType === 'unique') {
+          message = `New offer - ${activity.categoryName} lead in ${activity.suburb} ($${activity.leadCost})`;
+          activityType = 'new_offer';
+          variant = 'outline';
+        } else if (activity.status === 'pending' && activity.offerType === 'shared') {
+          message = `Price DROP - ${activity.categoryName} lead in ${activity.suburb} now $${activity.leadCost}`;
+          activityType = 'price_drop';
+          variant = 'secondary';
+        }
+
+        return {
+          ...activity,
+          message,
+          activityType,
+          variant,
+          timestamp: activity.purchasedAt || activity.createdAt,
+          leadCost: parseFloat(activity.leadCost || '0')
+        };
+      });
+
+      return processedActivities.filter(activity => activity.message); // Only return activities with messages
+    } catch (error) {
+      console.error('Error getting provider activity history:', error);
       return [];
     }
   }
