@@ -515,55 +515,32 @@ export default function AdminPendingProviders() {
   const [lastMutationTime, setLastMutationTime] = useState(0);
   const [isUserInitiated, setIsUserInitiated] = useState(false);
 
-  // Google Maps Autocomplete with proper event isolation
+  // Simple Google Maps autocomplete - just fill the address field
   const initializeAutocomplete = () => {
     if (autocompleteInitialized || !addressInputRef.current || !window.google?.maps?.places) {
       return;
     }
 
-    try {
-      const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-        componentRestrictions: { country: "au" },
-        fields: ["address_components", "formatted_address", "geometry"],
-        types: ["address"],
-      });
+    const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+      componentRestrictions: { country: "au" },
+      fields: ["formatted_address"],
+      types: ["address"],
+    });
 
-      // Handle place selection - ONLY update address field
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (place.formatted_address) {
-          // Update only the address field - no form submission
-          setNewServiceArea(prev => ({ 
-            ...prev, 
-            address: place.formatted_address 
-          }));
-          console.log('✓ Address filled from Google Maps:', place.formatted_address);
-        }
-      });
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (place && place.formatted_address) {
+        setNewServiceArea(prev => ({ 
+          ...prev, 
+          address: place.formatted_address 
+        }));
+      }
+    });
 
-      setAutocompleteInitialized(true);
-      console.log('Google Maps autocomplete initialized successfully');
-    } catch (error) {
-      console.error('Google Maps autocomplete initialization failed:', error);
-    }
+    setAutocompleteInitialized(true);
   };
 
   const handleAddServiceArea = () => {
-    const now = Date.now();
-    
-    // Debounce rapid calls (must be at least 2 seconds apart)
-    if (now - lastMutationTime < 2000) {
-      console.log('Service area addition blocked - too rapid (likely autocomplete interference)');
-      return;
-    }
-    
-    // Only allow if user explicitly initiated this call
-    if (!isUserInitiated) {
-      console.log('Service area addition blocked - not user initiated');
-      return;
-    }
-
-    // Validate address is not empty
     if (!selectedProvider?.id || !newServiceArea.address.trim()) {
       toast({
         title: "Missing Information", 
@@ -572,15 +549,6 @@ export default function AdminPendingProviders() {
       });
       return;
     }
-
-    console.log('Adding service area via button click:', {
-      providerId: selectedProvider.id,
-      address: newServiceArea.address,
-      radius: newServiceArea.radius
-    });
-
-    setLastMutationTime(now);
-    setIsUserInitiated(false); // Reset flag
 
     addServiceAreaMutation.mutate({
       providerId: selectedProvider.id,
@@ -943,10 +911,7 @@ export default function AdminPendingProviders() {
                       
                       <Button 
                         type="button"
-                        onClick={() => {
-                          setIsUserInitiated(true);
-                          handleAddServiceArea();
-                        }}
+                        onClick={handleAddServiceArea}
                         disabled={!newServiceArea.address.trim() || addServiceAreaMutation.isPending}
                         className="w-full bg-green-600 hover:bg-green-700 mt-4"
                       >
