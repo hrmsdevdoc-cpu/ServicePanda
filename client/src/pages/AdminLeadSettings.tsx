@@ -15,7 +15,6 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 // Admin API request helper with proper token handling
 const adminApiRequest = async (method: string, url: string, data?: any) => {
   const token = localStorage.getItem('adminToken');
-  console.log('Admin token:', token ? `${token.substring(0, 10)}...` : 'null');
   
   const response = await fetch(url, {
     method,
@@ -26,11 +25,8 @@ const adminApiRequest = async (method: string, url: string, data?: any) => {
     body: data ? JSON.stringify(data) : undefined,
   });
   
-  console.log('Response status:', response.status);
-  
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('API Error:', errorText);
     throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
   }
   
