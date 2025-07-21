@@ -31,6 +31,9 @@ import {
   Plus,
   Trash2,
   X,
+  User,
+  Briefcase,
+  Clock,
 } from "lucide-react";
 
 interface ServiceProvider {
@@ -175,27 +178,55 @@ export default function AdminViewProviders() {
     gcTime: 0,
   });
 
-  const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    navigate('/admin-login');
-  };
+  // Save notes mutation
+  const saveNotesMutation = useMutation({
+    mutationFn: async ({ notes, insuranceExpiryDate }: { notes: string; insuranceExpiryDate?: string }) => {
+      if (!selectedProvider) return;
+      const response = await adminApiRequest('PUT', `/api/admin/providers/${selectedProvider.id}/details`, {
+        adminNotes: notes,
+        insuranceExpiryDate: insuranceExpiryDate || null,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Notes Saved",
+        description: "Admin notes have been updated successfully.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity'] });
+      
+      // Clear the notes input
+      const newNoteElement = document.getElementById('newNote') as HTMLTextAreaElement;
+      if (newNoteElement) {
+        newNoteElement.value = '';
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to Save Note",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
-  // Document Status Toggle Mutation
+  // Document status mutation
   const documentStatusMutation = useMutation({
     mutationFn: async ({ documentId, status }: { documentId: number; status: string }) => {
-      if (!selectedProvider) throw new Error('No provider selected');
-      const response = await adminApiRequest('PUT', `/api/admin/providers/${selectedProvider.id}/documents/${documentId}/status`, {
-        status: status
+      const response = await adminApiRequest('PUT', `/api/admin/providers/${selectedProvider?.id}/documents/${documentId}/status`, {
+        status,
       });
       return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Document Status Updated",
-        description: "Document approval status has been updated successfully.",
+        description: "Document approval status has been changed successfully.",
+        variant: "default",
       });
-      // Refresh queries
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'documents'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity'] });
     },
     onError: (error: Error) => {
@@ -207,45 +238,17 @@ export default function AdminViewProviders() {
     },
   });
 
-  // Admin Notes Save Mutation
-  const saveNotesMutation = useMutation({
-    mutationFn: async ({ notes, insuranceExpiryDate }: { notes: string; insuranceExpiryDate?: string }) => {
-      if (!selectedProvider) throw new Error('No provider selected');
-      const response = await adminApiRequest('PUT', `/api/admin/providers/${selectedProvider.id}/admin-notes`, {
-        adminNotes: notes,
-        insuranceExpiryDate: insuranceExpiryDate || null,
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Notes Saved",
-        description: "Admin notes have been saved successfully.",
-      });
-      // Refresh queries
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'details'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Save Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Service Area Delete Mutation
+  // Delete service area mutation  
   const deleteServiceAreaMutation = useMutation({
-    mutationFn: async (areaId: number) => {
-      if (!selectedProvider) throw new Error('No provider selected');
-      const response = await adminApiRequest('DELETE', `/api/admin/providers/${selectedProvider.id}/service-areas/${areaId}`);
+    mutationFn: async (serviceAreaId: number) => {
+      const response = await adminApiRequest('DELETE', `/api/admin/providers/${selectedProvider?.id}/service-areas/${serviceAreaId}`);
       return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Service Area Deleted",
         description: "Service area has been removed successfully.",
+        variant: "default",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'service-areas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/providers', selectedProvider?.id, 'activity'] });
@@ -258,6 +261,11 @@ export default function AdminViewProviders() {
       });
     },
   });
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    navigate('/admin-login');
+  };
 
   // Filter providers based on search term, status, and service category
   const filteredProviders = allProviders?.filter((provider: ServiceProvider) => {
@@ -457,149 +465,169 @@ export default function AdminViewProviders() {
               </DialogTitle>
             </DialogHeader>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="personal" className="flex items-center gap-1">
-                  <Users className="h-4 w-4" />
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-6">
+                <TabsTrigger value="personal" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
                   Personal Details
                 </TabsTrigger>
-                <TabsTrigger value="service-area" className="flex items-center gap-1">
-                  <LocationIcon className="h-4 w-4" />
+                <TabsTrigger value="service-area" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
                   Service Area
                 </TabsTrigger>
-                <TabsTrigger value="services" className="flex items-center gap-1">
-                  <Settings className="h-4 w-4" />
+                <TabsTrigger value="services" className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
                   Services
                 </TabsTrigger>
-                <TabsTrigger value="documents" className="flex items-center gap-1">
+                <TabsTrigger value="documents" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Documents
                 </TabsTrigger>
-                <TabsTrigger value="notes" className="flex items-center gap-1">
+                <TabsTrigger value="notes" className="flex items-center gap-2">
                   <StickyNote className="h-4 w-4" />
-                  Admin Notes
+                  Notes
+                </TabsTrigger>
+                <TabsTrigger value="activity" className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Activity
                 </TabsTrigger>
               </TabsList>
 
               {/* Personal Details Tab */}
-              <TabsContent value="personal" className="flex-1 overflow-y-auto p-4">
-                {isLoadingDetails ? (
-                  <div className="flex items-center justify-center h-32">
-                    <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-4">
+              <TabsContent value="personal" className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Personal Information</h3>
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">First Name</Label>
-                        <p className="text-lg font-semibold">{providerDetails?.firstName}</p>
+                        <Label className="text-sm font-medium">First Name</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.firstName}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Last Name</Label>
-                        <p className="text-lg font-semibold">{providerDetails?.lastName}</p>
+                        <Label className="text-sm font-medium">Last Name</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.lastName}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Email Address</Label>
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-gray-400" />
-                          <p className="text-lg">{providerDetails?.email}</p>
-                        </div>
+                        <Label className="text-sm font-medium">Email Address</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.email}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Mobile Number</Label>
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-gray-400" />
-                          <p className="text-lg">{providerDetails?.mobileNumber}</p>
-                        </div>
+                        <Label className="text-sm font-medium">Mobile Number</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.mobileNumber}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Address</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">{selectedProvider?.address}</p>
                       </div>
                     </div>
-                    
-                    <div className="space-y-4">
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Official Use</h3>
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Business Address</Label>
-                        <div className="flex items-center gap-2">
-                          <LocationIcon className="h-4 w-4 text-gray-400" />
-                          <p className="text-lg">{providerDetails?.address}</p>
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Registration Date</Label>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <p className="text-lg">
-                            {providerDetails?.createdAt ? new Date(providerDetails.createdAt).toLocaleDateString() : 'N/A'}
-                          </p>
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Current Status</Label>
-                        <div className="mt-1">
-                          {providerDetails?.status === 'approved' && (
-                            <Badge className="bg-green-100 text-green-800">Approved</Badge>
-                          )}
-                          {providerDetails?.status === 'pending' && (
-                            <Badge className="bg-orange-100 text-orange-800">Pending Review</Badge>
-                          )}
-                          {providerDetails?.status === 'rejected' && (
-                            <Badge className="bg-red-100 text-red-800">Rejected</Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Insurance Expiry Date</Label>
+                        <Label htmlFor="insuranceExpiry" className="text-sm font-medium">
+                          Insurance Expiry Date
+                        </Label>
                         <Input
+                          id="insuranceExpiry"
                           type="date"
-                          value={providerDetails?.insuranceExpiryDate || ''}
-                          onChange={(e) => {
-                            saveNotesMutation.mutate({
-                              notes: providerDetails?.adminNotes || '',
-                              insuranceExpiryDate: e.target.value
-                            });
-                          }}
+                          defaultValue={providerDetails?.insuranceExpiryDate ? 
+                            new Date(providerDetails.insuranceExpiryDate).toISOString().split('T')[0] : ''}
                           className="mt-1"
                         />
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            const insuranceExpiryElement = document.getElementById('insuranceExpiry') as HTMLInputElement;
+                            saveNotesMutation.mutate({
+                              notes: providerDetails?.adminNotes || '',
+                              insuranceExpiryDate: insuranceExpiryElement?.value || undefined,
+                            });
+                          }}
+                          disabled={saveNotesMutation.isPending}
+                          className="mt-2 bg-blue-600 hover:bg-blue-700"
+                        >
+                          {saveNotesMutation.isPending ? 'Saving...' : 'Save Insurance Date'}
+                        </Button>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium">Application Status</Label>
+                        <Badge 
+                          variant={selectedProvider?.status === 'pending' ? 'outline' : 
+                                  selectedProvider?.status === 'approved' ? 'default' : 'destructive'}
+                          className="mt-1 capitalize"
+                        >
+                          {selectedProvider?.status}
+                        </Badge>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium">Application Date</Label>
+                        <p className="mt-1 p-2 bg-gray-50 rounded border">
+                          {selectedProvider ? new Date(selectedProvider.createdAt).toLocaleDateString('en-AU') : 'N/A'}
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium">Documents Status</Label>
+                        <Badge 
+                          variant={selectedProvider?.documentsUploaded ? 'default' : 'destructive'}
+                          className="mt-1"
+                        >
+                          {selectedProvider?.documentsUploaded ? 'Complete' : 'Missing'}
+                        </Badge>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
               </TabsContent>
 
               {/* Service Area Tab */}
-              <TabsContent value="service-area" className="flex-1 overflow-y-auto p-4">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Service Coverage Areas</h3>
-                  {isLoadingServiceAreas ? (
-                    <div className="flex items-center justify-center h-32">
-                      <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
-                    </div>
-                  ) : serviceAreas && serviceAreas.length > 0 ? (
-                    <div className="grid gap-3">
-                      {serviceAreas.map((area: any) => (
-                        <div key={area.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <LocationIcon className="h-4 w-4 text-blue-600" />
-                              <span className="font-medium">{area.areaName}</span>
+              <TabsContent value="service-area" className="space-y-6">
+                {/* Current Service Areas - View Only */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-blue-600" />
+                      Service Areas ({serviceAreas?.length || 0})
+                    </CardTitle>
+                    <p className="text-sm text-gray-600">View provider's configured service areas</p>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingServiceAreas ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+                        <p className="mt-2 text-gray-500">Loading service areas...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {serviceAreas?.map((area: any) => (
+                          <div 
+                            key={area.id} 
+                            className="p-4 border rounded-lg bg-white"
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <MapPin className="h-4 w-4 text-green-600" />
+                              <span className="font-medium">
+                                {area.areaName || `Service Area ${area.id}`}
+                              </span>
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                {area.radiusKm}km radius
+                              </Badge>
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">
-                              Radius: {area.radiusKm}km
+                            <p className="text-sm text-gray-600 ml-6">
+                              {area.centerAddress}
                             </p>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => deleteServiceAreaMutation.mutate(area.id)}
-                            disabled={deleteServiceAreaMutation.isPending}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-center py-8">No service areas configured</p>
-                  )}
-                </div>
+                        )) || (
+                          <p className="text-gray-500 text-center py-8">No service areas configured</p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Services Tab */}
@@ -701,28 +729,47 @@ export default function AdminViewProviders() {
                 </div>
               </TabsContent>
 
-              {/* Admin Notes Tab */}
-              <TabsContent value="notes" className="flex-1 overflow-y-auto p-4">
+              {/* Notes Tab */}
+              <TabsContent value="notes" className="space-y-6">
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Admin Notes</h3>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="admin-notes">Add New Note</Label>
+                        <Label htmlFor="newNote" className="text-sm font-medium">Add New Note</Label>
                         <Textarea
-                          id="admin-notes"
-                          placeholder="Enter admin notes..."
+                          id="newNote"
+                          placeholder="Enter admin notes for this provider..."
                           className="mt-2"
                           rows={3}
-                          onBlur={(e) => {
-                            if (e.target.value.trim()) {
-                              saveNotesMutation.mutate({
-                                notes: e.target.value,
-                                insuranceExpiryDate: providerDetails?.insuranceExpiryDate
-                              });
-                            }
-                          }}
                         />
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (!selectedProvider) return;
+                            
+                            const newNoteElement = document.getElementById('newNote') as HTMLTextAreaElement;
+                            const newNoteValue = newNoteElement?.value?.trim();
+                            
+                            if (!newNoteValue) {
+                              toast({
+                                title: "No Note Added",
+                                description: "Please enter a note before saving.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            
+                            saveNotesMutation.mutate({
+                              notes: newNoteValue,
+                              insuranceExpiryDate: providerDetails?.insuranceExpiryDate,
+                            });
+                          }}
+                          disabled={saveNotesMutation.isPending}
+                          className="mt-2 bg-blue-600 hover:bg-blue-700"
+                        >
+                          {saveNotesMutation.isPending ? 'Saving...' : 'Save Note'}
+                        </Button>
                       </div>
 
                       {/* Previous Notes History */}
@@ -761,6 +808,74 @@ export default function AdminViewProviders() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </TabsContent>
+
+              {/* Activity Tab */}
+              <TabsContent value="activity" className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Provider Activity History</h3>
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-gray-500" />
+                      <Select value={activityFilter} onValueChange={(value: 'all' | 'admin' | 'provider') => setActivityFilter(value)}>
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Filter by..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Activity</SelectItem>
+                          <SelectItem value="admin">Admin Only</SelectItem>
+                          <SelectItem value="provider">Provider Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {isLoadingActivity ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+                      <p className="mt-2 text-gray-500">Loading activity...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {activityLogs && activityLogs.length > 0 ? activityLogs.map((activity: any) => (
+                        <div key={activity.id} className="p-4 border rounded-lg bg-white">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  {activity.actorName}
+                                </Badge>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(activity.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+                              <p className="text-sm mt-2 font-medium">{activity.description}</p>
+                              
+                              {(activity.oldValue || activity.newValue) && (
+                                <div className="mt-3 space-y-1 text-xs">
+                                  {activity.oldValue && (
+                                    <div className="text-red-600">
+                                      <span className="font-medium">Previous:</span> {activity.oldValue}
+                                    </div>
+                                  )}
+                                  {activity.newValue && (
+                                    <div className="text-green-600">
+                                      <span className="font-medium">Updated:</span> {activity.newValue}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="text-center py-6 text-gray-500">
+                          No activity logs found for this provider.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
