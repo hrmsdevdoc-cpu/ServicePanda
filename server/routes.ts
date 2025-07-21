@@ -1050,6 +1050,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Lead management settings routes
+  app.get('/api/admin/lead-settings', isAdminAuthenticated, async (req, res) => {
+    try {
+      const settings = await storage.getLeadSettings();
+      const categoryPricing = await storage.getCategoryLeadPricing();
+      res.json({
+        ...settings,
+        categoryPricing,
+      });
+    } catch (error) {
+      console.error('Error fetching lead settings:', error);
+      res.status(500).json({ message: 'Failed to fetch lead settings' });
+    }
+  });
+
+  app.put('/api/admin/lead-settings', isAdminAuthenticated, async (req, res) => {
+    try {
+      const settings = await storage.upsertLeadSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error('Error updating lead settings:', error);
+      res.status(500).json({ message: 'Failed to update lead settings' });
+    }
+  });
+
   // Admin settings endpoints - bypass route for initial setup
   app.get('/api/admin/settings', async (req, res) => {
     try {

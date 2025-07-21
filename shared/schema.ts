@@ -448,3 +448,31 @@ export type InsertProviderPasswordResetToken = z.infer<typeof insertProviderPass
 export type ProviderPasswordResetToken = typeof providerPasswordResetTokens.$inferSelect;
 export type InsertProviderActivityLog = z.infer<typeof insertProviderActivityLogSchema>;
 export type ProviderActivityLog = typeof providerActivityLogs.$inferSelect;
+
+// Lead management settings table
+export const leadSettings = pgTable("lead_settings", {
+  id: serial("id").primaryKey(),
+  pricingModel: varchar("pricing_model", { length: 50 }).notNull().default('uniform'), // 'uniform' or 'category'
+  uniformUniquePrice: decimal("uniform_unique_price", { precision: 10, scale: 2 }).default('25.00'),
+  uniformSharePrice: decimal("uniform_share_price", { precision: 10, scale: 2 }).default('12.00'),
+  uniqueOfferWindow: integer("unique_offer_window").default(2), // minutes
+  maxProvidersPerArea: integer("max_providers_per_area").default(10),
+  minProviderRating: decimal("min_provider_rating", { precision: 3, scale: 1 }).default('3.0'),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Category-specific lead pricing
+export const categoryLeadPricing = pgTable("category_lead_pricing", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("category_id").references(() => serviceCategories.id),
+  uniquePrice: decimal("unique_price", { precision: 10, scale: 2 }).notNull(),
+  sharePrice: decimal("share_price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type LeadSettings = typeof leadSettings.$inferSelect;
+export type InsertLeadSettings = typeof leadSettings.$inferInsert;
+export type CategoryLeadPricing = typeof categoryLeadPricing.$inferSelect;
+export type InsertCategoryLeadPricing = typeof categoryLeadPricing.$inferInsert;

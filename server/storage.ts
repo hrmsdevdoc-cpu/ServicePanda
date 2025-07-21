@@ -1150,6 +1150,36 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(providerActivityLogs.timestamp));
   }
 
+  // Lead management settings methods
+  async getLeadSettings(): Promise<any> {
+    // Return default settings for now until database is updated
+    return {
+      id: 1,
+      pricingModel: 'uniform',
+      uniformUniquePrice: '25.00',
+      uniformSharePrice: '12.00',
+      uniqueOfferWindow: 2,
+      maxProvidersPerArea: 10,
+      minProviderRating: '3.0',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  async upsertLeadSettings(settings: any): Promise<any> {
+    // For now, just return the updated settings
+    // This will be implemented once database is updated
+    return {
+      ...settings,
+      id: 1,
+      updatedAt: new Date(),
+    };
+  }
+
+  async getCategoryLeadPricing(): Promise<any[]> {
+    // Return empty array for now
+    return [];
+  }
 }
 
 export const storage = new DatabaseStorage();

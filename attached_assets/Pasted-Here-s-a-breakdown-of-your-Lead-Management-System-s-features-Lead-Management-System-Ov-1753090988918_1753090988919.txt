@@ -1,0 +1,42 @@
+Here's a breakdown of your Lead Management System's features:
+
+---
+
+## Lead Management System Overview
+
+Your Lead Management System is designed to efficiently distribute leads to service providers based on pricing models and provider ratings.
+
+---
+
+### Settings Section
+
+In the **Settings Section**, you have control over how leads are priced and offered:
+
+* **Lead Pricing:** You can set the price for leads based on **service categories** or apply a uniform price for **all leads**.
+* **Lead Types:** Leads can be purchased in two distinct ways:
+    * **Unique Leads:** These leads are exclusive to a single service provider. They typically have a **higher cost** due to their exclusivity.
+    * **3 Share Leads:** These leads will be shared with up to **three different service providers**. This model allows for a more competitive pricing structure.
+
+---
+
+### Lead Management Screen
+
+The **Lead Management Screen** outlines the lifecycle and distribution of a lead:
+
+1.  **Unique Lead Offering (Initial Phase):**
+    * When a new lead becomes available, it will first be offered as a **Unique Lead** to eligible providers in that specific area.
+    * Providers will have a **2-minute window** to accept this exclusive offer.
+    * A **notification** will be sent to the service providers' dedicated area (and eventually in the mobile app once developed) to alert them of the unique lead opportunity.
+    * If a provider accepts the lead during this unique phase, the lead is immediately acquired at the price set in the Settings. Once a unique lead is accepted, it's considered **served** or **completed**.
+
+2.  **3 Share Lead Offering (If Unique Phase Fails):**
+    * If the lead is **not accepted** during the 2-minute unique phase, it automatically transitions to the **3 Share phase**.
+    * In this phase, the lead's cost will **drop**, making it available to be accepted by up to three different service providers.
+    * The lead is considered **served** or **completed** once it has been acquired/accepted by **three** different providers.
+
+---
+
+### Provider Rating System
+
+* Leads will be offered to providers based on their **rating**. This ensures that higher-performing providers get priority access to leads.
+* The **Provider Rating System** is entirely dependent on the **reviews** providers receive for the jobs they have completed. Providers who consistently finish jobs well and receive better ratings from customers will have a higher overall rating, increasing their chances of being offered leads first.

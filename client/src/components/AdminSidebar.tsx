@@ -66,6 +66,7 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
       subItems: [
         { label: "Stripe Settings", href: "/admin/settings/stripe" },
         { label: "Mailgun Settings", href: "/admin/settings/mailgun" },
+        { label: "Lead Management", href: "/admin/lead-settings" },
       ],
     },
   ];
