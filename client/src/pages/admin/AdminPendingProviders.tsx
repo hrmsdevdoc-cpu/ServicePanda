@@ -503,25 +503,58 @@ export default function AdminPendingProviders() {
       }
 
       try {
-        const autocomplete = new window.google.maps.places.Autocomplete(
-          addressInputRef.current,
-          {
-            types: ['geocode'],
+        // Use modern PlaceAutocompleteElement API
+        if (window.google.maps.places.PlaceAutocompleteElement) {
+          const autocompleteElement = new window.google.maps.places.PlaceAutocompleteElement({
             componentRestrictions: { country: 'au' },
-            fields: ['formatted_address']
-          }
-        );
+            requestedLanguage: 'en',
+          });
+          
+          // Hide the original input and insert the autocomplete element
+          addressInputRef.current.style.display = 'none';
+          addressInputRef.current.parentNode.insertBefore(autocompleteElement, addressInputRef.current);
+          
+          // Style the element to match our input
+          autocompleteElement.style.width = '100%';
+          autocompleteElement.style.height = '40px';
+          
+          autocompleteElement.addEventListener('gmp-placeselect', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const place = event.place;
+            
+            if (place.formattedAddress) {
+              setNewServiceArea(prev => ({
+                ...prev,
+                address: place.formattedAddress
+              }));
+              // Sync with hidden input
+              addressInputRef.current.value = place.formattedAddress;
+            }
+            return false;
+          });
+          
+        } else {
+          // Fallback to legacy API
+          const autocomplete = new window.google.maps.places.Autocomplete(
+            addressInputRef.current,
+            {
+              types: ['geocode'],
+              componentRestrictions: { country: 'au' },
+              fields: ['formatted_address']
+            }
+          );
 
-        autocomplete.addListener('place_changed', (e) => {
-          if (e && e.preventDefault) e.preventDefault();
-          const place = autocomplete.getPlace();
-          if (place.formatted_address) {
-            setNewServiceArea(prev => ({
-              ...prev,
-              address: place.formatted_address
-            }));
-          }
-        });
+          autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (place.formatted_address) {
+              setNewServiceArea(prev => ({
+                ...prev,
+                address: place.formatted_address
+              }));
+            }
+          });
+        }
 
         console.log('Google Maps autocomplete initialized successfully');
       } catch (error) {
