@@ -981,20 +981,10 @@ export default function AdminPendingProviders() {
                   {/* Notes History Section */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Previous Notes</h3>
-                    {/* Debug information */}
-                    {activityLogs && (
-                      <div className="text-xs text-gray-500 bg-yellow-50 p-2 rounded">
-                        Total activities: {activityLogs.length} | 
-                        Notes: {activityLogs.filter((activity: any) => 
-                          activity.activityType === 'details_update' && 
-                          activity.description.includes('Admin notes updated')
-                        ).length}
-                      </div>
-                    )}
                     {isLoadingActivity ? (
                       <div className="text-center py-4 text-gray-500">Loading notes history...</div>
                     ) : (
-                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                      <div className="space-y-3 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
                         {activityLogs?.filter((activity: any) => 
                           activity.activityType === 'details_update' && 
                           activity.description.includes('Admin notes updated')
@@ -1029,9 +1019,9 @@ export default function AdminPendingProviders() {
                               </div>
                             ))
                         ) : (
-                          <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg bg-gray-50">
-                            <StickyNote className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                            <p>No notes have been added yet.</p>
+                          <div className="text-center py-6 text-gray-500">
+                            <StickyNote className="h-6 w-6 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm">No notes have been added yet.</p>
                             <p className="text-xs mt-1">Add your first note above to track important information.</p>
                           </div>
                         )}
