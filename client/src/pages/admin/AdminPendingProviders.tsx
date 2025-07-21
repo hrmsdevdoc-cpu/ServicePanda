@@ -406,16 +406,33 @@ export default function AdminPendingProviders() {
     },
   });
 
-  // Add Service Area Mutation with protection against autocomplete interference
+  // Add Service Area Mutation with robust validation and debouncing
   const addServiceAreaMutation = useMutation({
     mutationFn: async ({ providerId, address, radius }: { providerId: number; address: string; radius: number }) => {
-      // Additional safety check - block mutation if autocomplete is in progress
-      if (autocompleteInProgress) {
-        console.log('MUTATION BLOCKED: Autocomplete interference detected');
-        throw new Error('Operation temporarily blocked - please try again');
+      const now = Date.now();
+      
+      // Debounce rapid calls (prevent calls within 2 seconds)
+      if (now - lastMutationTime < 2000) {
+        console.log('MUTATION BLOCKED: Too rapid, likely autocomplete interference');
+        throw new Error('Please wait before adding another service area');
       }
       
-      console.log('MUTATION EXECUTING: Service area addition with address:', address);
+      // Validate address completeness (must be reasonable length and contain space)
+      if (!address || address.length < 10 || !address.includes(' ')) {
+        console.log('MUTATION BLOCKED: Address appears incomplete:', address);
+        throw new Error('Please enter a complete address');
+      }
+      
+      // Only allow if user explicitly initiated
+      if (!isUserInitiated) {
+        console.log('MUTATION BLOCKED: Not user initiated');
+        throw new Error('Please click the Add button to save');
+      }
+      
+      console.log('MUTATION EXECUTING: User-initiated service area addition:', address);
+      setLastMutationTime(now);
+      setIsUserInitiated(false); // Reset flag after use
+      
       const response = await adminApiRequest('POST', `/api/admin/providers/${providerId}/service-areas`, {
         centerAddress: address,
         radiusKm: radius,
@@ -494,58 +511,33 @@ export default function AdminPendingProviders() {
     },
   });
 
-  // State to prevent autocomplete interference
-  const [autocompleteInProgress, setAutocompleteInProgress] = useState(false);
+  // State for debouncing and validation
+  const [lastMutationTime, setLastMutationTime] = useState(0);
+  const [isUserInitiated, setIsUserInitiated] = useState(false);
 
-  // Google Maps Autocomplete initialization - PROPERLY ISOLATED VERSION
-  const initializeAutocomplete = () => {
-    if (autocompleteInitialized || !addressInputRef.current || !window.google?.maps?.places) {
-      return;
-    }
-
-    try {
-      const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-        componentRestrictions: { country: "au" },
-        fields: ["address_components", "formatted_address", "geometry"],
-        types: ["address"],
-      });
-
-      // Completely isolated autocomplete handling
-      autocomplete.addListener("place_changed", () => {
-        setAutocompleteInProgress(true);
-        
-        // Use double timeout to ensure complete isolation from any form events
-        setTimeout(() => {
-          setTimeout(() => {
-            const place = autocomplete.getPlace();
-            if (place.formatted_address) {
-              setNewServiceArea(prev => ({ 
-                ...prev, 
-                address: place.formatted_address || "" 
-              }));
-            }
-            setAutocompleteInProgress(false);
-          }, 10);
-        }, 10);
-      });
-
-      setAutocompleteInitialized(true);
-    } catch (error) {
-      console.error('Google Maps autocomplete initialization failed:', error);
-    }
-  };
+  // Google Maps autocomplete DISABLED to prevent interference
+  // Using manual address entry only for reliable operation
 
   const handleAddServiceArea = () => {
-    // Block any calls during autocomplete operations
-    if (autocompleteInProgress) {
-      console.log('Service area addition blocked - autocomplete in progress');
+    const now = Date.now();
+    
+    // Debounce rapid calls (must be at least 2 seconds apart)
+    if (now - lastMutationTime < 2000) {
+      console.log('Service area addition blocked - too rapid (likely autocomplete interference)');
+      return;
+    }
+    
+    // Only allow if user explicitly initiated this call
+    if (!isUserInitiated) {
+      console.log('Service area addition blocked - not user initiated');
       return;
     }
 
-    if (!selectedProvider?.id || !newServiceArea.address.trim()) {
+    // Validate address is substantial (at least 10 characters and contains space - typical for addresses)
+    if (!selectedProvider?.id || !newServiceArea.address.trim() || newServiceArea.address.length < 10 || !newServiceArea.address.includes(' ')) {
       toast({
-        title: "Missing Information",
-        description: "Please enter a valid address for the service area.",
+        title: "Missing Information", 
+        description: "Please enter a complete, valid address for the service area (e.g., '123 Main St, Brisbane QLD 4000').",
         variant: "destructive",
       });
       return;
@@ -556,6 +548,9 @@ export default function AdminPendingProviders() {
       address: newServiceArea.address,
       radius: newServiceArea.radius
     });
+
+    setLastMutationTime(now);
+    setIsUserInitiated(false); // Reset flag
 
     addServiceAreaMutation.mutate({
       providerId: selectedProvider.id,
@@ -864,13 +859,8 @@ export default function AdminPendingProviders() {
                         return false;
                       }}
                       onClick={(e) => {
-                        // If this is a Google autocomplete click, ignore it
-                        if (autocompleteInProgress) {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          console.log('Click blocked - autocomplete in progress');
-                          return false;
-                        }
+                        // Prevent any unwanted form submissions
+                        console.log('Click event on service area container');
                       }}
                     >
                       <form onSubmit={(e) => {
@@ -888,7 +878,7 @@ export default function AdminPendingProviders() {
                             placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
                             value={newServiceArea.address}
                             onChange={(e) => setNewServiceArea(prev => ({ ...prev, address: e.target.value }))}
-                            onFocus={initializeAutocomplete}
+
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
@@ -923,7 +913,10 @@ export default function AdminPendingProviders() {
                       
                       <Button 
                         type="button"
-                        onClick={handleAddServiceArea}
+                        onClick={() => {
+                          setIsUserInitiated(true);
+                          handleAddServiceArea();
+                        }}
                         disabled={!newServiceArea.address.trim() || addServiceAreaMutation.isPending}
                         className="w-full bg-green-600 hover:bg-green-700 mt-4"
                       >
