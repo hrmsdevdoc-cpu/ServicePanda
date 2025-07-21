@@ -25,7 +25,31 @@ import {
   StickyNote,
   Plus,
   Trash2,
+  Home,
+  Wrench,
+  Zap,
+  Droplets,
+  Car,
+  Hammer,
+  TreePine,
+  Bug,
+  Sparkles,
+  Building
 } from "lucide-react";
+
+// Service icons mapping - same as provider pages
+const serviceIcons = {
+  "Domestic Cleaning": Sparkles,
+  "Bond Cleaning": Building,
+  "Carpet Cleaning": Home,
+  "Pest Control": Bug,
+  "Gardening": TreePine,
+  "Removals": Car,
+  "Handyman": Hammer,
+  "Electrical": Zap,
+  "Air Conditioning": Wrench,
+  "Plumbing": Droplets,
+};
 
 interface ServiceProvider {
   id: number;
@@ -41,6 +65,80 @@ interface ServiceProvider {
   adminNotes?: string;
   services?: Array<{ id: number; name: string; categoryName: string }>;
   serviceAreas?: Array<{ id: number; suburb: string; postcode: string }>;
+}
+
+// Service Icon Grid Component
+function ServiceIconGrid({ selectedServices, readOnly = false }: { 
+  selectedServices: Array<{ id: number; name: string; categoryName: string }>; 
+  readOnly?: boolean;
+}) {
+  // All available service categories with icons
+  const allCategories = [
+    { id: 1, name: "Domestic Cleaning" },
+    { id: 2, name: "Bond Cleaning" },
+    { id: 3, name: "Carpet Cleaning" },
+    { id: 4, name: "Pest Control" },
+    { id: 5, name: "Gardening" },
+    { id: 6, name: "Removals" },
+    { id: 7, name: "Handyman" },
+    { id: 8, name: "Electrical" },
+    { id: 9, name: "Air Conditioning" },
+    { id: 10, name: "Plumbing" },
+  ];
+
+  // Get selected service names for comparison
+  const selectedServiceNames = selectedServices.map(service => service.categoryName || service.name);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2">
+        {allCategories.map((category) => {
+          const IconComponent = serviceIcons[category.name as keyof typeof serviceIcons] || Home;
+          const isSelected = selectedServiceNames.includes(category.name);
+          
+          return (
+            <div
+              key={category.id}
+              className={`relative border-2 rounded-lg p-1.5 text-center transition-all duration-200 ${
+                isSelected 
+                  ? "border-primary bg-blue-50 shadow-md" 
+                  : "border-gray-300"
+              } ${readOnly ? "cursor-default" : "cursor-pointer hover:border-primary hover:shadow-sm"}`}
+            >
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center mx-auto mb-1 ${
+                isSelected ? "bg-primary text-white" : "bg-blue-100"
+              }`}>
+                <IconComponent className={`h-3 w-3 ${isSelected ? "text-white" : "text-primary"}`} />
+              </div>
+              <span className={`text-xs font-medium leading-tight ${
+                isSelected ? "text-primary" : "text-gray-600"
+              }`}>
+                {category.name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
+              </span>
+              {isSelected && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-2.5 w-2.5 text-white" />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      
+      {selectedServices.length > 0 && (
+        <div className="mt-4 p-3 bg-gray-50 rounded border">
+          <p className="text-sm font-medium text-gray-700 mb-2">Selected Services:</p>
+          <div className="flex flex-wrap gap-2">
+            {selectedServices.map((service, index) => (
+              <Badge key={index} variant="default" className="text-xs">
+                {service.categoryName || service.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminPendingProviders() {
@@ -555,23 +653,17 @@ export default function AdminPendingProviders() {
               {/* Services Tab */}
               <TabsContent value="services" className="space-y-6">
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Selected Services</h3>
+                  <h3 className="text-lg font-semibold">Provider Services</h3>
                   {loadingDetails ? (
                     <div className="text-center py-4">
                       <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
                       <p className="mt-2 text-gray-500">Loading services...</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-4">
-                      {providerDetails?.services?.map((service: any) => (
-                        <div key={service.id} className="p-3 bg-blue-50 border border-blue-200 rounded">
-                          <p className="font-medium text-blue-900">{service.categoryName}</p>
-                          <p className="text-sm text-blue-700">{service.name}</p>
-                        </div>
-                      )) || (
-                        <p className="col-span-2 text-center py-8 text-gray-500">No services selected</p>
-                      )}
-                    </div>
+                    <ServiceIconGrid 
+                      selectedServices={providerDetails?.services || []}
+                      readOnly={true}
+                    />
                   )}
                 </div>
               </TabsContent>
