@@ -406,9 +406,16 @@ export default function AdminPendingProviders() {
     },
   });
 
-  // Add Service Area Mutation
+  // Add Service Area Mutation with protection against autocomplete interference
   const addServiceAreaMutation = useMutation({
     mutationFn: async ({ providerId, address, radius }: { providerId: number; address: string; radius: number }) => {
+      // Additional safety check - block mutation if autocomplete is in progress
+      if (autocompleteInProgress) {
+        console.log('MUTATION BLOCKED: Autocomplete interference detected');
+        throw new Error('Operation temporarily blocked - please try again');
+      }
+      
+      console.log('MUTATION EXECUTING: Service area addition with address:', address);
       const response = await adminApiRequest('POST', `/api/admin/providers/${providerId}/service-areas`, {
         centerAddress: address,
         radiusKm: radius,
@@ -487,7 +494,10 @@ export default function AdminPendingProviders() {
     },
   });
 
-  // Google Maps Autocomplete initialization - FIXED VERSION
+  // State to prevent autocomplete interference
+  const [autocompleteInProgress, setAutocompleteInProgress] = useState(false);
+
+  // Google Maps Autocomplete initialization - PROPERLY ISOLATED VERSION
   const initializeAutocomplete = () => {
     if (autocompleteInitialized || !addressInputRef.current || !window.google?.maps?.places) {
       return;
@@ -500,18 +510,23 @@ export default function AdminPendingProviders() {
         types: ["address"],
       });
 
-      // Fixed: Use proper event handling that doesn't trigger form submission
+      // Completely isolated autocomplete handling
       autocomplete.addListener("place_changed", () => {
-        // Prevent any automatic form submission by using setTimeout
+        setAutocompleteInProgress(true);
+        
+        // Use double timeout to ensure complete isolation from any form events
         setTimeout(() => {
-          const place = autocomplete.getPlace();
-          if (place.formatted_address) {
-            setNewServiceArea(prev => ({ 
-              ...prev, 
-              address: place.formatted_address || "" 
-            }));
-          }
-        }, 0);
+          setTimeout(() => {
+            const place = autocomplete.getPlace();
+            if (place.formatted_address) {
+              setNewServiceArea(prev => ({ 
+                ...prev, 
+                address: place.formatted_address || "" 
+              }));
+            }
+            setAutocompleteInProgress(false);
+          }, 10);
+        }, 10);
       });
 
       setAutocompleteInitialized(true);
@@ -521,6 +536,12 @@ export default function AdminPendingProviders() {
   };
 
   const handleAddServiceArea = () => {
+    // Block any calls during autocomplete operations
+    if (autocompleteInProgress) {
+      console.log('Service area addition blocked - autocomplete in progress');
+      return;
+    }
+
     if (!selectedProvider?.id || !newServiceArea.address.trim()) {
       toast({
         title: "Missing Information",
@@ -529,6 +550,12 @@ export default function AdminPendingProviders() {
       });
       return;
     }
+
+    console.log('Adding service area via button click:', {
+      providerId: selectedProvider.id,
+      address: newServiceArea.address,
+      radius: newServiceArea.radius
+    });
 
     addServiceAreaMutation.mutate({
       providerId: selectedProvider.id,
@@ -829,10 +856,29 @@ export default function AdminPendingProviders() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      return false;
-                    }}>
+                    <div 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Form submission blocked completely');
+                        return false;
+                      }}
+                      onClick={(e) => {
+                        // If this is a Google autocomplete click, ignore it
+                        if (autocompleteInProgress) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Click blocked - autocomplete in progress');
+                          return false;
+                        }
+                      }}
+                    >
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Inner form submit prevented');
+                        return false;
+                      }}>
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                           <Label htmlFor="newAddress" className="text-sm font-medium">Service Location Address *</Label>
@@ -846,9 +892,11 @@ export default function AdminPendingProviders() {
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
-                                console.log('Enter key pressed in address input - prevented default');
+                                e.stopPropagation();
+                                return false;
                               }
                             }}
+                            autoComplete="off"
                             className="mt-1"
                           />
                         </div>
@@ -891,7 +939,8 @@ export default function AdminPendingProviders() {
                           </>
                         )}
                       </Button>
-                    </form>
+                      </form>
+                    </div>
                   </CardContent>
                 </Card>
 
