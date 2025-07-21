@@ -72,6 +72,9 @@ function ServiceIconGrid({ selectedServices, readOnly = false }: {
   selectedServices: Array<{ id: number; name: string; categoryName: string }>; 
   readOnly?: boolean;
 }) {
+  // Debug logging
+  console.log('ServiceIconGrid - selectedServices:', selectedServices);
+  
   // All available service categories with icons
   const allCategories = [
     { id: 1, name: "Domestic Cleaning" },
@@ -86,8 +89,9 @@ function ServiceIconGrid({ selectedServices, readOnly = false }: {
     { id: 10, name: "Plumbing" },
   ];
 
-  // Get selected service names for comparison
-  const selectedServiceNames = selectedServices.map(service => service.categoryName || service.name);
+  // Get selected service names for comparison - ensure unique values
+  const selectedServiceNames = [...new Set(selectedServices.map(service => service.categoryName || service.name))];
+  console.log('ServiceIconGrid - selectedServiceNames:', selectedServiceNames);
 
   return (
     <div className="space-y-4">
@@ -125,18 +129,7 @@ function ServiceIconGrid({ selectedServices, readOnly = false }: {
         })}
       </div>
       
-      {selectedServices.length > 0 && (
-        <div className="mt-4 p-3 bg-gray-50 rounded border">
-          <p className="text-sm font-medium text-gray-700 mb-2">Selected Services:</p>
-          <div className="flex flex-wrap gap-2">
-            {selectedServices.map((service, index) => (
-              <Badge key={index} variant="default" className="text-xs">
-                {service.categoryName || service.name}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
