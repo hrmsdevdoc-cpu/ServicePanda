@@ -515,29 +515,42 @@ export default function AdminPendingProviders() {
   const [lastMutationTime, setLastMutationTime] = useState(0);
   const [isUserInitiated, setIsUserInitiated] = useState(false);
 
-  // Simple Google Maps autocomplete - just fill the address field
+  // Working Google Maps autocomplete
   const initializeAutocomplete = () => {
+    console.log('Autocomplete init called', { 
+      initialized: autocompleteInitialized, 
+      hasRef: !!addressInputRef.current, 
+      hasGoogle: !!window.google?.maps?.places 
+    });
+    
     if (autocompleteInitialized || !addressInputRef.current || !window.google?.maps?.places) {
       return;
     }
 
-    const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-      componentRestrictions: { country: "au" },
-      fields: ["formatted_address"],
-      types: ["address"],
-    });
+    try {
+      const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+        componentRestrictions: { country: "au" },
+        fields: ["formatted_address"],
+        types: ["address"],
+      });
 
-    autocomplete.addListener("place_changed", () => {
-      const place = autocomplete.getPlace();
-      if (place && place.formatted_address) {
-        setNewServiceArea(prev => ({ 
-          ...prev, 
-          address: place.formatted_address 
-        }));
-      }
-    });
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        console.log('Place selected:', place);
+        if (place && place.formatted_address) {
+          console.log('Setting address:', place.formatted_address);
+          setNewServiceArea(prev => ({ 
+            ...prev, 
+            address: place.formatted_address 
+          }));
+        }
+      });
 
-    setAutocompleteInitialized(true);
+      setAutocompleteInitialized(true);
+      console.log('Autocomplete initialized successfully');
+    } catch (error) {
+      console.error('Autocomplete error:', error);
+    }
   };
 
   const handleAddServiceArea = () => {
