@@ -2,7 +2,7 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Clock, User, DollarSign, Star } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 
 interface LeadOfferDetailsProps {
   isOpen: boolean;
@@ -44,7 +44,12 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
 
   const formatTime = (timestamp: string) => {
     if (!timestamp) return 'N/A';
-    return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+    try {
+      const date = new Date(timestamp);
+      return format(date, 'MMM dd, yyyy - h:mm:ss a');
+    } catch (error) {
+      return 'Invalid date';
+    }
   };
 
   return (
