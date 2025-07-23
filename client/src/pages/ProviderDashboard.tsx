@@ -142,13 +142,18 @@ export default function ProviderDashboard() {
     retry: false,
   });
 
+  // Track which lead is being purchased to prevent button state confusion
+  const [purchasingLeadId, setPurchasingLeadId] = useState<number | null>(null);
+
   // Purchase lead mutation
   const purchaseLeadMutation = useMutation({
     mutationFn: async (requestId: number) => {
+      setPurchasingLeadId(requestId);
       const response = await apiRequest("POST", `/api/provider/leads/${requestId}/purchase`);
       return await response.json();
     },
     onSuccess: (data) => {
+      setPurchasingLeadId(null);
       toast({
         title: "Success!",
         description: `Lead purchased successfully! ${data.paymentDetails?.message || ''}`,
@@ -158,6 +163,7 @@ export default function ProviderDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/provider/activity"] });
     },
     onError: (error: any) => {
+      setPurchasingLeadId(null);
       toast({
         title: "Purchase Failed",
         description: error.message || "Failed to purchase lead",
@@ -980,9 +986,9 @@ export default function ProviderDashboard() {
                                   size="sm" 
                                   className="bg-blue-600 hover:bg-blue-700"
                                   onClick={() => purchaseLeadMutation.mutate(lead.requestId)}
-                                  disabled={purchaseLeadMutation.isPending}
+                                  disabled={purchasingLeadId === lead.requestId}
                                 >
-                                  {purchaseLeadMutation.isPending ? "Purchasing..." : 
+                                  {purchasingLeadId === lead.requestId ? "Purchasing..." : 
                                     (provider?.firstLeadsFreeUsed || 0) < 3 ? "Free Lead" : `Purchase $${lead.leadCost}`}
                                 </Button>
                               </div>
