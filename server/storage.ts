@@ -238,6 +238,12 @@ export interface IStorage {
   purchaseLeadWithCredit(providerId: number, offerId: number): Promise<{ success: boolean; message: string; paymentDetails?: any }>;
   getAvailableVouchers(): Promise<ProviderVoucher[]>;
   getVoucherByCode(code: string): Promise<ProviderVoucher | undefined>;
+
+  // Admin voucher management
+  getAllVouchersAdmin(): Promise<ProviderVoucher[]>;
+  createVoucherAdmin(voucher: InsertProviderVoucher): Promise<ProviderVoucher>;
+  updateVoucherAdmin(id: number, updates: Partial<InsertProviderVoucher>): Promise<ProviderVoucher | undefined>;
+  deleteVoucherAdmin(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2304,6 +2310,58 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error getting voucher by code:', error);
       return undefined;
+    }
+  }
+
+  // Admin voucher management methods
+  async getAllVouchersAdmin(): Promise<ProviderVoucher[]> {
+    try {
+      return await db
+        .select()
+        .from(providerVouchers)
+        .orderBy(desc(providerVouchers.createdAt));
+    } catch (error) {
+      console.error('Error getting all vouchers for admin:', error);
+      return [];
+    }
+  }
+
+  async createVoucherAdmin(voucher: InsertProviderVoucher): Promise<ProviderVoucher> {
+    try {
+      const [created] = await db
+        .insert(providerVouchers)
+        .values(voucher)
+        .returning();
+      return created;
+    } catch (error) {
+      console.error('Error creating voucher:', error);
+      throw error;
+    }
+  }
+
+  async updateVoucherAdmin(id: number, updates: Partial<InsertProviderVoucher>): Promise<ProviderVoucher | undefined> {
+    try {
+      const [updated] = await db
+        .update(providerVouchers)
+        .set(updates)
+        .where(eq(providerVouchers.id, id))
+        .returning();
+      return updated;
+    } catch (error) {
+      console.error('Error updating voucher:', error);
+      throw error;
+    }
+  }
+
+  async deleteVoucherAdmin(id: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(providerVouchers)
+        .where(eq(providerVouchers.id, id));
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      console.error('Error deleting voucher:', error);
+      return false;
     }
   }
 

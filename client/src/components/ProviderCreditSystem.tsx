@@ -50,14 +50,7 @@ export default function ProviderCreditSystem() {
     },
   });
 
-  // Fetch available vouchers
-  const { data: vouchers = [], isLoading: vouchersLoading } = useQuery({
-    queryKey: ['/api/provider/vouchers/available'],
-    queryFn: async () => {
-      const response = await apiRequest('GET', '/api/provider/vouchers/available');
-      return response.json();
-    },
-  });
+  // Remove vouchers fetching since we're not showing them
 
   // Redeem voucher mutation
   const redeemVoucherMutation = useMutation({
@@ -177,35 +170,11 @@ export default function ProviderCreditSystem() {
             </Button>
           </div>
 
-          {/* Available Vouchers */}
-          {!vouchersLoading && vouchers.length > 0 && (
-            <div className="mt-6">
-              <h4 className="font-medium mb-3">Available Vouchers:</h4>
-              <div className="grid gap-2">
-                {vouchers.map((voucher: Voucher) => (
-                  <div 
-                    key={voucher.id}
-                    className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"
-                  >
-                    <div>
-                      <div className="font-medium">{voucher.code}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {voucher.description}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="secondary">${voucher.value}</Badge>
-                      {voucher.usageLimit && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {voucher.usageCount}/{voucher.usageLimit} used
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <div className="mt-4">
+            <p className="text-sm text-muted-foreground">
+              Enter voucher codes provided by customers or ServicePanda to add credit to your account.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

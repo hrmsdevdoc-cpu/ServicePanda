@@ -338,7 +338,7 @@ export const providerActivityLogs = pgTable("provider_activity_logs", {
   timestamp: timestamp("timestamp").defaultNow().notNull(),
 });
 
-// Provider vouchers - for promotional codes and credits
+// Provider vouchers - for promotional codes and credits (admin managed)
 export const providerVouchers = pgTable("provider_vouchers", {
   id: serial("id").primaryKey(),
   code: varchar("code", { length: 50 }).notNull().unique(), // Voucher code like "WELCOME50" 
@@ -348,6 +348,7 @@ export const providerVouchers = pgTable("provider_vouchers", {
   usageLimit: integer("usage_limit"), // How many times this voucher can be used (null = unlimited)
   usageCount: integer("usage_count").default(0), // How many times it has been used
   expiresAt: timestamp("expires_at"), // When voucher expires (null = never expires)
+  createdBy: varchar("created_by").default("admin"), // Admin who created the voucher
   createdAt: timestamp("created_at").defaultNow(),
 });
 

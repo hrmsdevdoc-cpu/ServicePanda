@@ -1794,6 +1794,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin voucher management endpoints
+  app.get('/api/admin/vouchers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const vouchers = await storage.getAllVouchersAdmin();
+      res.json(vouchers);
+    } catch (error) {
+      console.error('Error getting vouchers for admin:', error);
+      res.status(500).json({ message: 'Failed to get vouchers' });
+    }
+  });
+
+  app.post('/api/admin/vouchers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { code, value, description, usageLimit, expiresAt, isActive } = req.body;
+      
+      // Validate required fields
+      if (!code || !value || !description) {
+        return res.status(400).json({ message: 'Code, value, and description are required' });
+      }
+
+      const voucher = await storage.createVoucherAdmin({
+        code: code.toUpperCase(),
+        value: value.toString(),
+        description,
+        usageLimit,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        isActive: isActive !== false,
+        createdBy: 'admin',
+      });
+
+      res.status(201).json(voucher);
+    } catch (error: any) {
+      console.error('Error creating voucher:', error);
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ message: 'Voucher code already exists' });
+      }
+      res.status(500).json({ message: 'Failed to create voucher' });
+    }
+  });
+
+  app.put('/api/admin/vouchers/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { code, value, description, usageLimit, expiresAt, isActive } = req.body;
+
+      const updates: any = {};
+      if (code !== undefined) updates.code = code.toUpperCase();
+      if (value !== undefined) updates.value = value.toString();
+      if (description !== undefined) updates.description = description;
+      if (usageLimit !== undefined) updates.usageLimit = usageLimit;
+      if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
+      if (isActive !== undefined) updates.isActive = isActive;
+
+      const updatedVoucher = await storage.updateVoucherAdmin(parseInt(id), updates);
+      
+      if (!updatedVoucher) {
+        return res.status(404).json({ message: 'Voucher not found' });
+      }
+
+      res.json(updatedVoucher);
+    } catch (error: any) {
+      console.error('Error updating voucher:', error);
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ message: 'Voucher code already exists' });
+      }
+      res.status(500).json({ message: 'Failed to update voucher' });
+    }
+  });
+
+  app.delete('/api/admin/vouchers/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteVoucherAdmin(parseInt(id));
+      
+      if (!success) {
+        return res.status(404).json({ message: 'Voucher not found' });
+      }
+
+      res.json({ message: 'Voucher deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting voucher:', error);
+      res.status(500).json({ message: 'Failed to delete voucher' });
+    }
+  });
+
   // Admin test endpoint for manual lead processing (development only)
   app.post("/api/admin/test-lead-processing", async (req: any, res) => {
     try {
