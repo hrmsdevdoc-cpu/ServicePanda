@@ -464,8 +464,27 @@ export class DatabaseStorage implements IStorage {
           // Calculate proper lead status based on business rules
           let leadStatus = request.status;
           const purchasedOffers = offers.filter(offer => offer.status === 'purchased');
-          const uniqueOfferPurchased = purchasedOffers.some(offer => offer.offerType === 'unique');
           const sharedOffersPurchased = purchasedOffers.filter(offer => offer.offerType === 'shared').length;
+          
+          // Check for PAID unique purchases (which assign the lead exclusively)
+          // Free unique purchases move to shared phase and don't assign the lead
+          const paidUniqueOfferPurchased = await (async () => {
+            const uniquePurchased = purchasedOffers.find(offer => offer.offerType === 'unique');
+            if (!uniquePurchased) return false;
+            
+            // Check if this was a free lead purchase
+            const [leadPurchase] = await db
+              .select({ isFreeLeadUsed: leadPurchases.isFreeLeadUsed })
+              .from(leadPurchases)
+              .where(
+                and(
+                  eq(leadPurchases.requestId, request.id),
+                  eq(leadPurchases.providerId, uniquePurchased.providerId)
+                )
+              );
+            
+            return leadPurchase && !leadPurchase.isFreeLeadUsed; // Only paid purchases assign the lead
+          })();
           
           // Check if job date has passed (expired)
           const now = new Date();
@@ -474,7 +493,7 @@ export class DatabaseStorage implements IStorage {
             leadStatus = 'expired';
           }
           // Check if should be assigned (fully allocated)
-          else if (uniqueOfferPurchased || sharedOffersPurchased >= 3) {
+          else if ((await paidUniqueOfferPurchased) || sharedOffersPurchased >= 3) {
             leadStatus = 'assigned';
           }
           // Check if in progress (some shared offers purchased but capacity remains)
@@ -1907,8 +1926,9 @@ export class DatabaseStorage implements IStorage {
         .where(eq(leadOffers.id, offer.id));
 
       // Check if we need to update service request status to "assigned"
-      // This happens when: unique offer purchased OR 3 shared offers purchased
-      if (offer.offerType === 'unique') {
+      // This happens when: PAID unique offer purchased OR 3 shared offers purchased
+      // Free unique offers move to shared phase and don't assign the lead
+      if (offer.offerType === 'unique' && !isFreeLeadUsed) {
         await this.updateServiceRequestStatus(requestId, 'assigned');
       } else {
         // For shared offers, check if this makes it 3 purchased
