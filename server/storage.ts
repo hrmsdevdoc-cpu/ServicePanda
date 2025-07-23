@@ -2648,10 +2648,12 @@ export class DatabaseStorage implements IStorage {
           offerEndTime: leadOffers.offerEndTime,
           purchasedAt: leadOffers.purchasedAt,
           expiresAt: leadOffers.expiresAt,
+          isFreeLeadUsed: leadPurchases.isFreeLeadUsed,
         })
         .from(leadOffers)
         .leftJoin(serviceProviders, eq(leadOffers.providerId, serviceProviders.id))
         .leftJoin(providerRatings, eq(leadOffers.providerId, providerRatings.providerId))
+        .leftJoin(leadPurchases, eq(leadOffers.id, leadPurchases.leadOfferId))
         .where(eq(leadOffers.requestId, requestId))
         .orderBy(asc(leadOffers.sortOrder), desc(leadOffers.createdAt));
 

@@ -24,6 +24,19 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
   const currentUniqueOffer = uniqueOffers.find((offer: any) => offer.isCurrentOffer);
   const completedUniqueOffers = uniqueOffers.filter((offer: any) => offer.status === 'purchased');
   const purchasedSharedOffers = sharedOffers.filter((offer: any) => offer.status === 'purchased');
+  
+  // Calculate phase statistics
+  const uniqueStats = {
+    totalProviders: uniqueOffers.length,
+    purchased: uniqueOffers.filter((offer: any) => offer.status === 'purchased' && !offer.isFreeLeadUsed).length,
+    freeAccepted: uniqueOffers.filter((offer: any) => offer.status === 'purchased' && offer.isFreeLeadUsed).length
+  };
+  
+  const sharedStats = {
+    totalProviders: sharedOffers.length,
+    purchased: sharedOffers.filter((offer: any) => offer.status === 'purchased').length,
+    freeAccepted: 0 // Shared offers are never free
+  };
 
   const getStatusBadge = (status: string, isCurrentOffer: boolean) => {
     // Always prioritize actual status over isCurrentOffer flag
@@ -69,30 +82,62 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Distribution Status Overview */}
-          {distributionLog && (
-            <div className="border rounded-lg p-4 bg-blue-50">
-              <h3 className="font-semibold text-blue-800 mb-3">Distribution Status</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Current Phase:</span>
-                  <div className="font-medium capitalize">{distributionLog.distributionPhase}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600">Total Providers:</span>
-                  <div className="font-medium">{distributionLog.totalEligibleProviders}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600">Unique Completed:</span>
-                  <div className="font-medium">{distributionLog.uniqueOffersCompleted}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600">Shared Purchased:</span>
-                  <div className="font-medium">{distributionLog.sharedOffersPurchased}/{distributionLog.maxSharedOffers}</div>
-                </div>
-              </div>
+          {/* Phase Summary Header */}
+          <div className="border rounded-lg p-4 bg-blue-50">
+            <h3 className="font-semibold text-blue-800 mb-4">Phase Summary - Request #{requestId}</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-blue-200">
+                    <th className="text-left py-2 px-3 font-semibold text-blue-800">Phase</th>
+                    <th className="text-center py-2 px-3 font-semibold text-blue-800">Total Providers</th>
+                    <th className="text-center py-2 px-3 font-semibold text-blue-800">Purchased</th>
+                    <th className="text-center py-2 px-3 font-semibold text-blue-800">Free Accepted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-blue-100">
+                    <td className="py-2 px-3 font-medium">Unique</td>
+                    <td className="text-center py-2 px-3">{uniqueStats.totalProviders}</td>
+                    <td className="text-center py-2 px-3">
+                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                        {uniqueStats.purchased}
+                      </span>
+                    </td>
+                    <td className="text-center py-2 px-3">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                        {uniqueStats.freeAccepted}
+                      </span>
+                    </td>
+                  </tr>
+                  {sharedStats.totalProviders > 0 && (
+                    <tr>
+                      <td className="py-2 px-3 font-medium">Shared</td>
+                      <td className="text-center py-2 px-3">{sharedStats.totalProviders}</td>
+                      <td className="text-center py-2 px-3">
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                          {sharedStats.purchased}
+                        </span>
+                      </td>
+                      <td className="text-center py-2 px-3">
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                          {sharedStats.freeAccepted}
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+            {distributionLog && (
+              <div className="mt-3 text-xs text-blue-700">
+                Current Phase: <span className="font-semibold capitalize">{distributionLog.distributionPhase}</span>
+                {distributionLog.distributionPhase === 'shared' && (
+                  <span className="ml-4">Max Shared: {distributionLog.maxSharedOffers}</span>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Current Active Offer */}
           {currentUniqueOffer && (
