@@ -955,10 +955,6 @@ export default function ProviderDashboard() {
                                 )}
                               </div>
                               <div className="flex gap-2 ml-4">
-                                <Button size="sm" variant="outline">
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  View Details
-                                </Button>
                                 <Button size="sm" className="bg-green-600 hover:bg-green-700">
                                   <Phone className="h-3 w-3 mr-1" />
                                   Contact Customer
