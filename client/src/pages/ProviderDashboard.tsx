@@ -142,8 +142,31 @@ export default function ProviderDashboard() {
     retry: false,
   });
 
+  // Fetch provider credit balance
+  const { data: creditBalance, isLoading: creditLoading } = useQuery({
+    queryKey: ["/api/provider/credit/balance"],
+    enabled: !!provider?.id,
+    retry: false,
+  });
+
   // Track which lead is being purchased to prevent button state confusion
   const [purchasingLeadId, setPurchasingLeadId] = useState<number | null>(null);
+
+  // Helper function to determine payment method for a lead
+  const getPaymentMethod = (leadCost: number) => {
+    const balance = creditBalance?.balance || 0;
+    const freeLeadsUsed = provider?.firstLeadsFreeUsed || 0;
+    
+    if (freeLeadsUsed < 3) {
+      return { method: 'free', buttonText: 'Free Lead', description: `Free (${3 - freeLeadsUsed} remaining)` };
+    } else if (balance >= leadCost) {
+      return { method: 'credit', buttonText: 'Use Credit', description: `Credit Balance: $${balance.toFixed(2)}` };
+    } else if (balance > 0) {
+      return { method: 'partial', buttonText: 'Use Credit + Card', description: `$${balance.toFixed(2)} credit + $${(leadCost - balance).toFixed(2)} card` };
+    } else {
+      return { method: 'card', buttonText: `Purchase $${leadCost}`, description: 'Charged to card' };
+    }
+  };
 
   // Purchase lead mutation
   const purchaseLeadMutation = useMutation({
@@ -156,11 +179,12 @@ export default function ProviderDashboard() {
       setPurchasingLeadId(null);
       toast({
         title: "Success!",
-        description: `Lead purchased successfully! ${data.paymentDetails?.message || ''}`,
+        description: `Lead purchased successfully! ${data.message || ''}`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/provider/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/provider/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/provider/activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/provider/credit/balance"] });
     },
     onError: (error: any) => {
       setPurchasingLeadId(null);
@@ -844,12 +868,14 @@ export default function ProviderDashboard() {
 
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">This Month</CardTitle>
+                      <CardTitle className="text-sm font-medium">Credit Balance</CardTitle>
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">$0</div>
-                      <p className="text-xs text-muted-foreground">Total earnings</p>
+                      <div className="text-2xl font-bold">
+                        {creditLoading ? "..." : `$${(creditBalance?.balance || 0).toFixed(2)}`}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Available credit</p>
                     </CardContent>
                   </Card>
 
@@ -981,16 +1007,25 @@ export default function ProviderDashboard() {
                                   )}
                                 </div>
                               </div>
-                              <div className="flex gap-2 ml-4">
-                                <Button 
-                                  size="sm" 
-                                  className="bg-blue-600 hover:bg-blue-700"
-                                  onClick={() => purchaseLeadMutation.mutate(lead.requestId)}
-                                  disabled={purchasingLeadId === lead.requestId}
-                                >
-                                  {purchasingLeadId === lead.requestId ? "Purchasing..." : 
-                                    (provider?.firstLeadsFreeUsed || 0) < 3 ? "Free Lead" : `Purchase $${lead.leadCost}`}
-                                </Button>
+                              <div className="flex flex-col gap-2 ml-4">
+                                {(() => {
+                                  const paymentMethod = getPaymentMethod(parseFloat(lead.leadCost));
+                                  return (
+                                    <>
+                                      <Button 
+                                        size="sm" 
+                                        className={`${paymentMethod.method === 'free' ? 'bg-green-600 hover:bg-green-700' : 
+                                                   paymentMethod.method === 'credit' ? 'bg-purple-600 hover:bg-purple-700' : 
+                                                   'bg-blue-600 hover:bg-blue-700'}`}
+                                        onClick={() => purchaseLeadMutation.mutate(lead.requestId)}
+                                        disabled={purchasingLeadId === lead.requestId}
+                                      >
+                                        {purchasingLeadId === lead.requestId ? "Purchasing..." : paymentMethod.buttonText}
+                                      </Button>
+                                      <p className="text-xs text-gray-500 text-center">{paymentMethod.description}</p>
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
