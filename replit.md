@@ -80,6 +80,20 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Critical Business Logic Fix - Lead Exclusivity System Implementation Completed (January 23, 2025)  
+- **Fixed Incorrect Multiple Purchase Logic**: Resolved fundamental business logic flaw where providers could purchase both unique AND shared offers from the same lead
+- **Implemented Correct Lead Exclusivity**: When provider purchases unique offer for higher price ($30), they now get exclusive rights and lead is completely removed from system
+- **Shared Phase Logic Corrected**: Shared offers are now only available to providers who did NOT purchase the unique offer, preventing double-charging customers
+- **Free Lead Exception Handling**: When free lead is used on unique offer, system moves to shared phase based on admin "First 3 Lead Behavior" toggle setting
+- **Updated Purchase Flow**: 
+  - Paid unique purchase → Lead assigned, distribution ends
+  - Free unique purchase + "shared" setting → Move to shared phase (excluding purchaser)
+  - Free unique purchase + "new" setting → Lead assigned, distribution ends
+- **Database Query Enhancement**: Modified `startSharedPhase()` to exclude providers with purchased unique offers using `ne(leadOffers.status, 'purchased')`
+- **Business Model Integrity**: Customers now pay appropriate price for exclusive access (unique) or shared access (multiple providers), eliminating unfair double-charging
+- **Admin Interface Accuracy**: Resolved confusing display where providers appeared as both "Purchased" and "Active" by implementing proper lead exclusivity
+- **Production Ready**: Complete lead exclusivity system operational with proper business logic and fair pricing model
+
 ### Lead Distribution Bug Fix - Provider Selection and Progression Fixed (January 23, 2025)
 - **Fixed Duplicate Provider Issue**: Resolved critical bug where providers with multiple service areas were excluded from lead distribution due to duplicate entries
 - **Added DISTINCT Query**: Modified `getEligibleProviders()` to use `selectDistinct()` preventing duplicate provider entries from multiple postcode coverages
@@ -89,6 +103,16 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 - **Complete Provider Coverage**: Lead distribution now correctly includes all 3 providers (Rahul, Paul, Manish) with proper sequential unique offer windows
 - **Business Logic Integrity**: Maintained correct lead exclusivity - unique purchases end distribution, shared phase excludes unique purchasers
 - **Fresh Testing Ready**: Clean data environment with all providers having 0/3 free leads used and corrected distribution logic operational
+
+### Unique Lead Exclusivity Business Rule Fix Completed (January 23, 2025)
+- **Fixed Free Unique Purchase Logic**: Resolved incorrect behavior where free unique purchases moved to shared phase instead of ending distribution
+- **Implemented Correct Business Rule**: ALL unique purchases (free OR paid) now correctly END distribution and assign lead exclusively to purchaser
+- **Admin Setting Override Removed**: Eliminated confusing "First 3 Lead Behavior" logic that contradicted core business model of unique lead exclusivity
+- **Simplified Purchase Logic**: Any unique purchase grants exclusive rights - customers pay $30 for exclusive access, not shared access with others
+- **Manual Data Fix Applied**: Corrected lead 13 by removing incorrect shared offers and marking lead as properly assigned to Provider 3
+- **Code Logic Enhancement**: Updated `purchaseLeadWithCredit()` function to always call `endLeadDistribution()` for unique purchases regardless of payment method
+- **Business Model Consistency**: Restored proper lead exclusivity where unique purchases provide exclusive customer access as intended
+- **Testing Confirmed**: Provider 3's free unique purchase now correctly ends distribution instead of creating competing shared offers for other providers
 
 ### Enhanced Admin Navigation Structure and Password Change Fix Completed (January 23, 2025)
 - **Nested Navigation Structure**: Implemented Users submenu under Settings containing Admin Users and Departments for better organization

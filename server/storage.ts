@@ -2591,21 +2591,9 @@ export class DatabaseStorage implements IStorage {
           }
         }
       } else if (offer.offerType === 'unique') {
-        // For unique offers, check if this was a free lead purchase
-        if (isFreeLeadUsed) {
-          // Get lead settings to check free lead behavior
-          const leadSettings = await this.getLeadSettings();
-          if (leadSettings.firstThreeLeadBehavior === 'shared') {
-            // Move to shared phase for free lead
-            await this.startSharedPhase(offer.requestId);
-          } else {
-            // End distribution - lead is assigned
-            await this.endLeadDistribution(offer.requestId);
-          }
-        } else {
-          // Paid unique purchase - end distribution, lead is assigned
-          await this.endLeadDistribution(offer.requestId);
-        }
+        // For unique offers, ALWAYS end distribution - lead is assigned exclusively
+        // Business rule: Any unique purchase (free OR paid) gives exclusive rights to provider
+        await this.endLeadDistribution(offer.requestId);
       }
       
       return {
