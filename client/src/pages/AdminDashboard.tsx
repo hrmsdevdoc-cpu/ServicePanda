@@ -16,7 +16,8 @@ import {
 import { AdminSidebar } from "@/components/AdminSidebar";
 import AdminVoucherManagement from "./admin/AdminVoucherManagement";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { adminApiRequest } from "@/lib/adminAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import {
@@ -159,14 +160,10 @@ export default function AdminDashboard() {
   });
 
   // Service Requests Query
-  const { data: serviceRequests } = useQuery({
+  const { data: serviceRequests = [] } = useQuery({
     queryKey: ['/api/admin/service-requests'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/service-requests', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
+      const response = await adminApiRequest('GET', '/api/admin/service-requests');
       return response.json();
     },
   });
@@ -174,7 +171,7 @@ export default function AdminDashboard() {
   // Provider Approval Mutation
   const approveProviderMutation = useMutation({
     mutationFn: async ({ providerId, action }: { providerId: number; action: 'approve' | 'reject' }) => {
-      const response = await apiRequest('POST', `/api/admin/providers/${providerId}/${action}`, {});
+      const response = await adminApiRequest('POST', `/api/admin/providers/${providerId}/${action}`, {});
       return response.json();
     },
     onSuccess: (data, variables) => {
@@ -341,7 +338,7 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {serviceRequests?.slice(0, 5).map((request: ServiceRequest) => (
+                    {Array.isArray(serviceRequests) && serviceRequests.slice(0, 5).map((request: ServiceRequest) => (
                       <div key={request.id} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{request.serviceCategory}</p>
