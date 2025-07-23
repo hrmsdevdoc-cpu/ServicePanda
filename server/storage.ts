@@ -72,7 +72,7 @@ import {
   type InsertLeadDistributionLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, asc, inArray, isNotNull, sql } from "drizzle-orm";
+import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import crypto from "crypto";
 
 export interface IStorage {
@@ -690,6 +690,18 @@ export class DatabaseStorage implements IStorage {
       .insert(serviceRequests)
       .values(request)
       .returning();
+    
+    // Automatically start lead distribution for the new request
+    try {
+      console.log(`Starting automatic lead distribution for request ${serviceRequest.id}`);
+      await this.initializeLeadDistribution(serviceRequest.id);
+      console.log(`Lead distribution initialized successfully for request ${serviceRequest.id}`);
+    } catch (error) {
+      console.error(`Error initializing lead distribution for request ${serviceRequest.id}:`, error);
+      // Don't throw error - the service request was created successfully
+      // Lead distribution will be retried by the background processor
+    }
+    
     return serviceRequest;
   }
 
@@ -1851,7 +1863,10 @@ export class DatabaseStorage implements IStorage {
   // Check for expired offers and advance to next provider
   async processExpiredLeads(): Promise<void> {
     try {
-      // 1. First expire leads based on job date
+      // 1. First process uninitialized leads (leads that never entered distribution system)
+      await this.processUninitializedLeads();
+      
+      // 2. Then expire leads based on job date
       const now = new Date();
       await db
         .update(serviceRequests)
@@ -1867,10 +1882,51 @@ export class DatabaseStorage implements IStorage {
           )
         );
         
-      // 2. Then process expired offers
+      // 3. Then process expired offers
       await this.processExpiredOffers();
     } catch (error) {
       console.error('Error processing expired leads:', error);
+    }
+  }
+
+  // Process leads that were created but never entered the distribution system
+  async processUninitializedLeads(): Promise<void> {
+    try {
+      // Find recent active leads (within last 24 hours) that have no distribution log entries
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      const uninitializedLeads = await db
+        .select({
+          id: serviceRequests.id,
+          categoryId: serviceRequests.categoryId,
+          postcode: serviceRequests.postcode,
+          createdAt: serviceRequests.createdAt
+        })
+        .from(serviceRequests)
+        .leftJoin(leadDistributionLog, eq(serviceRequests.id, leadDistributionLog.requestId))
+        .where(
+          and(
+            eq(serviceRequests.status, 'active'),
+            isNull(leadDistributionLog.id), // No distribution log entry
+            sql`${serviceRequests.createdAt} > ${twentyFourHoursAgo}` // Only recent leads
+          )
+        );
+
+      for (const lead of uninitializedLeads) {
+        try {
+          console.log(`Processing uninitialized lead ${lead.id}`);
+          await this.initializeLeadDistribution(lead.id);
+          console.log(`Successfully initialized lead distribution for lead ${lead.id}`);
+        } catch (error) {
+          console.error(`Failed to initialize lead distribution for lead ${lead.id}:`, error);
+        }
+      }
+      
+      if (uninitializedLeads.length > 0) {
+        console.log(`Processed ${uninitializedLeads.length} uninitialized leads`);
+      }
+    } catch (error) {
+      console.error('Error processing uninitialized leads:', error);
     }
   }
 
