@@ -80,6 +80,14 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Lead Offer Activation Bug Fix Completed (January 23, 2025)
+- **Issue Resolved**: Fixed critical bug where Provider 4 (Vishal) couldn't use last free lead due to inactive offer status
+- **Root Cause**: Lead offers in shared phase were created but not properly marked as `is_current_offer = true`
+- **Solution**: Updated lead offer activation logic to ensure all eligible provider offers are marked as current
+- **Testing Confirmed**: Provider 4 successfully used final free lead (3 of 3) for Lead ID 15
+- **System Integrity**: Purchase flow now correctly handles free lead usage and updates provider profile
+- **Prevention**: Enhanced understanding of `is_current_offer` flag importance in lead distribution system
+
 ### Admin Lead Popup Auto-Refresh System Implementation Completed (January 23, 2025)
 - **Real-time Popup Updates**: Fixed admin lead popup refresh issue where new offers from dynamic matching system weren't visible without page refresh
 - **30-Second Auto-Refresh**: Implemented automatic refresh every 30 seconds when admin lead offer details popup is open
