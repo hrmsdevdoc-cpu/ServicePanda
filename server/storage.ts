@@ -473,11 +473,15 @@ export class DatabaseStorage implements IStorage {
           if (jobDate && now > jobDate) {
             leadStatus = 'expired';
           }
-          // Check if should be assigned
+          // Check if should be assigned (fully allocated)
           else if (uniqueOfferPurchased || sharedOffersPurchased >= 3) {
             leadStatus = 'assigned';
           }
-          // Otherwise remains active
+          // Check if in progress (some shared offers purchased but capacity remains)
+          else if (sharedOffersPurchased > 0 && sharedOffersPurchased < 3) {
+            leadStatus = 'in-progress';
+          }
+          // Otherwise remains active (no purchases yet)
           else {
             leadStatus = 'active';
           }

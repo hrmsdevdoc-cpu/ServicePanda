@@ -226,8 +226,14 @@ export default function AdminLeads() {
     switch (status.toLowerCase()) {
       case 'active':
         return <Badge variant="default" className="bg-green-100 text-green-800">Active</Badge>;
+      case 'in-progress':
+        return <Badge variant="default" className="bg-blue-100 text-blue-800">In Progress</Badge>;
+      case 'assigned':
+        return <Badge variant="default" className="bg-purple-100 text-purple-800">Assigned</Badge>;
+      case 'expired':
+        return <Badge variant="default" className="bg-gray-100 text-gray-800">Expired</Badge>;
       case 'completed':
-        return <Badge variant="default" className="bg-blue-100 text-blue-800">Completed</Badge>;
+        return <Badge variant="default" className="bg-green-100 text-green-800">Completed</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -357,8 +363,10 @@ export default function AdminLeads() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
                     <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
