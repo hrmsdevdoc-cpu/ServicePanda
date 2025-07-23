@@ -1029,7 +1029,7 @@ export default function ProviderDashboard() {
                                 <select
                                   value={getLeadStatus(lead.requestId)}
                                   onChange={(e) => handleStatusChange(lead.requestId, e.target.value)}
-                                  className="text-xs border rounded px-1 py-0.5 bg-white ml-auto"
+                                  className="text-sm border rounded px-3 py-2 bg-white ml-auto min-w-[80px] touch-manipulation"
                                   disabled={updateLeadStatusMutation.isPending}
                                 >
                                   <option value="new">New</option>
