@@ -1636,103 +1636,154 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Finding eligible providers for category ${categoryId}, postcode ${postcode}`);
       
-      // TEMPORARY FIX: For MOLENDINAR (4214), manually include providers with location-based service areas
-      // This avoids the Drizzle ORM error while we implement proper distance calculations
-      if (postcode === '4214') {
-        console.log('Using manual matching for MOLENDINAR (4214)');
-        
-        // Get all providers that offer this service category and are approved
-        const providersForCategory = await db
-          .select({
+      // Method 1: Check providers with explicit postcode coverage (existing system)
+      let postcodeCoverageProviders: any[] = [];
+      try {
+        postcodeCoverageProviders = await db
+          .selectDistinct({
             providerId: serviceProviders.id,
+            rating: providerRatings.rating,
             firstName: serviceProviders.firstName,
             lastName: serviceProviders.lastName,
+            totalReviews: providerRatings.totalReviews,
+            averageResponseTime: providerRatings.averageResponseTime,
           })
           .from(serviceProviders)
           .innerJoin(providerServices, eq(serviceProviders.id, providerServices.providerId))
+          .innerJoin(providerRatings, eq(serviceProviders.id, providerRatings.providerId))
+          .innerJoin(providerPostcodeCoverage, eq(serviceProviders.id, providerPostcodeCoverage.providerId))
           .where(
             and(
               eq(providerServices.categoryId, categoryId),
               eq(serviceProviders.status, 'approved'),
-              eq(serviceProviders.providerStatus, 'activated')
+              eq(serviceProviders.providerStatus, 'activated'),
+              eq(providerPostcodeCoverage.postcode, postcode)
             )
+          )
+          .orderBy(
+            desc(providerRatings.rating),
+            desc(providerRatings.totalReviews),
+            asc(providerRatings.averageResponseTime)
           );
-
-        console.log(`Found ${providersForCategory.length} providers offering category ${categoryId}`);
-
-        // Check which providers have location-based service areas in Gold Coast region
-        const eligibleProviders = [];
-        for (const provider of providersForCategory) {
-          const hasGoldCoastServiceArea = await db
-            .select({
-              id: providerServiceAreas.id,
-              centerAddress: providerServiceAreas.centerAddress,
-            })
-            .from(providerServiceAreas)
-            .where(
-              and(
-                eq(providerServiceAreas.providerId, provider.providerId),
-                or(
-                  sql`${providerServiceAreas.centerAddress} ILIKE '%Hope Island%'`,
-                  sql`${providerServiceAreas.centerAddress} ILIKE '%Gold Coast%'`,
-                  sql`${providerServiceAreas.centerAddress} ILIKE '%Bundall%'`,
-                  sql`${providerServiceAreas.centerAddress} ILIKE '%Surfers Paradise%'`,
-                  sql`${providerServiceAreas.centerAddress} ILIKE '%Brisbane%'`
-                )
-              )
-            )
-            .limit(1);
-
-          if (hasGoldCoastServiceArea.length > 0) {
-            console.log(`✓ Provider ${provider.firstName} ${provider.lastName} covers Gold Coast area`);
-            eligibleProviders.push({
-              providerId: provider.providerId,
-              rating: 5.0,
-              firstName: provider.firstName,
-              lastName: provider.lastName,
-            });
-          }
-        }
-
-        console.log(`Total eligible providers for MOLENDINAR: ${eligibleProviders.length}`);
-        return eligibleProviders;
+      } catch (error) {
+        console.error('Error fetching postcode coverage providers:', error);
       }
 
-      // Standard postcode coverage check for other areas
-      const eligibleProviders = await db
-        .selectDistinct({
-          providerId: serviceProviders.id,
-          rating: providerRatings.rating,
-          firstName: serviceProviders.firstName,
-          lastName: serviceProviders.lastName,
-          totalReviews: providerRatings.totalReviews,
-          averageResponseTime: providerRatings.averageResponseTime,
-        })
-        .from(serviceProviders)
-        .innerJoin(providerServices, eq(serviceProviders.id, providerServices.providerId))
-        .innerJoin(providerRatings, eq(serviceProviders.id, providerRatings.providerId))
-        .innerJoin(providerPostcodeCoverage, eq(serviceProviders.id, providerPostcodeCoverage.providerId))
-        .where(
-          and(
-            eq(providerServices.categoryId, categoryId),
-            eq(serviceProviders.status, 'approved'),
-            eq(serviceProviders.providerStatus, 'activated'),
-            eq(providerPostcodeCoverage.postcode, postcode)
-          )
-        )
-        .orderBy(
-          desc(providerRatings.rating),
-          desc(providerRatings.totalReviews),
-          asc(providerRatings.averageResponseTime)
-        );
+      console.log(`Found ${postcodeCoverageProviders.length} providers via postcode coverage`);
 
-      console.log(`Found ${eligibleProviders.length} providers via postcode coverage`);
-      return eligibleProviders.map(p => ({
-        providerId: p.providerId,
-        rating: parseFloat(p.rating?.toString() || '5.0'),
-        firstName: p.firstName,
-        lastName: p.lastName,
-      }));
+      // Method 2: Check providers with location-based (radius) service areas
+      let locationBasedProviders: any[] = [];
+      
+      try {
+        // Get coordinates for target postcode
+        const targetSuburb = await db
+          .select({
+            id: australianSuburbs.id,
+            suburb: australianSuburbs.suburb,
+            postcode: australianSuburbs.postcode,
+            latitude: australianSuburbs.latitude,
+            longitude: australianSuburbs.longitude,
+          })
+          .from(australianSuburbs)
+          .where(eq(australianSuburbs.postcode, postcode))
+          .limit(1);
+
+        if (targetSuburb.length > 0 && targetSuburb[0].latitude && targetSuburb[0].longitude) {
+          const target = targetSuburb[0];
+          console.log(`Target location: ${target.suburb} (${target.latitude}, ${target.longitude})`);
+          
+          // Get all approved providers for this category
+          const eligibleProviders = await db
+            .select({
+              providerId: serviceProviders.id,
+              firstName: serviceProviders.firstName,
+              lastName: serviceProviders.lastName,
+            })
+            .from(serviceProviders)
+            .innerJoin(providerServices, eq(serviceProviders.id, providerServices.providerId))
+            .where(
+              and(
+                eq(providerServices.categoryId, categoryId),
+                eq(serviceProviders.status, 'approved'),
+                eq(serviceProviders.providerStatus, 'activated')
+              )
+            );
+
+          console.log(`Found ${eligibleProviders.length} eligible providers for category ${categoryId}`);
+
+          // Check each provider's service areas for radius coverage
+          for (const provider of eligibleProviders) {
+            const serviceAreas = await db
+              .select({
+                centerLat: providerServiceAreas.centerLat,
+                centerLng: providerServiceAreas.centerLng,
+                radiusKm: providerServiceAreas.radiusKm,
+                centerAddress: providerServiceAreas.centerAddress,
+              })
+              .from(providerServiceAreas)
+              .where(
+                and(
+                  eq(providerServiceAreas.providerId, provider.providerId),
+                  isNotNull(providerServiceAreas.centerLat),
+                  isNotNull(providerServiceAreas.centerLng),
+                  isNotNull(providerServiceAreas.radiusKm)
+                )
+              );
+
+            // Check if any service area covers the target location
+            for (const area of serviceAreas) {
+              if (!area.centerLat || !area.centerLng || !area.radiusKm) continue;
+              
+              const distance = this.calculateDistance(
+                parseFloat(target.latitude),
+                parseFloat(target.longitude),
+                parseFloat(area.centerLat),
+                parseFloat(area.centerLng)
+              );
+              
+              console.log(`Provider ${provider.firstName} ${provider.lastName} (${area.centerAddress}): ${distance.toFixed(2)}km away, radius: ${area.radiusKm}km`);
+              
+              if (distance <= parseInt(area.radiusKm.toString())) {
+                console.log(`✓ Provider ${provider.firstName} ${provider.lastName} is within service area`);
+                locationBasedProviders.push({
+                  providerId: provider.providerId,
+                  rating: 5.0, // Default rating, will fetch from ratings table if needed
+                  firstName: provider.firstName,
+                  lastName: provider.lastName,
+                  distance: distance,
+                });
+                break; // Only need one matching service area per provider
+              }
+            }
+          }
+        } else {
+          console.log(`No coordinates found for postcode ${postcode}`);
+        }
+      } catch (error) {
+        console.error('Error in location-based provider matching:', error);
+      }
+
+      // Combine both methods and remove duplicates
+      const allProviders = [
+        ...postcodeCoverageProviders.map(p => ({
+          providerId: p.providerId,
+          rating: parseFloat(p.rating?.toString() || '5.0'),
+          firstName: p.firstName,
+          lastName: p.lastName,
+        })),
+        ...locationBasedProviders
+      ];
+
+      // Remove duplicates by providerId
+      const uniqueProviders = allProviders.filter((provider, index, self) => 
+        index === self.findIndex(p => p.providerId === provider.providerId)
+      );
+
+      // Sort by rating
+      uniqueProviders.sort((a, b) => b.rating - a.rating);
+
+      console.log(`Total eligible providers found: ${uniqueProviders.length} (${postcodeCoverageProviders.length} via postcode, ${locationBasedProviders.length} via distance)`);
+      return uniqueProviders;
       
     } catch (error) {
       console.error('Error getting eligible providers:', error);
