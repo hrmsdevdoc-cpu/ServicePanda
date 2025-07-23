@@ -17,7 +17,8 @@ interface Voucher {
   code: string;
   value: string;
   description: string;
-  status: 'active' | 'closed';
+  status: 'active' | 'closed' | 'expired';
+  expiryDate: string;
   redeemedBy?: number;
   redeemedAt?: string;
   createdBy: string;
@@ -154,7 +155,14 @@ export default function AdminVoucherManagement() {
     createBulkVouchersMutation.mutate({ count, value });
   };
 
-  const activeVouchers = vouchers.filter((v: Voucher) => v.status === 'active');
+  // Function to check if voucher is expired
+  const isVoucherExpired = (voucher: Voucher) => {
+    return new Date() > new Date(voucher.expiryDate);
+  };
+
+  // Calculate voucher statistics with expiry logic
+  const activeVouchers = vouchers.filter((v: Voucher) => v.status === 'active' && !isVoucherExpired(v));
+  const expiredVouchers = vouchers.filter((v: Voucher) => v.status === 'active' && isVoucherExpired(v));
   const redeemedVouchers = vouchers.filter((v: Voucher) => v.status === 'closed');
 
   if (isLoading) {
@@ -241,7 +249,7 @@ export default function AdminVoucherManagement() {
       </Card>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Vouchers</CardTitle>
@@ -268,6 +276,19 @@ export default function AdminVoucherManagement() {
           </CardContent>
         </Card>
         
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Expired Vouchers</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{expiredVouchers.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Expired (unused)
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Redeemed Vouchers</CardTitle>
@@ -301,31 +322,47 @@ export default function AdminVoucherManagement() {
             <div className="space-y-4">
               <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 border-b pb-2">
                 <div className="col-span-2">Code</div>
-                <div className="col-span-2">Value</div>
+                <div className="col-span-1">Value</div>
                 <div className="col-span-2">Status</div>
-                <div className="col-span-3">Created</div>
+                <div className="col-span-2">Created</div>
+                <div className="col-span-2">Expires</div>
                 <div className="col-span-2">Redeemed</div>
                 <div className="col-span-1">Actions</div>
               </div>
-              {vouchers.map((voucher: Voucher) => (
+              {vouchers.map((voucher: Voucher) => {
+                const expired = isVoucherExpired(voucher);
+                const status = voucher.status === 'closed' ? 'Redeemed' : 
+                             expired ? 'Expired' : 'Active';
+                const statusVariant = voucher.status === 'closed' ? 'secondary' : 
+                                    expired ? 'destructive' : 'default';
+                
+                return (
                 <div key={voucher.id} className="grid grid-cols-12 gap-4 items-center py-2 border-b border-gray-100">
                   <div className="col-span-2">
                     <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono">
                       {voucher.code}
                     </code>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1">
                     <span className="font-medium">${voucher.value}</span>
                   </div>
                   <div className="col-span-2">
-                    <Badge variant={voucher.status === 'active' ? 'default' : 'secondary'}>
-                      {voucher.status === 'active' ? 'Active' : 'Closed'}
+                    <Badge variant={statusVariant}>
+                      {status}
                     </Badge>
                   </div>
-                  <div className="col-span-3 text-sm text-gray-600">
+                  <div className="col-span-2 text-sm text-gray-600">
                     {new Date(voucher.createdAt).toLocaleDateString()}
                     <br />
                     <span className="text-xs">by {voucher.createdBy}</span>
+                  </div>
+                  <div className="col-span-2 text-sm text-gray-600">
+                    <div className={expired ? 'text-red-600 font-medium' : ''}>
+                      {new Date(voucher.expiryDate).toLocaleDateString()}
+                    </div>
+                    <span className="text-xs">
+                      {expired ? 'Expired' : `${Math.ceil((new Date(voucher.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days left`}
+                    </span>
                   </div>
                   <div className="col-span-2 text-sm text-gray-600">
                     {voucher.redeemedAt ? (
@@ -359,7 +396,8 @@ export default function AdminVoucherManagement() {
                     </Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

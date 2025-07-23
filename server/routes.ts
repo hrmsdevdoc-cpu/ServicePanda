@@ -1821,14 +1821,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Add default fields
-      const vouchersWithDefaults = vouchers.map((voucher: any) => ({
-        ...voucher,
-        code: voucher.code.toUpperCase(),
-        value: voucher.value.toString(),
-        status: 'active',
-        createdBy: 'admin',
-      }));
+      // Add default fields including 30-day expiry
+      const vouchersWithDefaults = vouchers.map((voucher: any) => {
+        const now = new Date();
+        const expiryDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days from now
+        
+        return {
+          ...voucher,
+          code: voucher.code.toUpperCase(),
+          value: voucher.value.toString(),
+          status: 'active',
+          createdBy: 'admin',
+          expiryDate,
+        };
+      });
 
       const result = await storage.createBulkVouchersAdmin(vouchersWithDefaults);
       res.status(201).json(result);
@@ -1850,12 +1856,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Code, value, and description are required' });
       }
 
+      // Add 30-day expiry to single voucher creation
+      const now = new Date();
+      const expiryDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days from now
+
       const voucher = await storage.createVoucherAdmin({
         code: code.toUpperCase(),
         value: value.toString(),
         description,
         status: 'active',
         createdBy: 'admin',
+        expiryDate,
       });
 
       res.status(201).json(voucher);

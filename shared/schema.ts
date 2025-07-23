@@ -344,7 +344,8 @@ export const providerVouchers = pgTable("provider_vouchers", {
   code: varchar("code", { length: 6 }).notNull().unique(), // 6-digit alphanumeric code
   value: decimal("value", { precision: 10, scale: 2 }).notNull(), // Dollar value of voucher (default $50)
   description: text("description"), // Description of what voucher is for
-  status: varchar("status", { length: 20 }).default("active").notNull(), // 'active', 'closed'
+  status: varchar("status", { length: 20 }).default("active").notNull(), // 'active', 'closed', 'expired'
+  expiryDate: timestamp("expiry_date").notNull(), // Date when voucher expires (30 days from creation)
   redeemedBy: integer("redeemed_by").references(() => serviceProviders.id), // Provider who redeemed it
   redeemedAt: timestamp("redeemed_at"), // When it was redeemed
   createdBy: varchar("created_by").default("admin"), // Admin who created the voucher
