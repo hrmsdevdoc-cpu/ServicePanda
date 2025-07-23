@@ -12,7 +12,7 @@ const ADMIN_CREDENTIALS = {
 };
 
 // JWT secret for admin tokens
-const JWT_SECRET = process.env.JWT_SECRET || "admin-jwt-secret-key";
+const JWT_SECRET = process.env.ADMIN_JWT_SECRET || "admin-jwt-secret-key";
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
@@ -20,9 +20,22 @@ export async function hashPassword(password: string): Promise<string> {
   return `${buf.toString("hex")}.${salt}`;
 }
 
-async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
-  // For demo purposes, use direct comparison with the stored plaintext password
-  return supplied === stored;
+export async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
+  try {
+    // If stored password doesn't contain a dot, treat it as plaintext (legacy)
+    if (!stored.includes('.')) {
+      return supplied === stored;
+    }
+    
+    // Handle hashed password
+    const [hashed, salt] = stored.split(".");
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch (error) {
+    console.error('Error comparing passwords:', error);
+    return false;
+  }
 }
 
 function generateAdminToken(username: string): string {

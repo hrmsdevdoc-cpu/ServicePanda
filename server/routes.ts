@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
 import { setupProviderAuth, isProviderAuthenticated } from "./providerAuth";
-import { setupAdminAuth, isAdminAuthenticated, hashPassword } from "./adminAuth";
+import { setupAdminAuth, isAdminAuthenticated, hashPassword, comparePasswords } from "./adminAuth";
+import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { insertServiceProviderSchema, insertServiceRequestSchema, leadOffers } from "@shared/schema";
 import { db } from "./db";
@@ -2370,8 +2371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Decode token to get admin username
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'default_admin_secret') as any;
+      const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-key') as any;
       const username = decoded.username;
 
       // Get current admin user
@@ -2381,19 +2381,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify current password
-      const { comparePasswords } = require('./adminAuth');
       const isCurrentPasswordValid = await comparePasswords(currentPassword, adminUser.password);
       if (!isCurrentPasswordValid) {
         return res.status(400).json({ message: 'Current password is incorrect' });
       }
 
       // Hash new password
-      const { hashPassword } = require('./adminAuth');
       const hashedNewPassword = await hashPassword(newPassword);
 
       // Update password
       await storage.updateAdminUser(adminUser.id, { password: hashedNewPassword });
-
       res.json({ message: 'Password changed successfully' });
     } catch (error) {
       console.error('Error changing password:', error);
