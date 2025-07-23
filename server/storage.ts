@@ -394,8 +394,30 @@ export class DatabaseStorage implements IStorage {
           // Get notes for this lead
           const notes = await this.getLeadNotes(request.id);
 
+          // Calculate proper lead status based on business rules
+          let leadStatus = request.status;
+          const purchasedOffers = offers.filter(offer => offer.status === 'purchased');
+          const uniqueOfferPurchased = purchasedOffers.some(offer => offer.offerType === 'unique');
+          const sharedOffersPurchased = purchasedOffers.filter(offer => offer.offerType === 'shared').length;
+          
+          // Check if job date has passed (expired)
+          const now = new Date();
+          const jobDate = request.preferredDate ? new Date(request.preferredDate) : null;
+          if (jobDate && now > jobDate) {
+            leadStatus = 'expired';
+          }
+          // Check if should be assigned
+          else if (uniqueOfferPurchased || sharedOffersPurchased >= 3) {
+            leadStatus = 'assigned';
+          }
+          // Otherwise remains active
+          else {
+            leadStatus = 'active';
+          }
+
           return {
             ...request,
+            status: leadStatus, // Use calculated status
             customerName: `${request.customerFirstName || ''} ${request.customerLastName || ''}`.trim(),
             customerPhone: request.customerPhoneNumber || '',
             // Add computed location and state from postcode/suburb
@@ -1733,8 +1755,27 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(leadOffers.id, offer.id));
 
-      // Update service request status to "assigned" when first lead is purchased
-      await this.updateServiceRequestStatus(requestId, 'assigned');
+      // Check if we need to update service request status to "assigned"
+      // This happens when: unique offer purchased OR 3 shared offers purchased
+      if (offer.offerType === 'unique') {
+        await this.updateServiceRequestStatus(requestId, 'assigned');
+      } else {
+        // For shared offers, check if this makes it 3 purchased
+        const purchasedSharedCount = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(leadOffers)
+          .where(
+            and(
+              eq(leadOffers.requestId, requestId),
+              eq(leadOffers.status, 'purchased'),
+              eq(leadOffers.offerType, 'shared')
+            )
+          );
+        
+        if (purchasedSharedCount[0]?.count >= 3) {
+          await this.updateServiceRequestStatus(requestId, 'assigned');
+        }
+      }
 
       if (offer.offerType === 'unique') {
         // For unique offers, move to next provider or shared phase
@@ -1808,6 +1849,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Check for expired offers and advance to next provider
+  async processExpiredLeads(): Promise<void> {
+    try {
+      // 1. First expire leads based on job date
+      const now = new Date();
+      await db
+        .update(serviceRequests)
+        .set({ status: 'expired', updatedAt: now })
+        .where(
+          and(
+            or(
+              eq(serviceRequests.status, 'active'),
+              eq(serviceRequests.status, 'assigned')
+            ),
+            isNotNull(serviceRequests.preferredDate),
+            sql`${serviceRequests.preferredDate} < ${now}`
+          )
+        );
+        
+      // 2. Then process expired offers
+      await this.processExpiredOffers();
+    } catch (error) {
+      console.error('Error processing expired leads:', error);
+    }
+  }
+
   async processExpiredOffers(): Promise<void> {
     try {
       const now = new Date();

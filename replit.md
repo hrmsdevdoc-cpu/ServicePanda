@@ -80,6 +80,18 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Lead Status System Implementation Completed (January 23, 2025)
+- **Implemented Simplified 3-Status Lead System**: Active → Assigned → Expired status flow based on user requirements
+- **Active Status Logic**: Leads remain active until all 3 shared offers are purchased or a unique offer is purchased
+- **Assigned Status Logic**: Leads become assigned when unique offer purchased OR all 3 shared offers purchased
+- **Expired Status Logic**: Leads automatically expire when preferred job date passes, regardless of current status
+- **Real-time Status Calculation**: Lead status computed dynamically in getLeadsWithMetrics() based on offer purchases and job dates
+- **Automatic Expiration System**: Enhanced existing minute-by-minute checker to expire leads based on preferred_date timestamps
+- **Database Integration**: Status calculation uses actual lead_offers table data with proper offer type (unique/shared) and purchase status tracking
+- **Admin Interface Ready**: Lead management page displays accurate real-time status with proper business logic implementation
+- **Job Date Based Expiration**: Leads with passed preferred_date automatically marked as expired by scheduled background process
+- **Purchase Tracking Integration**: Status changes integrated with existing lead purchase system and proper database updates
+
 ### Lead Management Status Display Fix Completed (January 23, 2025)
 - **Fixed Lead Management Page Status Accuracy**: Resolved inaccurate status display in admin leads list where "Offered", "Accepted", and "Pending" columns showed zero values
 - **Updated Backend Data Model**: Modified `getLeadsWithMetrics()` method to use new `lead_offers` table instead of deprecated `leadAssignments` table

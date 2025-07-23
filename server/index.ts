@@ -65,12 +65,12 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
   
-  // Start expired offer checker - runs every minute
+  // Start expired lead and offer checker - runs every minute
   setInterval(async () => {
     try {
-      await storage.processExpiredOffers();
+      await storage.processExpiredLeads();
     } catch (error) {
-      console.error('Error in expired offer checker:', error);
+      console.error('Error in expired lead checker:', error);
     }
   }, 60000); // Check every minute
   
@@ -80,6 +80,6 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
-    log('Lead expiration checker started - checking every minute');
+    log('Lead and offer expiration checker started - checking every minute');
   });
 })();
