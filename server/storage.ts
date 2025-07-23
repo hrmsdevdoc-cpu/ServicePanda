@@ -1765,7 +1765,7 @@ export class DatabaseStorage implements IStorage {
           status: 'pending',
           isCurrentOffer: true,
           offerStartTime,
-          // Shared offers don't expire individually
+          // Shared offers don't expire individually - only expire 24 hours before job date
           expiresAt: null,
         });
       }
@@ -2000,6 +2000,7 @@ export class DatabaseStorage implements IStorage {
       const now = new Date();
       
       // Find expired unique offers that are still marked as current
+      // Note: Shared offers don't have individual expiration times - they expire based on job date or purchase limit
       const expiredOffers = await db
         .select()
         .from(leadOffers)
@@ -2028,8 +2029,55 @@ export class DatabaseStorage implements IStorage {
         // Move to next provider or shared phase
         await this.activateNextUniqueOffer(expiredOffer.requestId);
       }
+
+      // Separately handle shared offers that have expired due to job date proximity
+      await this.processExpiredSharedOffers();
     } catch (error) {
       console.error('Error processing expired offers:', error);
+    }
+  }
+
+  async processExpiredSharedOffers(): Promise<void> {
+    try {
+      // Find shared offers for leads where job date is within 24 hours
+      const expiredByJobDate = await db
+        .select({
+          requestId: leadOffers.requestId,
+        })
+        .from(leadOffers)
+        .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
+        .where(
+          and(
+            eq(leadOffers.status, 'pending'),
+            eq(leadOffers.offerType, 'shared'),
+            sql`${serviceRequests.preferredDate} <= (CURRENT_TIMESTAMP + INTERVAL '24 hours')`
+          )
+        )
+        .groupBy(leadOffers.requestId);
+
+      for (const expired of expiredByJobDate) {
+        console.log(`Expiring shared offers for request ${expired.requestId} due to job date proximity`);
+        
+        // Mark all pending shared offers for this request as expired
+        await db
+          .update(leadOffers)
+          .set({ 
+            status: 'expired', 
+            isCurrentOffer: false 
+          })
+          .where(
+            and(
+              eq(leadOffers.requestId, expired.requestId),
+              eq(leadOffers.status, 'pending'),
+              eq(leadOffers.offerType, 'shared')
+            )
+          );
+
+        // End distribution for this request
+        await this.endLeadDistribution(expired.requestId);
+      }
+    } catch (error) {
+      console.error('Error processing expired shared offers:', error);
     }
   }
 
@@ -2113,14 +2161,53 @@ export class DatabaseStorage implements IStorage {
           and(
             eq(leadOffers.providerId, providerId),
             or(
-              and(eq(leadOffers.status, 'pending'), eq(leadOffers.isCurrentOffer, true)),
+              // Show current unique offers that are pending and active
+              and(
+                eq(leadOffers.status, 'pending'), 
+                eq(leadOffers.isCurrentOffer, true),
+                eq(leadOffers.offerType, 'unique')
+              ),
+              // Show shared offers that are pending (not purchased by this provider yet)
+              and(
+                eq(leadOffers.status, 'pending'),
+                eq(leadOffers.offerType, 'shared')
+              ),
+              // Show purchased offers (for activity history)
               eq(leadOffers.status, 'purchased')
-            )
+            ),
+            // Only show leads that haven't expired based on job date (24 hours before)
+            sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '24 hours')`
           )
         )
         .orderBy(desc(serviceRequests.createdAt));
 
-      return activeLeads.map(lead => ({
+      // Filter out shared leads where 3 providers have already purchased
+      const filteredLeads = [];
+      for (const lead of activeLeads) {
+        if (lead.offerType === 'shared' && lead.status === 'pending') {
+          // Check how many providers have purchased this shared lead
+          const purchasedCount = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(leadOffers)
+            .where(
+              and(
+                eq(leadOffers.requestId, lead.requestId),
+                eq(leadOffers.offerType, 'shared'),
+                eq(leadOffers.status, 'purchased')
+              )
+            );
+          
+          // Only show if less than 3 providers have purchased
+          if (purchasedCount[0]?.count < 3) {
+            filteredLeads.push(lead);
+          }
+        } else {
+          // Include unique offers and purchased offers
+          filteredLeads.push(lead);
+        }
+      }
+
+      return filteredLeads.map(lead => ({
         ...lead,
         leadCost: parseFloat(lead.leadCost || '0'),
         budget: parseFloat(lead.budget?.toString() || '0'),
