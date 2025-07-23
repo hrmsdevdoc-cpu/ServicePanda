@@ -73,6 +73,15 @@ import {
   type InsertLeadDistributionLog,
   providerVouchers,
   providerCreditTransactions,
+  adminDepartments,
+  adminUsers,
+  adminUserDepartments,
+  type AdminDepartment,
+  type InsertAdminDepartment,
+  type AdminUser,
+  type InsertAdminUser,
+  type AdminUserDepartment,
+  type InsertAdminUserDepartment,
   leadPurchases,
   type ProviderVoucher,
   type InsertProviderVoucher,
@@ -256,6 +265,26 @@ export interface IStorage {
   // Provider lead interaction tracking
   logProviderLeadInteraction(interaction: InsertProviderLeadInteraction): Promise<void>;
   getProviderLeadInteractions(leadId: number): Promise<ProviderLeadInteraction[]>;
+
+  // Admin department operations
+  getAllDepartments(): Promise<AdminDepartment[]>;
+  createDepartment(department: InsertAdminDepartment): Promise<AdminDepartment>;
+  updateDepartment(id: number, updates: Partial<AdminDepartment>): Promise<AdminDepartment>;
+  deleteDepartment(id: number): Promise<boolean>;
+
+  // Admin user operations  
+  getAllAdminUsers(): Promise<AdminUser[]>;
+  getAdminUser(id: number): Promise<AdminUser | undefined>;
+  getAdminUserByUsername(username: string): Promise<AdminUser | undefined>;
+  createAdminUser(user: InsertAdminUser): Promise<AdminUser>;
+  updateAdminUser(id: number, updates: Partial<AdminUser>): Promise<AdminUser>;
+  deleteAdminUser(id: number): Promise<boolean>;
+  
+  // Admin user department operations
+  getUserDepartments(userId: number): Promise<AdminDepartment[]>;
+  assignUserToDepartment(userId: number, departmentId: number): Promise<void>;
+  removeUserFromDepartment(userId: number, departmentId: number): Promise<void>;
+  updateUserDepartments(userId: number, departmentIds: number[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3027,6 +3056,190 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error getting provider lead statuses:', error);
       return [];
+    }
+  }
+
+  // Admin department methods
+  async getAllDepartments(): Promise<AdminDepartment[]> {
+    try {
+      const departments = await db.select().from(adminDepartments).orderBy(adminDepartments.name);
+      return departments;
+    } catch (error) {
+      console.error('Error getting departments:', error);
+      return [];
+    }
+  }
+
+  async createDepartment(department: InsertAdminDepartment): Promise<AdminDepartment> {
+    try {
+      const [newDepartment] = await db
+        .insert(adminDepartments)
+        .values(department)
+        .returning();
+      return newDepartment;
+    } catch (error) {
+      console.error('Error creating department:', error);
+      throw error;
+    }
+  }
+
+  async updateDepartment(id: number, updates: Partial<AdminDepartment>): Promise<AdminDepartment> {
+    try {
+      const [updatedDepartment] = await db
+        .update(adminDepartments)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(adminDepartments.id, id))
+        .returning();
+      return updatedDepartment;
+    } catch (error) {
+      console.error('Error updating department:', error);
+      throw error;
+    }
+  }
+
+  async deleteDepartment(id: number): Promise<boolean> {
+    try {
+      // First remove all user-department associations
+      await db.delete(adminUserDepartments).where(eq(adminUserDepartments.departmentId, id));
+      
+      const result = await db.delete(adminDepartments).where(eq(adminDepartments.id, id));
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Error deleting department:', error);
+      return false;
+    }
+  }
+
+  // Admin user methods
+  async getAllAdminUsers(): Promise<AdminUser[]> {
+    try {
+      const users = await db.select().from(adminUsers).orderBy(adminUsers.firstName, adminUsers.lastName);
+      return users;
+    } catch (error) {
+      console.error('Error getting admin users:', error);
+      return [];
+    }
+  }
+
+  async getAdminUser(id: number): Promise<AdminUser | undefined> {
+    try {
+      const [user] = await db.select().from(adminUsers).where(eq(adminUsers.id, id));
+      return user;
+    } catch (error) {
+      console.error('Error getting admin user:', error);
+      return undefined;
+    }
+  }
+
+  async getAdminUserByUsername(username: string): Promise<AdminUser | undefined> {
+    try {
+      const [user] = await db.select().from(adminUsers).where(eq(adminUsers.username, username));
+      return user;
+    } catch (error) {
+      console.error('Error getting admin user by username:', error);
+      return undefined;
+    }
+  }
+
+  async createAdminUser(user: InsertAdminUser): Promise<AdminUser> {
+    try {
+      const [newUser] = await db
+        .insert(adminUsers)
+        .values(user)
+        .returning();
+      return newUser;
+    } catch (error) {
+      console.error('Error creating admin user:', error);
+      throw error;
+    }
+  }
+
+  async updateAdminUser(id: number, updates: Partial<AdminUser>): Promise<AdminUser> {
+    try {
+      const [updatedUser] = await db
+        .update(adminUsers)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(adminUsers.id, id))
+        .returning();
+      return updatedUser;
+    } catch (error) {
+      console.error('Error updating admin user:', error);
+      throw error;
+    }
+  }
+
+  async deleteAdminUser(id: number): Promise<boolean> {
+    try {
+      // First remove all user-department associations
+      await db.delete(adminUserDepartments).where(eq(adminUserDepartments.userId, id));
+      
+      const result = await db.delete(adminUsers).where(eq(adminUsers.id, id));
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Error deleting admin user:', error);
+      return false;
+    }
+  }
+
+  // Admin user department methods
+  async getUserDepartments(userId: number): Promise<AdminDepartment[]> {
+    try {
+      const departments = await db
+        .select({
+          id: adminDepartments.id,
+          name: adminDepartments.name,
+          createdAt: adminDepartments.createdAt,
+          updatedAt: adminDepartments.updatedAt,
+        })
+        .from(adminDepartments)
+        .innerJoin(adminUserDepartments, eq(adminDepartments.id, adminUserDepartments.departmentId))
+        .where(eq(adminUserDepartments.userId, userId));
+      return departments;
+    } catch (error) {
+      console.error('Error getting user departments:', error);
+      return [];
+    }
+  }
+
+  async assignUserToDepartment(userId: number, departmentId: number): Promise<void> {
+    try {
+      await db
+        .insert(adminUserDepartments)
+        .values({ userId, departmentId })
+        .onConflictDoNothing();
+    } catch (error) {
+      console.error('Error assigning user to department:', error);
+      throw error;
+    }
+  }
+
+  async removeUserFromDepartment(userId: number, departmentId: number): Promise<void> {
+    try {
+      await db
+        .delete(adminUserDepartments)
+        .where(and(
+          eq(adminUserDepartments.userId, userId),
+          eq(adminUserDepartments.departmentId, departmentId)
+        ));
+    } catch (error) {
+      console.error('Error removing user from department:', error);
+      throw error;
+    }
+  }
+
+  async updateUserDepartments(userId: number, departmentIds: number[]): Promise<void> {
+    try {
+      // Remove all existing assignments
+      await db.delete(adminUserDepartments).where(eq(adminUserDepartments.userId, userId));
+      
+      // Add new assignments
+      if (departmentIds.length > 0) {
+        const assignments = departmentIds.map(departmentId => ({ userId, departmentId }));
+        await db.insert(adminUserDepartments).values(assignments);
+      }
+    } catch (error) {
+      console.error('Error updating user departments:', error);
+      throw error;
     }
   }
 }

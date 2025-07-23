@@ -383,6 +383,36 @@ export const leadPurchases = pgTable("lead_purchases", {
   purchasedAt: timestamp("purchased_at").defaultNow(),
 });
 
+// Admin departments table
+export const adminDepartments = pgTable("admin_departments", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Admin users table
+export const adminUsers = pgTable("admin_users", {
+  id: serial("id").primaryKey(),
+  username: varchar("username").unique().notNull(),
+  email: varchar("email").unique().notNull(),
+  password: varchar("password").notNull(),
+  firstName: varchar("first_name").notNull(),
+  lastName: varchar("last_name").notNull(),
+  role: varchar("role").notNull(), // administrator, manager, team_member
+  status: varchar("status").default("active"), // active, inactive
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Admin user departments (many-to-many relationship)
+export const adminUserDepartments = pgTable("admin_user_departments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => adminUsers.id).notNull(),
+  departmentId: integer("department_id").references(() => adminDepartments.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   serviceRequests: many(serviceRequests),
@@ -549,6 +579,20 @@ export const insertProviderPostcodeCoverageSchema = createInsertSchema(providerP
   id: true, 
   createdAt: true 
 });
+export const insertAdminDepartmentSchema = createInsertSchema(adminDepartments).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertAdminUserDepartmentSchema = createInsertSchema(adminUserDepartments).omit({ 
+  id: true, 
+  createdAt: true 
+});
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
@@ -593,6 +637,14 @@ export type InsertLeadPurchase = typeof leadPurchases.$inferInsert;
 
 export type InsertProviderPasswordResetToken = z.infer<typeof insertProviderPasswordResetTokenSchema>;
 export type ProviderPasswordResetToken = typeof providerPasswordResetTokens.$inferSelect;
+
+// Admin system types
+export type AdminDepartment = typeof adminDepartments.$inferSelect;
+export type InsertAdminDepartment = z.infer<typeof insertAdminDepartmentSchema>;
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
+export type AdminUserDepartment = typeof adminUserDepartments.$inferSelect;
+export type InsertAdminUserDepartment = z.infer<typeof insertAdminUserDepartmentSchema>;
 export type InsertProviderActivityLog = z.infer<typeof insertProviderActivityLogSchema>;
 export type ProviderActivityLog = typeof providerActivityLogs.$inferSelect;
 export type InsertLeadNote = z.infer<typeof insertLeadNoteSchema>;

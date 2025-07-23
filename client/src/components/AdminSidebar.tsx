@@ -45,6 +45,18 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
       subItems: [],
     },
     {
+      icon: Users,
+      label: "Admin Users",
+      href: "/admin/admin-users",
+      subItems: [],
+    },
+    {
+      icon: Settings,
+      label: "Departments",
+      href: "/admin/departments",
+      subItems: [],
+    },
+    {
       icon: TrendingUp,
       label: "Leads",
       href: "/admin/leads",

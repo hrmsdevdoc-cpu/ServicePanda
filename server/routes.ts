@@ -2113,6 +2113,237 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin department management endpoints
+  app.get('/api/admin/departments', isAdminAuthenticated, async (req, res) => {
+    try {
+      const departments = await storage.getAllDepartments();
+      res.json(departments);
+    } catch (error) {
+      console.error('Error getting departments:', error);
+      res.status(500).json({ message: 'Failed to get departments' });
+    }
+  });
+
+  app.post('/api/admin/departments', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { name } = req.body;
+      
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ message: 'Department name is required' });
+      }
+
+      const departmentData = {
+        name: name.trim(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const department = await storage.createDepartment(departmentData);
+      res.status(201).json(department);
+    } catch (error) {
+      console.error('Error creating department:', error);
+      res.status(500).json({ message: 'Failed to create department' });
+    }
+  });
+
+  app.put('/api/admin/departments/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name } = req.body;
+
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ message: 'Department name is required' });
+      }
+
+      const updatedDepartment = await storage.updateDepartment(parseInt(id), {
+        name: name.trim(),
+      });
+
+      res.json(updatedDepartment);
+    } catch (error) {
+      console.error('Error updating department:', error);
+      res.status(500).json({ message: 'Failed to update department' });
+    }
+  });
+
+  app.delete('/api/admin/departments/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteDepartment(parseInt(id));
+      
+      if (!success) {
+        return res.status(404).json({ message: 'Department not found' });
+      }
+
+      res.json({ message: 'Department deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting department:', error);
+      res.status(500).json({ message: 'Failed to delete department' });
+    }
+  });
+
+  // Admin user management endpoints  
+  app.get('/api/admin/users', isAdminAuthenticated, async (req, res) => {
+    try {
+      const users = await storage.getAllAdminUsers();
+      
+      // Get departments for each user
+      const usersWithDepartments = await Promise.all(
+        users.map(async (user) => {
+          const departments = await storage.getUserDepartments(user.id);
+          return { ...user, departments };
+        })
+      );
+
+      res.json(usersWithDepartments);
+    } catch (error) {
+      console.error('Error getting admin users:', error);
+      res.status(500).json({ message: 'Failed to get admin users' });
+    }
+  });
+
+  app.get('/api/admin/users/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = await storage.getAdminUser(parseInt(id));
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const departments = await storage.getUserDepartments(user.id);
+      res.json({ ...user, departments });
+    } catch (error) {
+      console.error('Error getting admin user:', error);
+      res.status(500).json({ message: 'Failed to get admin user' });
+    }
+  });
+
+  app.post('/api/admin/users', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { username, firstName, lastName, email, role, departmentIds = [] } = req.body;
+      
+      // Validate required fields
+      if (!username || !firstName || !lastName || !email || !role) {
+        return res.status(400).json({ 
+          message: 'Username, first name, last name, email, and role are required' 
+        });
+      }
+
+      // Validate role
+      const validRoles = ['Administrator', 'Manager', 'Team Member'];
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ 
+          message: 'Role must be Administrator, Manager, or Team Member' 
+        });
+      }
+
+      // Check if username already exists
+      const existingUser = await storage.getAdminUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: 'Username already exists' });
+      }
+
+      const userData = {
+        username: username.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        role,
+        status: 'active',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const user = await storage.createAdminUser(userData);
+
+      // Assign to departments if provided
+      if (departmentIds.length > 0) {
+        await storage.updateUserDepartments(user.id, departmentIds);
+      }
+
+      // Get user with departments for response
+      const departments = await storage.getUserDepartments(user.id);
+      res.status(201).json({ ...user, departments });
+    } catch (error) {
+      console.error('Error creating admin user:', error);
+      res.status(500).json({ message: 'Failed to create admin user' });
+    }
+  });
+
+  app.put('/api/admin/users/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { username, firstName, lastName, email, role, status, departmentIds = [] } = req.body;
+
+      // Validate required fields
+      if (!username || !firstName || !lastName || !email || !role || !status) {
+        return res.status(400).json({ 
+          message: 'Username, first name, last name, email, role, and status are required' 
+        });
+      }
+
+      // Validate role
+      const validRoles = ['Administrator', 'Manager', 'Team Member'];
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ 
+          message: 'Role must be Administrator, Manager, or Team Member' 
+        });
+      }
+
+      // Validate status
+      const validStatuses = ['active', 'inactive'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ 
+          message: 'Status must be active or inactive' 
+        });
+      }
+
+      // Check if username already exists (excluding current user)
+      const existingUser = await storage.getAdminUserByUsername(username);
+      if (existingUser && existingUser.id !== parseInt(id)) {
+        return res.status(400).json({ message: 'Username already exists' });
+      }
+
+      const updates = {
+        username: username.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        role,
+        status,
+      };
+
+      const updatedUser = await storage.updateAdminUser(parseInt(id), updates);
+
+      // Update department assignments
+      await storage.updateUserDepartments(parseInt(id), departmentIds);
+
+      // Get user with departments for response
+      const departments = await storage.getUserDepartments(parseInt(id));
+      res.json({ ...updatedUser, departments });
+    } catch (error) {
+      console.error('Error updating admin user:', error);
+      res.status(500).json({ message: 'Failed to update admin user' });
+    }
+  });
+
+  app.delete('/api/admin/users/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteAdminUser(parseInt(id));
+      
+      if (!success) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting admin user:', error);
+      res.status(500).json({ message: 'Failed to delete admin user' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
