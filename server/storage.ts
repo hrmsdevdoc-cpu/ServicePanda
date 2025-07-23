@@ -306,40 +306,50 @@ export class DatabaseStorage implements IStorage {
 
   async getLeadsWithMetrics(): Promise<Array<ServiceRequest & { leadOffers?: any[], offerMetrics?: any }>> {
     try {
-      // Get all service requests with customer details and category info
+      // Get all service requests first
       const requestsData = await db
-        .select({
-          id: serviceRequests.id,
-          customerId: serviceRequests.customerId,
-          categoryId: serviceRequests.categoryId,
-          description: serviceRequests.description,
-          postcode: serviceRequests.postcode,
-          suburb: serviceRequests.suburb,
-          propertyType: serviceRequests.propertyType,
-          urgency: serviceRequests.urgency,
-          budget: serviceRequests.budget,
-          preferredDate: serviceRequests.preferredDate,
-          bookingType: serviceRequests.bookingType,
-          scheduledDate: serviceRequests.scheduledDate,
-          status: serviceRequests.status,
-          createdAt: serviceRequests.createdAt,
-          updatedAt: serviceRequests.updatedAt,
-          // Customer info
-          customerFirstName: users.firstName,
-          customerLastName: users.lastName,
-          customerEmail: users.email,
-          customerPhoneNumber: users.phoneNumber,
-          // Category info
-          categoryName: serviceCategories.name,
-        })
+        .select()
         .from(serviceRequests)
-        .leftJoin(users, eq(serviceRequests.customerId, users.id))
-        .leftJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
         .orderBy(desc(serviceRequests.createdAt));
+
+      // Get customer and category details separately to avoid join issues
+      const requestsWithDetails = await Promise.all(
+        requestsData.map(async (request) => {
+          // Get customer details
+          const customer = await db
+            .select({
+              firstName: users.firstName,
+              lastName: users.lastName,
+              email: users.email,
+              phoneNumber: users.phoneNumber,
+            })
+            .from(users)
+            .where(eq(users.id, request.customerId))
+            .limit(1);
+
+          // Get category details
+          const category = await db
+            .select({
+              name: serviceCategories.name,
+            })
+            .from(serviceCategories)
+            .where(eq(serviceCategories.id, request.categoryId))
+            .limit(1);
+
+          return {
+            ...request,
+            customerFirstName: customer[0]?.firstName || '',
+            customerLastName: customer[0]?.lastName || '',
+            customerEmail: customer[0]?.email || '',
+            customerPhoneNumber: customer[0]?.phoneNumber || '',
+            categoryName: category[0]?.name || '',
+          };
+        })
+      );
 
       // Get lead offers for each service request with offer metrics
       const requestsWithOffers = await Promise.all(
-        requestsData.map(async (request: any) => {
+        requestsWithDetails.map(async (request: any) => {
           // Get all lead offers for this request
           const offers = await db
             .select({
@@ -385,9 +395,9 @@ export class DatabaseStorage implements IStorage {
           return {
             ...request,
             customerName: `${request.customerFirstName || ''} ${request.customerLastName || ''}`.trim(),
-            customerPhone: request.customerPhoneNumber,
+            customerPhone: request.customerPhoneNumber || '',
             // Add computed location and state from postcode/suburb
-            location: `${request.suburb}, ${request.postcode}`,
+            location: `${request.suburb || ''}, ${request.postcode || ''}`,
             state: 'NSW', // Default state for now
             leadOffers: formattedOffers,
             offerMetrics,
