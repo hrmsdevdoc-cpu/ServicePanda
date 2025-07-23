@@ -80,6 +80,15 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Admin Lead Popup Auto-Refresh System Implementation Completed (January 23, 2025)
+- **Real-time Popup Updates**: Fixed admin lead popup refresh issue where new offers from dynamic matching system weren't visible without page refresh
+- **30-Second Auto-Refresh**: Implemented automatic refresh every 30 seconds when admin lead offer details popup is open
+- **Manual Refresh Button**: Added instant refresh button with loading states for immediate updates
+- **Optimized Data Fetching**: Removed duplicate query from AdminLeads component - popup now handles its own data fetching with React Query
+- **Real-time Timestamp Display**: Added "Last updated" timestamp showing when data was last refreshed
+- **Enhanced User Experience**: Admin can now see newly added offers from dynamic matching system in real-time without manual page refresh
+- **Production Ready**: Complete auto-refresh system operational with proper loading states and error handling
+
 ### Distance-Based Provider Matching System Implementation Completed (January 23, 2025)
 - **Geographic Coordinate System**: Successfully implemented latitude/longitude coordinates for Australian suburbs table with real geographic data
 - **Haversine Distance Formula**: Added accurate spherical distance calculations for provider-to-customer matching using Earth's curvature
