@@ -38,11 +38,15 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
     freeAccepted: sharedOffers.filter((offer: any) => offer.status === 'purchased' && offer.isFreeLeadUsed).length
   };
 
-  const getStatusBadge = (status: string, isCurrentOffer: boolean) => {
+  const getStatusBadge = (status: string, isCurrentOffer: boolean, isFreeLeadUsed?: boolean) => {
     // Always prioritize actual status over isCurrentOffer flag
     switch (status) {
       case 'purchased':
-        return <Badge className="bg-blue-500 text-white">Purchased</Badge>;
+        // Show "Free" if free lead was used, otherwise "Purchased"
+        if (isFreeLeadUsed) {
+          return <Badge className="bg-blue-500 text-white">Free</Badge>;
+        }
+        return <Badge className="bg-green-500 text-white">Purchased</Badge>;
       case 'expired':
         return <Badge className="bg-gray-500 text-white">Expired</Badge>;
       case 'declined':
@@ -201,7 +205,7 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
                     </div>
                   </div>
                   <div className="flex flex-col items-end space-y-1">
-                    {getStatusBadge(offer.status, offer.isCurrentOffer)}
+                    {getStatusBadge(offer.status, offer.isCurrentOffer, offer.isFreeLeadUsed)}
                     <div className="text-xs text-gray-500">
                       Started: {formatTime(offer.offerStartTime)}
                     </div>
@@ -251,7 +255,7 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
                       </div>
                     </div>
                     <div className="flex flex-col items-end space-y-1">
-                      {getStatusBadge(offer.status, offer.isCurrentOffer)}
+                      {getStatusBadge(offer.status, offer.isCurrentOffer, offer.isFreeLeadUsed)}
                       <div className="text-xs text-gray-500">
                         Started: {formatTime(offer.offerStartTime)}
                       </div>
