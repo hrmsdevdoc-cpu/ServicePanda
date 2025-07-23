@@ -882,7 +882,8 @@ export default function ProviderDashboard() {
                                   onClick={() => purchaseLeadMutation.mutate(lead.requestId)}
                                   disabled={purchaseLeadMutation.isPending}
                                 >
-                                  {purchaseLeadMutation.isPending ? "Purchasing..." : `Purchase $${lead.leadCost}`}
+                                  {purchaseLeadMutation.isPending ? "Purchasing..." : 
+                                    (provider?.firstLeadsFreeUsed || 0) < 3 ? "Free Lead" : `Purchase $${lead.leadCost}`}
                                 </Button>
                               </div>
                             </div>

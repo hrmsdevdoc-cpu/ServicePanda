@@ -138,7 +138,7 @@ export default function ProviderCreditSystem() {
             </div>
           )}
           <p className="text-sm text-muted-foreground mt-2">
-            Use credits to purchase leads at discounted rates
+            Use Credit
           </p>
         </CardContent>
       </Card>
