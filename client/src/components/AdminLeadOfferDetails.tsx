@@ -279,24 +279,30 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
           {/* Summary Statistics */}
           <div className="border rounded-lg p-4 bg-gray-50">
             <h3 className="font-semibold text-gray-800 mb-3">Distribution Summary</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-5 gap-4 text-sm">
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{completedUniqueOffers.length}</div>
-                <div className="text-gray-600">Unique Purchased</div>
+                <div className="text-2xl font-bold text-green-600">{uniqueStats.purchased}</div>
+                <div className="text-gray-600">Unique Purchase</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">{purchasedSharedOffers.length}</div>
-                <div className="text-gray-600">Shared Purchased</div>
+                <div className="text-2xl font-bold text-green-600">{sharedStats.purchased}</div>
+                <div className="text-gray-600">Share Purchase</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  ${(completedUniqueOffers.reduce((sum: number, offer: any) => sum + offer.leadCost, 0) + 
-                     purchasedSharedOffers.reduce((sum: number, offer: any) => sum + offer.leadCost, 0)).toFixed(2)}
-                </div>
-                <div className="text-gray-600">Total Revenue</div>
+                <div className="text-2xl font-bold text-blue-600">{uniqueStats.freeAccepted + sharedStats.freeAccepted}</div>
+                <div className="text-gray-600">Free Accepted</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">
+                  ${(uniqueOffers.filter((offer: any) => offer.status === 'purchased' && !offer.isFreeLeadUsed)
+                      .reduce((sum: number, offer: any) => sum + offer.leadCost, 0) + 
+                     sharedOffers.filter((offer: any) => offer.status === 'purchased' && !offer.isFreeLeadUsed)
+                      .reduce((sum: number, offer: any) => sum + offer.leadCost, 0)).toFixed(2)}
+                </div>
+                <div className="text-gray-600">Revenue</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">
                   {distributionLog?.isActive ? 'Active' : 'Completed'}
                 </div>
                 <div className="text-gray-600">Status</div>
