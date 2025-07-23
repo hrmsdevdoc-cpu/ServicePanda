@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
 import { setupProviderAuth, isProviderAuthenticated } from "./providerAuth";
-import { setupAdminAuth, isAdminAuthenticated } from "./adminAuth";
+import { setupAdminAuth, isAdminAuthenticated, hashPassword } from "./adminAuth";
 import { z } from "zod";
 import { insertServiceProviderSchema, insertServiceRequestSchema, leadOffers } from "@shared/schema";
 import { db } from "./db";
@@ -1030,8 +1030,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all users for admin management
-  app.get('/api/admin/users', isAdminAuthenticated, async (req, res) => {
+  // Get all customer users for admin management (renamed to avoid conflict)
+  app.get('/api/admin/customer-users', isAdminAuthenticated, async (req, res) => {
     try {
       const users = await storage.getUsersWithStats();
       res.json(users);
@@ -2221,12 +2221,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/users', isAdminAuthenticated, async (req, res) => {
     try {
-      const { username, firstName, lastName, email, role, departmentIds = [] } = req.body;
+      const { username, firstName, lastName, email, password, role, departmentIds = [] } = req.body;
       
       // Validate required fields
-      if (!username || !firstName || !lastName || !email || !role) {
+      if (!username || !firstName || !lastName || !email || !password || !role) {
         return res.status(400).json({ 
-          message: 'Username, first name, last name, email, and role are required' 
+          message: 'Username, first name, last name, email, password, and role are required' 
         });
       }
 
@@ -2244,11 +2244,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Username already exists' });
       }
 
+      // Hash the password
+      const hashedPassword = await hashPassword(password);
+
       const userData = {
         username: username.trim(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim(),
+        password: hashedPassword,
         role,
         status: 'active',
         createdAt: new Date(),

@@ -14,7 +14,7 @@ const ADMIN_CREDENTIALS = {
 // JWT secret for admin tokens
 const JWT_SECRET = process.env.JWT_SECRET || "admin-jwt-secret-key";
 
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
