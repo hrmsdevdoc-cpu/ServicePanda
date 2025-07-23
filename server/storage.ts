@@ -2924,13 +2924,24 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getProviderLeadInteractions(leadId: number): Promise<ProviderLeadInteraction[]> {
+  async getProviderLeadInteractions(leadId: number): Promise<Array<ProviderLeadInteraction & { providerName: string; providerEmail: string }>> {
     try {
-      return await db
-        .select()
+      const results = await db
+        .select({
+          id: providerLeadInteractions.id,
+          providerId: providerLeadInteractions.providerId,
+          leadId: providerLeadInteractions.leadId,
+          interactionType: providerLeadInteractions.interactionType,
+          createdAt: providerLeadInteractions.createdAt,
+          providerName: sql<string>`CONCAT(${serviceProviders.firstName}, ' ', ${serviceProviders.lastName})`,
+          providerEmail: serviceProviders.email,
+        })
         .from(providerLeadInteractions)
+        .innerJoin(serviceProviders, eq(providerLeadInteractions.providerId, serviceProviders.id))
         .where(eq(providerLeadInteractions.leadId, leadId))
         .orderBy(desc(providerLeadInteractions.createdAt));
+      
+      return results;
     } catch (error) {
       console.error('Error getting provider lead interactions:', error);
       return [];

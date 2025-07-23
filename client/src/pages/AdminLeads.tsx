@@ -686,7 +686,7 @@ export default function AdminLeads() {
                   Showing {interactions.length} provider interaction{interactions.length !== 1 ? 's' : ''}
                 </div>
                 
-                {interactions.map((interaction: ProviderInteraction) => (
+                {interactions.map((interaction: ProviderInteraction & { providerName: string; providerEmail: string }) => (
                   <div key={interaction.id} className="border rounded-lg p-4 hover:bg-gray-50">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
@@ -698,7 +698,7 @@ export default function AdminLeads() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-gray-900">
-                              Provider #{interaction.providerId}
+                              {interaction.providerName}
                             </span>
                             <Badge variant="outline" className={
                               interaction.interactionType === 'call' ? 'text-blue-600 border-blue-300' :
@@ -709,6 +709,9 @@ export default function AdminLeads() {
                             </Badge>
                           </div>
                           <p className="text-sm text-gray-600 mt-1">
+                            {interaction.providerEmail}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
                             {interaction.interactionType === 'call' && 'Made a phone call to customer'}
                             {interaction.interactionType === 'sms' && 'Sent SMS to customer'}
                             {interaction.interactionType === 'email' && 'Sent email to customer'}
