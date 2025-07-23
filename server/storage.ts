@@ -131,6 +131,8 @@ export interface IStorage {
   createServiceRequest(request: InsertServiceRequest): Promise<ServiceRequest>;
   getServiceRequests(customerId?: string): Promise<ServiceRequest[]>;
   getServiceRequestsByArea(postcode: string, categoryId: number): Promise<ServiceRequest[]>;
+  getServiceRequest(id: number): Promise<ServiceRequest | undefined>;
+  updateServiceRequestStatus(id: number, status: string): Promise<void>;
   
   // Lead assignment operations
   createLeadAssignment(assignment: InsertLeadAssignment): Promise<LeadAssignment>;
@@ -693,6 +695,21 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(serviceRequests.createdAt));
+  }
+
+  async getServiceRequest(id: number): Promise<ServiceRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(serviceRequests)
+      .where(eq(serviceRequests.id, id));
+    return request;
+  }
+
+  async updateServiceRequestStatus(id: number, status: string): Promise<void> {
+    await db
+      .update(serviceRequests)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(serviceRequests.id, id));
   }
 
   // Lead assignment operations
@@ -1715,6 +1732,9 @@ export class DatabaseStorage implements IStorage {
           isCurrentOffer: false,
         })
         .where(eq(leadOffers.id, offer.id));
+
+      // Update service request status to "assigned" when first lead is purchased
+      await this.updateServiceRequestStatus(requestId, 'assigned');
 
       if (offer.offerType === 'unique') {
         // For unique offers, move to next provider or shared phase
