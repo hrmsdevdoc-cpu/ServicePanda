@@ -5,7 +5,9 @@ import { setupAuth, isAuthenticated } from "./auth";
 import { setupProviderAuth, isProviderAuthenticated } from "./providerAuth";
 import { setupAdminAuth, isAdminAuthenticated } from "./adminAuth";
 import { z } from "zod";
-import { insertServiceProviderSchema, insertServiceRequestSchema } from "@shared/schema";
+import { insertServiceProviderSchema, insertServiceRequestSchema, leadOffers } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
 
@@ -1710,11 +1712,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: 'Provider authentication required' });
       }
       
-      // Find the active offer for this request and provider
-      const leadDetails = await storage.getLeadOfferDetails(requestId);
-      const activeOffer = leadDetails?.offers?.find((offer: any) => 
-        offer.providerId === providerId && offer.status === 'pending' && offer.isCurrentOffer
-      );
+      // Find the active offer for this request and provider directly from database
+      const [activeOffer] = await db
+        .select()
+        .from(leadOffers)
+        .where(
+          and(
+            eq(leadOffers.requestId, requestId),
+            eq(leadOffers.providerId, providerId),
+            eq(leadOffers.status, 'pending'),
+            eq(leadOffers.isCurrentOffer, true)
+          )
+        )
+        .limit(1);
       
       if (!activeOffer) {
         return res.status(400).json({ success: false, message: 'No active offer found for this provider' });
