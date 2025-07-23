@@ -848,7 +848,6 @@ export default function ProviderDashboard() {
                                 <div className="flex items-center gap-2 mb-2">
                                   <h3 className="font-medium">{lead.categoryName}</h3>
                                   <Badge className="bg-blue-100 text-blue-800">Available</Badge>
-                                  <Badge className="bg-orange-100 text-orange-800">${lead.leadCost}</Badge>
                                 </div>
                                 <div className="space-y-1 text-sm text-gray-600">
                                   <div className="flex items-center gap-1">
