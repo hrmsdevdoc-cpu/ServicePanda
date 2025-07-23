@@ -21,12 +21,16 @@ Verify that the new distance-based provider matching system works correctly for 
 - Lead 17 successfully activated and distributed
 
 ### Test Case 2: Brisbane City (4000)
-**Status:** ✅ PASS
+**Status:** ✅ PASS - AUTOMATIC PROCESSING CONFIRMED
 **Results:** Successfully matched 1 provider with Brisbane service area
+- ✅ **Automatic Lead Processing:** Lead 19 processed immediately when created
+- ✅ **1-Minute Cron Processing:** Expired offers handled correctly
+- ✅ **Geographic Accuracy:** Only 1 provider within service range (correct behavior)
 - Provider Paul edited O'brien: 0.00km distance (perfect match!)
 - Service area: "123 George St, Brisbane City QLD, Australia" 
 - Coverage radius: 25km
 - Lead 19 successfully activated with unique offer
+- Other providers correctly excluded (68-70km away, outside their service radius)
 
 ### Test Case 3: Sydney City (2000)
 **Status:** 🧪 PENDING TEST
