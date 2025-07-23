@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { adminApiRequest, queryClient } from "@/lib/queryClient";
 import { Gift, Plus, Users, DollarSign, Trash2, RotateCcw } from "lucide-react";
+import { AdminSidebar } from "@/components/AdminSidebar";
+import { useLocation } from "wouter";
 
 interface Voucher {
   id: number;
@@ -25,6 +27,12 @@ export default function AdminVoucherManagement() {
   const [bulkCount, setBulkCount] = useState("50");
   const [bulkValue, setBulkValue] = useState("50");
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    setLocation('/admin-login');
+  };
 
   // Fetch vouchers
   const { data: vouchers = [], isLoading } = useQuery({
@@ -150,12 +158,15 @@ export default function AdminVoucherManagement() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="space-y-4">
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
+      <div className="flex h-screen bg-gray-50">
+        <AdminSidebar onLogout={handleLogout} />
+        <div className="flex-1 p-6 space-y-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="space-y-4">
+              <div className="h-32 bg-gray-200 rounded"></div>
+              <div className="h-32 bg-gray-200 rounded"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -163,7 +174,9 @@ export default function AdminVoucherManagement() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="flex h-screen bg-gray-50">
+      <AdminSidebar onLogout={handleLogout} />
+      <div className="flex-1 p-6 space-y-6 overflow-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Voucher Management</h1>
@@ -350,6 +363,7 @@ export default function AdminVoucherManagement() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
