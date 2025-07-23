@@ -1022,13 +1022,10 @@ export default function ProviderDashboard() {
                       <div className="space-y-2">
                         {leads.filter((l: any) => l.status === 'purchased' && getLeadStatus(l.requestId) !== 'closed').map((lead: any) => (
                           <div key={lead.requestId} className="border rounded-lg p-3 bg-green-50 border-green-200">
-                            {/* Compact Header */}
+                            {/* Header with Status Dropdown */}
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <h3 className="font-medium text-sm truncate">{lead.categoryName}</h3>
-                                <Badge className="bg-green-100 text-green-800 text-xs">
-                                  {lead.paymentMethod === 'free_lead' ? 'Free' : `$${lead.leadCost}`}
-                                </Badge>
+                                <h3 className="font-medium text-sm truncate">{lead.categoryName} - {lead.suburb}</h3>
                                 <select
                                   value={getLeadStatus(lead.requestId)}
                                   onChange={(e) => handleStatusChange(lead.requestId, e.target.value)}
@@ -1042,83 +1039,76 @@ export default function ProviderDashboard() {
                               </div>
                             </div>
 
-                            {/* Compact Info Row */}
-                            <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3 flex-shrink-0" />
-                                  <span className="truncate">{lead.suburb}</span>
+                            {/* Customer Info and Actions Row */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {lead.customerName || 'Customer'} - {lead.customerPhone}
                                 </div>
-                                {lead.customerPhone && (
-                                  <div className="flex items-center gap-1">
-                                    <Phone className="h-3 w-3 flex-shrink-0" />
-                                    <span className="truncate">{lead.customerPhone}</span>
-                                  </div>
-                                )}
                               </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 px-2 text-xs"
-                                onClick={() => setSelectedLeadDetails(lead)}
-                              >
-                                Details
-                              </Button>
-                            </div>
-
-                            {/* Action Buttons Row */}
-                            <div className="flex gap-1">
-                              <Button 
-                                size="sm" 
-                                className="bg-blue-600 hover:bg-blue-700 h-7 px-2 text-xs flex-1"
-                                onClick={async () => {
-                                  if (lead.customerPhone) {
-                                    trackInteractionMutation.mutate({
-                                      leadId: lead.requestId,
-                                      interactionType: 'call'
-                                    });
-                                    window.location.href = `tel:${lead.customerPhone}`;
-                                  }
-                                }}
-                                disabled={!lead.customerPhone}
-                              >
-                                <Phone className="h-3 w-3 mr-1" />
-                                Call
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                className="bg-green-600 hover:bg-green-700 h-7 px-2 text-xs flex-1"
-                                onClick={async () => {
-                                  if (lead.customerPhone) {
-                                    trackInteractionMutation.mutate({
-                                      leadId: lead.requestId,
-                                      interactionType: 'sms'
-                                    });
-                                    window.location.href = `sms:${lead.customerPhone}`;
-                                  }
-                                }}
-                                disabled={!lead.customerPhone}
-                              >
-                                <MessageSquare className="h-3 w-3 mr-1" />
-                                SMS
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                className="bg-purple-600 hover:bg-purple-700 h-7 px-2 text-xs flex-1"
-                                onClick={async () => {
-                                  if (lead.customerEmail) {
-                                    trackInteractionMutation.mutate({
-                                      leadId: lead.requestId,
-                                      interactionType: 'email'
-                                    });
-                                    window.location.href = `mailto:${lead.customerEmail}`;
-                                  }
-                                }}
-                                disabled={!lead.customerEmail}
-                              >
-                                <Mail className="h-3 w-3 mr-1" />
-                                Email
-                              </Button>
+                              <div className="flex items-center gap-2 ml-4">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-3 text-xs border-blue-200 text-blue-700"
+                                  onClick={() => setSelectedLeadDetails(lead)}
+                                >
+                                  Details
+                                </Button>
+                                <div className="flex gap-1">
+                                  <Button 
+                                    size="sm" 
+                                    className="bg-blue-600 hover:bg-blue-700 h-7 w-7 p-0"
+                                    onClick={async () => {
+                                      if (lead.customerPhone) {
+                                        trackInteractionMutation.mutate({
+                                          leadId: lead.requestId,
+                                          interactionType: 'call'
+                                        });
+                                        window.location.href = `tel:${lead.customerPhone}`;
+                                      }
+                                    }}
+                                    disabled={!lead.customerPhone}
+                                    title="Call Customer"
+                                  >
+                                    <Phone className="h-3 w-3" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    className="bg-green-600 hover:bg-green-700 h-7 w-7 p-0"
+                                    onClick={async () => {
+                                      if (lead.customerPhone) {
+                                        trackInteractionMutation.mutate({
+                                          leadId: lead.requestId,
+                                          interactionType: 'sms'
+                                        });
+                                        window.location.href = `sms:${lead.customerPhone}`;
+                                      }
+                                    }}
+                                    disabled={!lead.customerPhone}
+                                    title="Send SMS"
+                                  >
+                                    <MessageSquare className="h-3 w-3" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    className="bg-purple-600 hover:bg-purple-700 h-7 w-7 p-0"
+                                    onClick={async () => {
+                                      if (lead.customerEmail) {
+                                        trackInteractionMutation.mutate({
+                                          leadId: lead.requestId,
+                                          interactionType: 'email'
+                                        });
+                                        window.location.href = `mailto:${lead.customerEmail}`;
+                                      }
+                                    }}
+                                    disabled={!lead.customerEmail}
+                                    title="Send Email"
+                                  >
+                                    <Mail className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ))}
