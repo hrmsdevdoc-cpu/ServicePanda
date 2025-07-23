@@ -22,7 +22,7 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
   try {
-    // If stored password doesn't contain a dot, treat it as plaintext (legacy)
+    // If stored password doesn't contain a dot, treat it as plaintext (legacy)  
     if (!stored.includes('.')) {
       return supplied === stored;
     }
@@ -31,6 +31,7 @@ export async function comparePasswords(supplied: string, stored: string): Promis
     const [hashed, salt] = stored.split(".");
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
     console.error('Error comparing passwords:', error);
@@ -64,12 +65,17 @@ export function setupAdminAuth(app: Express) {
         return res.status(400).json({ message: "Username and password are required" });
       }
 
-      // Check credentials
-      if (username !== ADMIN_CREDENTIALS.username) {
+      // Import storage here to avoid circular dependency
+      const { storage } = await import("./storage");
+      
+      // Get admin user from database
+      const adminUser = await storage.getAdminUserByUsername(username);
+      if (!adminUser) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const isPasswordValid = await comparePasswords(password, ADMIN_CREDENTIALS.passwordHash);
+      // Check password against database hash
+      const isPasswordValid = await comparePasswords(password, adminUser.password);
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
