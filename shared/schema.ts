@@ -649,6 +649,24 @@ export const providerLeadInteractions = pgTable("provider_lead_interactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Provider lead status tracking - tracks status of leads for each provider
+export const providerLeadStatus = pgTable("provider_lead_status", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  leadId: integer("lead_id").references(() => serviceRequests.id).notNull(),
+  status: varchar("status").default("new").notNull(), // 'new', 'open', 'closed'
+  wasJobBooked: boolean("was_job_booked"), // null until lead is closed, then true/false
+  statusUpdatedAt: timestamp("status_updated_at").defaultNow(),
+  closedAt: timestamp("closed_at"), // when lead was marked as closed
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Ensure unique combination of provider and lead
+  uniqueProviderLead: uniqueIndex("provider_lead_status_unique").on(
+    table.providerId,
+    table.leadId
+  ),
+}));
+
 // Insert schemas for lead notes and interactions
 export const insertLeadNoteSchema = createInsertSchema(leadNotes).omit({ 
   id: true, 
@@ -658,6 +676,11 @@ export const insertProviderLeadInteractionSchema = createInsertSchema(providerLe
   id: true, 
   createdAt: true 
 });
+export const insertProviderLeadStatusSchema = createInsertSchema(providerLeadStatus).omit({ 
+  id: true, 
+  createdAt: true,
+  statusUpdatedAt: true
+});
 
 export type LeadSettings = typeof leadSettings.$inferSelect;
 export type InsertLeadSettings = typeof leadSettings.$inferInsert;
@@ -665,3 +688,5 @@ export type CategoryLeadPricing = typeof categoryLeadPricing.$inferSelect;
 export type InsertCategoryLeadPricing = typeof categoryLeadPricing.$inferInsert;
 export type ProviderLeadInteraction = typeof providerLeadInteractions.$inferSelect;
 export type InsertProviderLeadInteraction = z.infer<typeof insertProviderLeadInteractionSchema>;
+export type ProviderLeadStatus = typeof providerLeadStatus.$inferSelect;
+export type InsertProviderLeadStatus = z.infer<typeof insertProviderLeadStatusSchema>;

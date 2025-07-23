@@ -183,6 +183,66 @@ export default function ProviderDashboard() {
     },
   });
 
+  // Lead status management mutations
+  const [leadStatuses, setLeadStatuses] = useState<{[leadId: number]: string}>({});
+  const [showJobBookedDialog, setShowJobBookedDialog] = useState<{leadId: number, visible: boolean}>({leadId: 0, visible: false});
+
+  const updateLeadStatusMutation = useMutation({
+    mutationFn: async ({ leadId, status, wasJobBooked }: { leadId: number; status: string; wasJobBooked?: boolean }) => {
+      const response = await apiRequest("PUT", `/api/provider/leads/${leadId}/status`, {
+        status,
+        wasJobBooked,
+      });
+      return await response.json();
+    },
+    onSuccess: (data, variables) => {
+      if (variables.status === 'closed') {
+        toast({
+          title: "Lead Closed",
+          description: variables.wasJobBooked ? "Great! Lead marked as booked job." : "Lead marked as closed.",
+        });
+        // Refresh leads to move closed leads away from active screen
+        queryClient.invalidateQueries({ queryKey: ["/api/provider/leads"] });
+      } else {
+        toast({
+          title: "Status Updated",
+          description: `Lead status updated to ${variables.status}.`,
+        });
+      }
+      setLeadStatuses(prev => ({ ...prev, [variables.leadId]: variables.status }));
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update lead status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Get lead status for a specific lead
+  const getLeadStatus = (leadId: number) => {
+    return leadStatuses[leadId] || 'new';
+  };
+
+  // Handle status change
+  const handleStatusChange = (leadId: number, newStatus: string) => {
+    if (newStatus === 'closed') {
+      // Show dialog to ask if job was booked
+      setShowJobBookedDialog({ leadId, visible: true });
+    } else {
+      // Update status directly for new/open
+      updateLeadStatusMutation.mutate({ leadId, status: newStatus });
+    }
+  };
+
+  // Handle job booked confirmation
+  const handleJobBookedResponse = (wasJobBooked: boolean) => {
+    const leadId = showJobBookedDialog.leadId;
+    updateLeadStatusMutation.mutate({ leadId, status: 'closed', wasJobBooked });
+    setShowJobBookedDialog({ leadId: 0, visible: false });
+  };
+
   // Set initial selected services when data loads
   useEffect(() => {
     if (services && services.length > 0) {
@@ -193,6 +253,35 @@ export default function ProviderDashboard() {
       }));
     }
   }, [services]);
+
+  // Load lead statuses for purchased leads
+  useEffect(() => {
+    const loadLeadStatuses = async () => {
+      if (leads && leads.length > 0) {
+        const purchasedLeads = leads.filter((l: any) => l.status === 'purchased');
+        const statusPromises = purchasedLeads.map(async (lead: any) => {
+          try {
+            const response = await apiRequest("GET", `/api/provider/leads/${lead.requestId}/status`);
+            const statusData = await response.json();
+            return { leadId: lead.requestId, status: statusData.status || 'new' };
+          } catch (error) {
+            console.error(`Failed to load status for lead ${lead.requestId}:`, error);
+            return { leadId: lead.requestId, status: 'new' };
+          }
+        });
+        
+        const statuses = await Promise.all(statusPromises);
+        const statusMap = statuses.reduce((acc, { leadId, status }) => ({
+          ...acc,
+          [leadId]: status
+        }), {});
+        
+        setLeadStatuses(statusMap);
+      }
+    };
+
+    loadLeadStatuses();
+  }, [leads]);
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -930,7 +1019,7 @@ export default function ProviderDashboard() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {leads.filter((l: any) => l.status === 'purchased').map((lead: any) => (
+                        {leads.filter((l: any) => l.status === 'purchased' && getLeadStatus(l.requestId) !== 'closed').map((lead: any) => (
                           <div key={lead.requestId} className="border rounded-lg p-4 bg-green-50 border-green-200">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
@@ -940,6 +1029,18 @@ export default function ProviderDashboard() {
                                   <Badge className="bg-orange-100 text-orange-800">
                                     {lead.paymentMethod === 'free_lead' ? 'Free' : `$${lead.leadCost}`}
                                   </Badge>
+                                  <div className="ml-2">
+                                    <select
+                                      value={getLeadStatus(lead.requestId)}
+                                      onChange={(e) => handleStatusChange(lead.requestId, e.target.value)}
+                                      className="text-xs border rounded px-2 py-1 bg-white"
+                                      disabled={updateLeadStatusMutation.isPending}
+                                    >
+                                      <option value="new">New</option>
+                                      <option value="open">Open</option>
+                                      <option value="closed">Close Lead</option>
+                                    </select>
+                                  </div>
                                 </div>
                                 <div className="space-y-1 text-sm text-gray-600">
                                   <div className="flex items-center gap-1">
@@ -1039,6 +1140,32 @@ export default function ProviderDashboard() {
                     )}
                   </CardContent>
                 </Card>
+              </div>
+            )}
+
+            {/* Job Booked Confirmation Dialog */}
+            {showJobBookedDialog.visible && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+                  <h3 className="text-lg font-semibold mb-4">Lead Closed</h3>
+                  <p className="text-gray-600 mb-6">Was this lead converted into a booked job?</p>
+                  <div className="flex gap-3 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => handleJobBookedResponse(false)}
+                      disabled={updateLeadStatusMutation.isPending}
+                    >
+                      No, Not Booked
+                    </Button>
+                    <Button
+                      onClick={() => handleJobBookedResponse(true)}
+                      disabled={updateLeadStatusMutation.isPending}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      Yes, Job Booked!
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
 

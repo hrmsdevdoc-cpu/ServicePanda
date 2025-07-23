@@ -1814,6 +1814,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Provider lead status management endpoints
+  app.get('/api/provider/leads/:leadId/status', isProviderAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      const providerId = (req as any).provider?.id;
+
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      const status = await storage.getProviderLeadStatus(providerId, leadId);
+      res.json(status || { status: 'new', wasJobBooked: null });
+    } catch (error) {
+      console.error('Error getting provider lead status:', error);
+      res.status(500).json({ message: 'Failed to get lead status' });
+    }
+  });
+
+  app.put('/api/provider/leads/:leadId/status', isProviderAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      const providerId = (req as any).provider?.id;
+      const { status, wasJobBooked } = req.body;
+
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      if (!['new', 'open', 'closed'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be new, open, or closed' });
+      }
+
+      // If closing a lead, wasJobBooked must be provided
+      if (status === 'closed' && typeof wasJobBooked !== 'boolean') {
+        return res.status(400).json({ message: 'wasJobBooked must be true or false when closing a lead' });
+      }
+
+      const updatedStatus = await storage.upsertProviderLeadStatus({
+        providerId,
+        leadId,
+        status,
+        wasJobBooked: status === 'closed' ? wasJobBooked : undefined,
+      });
+
+      res.json(updatedStatus);
+    } catch (error) {
+      console.error('Error updating provider lead status:', error);
+      res.status(500).json({ message: 'Failed to update lead status' });
+    }
+  });
+
+  app.get('/api/provider/lead-statuses', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = (req as any).provider?.id;
+
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      const statuses = await storage.getProviderLeadStatuses(providerId);
+      res.json(statuses);
+    } catch (error) {
+      console.error('Error getting provider lead statuses:', error);
+      res.status(500).json({ message: 'Failed to get lead statuses' });
+    }
+  });
+
   app.post('/api/provider/credit/redeem-voucher', isProviderAuthenticated, async (req, res) => {
     try {
       const providerId = (req as any).provider?.id;

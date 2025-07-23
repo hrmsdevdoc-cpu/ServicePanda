@@ -83,6 +83,9 @@ import {
   providerLeadInteractions,
   type ProviderLeadInteraction,
   type InsertProviderLeadInteraction,
+  providerLeadStatus,
+  type ProviderLeadStatus,
+  type InsertProviderLeadStatus,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql } from "drizzle-orm";
@@ -2944,6 +2947,85 @@ export class DatabaseStorage implements IStorage {
       return results;
     } catch (error) {
       console.error('Error getting provider lead interactions:', error);
+      return [];
+    }
+  }
+
+  // Provider lead status management methods
+  async getProviderLeadStatus(providerId: number, leadId: number): Promise<ProviderLeadStatus | null> {
+    try {
+      const [status] = await db
+        .select()
+        .from(providerLeadStatus)
+        .where(and(
+          eq(providerLeadStatus.providerId, providerId),
+          eq(providerLeadStatus.leadId, leadId)
+        ))
+        .limit(1);
+      
+      return status || null;
+    } catch (error) {
+      console.error('Error getting provider lead status:', error);
+      return null;
+    }
+  }
+
+  async upsertProviderLeadStatus(statusData: InsertProviderLeadStatus): Promise<ProviderLeadStatus> {
+    try {
+      const [status] = await db
+        .insert(providerLeadStatus)
+        .values({
+          ...statusData,
+          statusUpdatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: [providerLeadStatus.providerId, providerLeadStatus.leadId],
+          set: {
+            status: statusData.status,
+            wasJobBooked: statusData.wasJobBooked,
+            statusUpdatedAt: new Date(),
+            closedAt: statusData.status === 'closed' ? new Date() : undefined,
+          },
+        })
+        .returning();
+      
+      return status;
+    } catch (error) {
+      console.error('Error upserting provider lead status:', error);
+      throw error;
+    }
+  }
+
+  async getProviderLeadStatuses(providerId: number): Promise<Array<ProviderLeadStatus & { leadInfo: { id: number; categoryName: string; customerName: string; suburb: string; createdAt: Date } }>> {
+    try {
+      const results = await db
+        .select({
+          id: providerLeadStatus.id,
+          providerId: providerLeadStatus.providerId,  
+          leadId: providerLeadStatus.leadId,
+          status: providerLeadStatus.status,
+          wasJobBooked: providerLeadStatus.wasJobBooked,
+          statusUpdatedAt: providerLeadStatus.statusUpdatedAt,
+          closedAt: providerLeadStatus.closedAt,
+          createdAt: providerLeadStatus.createdAt,
+          leadInfo: {
+            id: serviceRequests.id,
+            categoryName: serviceCategories.name,
+            customerName: users.firstName,
+            suburb: serviceRequests.suburb,
+            createdAt: serviceRequests.createdAt,
+          }
+        })
+        .from(providerLeadStatus)
+        .innerJoin(serviceRequests, eq(providerLeadStatus.leadId, serviceRequests.id))
+        .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
+        .innerJoin(users, eq(serviceRequests.customerId, users.id))
+        .where(eq(providerLeadStatus.providerId, providerId))
+        .orderBy(desc(providerLeadStatus.statusUpdatedAt));
+      
+      return results;
+    } catch (error) {
+      console.error('Error getting provider lead statuses:', error);
       return [];
     }
   }
