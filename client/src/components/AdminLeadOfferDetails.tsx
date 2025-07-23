@@ -26,10 +26,7 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
   const purchasedSharedOffers = sharedOffers.filter((offer: any) => offer.status === 'purchased');
 
   const getStatusBadge = (status: string, isCurrentOffer: boolean) => {
-    if (isCurrentOffer) {
-      return <Badge className="bg-green-500 text-white">Active</Badge>;
-    }
-    
+    // Always prioritize actual status over isCurrentOffer flag
     switch (status) {
       case 'purchased':
         return <Badge className="bg-blue-500 text-white">Purchased</Badge>;
@@ -37,7 +34,17 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
         return <Badge className="bg-gray-500 text-white">Expired</Badge>;
       case 'declined':
         return <Badge className="bg-red-500 text-white">Declined</Badge>;
+      case 'pending':
+        // Only show as Active if it's pending AND current offer
+        if (isCurrentOffer) {
+          return <Badge className="bg-green-500 text-white">Active</Badge>;
+        }
+        return <Badge className="bg-orange-500 text-white">Pending</Badge>;
       default:
+        // Fallback for unknown status
+        if (isCurrentOffer) {
+          return <Badge className="bg-green-500 text-white">Active</Badge>;
+        }
         return <Badge className="bg-orange-500 text-white">Pending</Badge>;
     }
   };

@@ -80,6 +80,13 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Admin Offer Status Display Fix Completed (January 23, 2025)
+- **Fixed Incorrect Offer Status Logic**: Resolved issue where purchased leads were showing as "Active" instead of "Purchased" in admin offer details popup
+- **Corrected Status Priority Logic**: Modified AdminLeadOfferDetails component to prioritize actual offer status over isCurrentOffer flag
+- **Accurate Status Display**: Purchased offers now correctly show "Purchased" badge instead of misleading "Active" status
+- **Enhanced Status Badge Logic**: Only shows "Active" for pending offers that are currently available, maintaining proper business logic
+- **Production Ready**: Admin can now see accurate offer statuses reflecting actual provider purchase activity
+
 ### First 3 Lead Behavior System Implementation Completed (January 23, 2025)
 - **Complete Admin Toggle Implementation**: Added "First 3 Lead Behavior" toggle to AdminLeadSettings with "shared" (default) and "new" options
 - **Smart Lead Distribution Logic**: New providers (< 3 free leads used) now follow different lead access patterns based on admin setting
