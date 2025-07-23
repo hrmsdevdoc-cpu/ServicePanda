@@ -25,7 +25,6 @@ import {
   AlertCircle,
   Briefcase,
   Upload,
-  Eye,
   LayoutDashboard,
   Target,
   CheckSquare,
@@ -858,7 +857,7 @@ export default function ProviderDashboard() {
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
-                                    {new Date(lead.createdAt).toLocaleDateString()}
+                                    Job Date: {new Date(lead.preferredDate).toLocaleDateString()}
                                   </div>
                                   {lead.urgency && (
                                     <div className="flex items-center gap-1">
@@ -867,15 +866,8 @@ export default function ProviderDashboard() {
                                     </div>
                                   )}
                                 </div>
-                                {lead.description && (
-                                  <p className="text-sm text-gray-700 mt-2 line-clamp-2">{lead.description}</p>
-                                )}
                               </div>
                               <div className="flex gap-2 ml-4">
-                                <Button size="sm" variant="outline">
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  View Details
-                                </Button>
                                 <Button 
                                   size="sm" 
                                   className="bg-blue-600 hover:bg-blue-700"
