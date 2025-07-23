@@ -156,9 +156,21 @@ export default function AdminUsers() {
     window.location.href = '/admin-login';
   };
 
+  // Get current admin user info
+  const { data: currentAdminUser } = useQuery({
+    queryKey: ["/api/admin/current-user"],
+    queryFn: async () => {
+      const response = await adminApiRequest("GET", "/api/admin/current-user");
+      return response.json();
+    },
+  });
+
   return (
     <div className="flex h-screen bg-gray-50">
-      <AdminSidebar onLogout={handleLogout} />
+      <AdminSidebar 
+        onLogout={handleLogout} 
+        adminUser={currentAdminUser}
+      />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="bg-white shadow-sm border-b border-gray-200 p-6">

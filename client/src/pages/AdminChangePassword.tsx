@@ -5,8 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { AdminSidebar } from "@/components/AdminSidebar";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { adminApiRequest } from "@/lib/adminAuth";
 import { Lock } from "lucide-react";
 
 export default function AdminChangePassword() {
@@ -15,6 +15,15 @@ export default function AdminChangePassword() {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
+  });
+
+  // Get current admin user info
+  const { data: currentAdminUser } = useQuery({
+    queryKey: ["/api/admin/current-user"],
+    queryFn: async () => {
+      const response = await adminApiRequest("GET", "/api/admin/current-user");
+      return response.json();
+    },
   });
 
   const changePasswordMutation = useMutation({
@@ -89,7 +98,10 @@ export default function AdminChangePassword() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <AdminSidebar onLogout={handleLogout} />
+      <AdminSidebar 
+        onLogout={handleLogout} 
+        adminUser={currentAdminUser}
+      />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="bg-white shadow-sm border-b border-gray-200 p-6">

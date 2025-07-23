@@ -12,13 +12,25 @@ import {
   ChevronDown,
   TrendingUp,
   Gift,
+  User,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface AdminSidebarProps {
   onLogout: () => void;
+  adminUser?: {
+    firstName: string;
+    lastName: string;
+    username: string;
+  };
 }
 
-export function AdminSidebar({ onLogout }: AdminSidebarProps) {
+export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
   const [location] = useLocation();
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
@@ -38,12 +50,7 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
         { label: "All Providers", href: "/admin/providers" },
       ],
     },
-    {
-      icon: Users,
-      label: "Users",
-      href: "/admin/users",
-      subItems: [],
-    },
+
     {
       icon: TrendingUp,
       label: "Leads",
@@ -71,8 +78,10 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
       label: "Settings",
       href: "/admin/settings",
       subItems: [
-        { label: "Admin Users", href: "/admin/admin-users" },
-        { label: "Departments", href: "/admin/departments" },
+        { label: "Users", href: "#", subItems: [
+          { label: "Admin Users", href: "/admin/admin-users" },
+          { label: "Departments", href: "/admin/departments" },
+        ]},
         { label: "Change Password", href: "/admin/change-password" },
         { label: "Stripe Settings", href: "/admin/settings/stripe" },
         { label: "Mailgun Settings", href: "/admin/settings/mailgun" },
@@ -89,7 +98,12 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
   };
 
   const hasActiveSubItem = (subItems: any[]) => {
-    return subItems.some(item => location === item.href);
+    return subItems.some(item => {
+      if (item.subItems) {
+        return hasActiveSubItem(item.subItems);
+      }
+      return location === item.href;
+    });
   };
 
   const toggleMenu = (href: string) => {
@@ -162,19 +176,65 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
               {item.subItems.length > 0 && isMenuExpanded(item.href) && (
                 <div className="ml-4 mt-2 space-y-1">
                   {item.subItems.map((subItem) => (
-                    <Link key={subItem.href} href={subItem.href}>
-                      <Button
-                        variant={location === subItem.href ? "default" : "ghost"}
-                        size="sm"
-                        className={`w-full justify-start text-sm ${
-                          location === subItem.href
-                            ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-400"
-                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-                        }`}
-                      >
-                        {subItem.label}
-                      </Button>
-                    </Link>
+                    <div key={subItem.href}>
+                      {subItem.subItems ? (
+                        // Nested sub-item with its own sub-items
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`w-full justify-start text-sm ${
+                              hasActiveSubItem(subItem.subItems)
+                                ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-400"
+                                : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                            }`}
+                            onClick={() => toggleMenu(subItem.href)}
+                          >
+                            <Users className="h-3 w-3 mr-2" />
+                            {subItem.label}
+                            {isMenuExpanded(subItem.href) ? (
+                              <ChevronDown className="h-3 w-3 ml-auto" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3 ml-auto" />
+                            )}
+                          </Button>
+                          {isMenuExpanded(subItem.href) && (
+                            <div className="ml-4 mt-1 space-y-1">
+                              {subItem.subItems.map((nestedItem) => (
+                                <Link key={nestedItem.href} href={nestedItem.href}>
+                                  <Button
+                                    variant={location === nestedItem.href ? "default" : "ghost"}
+                                    size="sm"
+                                    className={`w-full justify-start text-xs ${
+                                      location === nestedItem.href
+                                        ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-400"
+                                        : "text-gray-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                    }`}
+                                  >
+                                    {nestedItem.label}
+                                  </Button>
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        // Regular sub-item
+                        <Link href={subItem.href}>
+                          <Button
+                            variant={location === subItem.href ? "default" : "ghost"}
+                            size="sm"
+                            className={`w-full justify-start text-sm ${
+                              location === subItem.href
+                                ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-400"
+                                : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                            }`}
+                          >
+                            {subItem.label}
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -185,14 +245,38 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-        <Button
-          variant="outline"
-          onClick={onLogout}
-          className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950"
-        >
-          <LogOut className="h-4 w-4 mr-3" />
-          Logout
-        </Button>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 flex-1">
+            <User className="h-4 w-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Admin'}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/change-password" className="w-full">
+                    Change Password
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onLogout}
+              className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

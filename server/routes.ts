@@ -2183,6 +2183,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current admin user endpoint
+  app.get('/api/admin/current-user', isAdminAuthenticated, async (req, res) => {
+    try {
+      const adminToken = req.headers['x-admin-token'] as string;
+      const decoded = jwt.verify(adminToken, process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-key') as any;
+      const username = decoded.username;
+      
+      const user = await storage.getAdminUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({ message: "Admin user not found" });
+      }
+
+      // Return user info without password
+      const { password, ...userInfo } = user;
+      res.json(userInfo);
+    } catch (error) {
+      console.error("Error fetching current admin user:", error);
+      res.status(500).json({ message: "Failed to fetch current user" });
+    }
+  });
+
   // Admin user management endpoints  
   app.get('/api/admin/users', isAdminAuthenticated, async (req, res) => {
     try {
