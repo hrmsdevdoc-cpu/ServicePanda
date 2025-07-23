@@ -80,19 +80,15 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
-### Critical Business Logic Fix - Lead Exclusivity System Implementation Completed (January 23, 2025)  
-- **Fixed Incorrect Multiple Purchase Logic**: Resolved fundamental business logic flaw where providers could purchase both unique AND shared offers from the same lead
-- **Implemented Correct Lead Exclusivity**: When provider purchases unique offer for higher price ($30), they now get exclusive rights and lead is completely removed from system
-- **Shared Phase Logic Corrected**: Shared offers are now only available to providers who did NOT purchase the unique offer, preventing double-charging customers
-- **Free Lead Exception Handling**: When free lead is used on unique offer, system moves to shared phase based on admin "First 3 Lead Behavior" toggle setting
-- **Updated Purchase Flow**: 
-  - Paid unique purchase → Lead assigned, distribution ends
-  - Free unique purchase + "shared" setting → Move to shared phase (excluding purchaser)
-  - Free unique purchase + "new" setting → Lead assigned, distribution ends
-- **Database Query Enhancement**: Modified `startSharedPhase()` to exclude providers with purchased unique offers using `ne(leadOffers.status, 'purchased')`
-- **Business Model Integrity**: Customers now pay appropriate price for exclusive access (unique) or shared access (multiple providers), eliminating unfair double-charging
-- **Admin Interface Accuracy**: Resolved confusing display where providers appeared as both "Purchased" and "Active" by implementing proper lead exclusivity
-- **Production Ready**: Complete lead exclusivity system operational with proper business logic and fair pricing model
+### Lead Distribution Bug Fix - Provider Selection and Progression Fixed (January 23, 2025)
+- **Fixed Duplicate Provider Issue**: Resolved critical bug where providers with multiple service areas were excluded from lead distribution due to duplicate entries
+- **Added DISTINCT Query**: Modified `getEligibleProviders()` to use `selectDistinct()` preventing duplicate provider entries from multiple postcode coverages
+- **Corrected Provider Inclusion**: All eligible providers now properly included in lead distribution - Provider 3 was missing due to having 4 service areas covering same postcode
+- **Manual Progression Fix**: Temporarily fixed lead 13 progression from expired Provider 2 offer to Provider 3's active offer window
+- **Automatic Expiration Issue**: Identified that automatic lead progression from expired offers needs enhancement for real-time provider switching
+- **Complete Provider Coverage**: Lead distribution now correctly includes all 3 providers (Rahul, Paul, Manish) with proper sequential unique offer windows
+- **Business Logic Integrity**: Maintained correct lead exclusivity - unique purchases end distribution, shared phase excludes unique purchasers
+- **Fresh Testing Ready**: Clean data environment with all providers having 0/3 free leads used and corrected distribution logic operational
 
 ### Enhanced Admin Navigation Structure and Password Change Fix Completed (January 23, 2025)
 - **Nested Navigation Structure**: Implemented Users submenu under Settings containing Admin Users and Departments for better organization

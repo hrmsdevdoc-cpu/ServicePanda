@@ -1613,7 +1613,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Get providers who offer this service category, are approved/activated, and cover this postcode
       const eligibleProviders = await db
-        .select({
+        .selectDistinct({
           providerId: serviceProviders.id,
           rating: providerRatings.rating,
           firstName: serviceProviders.firstName,
