@@ -2170,7 +2170,10 @@ export class DatabaseStorage implements IStorage {
       // 1. First process uninitialized leads (leads that never entered distribution system)
       await this.processUninitializedLeads();
       
-      // 2. Then expire leads based on job date
+      // 2. Process dynamic lead matching for service updates
+      await this.processDynamicLeadMatching();
+      
+      // 3. Then expire leads based on job date
       const now = new Date();
       await db
         .update(serviceRequests)
@@ -2186,11 +2189,175 @@ export class DatabaseStorage implements IStorage {
           )
         );
         
-      // 3. Then process expired offers
+      // 4. Then process expired offers
       await this.processExpiredOffers();
     } catch (error) {
       console.error('Error processing expired leads:', error);
     }
+  }
+
+  // Dynamic lead matching for service updates and new providers
+  async processDynamicLeadMatching(): Promise<void> {
+    try {
+      console.log('Processing dynamic lead matching...');
+      
+      // Get all active/in-progress leads
+      const activeLeads = await db
+        .select({
+          id: serviceRequests.id,
+          categoryId: serviceRequests.categoryId,
+          postcode: serviceRequests.postcode,
+          status: serviceRequests.status,
+        })
+        .from(serviceRequests)
+        .where(
+          or(
+            eq(serviceRequests.status, 'active'),
+            eq(serviceRequests.status, 'assigned') // In progress leads
+          )
+        );
+
+      if (activeLeads.length === 0) {
+        console.log('No active leads found for dynamic matching');
+        return;
+      }
+
+      console.log(`Found ${activeLeads.length} active/in-progress leads for dynamic matching`);
+
+      // For each active lead, check for new eligible providers
+      for (const lead of activeLeads) {
+        await this.checkForNewProvidersForLead(lead.id, lead.categoryId, lead.postcode);
+      }
+      
+    } catch (error) {
+      console.error('Error processing dynamic lead matching:', error);
+    }
+  }
+
+  // Check if new providers are eligible for an existing lead
+  async checkForNewProvidersForLead(requestId: number, categoryId: number, postcode: string): Promise<void> {
+    try {
+      // Get providers who already have offers for this lead
+      const existingProviders = await db
+        .select({ providerId: leadOffers.providerId })
+        .from(leadOffers)
+        .where(eq(leadOffers.requestId, requestId));
+      
+      const existingProviderIds = existingProviders.map(p => p.providerId);
+
+      // Get all currently eligible providers for this category and area
+      const eligibleProviders = await this.getEligibleProviders(categoryId, postcode);
+      
+      // Find new providers who don't have offers for this lead yet
+      const newProviders = eligibleProviders.filter(provider => 
+        !existingProviderIds.includes(provider.providerId)
+      );
+
+      if (newProviders.length === 0) {
+        return; // No new providers found
+      }
+
+      console.log(`Found ${newProviders.length} new eligible providers for lead ${requestId}`);
+
+      // Check current lead status to determine offer type
+      const [currentLead] = await db
+        .select({ status: serviceRequests.status })
+        .from(serviceRequests)
+        .where(eq(serviceRequests.id, requestId));
+
+      if (!currentLead) return;
+
+      // Get lead settings for pricing
+      const leadSettings = await this.getLeadSettings();
+      
+      // Determine if we should add them to unique or shared phase
+      const hasUniqueOffers = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(leadOffers)
+        .where(
+          and(
+            eq(leadOffers.requestId, requestId),
+            eq(leadOffers.offerType, 'unique')
+          )
+        );
+
+      const isInSharedPhase = hasUniqueOffers[0]?.count > 0;
+
+      // Add new providers to the lead
+      for (let i = 0; i < newProviders.length; i++) {
+        const provider = newProviders[i];
+        
+        if (isInSharedPhase) {
+          // Add as shared offer if lead is already in shared phase
+          await this.createSharedOffer(requestId, provider.providerId, leadSettings);
+          console.log(`Added provider ${provider.firstName} ${provider.lastName} to shared phase for lead ${requestId}`);
+        } else {
+          // Add to unique offer queue
+          const totalUniqueOffers = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(leadOffers)
+            .where(
+              and(
+                eq(leadOffers.requestId, requestId),
+                eq(leadOffers.offerType, 'unique')
+              )
+            );
+
+          const nextSortOrder = (totalUniqueOffers[0]?.count || 0) + 1;
+          
+          await this.createUniqueOffer(requestId, provider.providerId, nextSortOrder, leadSettings);
+          console.log(`Added provider ${provider.firstName} ${provider.lastName} to unique queue (position ${nextSortOrder}) for lead ${requestId}`);
+        }
+      }
+
+    } catch (error) {
+      console.error(`Error checking for new providers for lead ${requestId}:`, error);
+    }
+  }
+
+  // Helper method to create shared offers
+  async createSharedOffer(requestId: number, providerId: number, leadSettings: any): Promise<void> {
+    const sharedPrice = parseFloat(leadSettings.uniformSharePrice?.toString() || '12.00');
+    
+    await db.insert(leadOffers).values({
+      requestId,
+      providerId,
+      offerType: 'shared',
+      status: 'pending',
+      leadCost: sharedPrice.toString(),
+      sortOrder: 999, // Shared offers don't need specific order
+      isCurrentOffer: false, // Shared offers are always available
+      offerStartTime: new Date(),
+      expiresAt: null, // Shared offers don't expire individually
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  // Helper method to create unique offers
+  async createUniqueOffer(requestId: number, providerId: number, sortOrder: number, leadSettings: any): Promise<void> {
+    const uniquePrice = parseFloat(leadSettings.uniformUniquePrice?.toString() || '30.00');
+    const offerWindow = leadSettings.uniqueOfferWindow || 2; // hours
+    
+    // Only make it current if it's the first in queue
+    const isCurrentOffer = sortOrder === 1;
+    const offerStartTime = isCurrentOffer ? new Date() : null;
+    const expiresAt = isCurrentOffer ? 
+      new Date(Date.now() + offerWindow * 60 * 60 * 1000) : null;
+
+    await db.insert(leadOffers).values({
+      requestId,
+      providerId,
+      offerType: 'unique',
+      status: 'pending',
+      leadCost: uniquePrice.toString(),
+      sortOrder,
+      isCurrentOffer,
+      offerStartTime,
+      expiresAt,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   }
 
   // Process leads that were created but never entered the distribution system
