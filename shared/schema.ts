@@ -5,6 +5,7 @@ import {
   timestamp,
   jsonb,
   index,
+  uniqueIndex,
   serial,
   boolean,
   integer,
@@ -235,6 +236,25 @@ export const leadDistributionLog = pgTable("lead_distribution_log", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Provider postcode coverage - pre-calculated coverage areas for each provider
+export const providerPostcodeCoverage = pgTable("provider_postcode_coverage", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").references(() => serviceProviders.id, { onDelete: "cascade" }).notNull(),
+  serviceAreaId: integer("service_area_id").references(() => providerServiceAreas.id, { onDelete: "cascade" }).notNull(),
+  postcode: varchar("postcode", { length: 10 }).notNull(),
+  distance: decimal("distance", { precision: 8, scale: 2 }), // Distance in kilometers from provider center
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Ensure unique combination of provider, service area, and postcode
+  uniqueCoverage: uniqueIndex("provider_service_area_postcode_unique").on(
+    table.providerId,
+    table.serviceAreaId, 
+    table.postcode
+  ),
+  // Index for fast lookups by provider and postcode
+  providerPostcodeIdx: index("provider_postcode_idx").on(table.providerId, table.postcode),
+}));
 
 // Email templates and sent emails
 export const emailTemplates = pgTable("email_templates", {
@@ -476,6 +496,10 @@ export const insertLeadDistributionLogSchema = createInsertSchema(leadDistributi
   createdAt: true, 
   updatedAt: true 
 });
+export const insertProviderPostcodeCoverageSchema = createInsertSchema(providerPostcodeCoverage).omit({ 
+  id: true, 
+  createdAt: true 
+});
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
@@ -522,6 +546,8 @@ export type InsertLeadOffer = z.infer<typeof insertLeadOfferSchema>;
 export type LeadOffer = typeof leadOffers.$inferSelect;
 export type InsertLeadDistributionLog = z.infer<typeof insertLeadDistributionLogSchema>;
 export type LeadDistributionLog = typeof leadDistributionLog.$inferSelect;
+export type InsertProviderPostcodeCoverage = z.infer<typeof insertProviderPostcodeCoverageSchema>;
+export type ProviderPostcodeCoverage = typeof providerPostcodeCoverage.$inferSelect;
 
 // Lead management settings table
 export const leadSettings = pgTable("lead_settings", {
