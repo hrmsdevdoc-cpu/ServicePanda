@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   LayoutDashboard,
   Target,
@@ -42,6 +44,7 @@ export default function ProviderSidebar({
   provider
 }: ProviderSidebarProps) {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
 
   const toggleMenu = (menuId: string) => {
     setExpandedMenus(prev => 
@@ -49,6 +52,38 @@ export default function ProviderSidebar({
         ? prev.filter(id => id !== menuId)
         : [...prev, menuId]
     );
+  };
+
+  // Proper logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/provider/logout");
+    },
+    onSuccess: () => {
+      // Clear stored provider ID
+      localStorage.removeItem('providerId');
+      
+      toast({
+        title: "Logged Out",
+        description: "You have been logged out successfully.",
+      });
+      navigate("/");
+    },
+    onError: (error: any) => {
+      // Clear stored provider ID even on error
+      localStorage.removeItem('providerId');
+      
+      toast({
+        title: "Logout Failed", 
+        description: error.message || "Failed to logout.",
+        variant: "destructive",
+      });
+      navigate("/");
+    },
+  });
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
   };
 
   const getStatusBadge = (status: string) => {
@@ -62,11 +97,6 @@ export default function ProviderSidebar({
       default:
         return <Badge className="bg-gray-100 text-gray-800"><AlertCircle className="h-3 w-3 mr-1" />Unknown</Badge>;
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('providerId');
-    navigate("/provider-login");
   };
 
   return (

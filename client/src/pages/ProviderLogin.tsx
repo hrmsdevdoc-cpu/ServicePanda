@@ -20,11 +20,14 @@ export default function ProviderLogin() {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
+      // Clear any existing provider session before login
+      localStorage.removeItem('providerId');
+      
       const response = await apiRequest("POST", "/api/provider/login", credentials);
       return response.json();
     },
     onSuccess: (provider) => {
-      // Store provider ID for authentication
+      // Store new provider ID for authentication
       localStorage.setItem('providerId', provider.id.toString());
       
       // Check if provider needs to complete signup steps
