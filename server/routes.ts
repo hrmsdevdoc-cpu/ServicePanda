@@ -1070,6 +1070,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get provider interactions for a lead (admin only)
+  app.get('/api/admin/leads/:id/interactions', isAdminAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      const interactions = await storage.getProviderLeadInteractions(leadId);
+      res.json(interactions);
+    } catch (error) {
+      console.error('Error fetching lead interactions:', error);
+      res.status(500).json({ message: 'Failed to fetch lead interactions' });
+    }
+  });
+
   // Lead management settings routes
   app.get('/api/admin/lead-settings', isAdminAuthenticated, async (req, res) => {
     try {
@@ -1771,6 +1783,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error getting credit transactions:', error);
       res.status(500).json({ message: 'Failed to get credit transactions' });
+    }
+  });
+
+  // Provider lead interaction tracking endpoint
+  app.post('/api/provider/leads/:leadId/interaction', isProviderAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      const providerId = (req as any).provider?.id;
+      const { interactionType } = req.body;
+
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      if (!['call', 'sms', 'email'].includes(interactionType)) {
+        return res.status(400).json({ message: 'Invalid interaction type' });
+      }
+
+      await storage.logProviderLeadInteraction({
+        providerId,
+        leadId,
+        interactionType,
+      });
+
+      res.json({ success: true, message: 'Interaction logged successfully' });
+    } catch (error) {
+      console.error('Error logging provider interaction:', error);
+      res.status(500).json({ message: 'Failed to log interaction' });
     }
   });
 

@@ -80,6 +80,9 @@ import {
   type InsertProviderCreditTransaction,
   type LeadPurchase,
   type InsertLeadPurchase,
+  providerLeadInteractions,
+  type ProviderLeadInteraction,
+  type InsertProviderLeadInteraction,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql } from "drizzle-orm";
@@ -246,6 +249,10 @@ export interface IStorage {
   updateVoucherAdmin(id: number, updates: Partial<InsertProviderVoucher>): Promise<ProviderVoucher | undefined>;
   deleteVoucherAdmin(id: number): Promise<boolean>;
   resetVoucherAdmin(id: number): Promise<ProviderVoucher | undefined>;
+
+  // Provider lead interaction tracking
+  logProviderLeadInteraction(interaction: InsertProviderLeadInteraction): Promise<void>;
+  getProviderLeadInteractions(leadId: number): Promise<ProviderLeadInteraction[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2902,6 +2909,30 @@ export class DatabaseStorage implements IStorage {
       return processedActivities.filter(activity => activity.message); // Only return activities with messages
     } catch (error) {
       console.error('Error getting provider activity history:', error);
+      return [];
+    }
+  }
+
+  // Provider lead interaction tracking methods
+  async logProviderLeadInteraction(interaction: InsertProviderLeadInteraction): Promise<void> {
+    try {
+      await db.insert(providerLeadInteractions).values(interaction);
+      console.log(`Logged provider interaction: ${interaction.interactionType} for lead ${interaction.leadId} by provider ${interaction.providerId}`);
+    } catch (error) {
+      console.error('Error logging provider lead interaction:', error);
+      throw error;
+    }
+  }
+
+  async getProviderLeadInteractions(leadId: number): Promise<ProviderLeadInteraction[]> {
+    try {
+      return await db
+        .select()
+        .from(providerLeadInteractions)
+        .where(eq(providerLeadInteractions.leadId, leadId))
+        .orderBy(desc(providerLeadInteractions.createdAt));
+    } catch (error) {
+      console.error('Error getting provider lead interactions:', error);
       return [];
     }
   }

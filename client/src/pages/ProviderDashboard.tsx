@@ -47,7 +47,9 @@ import {
   Building,
   Save,
   Plus,
-  Gift
+  Gift,
+  MessageSquare,
+  MoreVertical
 } from "lucide-react";
 import { LocationServiceAreaForm } from "@/components/LocationServiceAreaForm";
 import { DocumentUpload } from "@/components/DocumentUpload";
@@ -161,6 +163,23 @@ export default function ProviderDashboard() {
         description: error.message || "Failed to purchase lead",
         variant: "destructive",
       });
+    },
+  });
+
+  // Provider interaction tracking mutation
+  const trackInteractionMutation = useMutation({
+    mutationFn: async ({ leadId, interactionType }: { leadId: number; interactionType: string }) => {
+      const response = await apiRequest("POST", `/api/provider/leads/${leadId}/interaction`, {
+        interactionType,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      // Silently track interaction - no user notification needed
+    },
+    onError: (error: any) => {
+      console.error('Failed to track interaction:', error);
+      // Don't show error to user as this is background tracking
     },
   });
 
@@ -954,10 +973,63 @@ export default function ProviderDashboard() {
                                   <p className="text-sm text-gray-700 mt-2">{lead.description}</p>
                                 )}
                               </div>
-                              <div className="flex gap-2 ml-4">
-                                <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                              <div className="flex gap-2 ml-4 flex-wrap">
+                                <Button 
+                                  size="sm" 
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={async () => {
+                                    if (lead.customerPhone) {
+                                      // Track the interaction
+                                      trackInteractionMutation.mutate({
+                                        leadId: lead.requestId,
+                                        interactionType: 'call'
+                                      });
+                                      // Open phone app
+                                      window.location.href = `tel:${lead.customerPhone}`;
+                                    }
+                                  }}
+                                  disabled={!lead.customerPhone}
+                                >
                                   <Phone className="h-3 w-3 mr-1" />
-                                  Contact Customer
+                                  Call
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={async () => {
+                                    if (lead.customerPhone) {
+                                      // Track the interaction
+                                      trackInteractionMutation.mutate({
+                                        leadId: lead.requestId,
+                                        interactionType: 'sms'
+                                      });
+                                      // Open SMS app
+                                      window.location.href = `sms:${lead.customerPhone}`;
+                                    }
+                                  }}
+                                  disabled={!lead.customerPhone}
+                                >
+                                  <MessageSquare className="h-3 w-3 mr-1" />
+                                  SMS
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  className="bg-purple-600 hover:bg-purple-700"
+                                  onClick={async () => {
+                                    if (lead.customerEmail) {
+                                      // Track the interaction
+                                      trackInteractionMutation.mutate({
+                                        leadId: lead.requestId,
+                                        interactionType: 'email'
+                                      });
+                                      // Open email app
+                                      window.location.href = `mailto:${lead.customerEmail}`;
+                                    }
+                                  }}
+                                  disabled={!lead.customerEmail}
+                                >
+                                  <Mail className="h-3 w-3 mr-1" />
+                                  Email
                                 </Button>
                               </div>
                             </div>

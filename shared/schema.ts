@@ -640,8 +640,21 @@ export const leadNotes = pgTable("lead_notes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Insert schemas for lead notes
+// Provider lead interactions table
+export const providerLeadInteractions = pgTable("provider_lead_interactions", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").references(() => serviceProviders.id),
+  leadId: integer("lead_id").references(() => serviceRequests.id),
+  interactionType: varchar("interaction_type", { length: 50 }).notNull(), // 'call', 'sms', 'email'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Insert schemas for lead notes and interactions
 export const insertLeadNoteSchema = createInsertSchema(leadNotes).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export const insertProviderLeadInteractionSchema = createInsertSchema(providerLeadInteractions).omit({ 
   id: true, 
   createdAt: true 
 });
@@ -650,3 +663,5 @@ export type LeadSettings = typeof leadSettings.$inferSelect;
 export type InsertLeadSettings = typeof leadSettings.$inferInsert;
 export type CategoryLeadPricing = typeof categoryLeadPricing.$inferSelect;
 export type InsertCategoryLeadPricing = typeof categoryLeadPricing.$inferInsert;
+export type ProviderLeadInteraction = typeof providerLeadInteractions.$inferSelect;
+export type InsertProviderLeadInteraction = z.infer<typeof insertProviderLeadInteractionSchema>;
