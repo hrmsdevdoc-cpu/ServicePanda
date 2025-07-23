@@ -35,25 +35,36 @@ export default function ProviderCreditSystem() {
   // Fetch credit balance
   const { data: balanceData, isLoading: balanceLoading } = useQuery({
     queryKey: ['/api/provider/credit/balance'],
-    queryFn: () => apiRequest('GET', '/api/provider/credit/balance'),
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/provider/credit/balance');
+      return response.json();
+    },
   });
 
   // Fetch transactions
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
     queryKey: ['/api/provider/credit/transactions'],
-    queryFn: () => apiRequest('GET', '/api/provider/credit/transactions'),
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/provider/credit/transactions');
+      return response.json();
+    },
   });
 
   // Fetch available vouchers
   const { data: vouchers = [], isLoading: vouchersLoading } = useQuery({
     queryKey: ['/api/provider/vouchers/available'],
-    queryFn: () => apiRequest('GET', '/api/provider/vouchers/available'),
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/provider/vouchers/available');
+      return response.json();
+    },
   });
 
   // Redeem voucher mutation
   const redeemVoucherMutation = useMutation({
-    mutationFn: (voucherCode: string) => 
-      apiRequest('POST', '/api/provider/credit/redeem-voucher', { voucherCode }),
+    mutationFn: async (voucherCode: string) => {
+      const response = await apiRequest('POST', '/api/provider/credit/redeem-voucher', { voucherCode });
+      return response.json();
+    },
     onSuccess: (data) => {
       if (data.success) {
         toast({
