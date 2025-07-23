@@ -71,6 +71,15 @@ import {
   type InsertLeadOffer,
   type LeadDistributionLog,
   type InsertLeadDistributionLog,
+  providerVouchers,
+  providerCreditTransactions,
+  leadPurchases,
+  type ProviderVoucher,
+  type InsertProviderVoucher,
+  type ProviderCreditTransaction,
+  type InsertProviderCreditTransaction,
+  type LeadPurchase,
+  type InsertLeadPurchase,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql } from "drizzle-orm";
@@ -219,6 +228,16 @@ export interface IStorage {
   getLeadOfferDetails(requestId: number): Promise<any>;
   getProviderActiveLeads(providerId: number): Promise<any[]>;
   getProviderActivityHistory(providerId: number): Promise<any[]>;
+  
+  // Credit system operations
+  getProviderCreditBalance(providerId: number): Promise<number>;
+  addProviderCredit(providerId: number, amount: number, description: string, transactionType?: string): Promise<void>;
+  deductProviderCredit(providerId: number, amount: number, description: string, leadOfferId?: number): Promise<boolean>;
+  redeemVoucher(providerId: number, voucherCode: string): Promise<{ success: boolean; message: string; creditAdded?: number }>;
+  getProviderCreditTransactions(providerId: number): Promise<ProviderCreditTransaction[]>;
+  purchaseLeadWithCredit(providerId: number, offerId: number): Promise<{ success: boolean; message: string; paymentDetails?: any }>;
+  getAvailableVouchers(): Promise<ProviderVoucher[]>;
+  getVoucherByCode(code: string): Promise<ProviderVoucher | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2078,6 +2097,400 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       console.error('Error processing expired shared offers:', error);
+    }
+  }
+
+  // Credit system implementation
+  async getProviderCreditBalance(providerId: number): Promise<number> {
+    try {
+      const [provider] = await db
+        .select({ creditBalance: serviceProviders.creditBalance })
+        .from(serviceProviders)
+        .where(eq(serviceProviders.id, providerId));
+      
+      return parseFloat(provider?.creditBalance || '0');
+    } catch (error) {
+      console.error('Error getting provider credit balance:', error);
+      return 0;
+    }
+  }
+
+  async addProviderCredit(providerId: number, amount: number, description: string, transactionType: string = 'credit'): Promise<void> {
+    try {
+      const currentBalance = await this.getProviderCreditBalance(providerId);
+      const newBalance = currentBalance + amount;
+      
+      // Update provider balance
+      await db
+        .update(serviceProviders)
+        .set({ creditBalance: newBalance.toFixed(2) })
+        .where(eq(serviceProviders.id, providerId));
+      
+      // Record transaction
+      await db.insert(providerCreditTransactions).values({
+        providerId,
+        transactionType,
+        amount: amount.toFixed(2),
+        balanceBefore: currentBalance.toFixed(2),
+        balanceAfter: newBalance.toFixed(2),
+        description,
+      });
+      
+      console.log(`Added $${amount} credit to provider ${providerId}. New balance: $${newBalance}`);
+    } catch (error) {
+      console.error('Error adding provider credit:', error);
+      throw error;
+    }
+  }
+
+  async deductProviderCredit(providerId: number, amount: number, description: string, leadOfferId?: number): Promise<boolean> {
+    try {
+      const currentBalance = await this.getProviderCreditBalance(providerId);
+      
+      if (currentBalance < amount) {
+        console.log(`Insufficient credit for provider ${providerId}. Required: $${amount}, Available: $${currentBalance}`);
+        return false;
+      }
+      
+      const newBalance = currentBalance - amount;
+      
+      // Update provider balance
+      await db
+        .update(serviceProviders)
+        .set({ creditBalance: newBalance.toFixed(2) })
+        .where(eq(serviceProviders.id, providerId));
+      
+      // Record transaction
+      await db.insert(providerCreditTransactions).values({
+        providerId,
+        transactionType: 'debit',
+        amount: (-amount).toFixed(2), // Negative for debit
+        balanceBefore: currentBalance.toFixed(2),
+        balanceAfter: newBalance.toFixed(2),
+        description,
+        leadOfferId,
+      });
+      
+      console.log(`Deducted $${amount} credit from provider ${providerId}. New balance: $${newBalance}`);
+      return true;
+    } catch (error) {
+      console.error('Error deducting provider credit:', error);
+      return false;
+    }
+  }
+
+  async redeemVoucher(providerId: number, voucherCode: string): Promise<{ success: boolean; message: string; creditAdded?: number }> {
+    try {
+      // Get voucher details
+      const [voucher] = await db
+        .select()
+        .from(providerVouchers)
+        .where(eq(providerVouchers.code, voucherCode));
+      
+      if (!voucher) {
+        return { success: false, message: 'Invalid voucher code' };
+      }
+      
+      if (!voucher.isActive) {
+        return { success: false, message: 'This voucher is no longer active' };
+      }
+      
+      if (voucher.expiresAt && new Date() > voucher.expiresAt) {
+        return { success: false, message: 'This voucher has expired' };
+      }
+      
+      if (voucher.usageLimit && (voucher.usageCount || 0) >= voucher.usageLimit) {
+        return { success: false, message: 'This voucher has reached its usage limit' };
+      }
+      
+      // Check if provider already used this voucher
+      const [existingUsage] = await db
+        .select()
+        .from(providerCreditTransactions)
+        .where(
+          and(
+            eq(providerCreditTransactions.providerId, providerId),
+            eq(providerCreditTransactions.voucherCode, voucherCode)
+          )
+        );
+      
+      if (existingUsage) {
+        return { success: false, message: 'You have already used this voucher' };
+      }
+      
+      // Add credit to provider
+      const creditAmount = parseFloat(voucher.value);
+      await this.addProviderCredit(
+        providerId, 
+        creditAmount, 
+        `Voucher redeemed: ${voucherCode} - ${voucher.description}`,
+        'voucher_redemption'
+      );
+      
+      // Update voucher usage count
+      await db
+        .update(providerVouchers)
+        .set({ usageCount: (voucher.usageCount || 0) + 1 })
+        .where(eq(providerVouchers.id, voucher.id));
+      
+      // Update the transaction record with voucher code
+      await db
+        .update(providerCreditTransactions)
+        .set({ voucherCode })
+        .where(
+          and(
+            eq(providerCreditTransactions.providerId, providerId),
+            eq(providerCreditTransactions.transactionType, 'voucher_redemption'),
+            isNull(providerCreditTransactions.voucherCode)
+          )
+        );
+      
+      return { 
+        success: true, 
+        message: `Successfully added $${creditAmount} to your account!`,
+        creditAdded: creditAmount
+      };
+    } catch (error) {
+      console.error('Error redeeming voucher:', error);
+      return { success: false, message: 'Failed to redeem voucher. Please try again.' };
+    }
+  }
+
+  async getProviderCreditTransactions(providerId: number): Promise<ProviderCreditTransaction[]> {
+    try {
+      return await db
+        .select()
+        .from(providerCreditTransactions)
+        .where(eq(providerCreditTransactions.providerId, providerId))
+        .orderBy(desc(providerCreditTransactions.createdAt));
+    } catch (error) {
+      console.error('Error getting provider credit transactions:', error);
+      return [];
+    }
+  }
+
+  async getAvailableVouchers(): Promise<ProviderVoucher[]> {
+    try {
+      return await db
+        .select()
+        .from(providerVouchers)
+        .where(
+          and(
+            eq(providerVouchers.isActive, true),
+            or(
+              isNull(providerVouchers.expiresAt),
+              sql`${providerVouchers.expiresAt} > NOW()`
+            ),
+            or(
+              isNull(providerVouchers.usageLimit),
+              sql`${providerVouchers.usageCount} < ${providerVouchers.usageLimit}`
+            )
+          )
+        )
+        .orderBy(desc(providerVouchers.value));
+    } catch (error) {
+      console.error('Error getting available vouchers:', error);
+      return [];
+    }
+  }
+
+  async getVoucherByCode(code: string): Promise<ProviderVoucher | undefined> {
+    try {
+      const [voucher] = await db
+        .select()
+        .from(providerVouchers)
+        .where(eq(providerVouchers.code, code));
+      return voucher;
+    } catch (error) {
+      console.error('Error getting voucher by code:', error);
+      return undefined;
+    }
+  }
+
+  async purchaseLeadWithCredit(providerId: number, offerId: number): Promise<{ success: boolean; message: string; paymentDetails?: any }> {
+    try {
+      // Get lead offer details
+      const [offer] = await db
+        .select()
+        .from(leadOffers)
+        .where(eq(leadOffers.id, offerId));
+      
+      if (!offer) {
+        return { success: false, message: 'Lead offer not found' };
+      }
+      
+      if (offer.status !== 'pending') {
+        return { success: false, message: 'This lead offer is no longer available' };
+      }
+      
+      if (offer.providerId !== providerId) {
+        return { success: false, message: 'This lead is not assigned to you' };
+      }
+      
+      const leadCost = parseFloat(offer.leadCost);
+      const currentBalance = await this.getProviderCreditBalance(providerId);
+      
+      // Get provider to check free leads
+      const [provider] = await db
+        .select()
+        .from(serviceProviders)
+        .where(eq(serviceProviders.id, providerId));
+      
+      if (!provider) {
+        return { success: false, message: 'Provider not found' };
+      }
+      
+      let paymentMethod = '';
+      let creditUsed = 0;
+      let amountCharged = 0;
+      let isFreeLeadUsed = false;
+      
+      // Check if provider can use a free lead (first 3 leads)
+      if ((provider.firstLeadsFreeUsed || 0) < 3) {
+        // Use free lead
+        isFreeLeadUsed = true;
+        paymentMethod = 'free_lead';
+        
+        // Update provider's free leads used count
+        await db
+          .update(serviceProviders)
+          .set({ 
+            firstLeadsFreeUsed: (provider.firstLeadsFreeUsed || 0) + 1,
+            leadsPurchasedCount: (provider.leadsPurchasedCount || 0) + 1
+          })
+          .where(eq(serviceProviders.id, providerId));
+        
+        // Record free lead transaction
+        await db.insert(providerCreditTransactions).values({
+          providerId,
+          transactionType: 'free_lead',
+          amount: '0.00',
+          balanceBefore: currentBalance.toFixed(2),
+          balanceAfter: currentBalance.toFixed(2),
+          description: `Free lead used (${(provider.firstLeadsFreeUsed || 0) + 1} of 3) - Lead #${offer.requestId}`,
+          leadOfferId: offerId,
+        });
+        
+      } else if (currentBalance >= leadCost) {
+        // Use credit only
+        creditUsed = leadCost;
+        paymentMethod = 'credit_only';
+        
+        await this.deductProviderCredit(
+          providerId, 
+          leadCost, 
+          `Lead purchase - Lead #${offer.requestId}`,
+          offerId
+        );
+        
+        // Update provider's leads purchased count
+        await db
+          .update(serviceProviders)
+          .set({ leadsPurchasedCount: (provider.leadsPurchasedCount || 0) + 1 })
+          .where(eq(serviceProviders.id, providerId));
+        
+      } else if (currentBalance > 0) {
+        // Use partial credit + charge remainder
+        creditUsed = currentBalance;
+        amountCharged = leadCost - currentBalance;
+        paymentMethod = 'credit_and_card';
+        
+        // Deduct available credit
+        await this.deductProviderCredit(
+          providerId,
+          currentBalance,
+          `Partial payment for Lead #${offer.requestId} (Credit portion)`,
+          offerId
+        );
+        
+        // TODO: Charge remaining amount to card using Stripe
+        // This would be implemented with Stripe payment processing
+        
+        // Update provider's leads purchased count
+        await db
+          .update(serviceProviders)
+          .set({ leadsPurchasedCount: (provider.leadsPurchasedCount || 0) + 1 })
+          .where(eq(serviceProviders.id, providerId));
+        
+      } else {
+        // No credit, charge full amount to card
+        amountCharged = leadCost;
+        paymentMethod = 'card_only';
+        
+        // TODO: Charge full amount to card using Stripe
+        // This would be implemented with Stripe payment processing
+        
+        // Update provider's leads purchased count
+        await db
+          .update(serviceProviders)
+          .set({ leadsPurchasedCount: (provider.leadsPurchasedCount || 0) + 1 })
+          .where(eq(serviceProviders.id, providerId));
+      }
+      
+      // Mark lead offer as purchased
+      await db
+        .update(leadOffers)
+        .set({ 
+          status: 'purchased',
+          purchasedAt: new Date()
+        })
+        .where(eq(leadOffers.id, offerId));
+      
+      // Record lead purchase
+      await db.insert(leadPurchases).values({
+        leadOfferId: offerId,
+        providerId,
+        requestId: offer.requestId,
+        totalCost: leadCost.toFixed(2),
+        creditUsed: creditUsed.toFixed(2),
+        amountCharged: amountCharged.toFixed(2),
+        paymentMethod,
+        isFreeLeadUsed,
+      });
+      
+      // Handle shared leads - activate more offers if needed
+      if (offer.offerType === 'shared') {
+        const [distributionLog] = await db
+          .select()
+          .from(leadDistributionLog)
+          .where(eq(leadDistributionLog.requestId, offer.requestId));
+        
+        if (distributionLog) {
+          const newSharedCount = (distributionLog.sharedOffersPurchased || 0) + 1;
+          
+          await db
+            .update(leadDistributionLog)
+            .set({ sharedOffersPurchased: newSharedCount })
+            .where(eq(leadDistributionLog.id, distributionLog.id));
+          
+          // If we've reached the maximum shared offers, end distribution
+          if (newSharedCount >= (distributionLog.maxSharedOffers || 3)) {
+            await this.endLeadDistribution(offer.requestId);
+          }
+        }
+      } else {
+        // For unique offers, move to next provider or shared phase
+        await this.activateNextUniqueOffer(offer.requestId);
+      }
+      
+      return {
+        success: true,
+        message: isFreeLeadUsed ? 
+          `Lead purchased using free lead (${(provider.firstLeadsFreeUsed || 0) + 1} of 3 used)` :
+          `Lead purchased successfully! ${creditUsed > 0 ? `Used $${creditUsed} credit` : ''}${amountCharged > 0 ? ` and charged $${amountCharged}` : ''}`,
+        paymentDetails: {
+          totalCost: leadCost,
+          creditUsed,
+          amountCharged,
+          paymentMethod,
+          isFreeLeadUsed,
+          freeLeadsRemaining: 3 - ((provider.firstLeadsFreeUsed || 0) + (isFreeLeadUsed ? 1 : 0))
+        }
+      };
+      
+    } catch (error) {
+      console.error('Error purchasing lead with credit:', error);
+      return { success: false, message: 'Failed to purchase lead. Please try again.' };
     }
   }
 

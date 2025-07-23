@@ -47,10 +47,12 @@ import {
   Sparkles,
   Building,
   Save,
-  Plus
+  Plus,
+  Gift
 } from "lucide-react";
 import { LocationServiceAreaForm } from "@/components/LocationServiceAreaForm";
 import { DocumentUpload } from "@/components/DocumentUpload";
+import ProviderCreditSystem from "@/components/ProviderCreditSystem";
 
 // Service icons mapping - same as registration
 const serviceIcons = {
@@ -506,6 +508,19 @@ export default function ProviderDashboard() {
           >
             <CreditCard className="h-4 w-4 mr-3" />
             Payment
+          </button>
+
+          {/* Credits */}
+          <button
+            onClick={() => setActiveMenuItem("credits")}
+            className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+              activeMenuItem === "credits" 
+                ? "bg-red-50 text-red-700" 
+                : "text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <Gift className="h-4 w-4 mr-3" />
+            Credits
           </button>
 
           {/* Billing */}
@@ -1276,7 +1291,18 @@ export default function ProviderDashboard() {
               </div>
             )}
 
-
+            {/* Credits Tab */}
+            {activeMenuItem === "credits" && (
+              <div className="space-y-6">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Credit Management</h1>
+                  <p className="text-gray-600">
+                    Manage your credit balance, redeem vouchers, and track transactions. Use credits to purchase leads at discounted rates.
+                  </p>
+                </div>
+                <ProviderCreditSystem />
+              </div>
+            )}
 
             {/* Other menu items (coming soon) */}
             {(activeMenuItem === "billing" || activeMenuItem === "help") && (

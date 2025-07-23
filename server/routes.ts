@@ -1710,7 +1710,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: 'Provider authentication required' });
       }
       
-      const result = await storage.purchaseLead(requestId, providerId);
+      // Find the active offer for this request and provider
+      const leadDetails = await storage.getLeadOfferDetails(requestId);
+      const activeOffer = leadDetails?.offers?.find((offer: any) => 
+        offer.providerId === providerId && offer.status === 'pending' && offer.isCurrentOffer
+      );
+      
+      if (!activeOffer) {
+        return res.status(400).json({ success: false, message: 'No active offer found for this provider' });
+      }
+      
+      const result = await storage.purchaseLeadWithCredit(providerId, activeOffer.id);
       
       if (result.success) {
         res.json(result);
@@ -1720,6 +1730,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Error purchasing lead:', error);
       res.status(500).json({ message: error.message || 'Failed to purchase lead' });
+    }
+  });
+
+  // Provider credit system routes
+  app.get('/api/provider/credit/balance', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = (req as any).provider?.id;
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      const balance = await storage.getProviderCreditBalance(providerId);
+      res.json({ balance });
+    } catch (error) {
+      console.error('Error getting credit balance:', error);
+      res.status(500).json({ message: 'Failed to get credit balance' });
+    }
+  });
+
+  app.get('/api/provider/credit/transactions', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = (req as any).provider?.id;
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      const transactions = await storage.getProviderCreditTransactions(providerId);
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error getting credit transactions:', error);
+      res.status(500).json({ message: 'Failed to get credit transactions' });
+    }
+  });
+
+  app.post('/api/provider/credit/redeem-voucher', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = (req as any).provider?.id;
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      const { voucherCode } = req.body;
+      if (!voucherCode) {
+        return res.status(400).json({ message: 'Voucher code is required' });
+      }
+
+      const result = await storage.redeemVoucher(providerId, voucherCode);
+      res.json(result);
+    } catch (error) {
+      console.error('Error redeeming voucher:', error);
+      res.status(500).json({ message: 'Failed to redeem voucher' });
+    }
+  });
+
+  app.get('/api/provider/vouchers/available', isProviderAuthenticated, async (req, res) => {
+    try {
+      const vouchers = await storage.getAvailableVouchers();
+      res.json(vouchers);
+    } catch (error) {
+      console.error('Error getting available vouchers:', error);
+      res.status(500).json({ message: 'Failed to get available vouchers' });
     }
   });
 

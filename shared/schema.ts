@@ -66,6 +66,10 @@ export const serviceProviders = pgTable("service_providers", {
   // Admin fields for official use
   insuranceExpiryDate: timestamp("insurance_expiry_date"),
   adminNotes: text("admin_notes"),
+  // Credit and promotion tracking
+  creditBalance: decimal("credit_balance", { precision: 10, scale: 2 }).default("0.00"),
+  leadsPurchasedCount: integer("leads_purchased_count").default(0),
+  firstLeadsFreeUsed: integer("first_leads_free_used").default(0), // Track how many of first 3 free leads used
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -334,6 +338,50 @@ export const providerActivityLogs = pgTable("provider_activity_logs", {
   timestamp: timestamp("timestamp").defaultNow().notNull(),
 });
 
+// Provider vouchers - for promotional codes and credits
+export const providerVouchers = pgTable("provider_vouchers", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(), // Voucher code like "WELCOME50" 
+  value: decimal("value", { precision: 10, scale: 2 }).notNull(), // Dollar value of voucher
+  description: text("description"), // Description of what voucher is for
+  isActive: boolean("is_active").default(true),
+  usageLimit: integer("usage_limit"), // How many times this voucher can be used (null = unlimited)
+  usageCount: integer("usage_count").default(0), // How many times it has been used
+  expiresAt: timestamp("expires_at"), // When voucher expires (null = never expires)
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Provider credit transactions - track all credit additions and deductions
+export const providerCreditTransactions = pgTable("provider_credit_transactions", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  transactionType: varchar("transaction_type").notNull(), // 'credit', 'debit', 'voucher_redemption', 'free_lead', 'lead_purchase'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // Positive for credits, negative for debits
+  balanceBefore: decimal("balance_before", { precision: 10, scale: 2 }).notNull(),
+  balanceAfter: decimal("balance_after", { precision: 10, scale: 2 }).notNull(),
+  description: text("description").notNull(), // Human readable description
+  // Related records for tracking
+  leadOfferId: integer("lead_offer_id").references(() => leadOffers.id), // If related to lead purchase
+  voucherCode: varchar("voucher_code", { length: 50 }), // If voucher was used
+  stripePaymentIntentId: varchar("stripe_payment_intent_id"), // If actual payment was made
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Lead purchase records - enhanced to track payment method and credit usage
+export const leadPurchases = pgTable("lead_purchases", {
+  id: serial("id").primaryKey(),
+  leadOfferId: integer("lead_offer_id").references(() => leadOffers.id).notNull(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  requestId: integer("request_id").references(() => serviceRequests.id).notNull(),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull(),
+  creditUsed: decimal("credit_used", { precision: 10, scale: 2 }).default("0.00"),
+  amountCharged: decimal("amount_charged", { precision: 10, scale: 2 }).default("0.00"),
+  paymentMethod: varchar("payment_method").notNull(), // 'credit_only', 'card_only', 'credit_and_card', 'free_lead'
+  stripePaymentIntentId: varchar("stripe_payment_intent_id"), // If card was charged
+  isFreeLeadUsed: boolean("is_free_lead_used").default(false), // If this was one of first 3 free leads
+  purchasedAt: timestamp("purchased_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   serviceRequests: many(serviceRequests),
@@ -533,6 +581,14 @@ export type InsertProviderPaymentMethod = z.infer<typeof insertProviderPaymentMe
 export type ProviderPaymentMethod = typeof providerPaymentMethods.$inferSelect;
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+// Credit system types
+export type ProviderVoucher = typeof providerVouchers.$inferSelect;
+export type InsertProviderVoucher = typeof providerVouchers.$inferInsert;
+export type ProviderCreditTransaction = typeof providerCreditTransactions.$inferSelect;
+export type InsertProviderCreditTransaction = typeof providerCreditTransactions.$inferInsert;
+export type LeadPurchase = typeof leadPurchases.$inferSelect;
+export type InsertLeadPurchase = typeof leadPurchases.$inferInsert;
 
 export type InsertProviderPasswordResetToken = z.infer<typeof insertProviderPasswordResetTokenSchema>;
 export type ProviderPasswordResetToken = typeof providerPasswordResetTokens.$inferSelect;
