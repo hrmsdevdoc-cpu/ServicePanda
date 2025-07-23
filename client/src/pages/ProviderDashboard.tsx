@@ -141,6 +141,30 @@ export default function ProviderDashboard() {
     retry: false,
   });
 
+  // Purchase lead mutation
+  const purchaseLeadMutation = useMutation({
+    mutationFn: async (requestId: number) => {
+      const response = await apiRequest("POST", `/api/provider/leads/${requestId}/purchase`);
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success!",
+        description: `Lead purchased successfully! ${data.paymentDetails?.message || ''}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/provider/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/provider/profile"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/provider/activity"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Purchase Failed",
+        description: error.message || "Failed to purchase lead",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Set initial selected services when data loads
   useEffect(() => {
     if (services && services.length > 0) {
@@ -852,8 +876,13 @@ export default function ProviderDashboard() {
                                   <Eye className="h-3 w-3 mr-1" />
                                   View Details
                                 </Button>
-                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                                  Purchase ${lead.leadCost}
+                                <Button 
+                                  size="sm" 
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={() => purchaseLeadMutation.mutate(lead.requestId)}
+                                  disabled={purchaseLeadMutation.isPending}
+                                >
+                                  {purchaseLeadMutation.isPending ? "Purchasing..." : `Purchase $${lead.leadCost}`}
                                 </Button>
                               </div>
                             </div>
