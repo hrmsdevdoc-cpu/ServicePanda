@@ -84,7 +84,7 @@ export interface IStorage {
   updateUserLastLogin(id: string): Promise<void>;
   getAllUsers(): Promise<User[]>;
   getUsersWithStats(): Promise<Array<User & { lastLogin?: string; isActive: boolean }>>;
-  getLeadsWithMetrics(): Promise<Array<ServiceRequest & { leadAssignments?: any[] }>>;
+  getLeadsWithMetrics(): Promise<Array<ServiceRequest & { leadOffers?: any[], offerMetrics?: any, leadAssignments?: any[] }>>;
   
   // Service provider operations
   createServiceProvider(provider: InsertServiceProvider): Promise<ServiceProvider>;
@@ -304,7 +304,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getLeadsWithMetrics(): Promise<Array<ServiceRequest & { leadAssignments?: any[] }>> {
+  async getLeadsWithMetrics(): Promise<Array<ServiceRequest & { leadOffers?: any[], offerMetrics?: any }>> {
     try {
       // Get all service requests with customer details and category info
       const requestsData = await db
@@ -324,6 +324,9 @@ export class DatabaseStorage implements IStorage {
           status: serviceRequests.status,
           createdAt: serviceRequests.createdAt,
           updatedAt: serviceRequests.updatedAt,
+          // Add location for better display
+          location: serviceRequests.location,
+          state: serviceRequests.state,
           // Customer info
           customerFirstName: users.firstName,
           customerLastName: users.lastName,
@@ -337,28 +340,47 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
         .orderBy(desc(serviceRequests.createdAt));
 
-      // Get lead assignments for each service request
-      const requestsWithAssignments = await Promise.all(
+      // Get lead offers for each service request with offer metrics
+      const requestsWithOffers = await Promise.all(
         requestsData.map(async (request: any) => {
-          const assignments = await db
+          // Get all lead offers for this request
+          const offers = await db
             .select({
-              id: leadAssignments.id,
-              providerId: leadAssignments.providerId,
-              status: leadAssignments.status,
-              assignedAt: leadAssignments.createdAt,
+              id: leadOffers.id,
+              providerId: leadOffers.providerId,
+              offerType: leadOffers.offerType,
+              status: leadOffers.status,
+              isCurrentOffer: leadOffers.isCurrentOffer,
+              offerStartTime: leadOffers.offerStartTime,
+              expiresAt: leadOffers.expiresAt,
+              createdAt: leadOffers.createdAt,
               // Provider info
               providerFirstName: serviceProviders.firstName,
               providerLastName: serviceProviders.lastName,
             })
-            .from(leadAssignments)
-            .leftJoin(serviceProviders, eq(leadAssignments.providerId, serviceProviders.id))
-            .where(eq(leadAssignments.requestId, request.id));
+            .from(leadOffers)
+            .leftJoin(serviceProviders, eq(leadOffers.providerId, serviceProviders.id))
+            .where(eq(leadOffers.requestId, request.id))
+            .orderBy(desc(leadOffers.createdAt));
 
-          // Format the data for frontend consumption
-          const formattedAssignments = assignments.map(assignment => ({
-            ...assignment,
-            providerName: `${assignment.providerFirstName || ''} ${assignment.providerLastName || ''}`.trim(),
+          // Format the offers for frontend consumption
+          const formattedOffers = offers.map(offer => ({
+            ...offer,
+            providerName: `${offer.providerFirstName || ''} ${offer.providerLastName || ''}`.trim(),
           }));
+
+          // Calculate offer metrics
+          const totalOffered = offers.length;
+          const totalAccepted = offers.filter(offer => offer.status === 'purchased').length;
+          const totalPending = offers.filter(offer => offer.status === 'pending').length;
+          const totalExpired = offers.filter(offer => offer.status === 'expired').length;
+
+          const offerMetrics = {
+            totalOffered,
+            totalAccepted,
+            totalPending,
+            totalExpired
+          };
 
           // Get notes for this lead
           const notes = await this.getLeadNotes(request.id);
@@ -367,13 +389,22 @@ export class DatabaseStorage implements IStorage {
             ...request,
             customerName: `${request.customerFirstName || ''} ${request.customerLastName || ''}`.trim(),
             customerPhone: request.customerPhoneNumber,
-            leadAssignments: formattedAssignments,
+            leadOffers: formattedOffers,
+            offerMetrics,
             notes: notes,
+            // Keep legacy field for backward compatibility
+            leadAssignments: formattedOffers.map(offer => ({
+              id: offer.id,
+              providerId: offer.providerId,
+              providerName: offer.providerName,
+              status: offer.status === 'purchased' ? 'accepted' : offer.status,
+              assignedAt: offer.createdAt
+            }))
           };
         })
       );
 
-      return requestsWithAssignments;
+      return requestsWithOffers;
     } catch (error) {
       console.error('Error fetching leads with metrics:', error);
       throw error;

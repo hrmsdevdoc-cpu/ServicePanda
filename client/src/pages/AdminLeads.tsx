@@ -62,6 +62,25 @@ interface ServiceRequest {
   status: string;
   createdAt: string;
   leadSource?: string;
+  // New lead offers structure
+  leadOffers?: Array<{
+    id: number;
+    providerId: number;
+    providerName: string;
+    offerType: string;
+    status: string;
+    isCurrentOffer: boolean;
+    offerStartTime?: string;
+    expiresAt?: string;
+    createdAt: string;
+  }>;
+  offerMetrics?: {
+    totalOffered: number;
+    totalAccepted: number;
+    totalPending: number;
+    totalExpired: number;
+  };
+  // Legacy for backward compatibility
   leadAssignments?: Array<{
     id: number;
     providerId: number;
@@ -236,7 +255,18 @@ export default function AdminLeads() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const getLeadMetrics = (leadAssignments: any[] = []) => {
+  const getLeadMetrics = (lead: ServiceRequest) => {
+    // Use new offerMetrics if available, otherwise fallback to leadAssignments for backward compatibility
+    if (lead.offerMetrics) {
+      return {
+        totalOffered: lead.offerMetrics.totalOffered,
+        totalAccepted: lead.offerMetrics.totalAccepted,
+        totalPending: lead.offerMetrics.totalPending
+      };
+    }
+    
+    // Legacy fallback for backward compatibility
+    const leadAssignments = lead.leadAssignments || [];
     const totalOffered = leadAssignments.length;
     const totalAccepted = leadAssignments.filter(assignment => assignment.status === "accepted").length;
     const totalPending = leadAssignments.filter(assignment => assignment.status === "pending").length;
@@ -352,7 +382,7 @@ export default function AdminLeads() {
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-600">
                   {leads?.map((lead) => {
-                    const metrics = getLeadMetrics(lead.leadAssignments);
+                    const metrics = getLeadMetrics(lead);
                     
                     return (
                       <tr 
