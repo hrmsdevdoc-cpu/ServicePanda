@@ -4,55 +4,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { adminApiRequest, queryClient } from "@/lib/queryClient";
-import { Gift, Plus, Edit, Trash2, Users, DollarSign, Calendar, Eye } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-
-const voucherSchema = z.object({
-  code: z.string().min(3, "Code must be at least 3 characters").max(50, "Code too long"),
-  value: z.string().min(1, "Value is required"),
-  description: z.string().min(5, "Description must be at least 5 characters"),
-  usageLimit: z.string().optional(),
-  expiresAt: z.string().optional(),
-  isActive: z.boolean().default(true),
-});
+import { Gift, Plus, Users, DollarSign, Trash2, RotateCcw } from "lucide-react";
 
 interface Voucher {
   id: number;
   code: string;
   value: string;
   description: string;
-  isActive: boolean;
-  usageLimit?: number;
-  usageCount: number;
-  expiresAt?: string;
+  status: 'active' | 'closed';
+  redeemedBy?: number;
+  redeemedAt?: string;
   createdBy: string;
   createdAt: string;
 }
 
 export default function AdminVoucherManagement() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editingVoucher, setEditingVoucher] = useState<Voucher | null>(null);
+  const [bulkCount, setBulkCount] = useState("50");
+  const [bulkValue, setBulkValue] = useState("50");
   const { toast } = useToast();
-
-  const form = useForm<z.infer<typeof voucherSchema>>({
-    resolver: zodResolver(voucherSchema),
-    defaultValues: {
-      code: "",
-      value: "",
-      description: "",
-      usageLimit: "",
-      expiresAt: "",
-      isActive: true,
-    },
-  });
 
   // Fetch vouchers
   const { data: vouchers = [], isLoading } = useQuery({
@@ -63,60 +35,41 @@ export default function AdminVoucherManagement() {
     },
   });
 
-  // Create voucher mutation
-  const createVoucherMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof voucherSchema>) => {
-      const payload = {
-        ...data,
-        value: parseFloat(data.value),
-        usageLimit: data.usageLimit ? parseInt(data.usageLimit) : null,
-        expiresAt: data.expiresAt || null,
-      };
-      const response = await adminApiRequest('POST', '/api/admin/vouchers', payload);
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Voucher Created",
-        description: "New voucher has been created successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/vouchers'] });
-      setIsCreateDialogOpen(false);
-      form.reset();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Failed to Create Voucher",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  // Generate 6-digit alphanumeric code
+  const generateVoucherCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
 
-  // Update voucher mutation
-  const updateVoucherMutation = useMutation({
-    mutationFn: async (data: { id: number } & z.infer<typeof voucherSchema>) => {
-      const payload = {
-        ...data,
-        value: parseFloat(data.value),
-        usageLimit: data.usageLimit ? parseInt(data.usageLimit) : null,
-        expiresAt: data.expiresAt || null,
-      };
-      const response = await adminApiRequest('PUT', `/api/admin/vouchers/${data.id}`, payload);
+  // Create bulk vouchers mutation
+  const createBulkVouchersMutation = useMutation({
+    mutationFn: async ({ count, value }: { count: number; value: number }) => {
+      const vouchers = [];
+      for (let i = 0; i < count; i++) {
+        vouchers.push({
+          code: generateVoucherCode(),
+          value,
+          description: `$${value} credit voucher - Bulk created`,
+        });
+      }
+      
+      const response = await adminApiRequest('POST', '/api/admin/vouchers/bulk', { vouchers });
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Voucher Updated",
-        description: "Voucher has been updated successfully",
-      });
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/vouchers'] });
-      setEditingVoucher(null);
-      form.reset();
-    },
-    onError: (error: any) => {
       toast({
-        title: "Failed to Update Voucher",
+        title: "Vouchers Created Successfully",
+        description: `Created ${data.count} vouchers with $${bulkValue} each`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error Creating Vouchers",
         description: error.message,
         variant: "destructive",
       });
@@ -130,218 +83,151 @@ export default function AdminVoucherManagement() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/vouchers'] });
       toast({
         title: "Voucher Deleted",
-        description: "Voucher has been deleted successfully",
+        description: "Voucher has been removed successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/vouchers'] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
-        title: "Failed to Delete Voucher",
+        title: "Error Deleting Voucher",
         description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  const onSubmit = (data: z.infer<typeof voucherSchema>) => {
-    if (editingVoucher) {
-      updateVoucherMutation.mutate({ ...data, id: editingVoucher.id });
-    } else {
-      createVoucherMutation.mutate(data);
+  // Reset voucher status mutation (for testing)
+  const resetVoucherMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await adminApiRequest('PUT', `/api/admin/vouchers/${id}/reset`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/vouchers'] });
+      toast({
+        title: "Voucher Reset",
+        description: "Voucher has been reset to active status",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error Resetting Voucher",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateBulkVouchers = () => {
+    const count = parseInt(bulkCount);
+    const value = parseFloat(bulkValue);
+    
+    if (count < 1 || count > 1000) {
+      toast({
+        title: "Invalid Count",
+        description: "Please enter a count between 1 and 1000",
+        variant: "destructive",
+      });
+      return;
     }
+    
+    if (value < 1 || value > 10000) {
+      toast({
+        title: "Invalid Value",
+        description: "Please enter a value between $1 and $10,000",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createBulkVouchersMutation.mutate({ count, value });
   };
 
-  const openEditDialog = (voucher: Voucher) => {
-    setEditingVoucher(voucher);
-    form.reset({
-      code: voucher.code,
-      value: voucher.value,
-      description: voucher.description,
-      usageLimit: voucher.usageLimit?.toString() || "",
-      expiresAt: voucher.expiresAt ? new Date(voucher.expiresAt).toISOString().split('T')[0] : "",
-      isActive: voucher.isActive,
-    });
-  };
+  const activeVouchers = vouchers.filter((v: Voucher) => v.status === 'active');
+  const redeemedVouchers = vouchers.filter((v: Voucher) => v.status === 'closed');
 
-  const closeDialog = () => {
-    setIsCreateDialogOpen(false);
-    setEditingVoucher(null);
-    form.reset();
-  };
-
-  const isDialogOpen = isCreateDialogOpen || !!editingVoucher;
-
-  const totalVoucherValue = vouchers.reduce((sum: number, voucher: Voucher) => 
-    sum + (parseFloat(voucher.value) * voucher.usageCount), 0);
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="space-y-4">
+            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-32 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Voucher Management</h1>
-          <p className="text-gray-600">
-            Create and manage vouchers that customers can give to providers for credit
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Voucher Management</h1>
+          <p className="text-gray-600">Create and manage provider vouchers</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          if (!open) closeDialog();
-          else setIsCreateDialogOpen(true);
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Voucher
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingVoucher ? 'Edit Voucher' : 'Create New Voucher'}
-              </DialogTitle>
-              <DialogDescription>
-                {editingVoucher 
-                  ? 'Update the voucher details below' 
-                  : 'Create a new voucher that customers can give to providers for credit'
-                }
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="code"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Voucher Code</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., CUSTOMER50" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Unique code customers will share with providers
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="value"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Credit Value ($)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" placeholder="50.00" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Dollar amount providers receive
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Customer referral discount - $50 credit for new providers"
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Description of what this voucher is for
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="usageLimit"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Usage Limit (optional)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="100" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Max redemptions (leave empty for unlimited)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="expiresAt"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Expiry Date (optional)</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          When voucher expires (leave empty for no expiry)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Active Status</FormLabel>
-                        <FormDescription>
-                          Whether this voucher can be redeemed
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={closeDialog}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={createVoucherMutation.isPending || updateVoucherMutation.isPending}
-                  >
-                    {createVoucherMutation.isPending || updateVoucherMutation.isPending 
-                      ? "Saving..." 
-                      : editingVoucher ? "Update" : "Create"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Bulk Creation Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Plus className="h-5 w-5 mr-2" />
+            Create New Vouchers
+          </CardTitle>
+          <CardDescription>
+            Generate multiple vouchers with unique 6-digit codes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div className="space-y-2">
+              <Label htmlFor="bulkCount">Number of Vouchers</Label>
+              <Input
+                id="bulkCount"
+                type="number"
+                value={bulkCount}
+                onChange={(e) => setBulkCount(e.target.value)}
+                placeholder="50"
+                min="1"
+                max="1000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bulkValue">Value per Voucher ($)</Label>
+              <Input
+                id="bulkValue"
+                type="number"
+                value={bulkValue}
+                onChange={(e) => setBulkValue(e.target.value)}
+                placeholder="50"
+                min="1"
+                max="10000"
+              />
+            </div>
+            <Button 
+              onClick={handleCreateBulkVouchers}
+              disabled={createBulkVouchersMutation.isPending}
+              className="w-full"
+            >
+              {createBulkVouchersMutation.isPending ? (
+                "Creating..."
+              ) : (
+                <>
+                  <Gift className="h-4 w-4 mr-2" />
+                  Create {bulkCount} Vouchers for ${bulkValue} each
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Vouchers</CardTitle>
@@ -349,40 +235,35 @@ export default function AdminVoucherManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{vouchers.length}</div>
+            <p className="text-xs text-muted-foreground">
+              All created vouchers
+            </p>
           </CardContent>
         </Card>
-
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Vouchers</CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {vouchers.filter((v: Voucher) => v.isActive).length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Redemptions</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {vouchers.reduce((sum: number, v: Voucher) => sum + v.usageCount, 0)}
-            </div>
+            <div className="text-2xl font-bold text-green-600">{activeVouchers.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Available for redemption
+            </p>
           </CardContent>
         </Card>
-
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Credits Distributed</CardTitle>
+            <CardTitle className="text-sm font-medium">Redeemed Vouchers</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalVoucherValue.toFixed(2)}</div>
+            <div className="text-2xl font-bold text-blue-600">{redeemedVouchers.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Successfully used
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -392,74 +273,76 @@ export default function AdminVoucherManagement() {
         <CardHeader>
           <CardTitle>All Vouchers</CardTitle>
           <CardDescription>
-            Manage vouchers that customers can give to providers
+            Manage existing vouchers and view redemption status
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading vouchers...</p>
-            </div>
-          ) : vouchers.length === 0 ? (
+          {vouchers.length === 0 ? (
             <div className="text-center py-8">
               <Gift className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No vouchers yet</h3>
-              <p className="text-gray-500 mb-4">
-                Create your first voucher to get started
-              </p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No vouchers created</h3>
+              <p className="text-gray-600 mb-4">Create your first batch of vouchers to get started</p>
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 border-b pb-2">
+                <div className="col-span-2">Code</div>
+                <div className="col-span-2">Value</div>
+                <div className="col-span-2">Status</div>
+                <div className="col-span-3">Created</div>
+                <div className="col-span-2">Redeemed</div>
+                <div className="col-span-1">Actions</div>
+              </div>
               {vouchers.map((voucher: Voucher) => (
-                <div 
-                  key={voucher.id}
-                  className="border rounded-lg p-4 hover:bg-gray-50"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-medium">{voucher.code}</h3>
-                        <Badge variant={voucher.isActive ? "default" : "secondary"}>
-                          {voucher.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                        <Badge variant="outline">
-                          ${voucher.value}
-                        </Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">{voucher.description}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span>
-                          Used: {voucher.usageCount}
-                          {voucher.usageLimit ? `/${voucher.usageLimit}` : ' (unlimited)'}
-                        </span>
-                        {voucher.expiresAt && (
-                          <span>
-                            Expires: {new Date(voucher.expiresAt).toLocaleDateString()}
-                          </span>
-                        )}
-                        <span>
-                          Created: {new Date(voucher.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
+                <div key={voucher.id} className="grid grid-cols-12 gap-4 items-center py-2 border-b border-gray-100">
+                  <div className="col-span-2">
+                    <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono">
+                      {voucher.code}
+                    </code>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-medium">${voucher.value}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <Badge variant={voucher.status === 'active' ? 'default' : 'secondary'}>
+                      {voucher.status === 'active' ? 'Active' : 'Closed'}
+                    </Badge>
+                  </div>
+                  <div className="col-span-3 text-sm text-gray-600">
+                    {new Date(voucher.createdAt).toLocaleDateString()}
+                    <br />
+                    <span className="text-xs">by {voucher.createdBy}</span>
+                  </div>
+                  <div className="col-span-2 text-sm text-gray-600">
+                    {voucher.redeemedAt ? (
+                      <>
+                        {new Date(voucher.redeemedAt).toLocaleDateString()}
+                        <br />
+                        <span className="text-xs">Provider ID: {voucher.redeemedBy}</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-400">Not redeemed</span>
+                    )}
+                  </div>
+                  <div className="col-span-1 flex space-x-1">
+                    {voucher.status === 'closed' && (
                       <Button
-                        variant="outline"
                         size="sm"
-                        onClick={() => openEditDialog(voucher)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
                         variant="outline"
-                        size="sm"
-                        onClick={() => deleteVoucherMutation.mutate(voucher.id)}
-                        disabled={deleteVoucherMutation.isPending}
+                        onClick={() => resetVoucherMutation.mutate(voucher.id)}
+                        disabled={resetVoucherMutation.isPending}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <RotateCcw className="h-3 w-3" />
                       </Button>
-                    </div>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => deleteVoucherMutation.mutate(voucher.id)}
+                      disabled={deleteVoucherMutation.isPending}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
                 </div>
               ))}

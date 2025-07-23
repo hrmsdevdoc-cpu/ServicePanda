@@ -242,8 +242,10 @@ export interface IStorage {
   // Admin voucher management
   getAllVouchersAdmin(): Promise<ProviderVoucher[]>;
   createVoucherAdmin(voucher: InsertProviderVoucher): Promise<ProviderVoucher>;
+  createBulkVouchersAdmin(vouchers: InsertProviderVoucher[]): Promise<{ count: number; vouchers: ProviderVoucher[] }>;
   updateVoucherAdmin(id: number, updates: Partial<InsertProviderVoucher>): Promise<ProviderVoucher | undefined>;
   deleteVoucherAdmin(id: number): Promise<boolean>;
+  resetVoucherAdmin(id: number): Promise<ProviderVoucher | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2197,16 +2199,12 @@ export class DatabaseStorage implements IStorage {
         return { success: false, message: 'Invalid voucher code' };
       }
       
-      if (!voucher.isActive) {
-        return { success: false, message: 'This voucher is no longer active' };
+      if (voucher.status === 'closed') {
+        return { success: false, message: 'This voucher has already been redeemed' };
       }
       
-      if (voucher.expiresAt && new Date() > voucher.expiresAt) {
-        return { success: false, message: 'This voucher has expired' };
-      }
-      
-      if (voucher.usageLimit && (voucher.usageCount || 0) >= voucher.usageLimit) {
-        return { success: false, message: 'This voucher has reached its usage limit' };
+      if (voucher.status !== 'active') {
+        return { success: false, message: 'This voucher is not available for redemption' };
       }
       
       // Check if provider already used this voucher
@@ -2233,10 +2231,14 @@ export class DatabaseStorage implements IStorage {
         'voucher_redemption'
       );
       
-      // Update voucher usage count
+      // Mark voucher as closed (one-time use)
       await db
         .update(providerVouchers)
-        .set({ usageCount: (voucher.usageCount || 0) + 1 })
+        .set({ 
+          status: 'closed',
+          redeemedBy: providerId,
+          redeemedAt: new Date()
+        })
         .where(eq(providerVouchers.id, voucher.id));
       
       // Update the transaction record with voucher code
@@ -2280,19 +2282,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(providerVouchers)
-        .where(
-          and(
-            eq(providerVouchers.isActive, true),
-            or(
-              isNull(providerVouchers.expiresAt),
-              sql`${providerVouchers.expiresAt} > NOW()`
-            ),
-            or(
-              isNull(providerVouchers.usageLimit),
-              sql`${providerVouchers.usageCount} < ${providerVouchers.usageLimit}`
-            )
-          )
-        )
+        .where(eq(providerVouchers.status, 'active'))
         .orderBy(desc(providerVouchers.value));
     } catch (error) {
       console.error('Error getting available vouchers:', error);
@@ -2335,6 +2325,37 @@ export class DatabaseStorage implements IStorage {
       return created;
     } catch (error) {
       console.error('Error creating voucher:', error);
+      throw error;
+    }
+  }
+
+  async createBulkVouchersAdmin(vouchers: InsertProviderVoucher[]): Promise<{ count: number; vouchers: ProviderVoucher[] }> {
+    try {
+      const created = await db
+        .insert(providerVouchers)
+        .values(vouchers)
+        .returning();
+      return { count: created.length, vouchers: created };
+    } catch (error) {
+      console.error('Error creating bulk vouchers:', error);
+      throw error;
+    }
+  }
+
+  async resetVoucherAdmin(id: number): Promise<ProviderVoucher | undefined> {
+    try {
+      const [updated] = await db
+        .update(providerVouchers)
+        .set({ 
+          status: 'active',
+          redeemedBy: null,
+          redeemedAt: null 
+        })
+        .where(eq(providerVouchers.id, id))
+        .returning();
+      return updated;
+    } catch (error) {
+      console.error('Error resetting voucher:', error);
       throw error;
     }
   }

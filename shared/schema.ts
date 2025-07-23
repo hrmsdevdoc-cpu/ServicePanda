@@ -341,13 +341,12 @@ export const providerActivityLogs = pgTable("provider_activity_logs", {
 // Provider vouchers - for promotional codes and credits (admin managed)
 export const providerVouchers = pgTable("provider_vouchers", {
   id: serial("id").primaryKey(),
-  code: varchar("code", { length: 50 }).notNull().unique(), // Voucher code like "WELCOME50" 
-  value: decimal("value", { precision: 10, scale: 2 }).notNull(), // Dollar value of voucher
+  code: varchar("code", { length: 6 }).notNull().unique(), // 6-digit alphanumeric code
+  value: decimal("value", { precision: 10, scale: 2 }).notNull(), // Dollar value of voucher (default $50)
   description: text("description"), // Description of what voucher is for
-  isActive: boolean("is_active").default(true),
-  usageLimit: integer("usage_limit"), // How many times this voucher can be used (null = unlimited)
-  usageCount: integer("usage_count").default(0), // How many times it has been used
-  expiresAt: timestamp("expires_at"), // When voucher expires (null = never expires)
+  status: varchar("status", { length: 20 }).default("active").notNull(), // 'active', 'closed'
+  redeemedBy: integer("redeemed_by").references(() => serviceProviders.id), // Provider who redeemed it
+  redeemedAt: timestamp("redeemed_at"), // When it was redeemed
   createdBy: varchar("created_by").default("admin"), // Admin who created the voucher
   createdAt: timestamp("created_at").defaultNow(),
 });

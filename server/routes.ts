@@ -1805,9 +1805,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk create vouchers
+  app.post('/api/admin/vouchers/bulk', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { vouchers } = req.body;
+      
+      if (!vouchers || !Array.isArray(vouchers) || vouchers.length === 0) {
+        return res.status(400).json({ message: 'Vouchers array is required' });
+      }
+
+      // Validate each voucher
+      for (const voucher of vouchers) {
+        if (!voucher.code || !voucher.value || !voucher.description) {
+          return res.status(400).json({ message: 'Each voucher must have code, value, and description' });
+        }
+      }
+
+      // Add default fields
+      const vouchersWithDefaults = vouchers.map((voucher: any) => ({
+        ...voucher,
+        code: voucher.code.toUpperCase(),
+        value: voucher.value.toString(),
+        status: 'active',
+        createdBy: 'admin',
+      }));
+
+      const result = await storage.createBulkVouchersAdmin(vouchersWithDefaults);
+      res.status(201).json(result);
+    } catch (error: any) {
+      console.error('Error creating bulk vouchers:', error);
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ message: 'One or more voucher codes already exist' });
+      }
+      res.status(500).json({ message: 'Failed to create vouchers' });
+    }
+  });
+
   app.post('/api/admin/vouchers', isAdminAuthenticated, async (req, res) => {
     try {
-      const { code, value, description, usageLimit, expiresAt, isActive } = req.body;
+      const { code, value, description } = req.body;
       
       // Validate required fields
       if (!code || !value || !description) {
@@ -1818,9 +1854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         code: code.toUpperCase(),
         value: value.toString(),
         description,
-        usageLimit,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-        isActive: isActive !== false,
+        status: 'active',
         createdBy: 'admin',
       });
 
@@ -1860,6 +1894,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Voucher code already exists' });
       }
       res.status(500).json({ message: 'Failed to update voucher' });
+    }
+  });
+
+  // Reset voucher to active status
+  app.put('/api/admin/vouchers/:id/reset', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const resetVoucher = await storage.resetVoucherAdmin(parseInt(id));
+      
+      if (!resetVoucher) {
+        return res.status(404).json({ message: 'Voucher not found' });
+      }
+
+      res.json(resetVoucher);
+    } catch (error) {
+      console.error('Error resetting voucher:', error);
+      res.status(500).json({ message: 'Failed to reset voucher' });
     }
   });
 
