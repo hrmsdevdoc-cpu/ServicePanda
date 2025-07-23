@@ -80,6 +80,17 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Phase Summary Admin Interface Implementation Completed (January 23, 2025)
+- **Phase Summary Table Enhancement**: Implemented comprehensive phase breakdown table in admin lead offer details popup showing Unique/Shared phase statistics
+- **Correct Free vs Paid Lead Classification**: Fixed business logic to properly categorize lead acceptances:
+  - **Purchased**: Only paid acceptances (unique paid $30, shared paid $12)
+  - **Free Accepted**: Free lead usage regardless of phase (unique free → moves to shared, shared free → standard acceptance)
+- **Dynamic Phase Display**: Shared phase row only appears when lead has entered shared distribution phase
+- **Color-Coded Status Badges**: Green badges for purchased offers, blue badges for free accepted offers, proper visual distinction
+- **Backend Data Integration**: Enhanced `getLeadOfferDetails()` to join with `leadPurchases` table for accurate `isFreeLeadUsed` tracking
+- **Business Logic Clarification**: Free accepted leads indicate phase transition - free unique acceptance moves lead to shared phase for other providers
+- **Production Ready Interface**: Complete admin phase summary with accurate statistics and proper business rule representation
+
 ### Critical Business Logic Fix - Lead Exclusivity System Implementation Completed (January 23, 2025)  
 - **Fixed Incorrect Multiple Purchase Logic**: Resolved fundamental business logic flaw where providers could purchase both unique AND shared offers from the same lead
 - **Implemented Correct Lead Exclusivity**: When provider purchases unique offer for higher price ($30), they now get exclusive rights and lead is completely removed from system

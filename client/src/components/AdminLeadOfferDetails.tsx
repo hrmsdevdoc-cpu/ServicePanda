@@ -34,8 +34,8 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
   
   const sharedStats = {
     totalProviders: sharedOffers.length,
-    purchased: sharedOffers.filter((offer: any) => offer.status === 'purchased').length,
-    freeAccepted: 0 // Shared offers are never free
+    purchased: sharedOffers.filter((offer: any) => offer.status === 'purchased' && !offer.isFreeLeadUsed).length,
+    freeAccepted: sharedOffers.filter((offer: any) => offer.status === 'purchased' && offer.isFreeLeadUsed).length
   };
 
   const getStatusBadge = (status: string, isCurrentOffer: boolean) => {
