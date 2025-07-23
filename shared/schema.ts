@@ -132,6 +132,8 @@ export const australianSuburbs = pgTable("australian_suburbs", {
   suburb: varchar("suburb").notNull(),
   stateId: integer("state_id").references(() => australianStates.id).notNull(),
   regionId: integer("region_id").references(() => australianRegions.id), // Link to SA4 region
+  latitude: decimal("latitude", { precision: 10, scale: 8 }), // Coordinates for distance calculations
+  longitude: decimal("longitude", { precision: 11, scale: 8 }), // Coordinates for distance calculations
 });
 
 // Provider service areas - new location-based approach
