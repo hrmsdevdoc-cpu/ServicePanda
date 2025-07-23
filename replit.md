@@ -80,6 +80,15 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Lead Management Status Display Fix Completed (January 23, 2025)
+- **Fixed Lead Management Page Status Accuracy**: Resolved inaccurate status display in admin leads list where "Offered", "Accepted", and "Pending" columns showed zero values
+- **Updated Backend Data Model**: Modified `getLeadsWithMetrics()` method to use new `lead_offers` table instead of deprecated `leadAssignments` table
+- **Added Offer Metrics Calculation**: Implemented accurate counting system for total offers, purchased offers (accepted), and pending offers per lead
+- **Database Schema Compatibility**: Fixed database field references to match actual table structure, removing non-existent `location` and `state` fields
+- **Enhanced Frontend Data Processing**: Updated `getLeadMetrics()` function to use new `offerMetrics` data structure with backward compatibility
+- **Production Ready Status Display**: Admin lead management page now accurately shows real-time offer statistics with proper color coding (green for accepted, orange for pending)
+- **Lead Distribution Integration**: Status counts now reflect the actual lead distribution system with unique/shared offer phases and proper expiration tracking
+
 ### Admin Session Management and Auto-Logout System Implementation Completed (January 21, 2025)
 - **Automatic Token Expiration Handling**: Implemented comprehensive admin session management with automatic logout detection across all admin pages
 - **Graceful Session Expiry**: When admin tokens expire (24-hour lifespan), users are automatically redirected to login page instead of seeing 401 error messages  

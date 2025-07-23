@@ -324,9 +324,6 @@ export class DatabaseStorage implements IStorage {
           status: serviceRequests.status,
           createdAt: serviceRequests.createdAt,
           updatedAt: serviceRequests.updatedAt,
-          // Add location for better display
-          location: serviceRequests.location,
-          state: serviceRequests.state,
           // Customer info
           customerFirstName: users.firstName,
           customerLastName: users.lastName,
@@ -389,6 +386,9 @@ export class DatabaseStorage implements IStorage {
             ...request,
             customerName: `${request.customerFirstName || ''} ${request.customerLastName || ''}`.trim(),
             customerPhone: request.customerPhoneNumber,
+            // Add computed location and state from postcode/suburb
+            location: `${request.suburb}, ${request.postcode}`,
+            state: 'NSW', // Default state for now
             leadOffers: formattedOffers,
             offerMetrics,
             notes: notes,
