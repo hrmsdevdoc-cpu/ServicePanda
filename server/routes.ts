@@ -221,6 +221,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         areaName,
       });
 
+      // Generate postcode coverage for lead distribution
+      await storage.calculateServiceAreaCoverage(serviceArea.id);
+
       res.status(201).json(serviceArea);
     } catch (error: any) {
       console.error('Error adding location-based service area:', error);
@@ -763,6 +766,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         radiusKm,
         areaName: undefined, // Let admin optionally specify this later
       });
+
+      // Generate postcode coverage for lead distribution
+      await storage.calculateServiceAreaCoverage(serviceArea.id);
 
       // Log service area addition activity
       await storage.logProviderActivity({

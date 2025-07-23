@@ -80,6 +80,16 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Lead Distribution Bug Fix - Postcode Coverage Generation Completed (January 23, 2025)
+- **Critical Bug Fixed**: Resolved issue where providers weren't receiving matching leads despite having appropriate service areas due to missing postcode coverage data
+- **Root Cause Identified**: POST routes for adding location-based service areas (`/api/provider/:id/location-service-areas` and `/api/admin/providers/:id/service-areas`) weren't calling `calculateServiceAreaCoverage()` function
+- **Automatic Coverage Generation**: Both provider and admin routes now automatically generate postcode coverage when new location-based service areas are added
+- **Database Integration**: System now properly populates `provider_postcode_coverage` table with postcode mappings needed for lead distribution matching
+- **Backward Compatibility**: Fixed existing service areas by manually generating coverage data for provider 3's Brisbane City and Surfers Paradise locations
+- **Production Testing**: Verified provider 3 can now be matched for postcode 4215 leads and system correctly generates coverage for new service areas
+- **Lead Distribution Flow**: Complete lead matching process now operational - providers with proper service area coverage receive lead offers in rating-based priority order
+- **Real-time Coverage**: New service areas immediately generate postcode coverage, enabling instant lead distribution eligibility
+
 ### Enhanced Admin Navigation Structure and Password Change Fix Completed (January 23, 2025)
 - **Nested Navigation Structure**: Implemented Users submenu under Settings containing Admin Users and Departments for better organization
 - **Enhanced Footer Design**: Updated admin sidebar footer to display admin name with settings dropdown and separate logout icon for professional UX
