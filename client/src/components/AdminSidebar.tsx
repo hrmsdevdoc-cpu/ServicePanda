@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronDown,
   TrendingUp,
+  Gift,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -47,6 +48,12 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
       icon: TrendingUp,
       label: "Leads",
       href: "/admin/leads",
+      subItems: [],
+    },
+    {
+      icon: Gift,
+      label: "Vouchers",
+      href: "/admin/vouchers",
       subItems: [],
     },
     {

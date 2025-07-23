@@ -37,6 +37,7 @@ import AdminProviderReports from "@/pages/admin/AdminProviderReports";
 import AdminDailyReports from "@/pages/admin/AdminDailyReports";
 import AdminStripeSettings from "@/pages/admin/AdminStripeSettings";
 import AdminMailgunSettings from "@/pages/admin/AdminMailgunSettings";
+import AdminVoucherManagement from "@/pages/admin/AdminVoucherManagement";
 import RequestService from "@/pages/RequestService";
 
 function Router() {
@@ -82,6 +83,7 @@ function Router() {
       <Route path="/admin/providers" component={AdminViewProviders} />
       <Route path="/admin/users" component={AdminViewUsers} />
       <Route path="/admin/leads" component={AdminLeads} />
+      <Route path="/admin/vouchers" component={AdminVoucherManagement} />
       <Route path="/admin/lead-settings" component={AdminLeadSettings} />
       <Route path="/admin/reports/users" component={AdminUserReports} />
       <Route path="/admin/reports/providers" component={AdminProviderReports} />
