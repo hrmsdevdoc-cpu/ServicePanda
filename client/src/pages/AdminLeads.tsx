@@ -193,16 +193,7 @@ export default function AdminLeads() {
     setIsOfferDetailsOpen(true);
   };
 
-  // Query for lead offer details
-  const { data: offerDetails } = useQuery({
-    queryKey: ["/api/admin/leads", selectedRequestId, "offer-details"],
-    queryFn: async () => {
-      if (!selectedRequestId) return null;
-      const response = await adminApiRequest('GET', `/api/admin/leads/${selectedRequestId}/offer-details`);
-      return response.json();
-    },
-    enabled: !!selectedRequestId && isOfferDetailsOpen,
-  });
+  // No need for separate query - AdminLeadOfferDetails now handles its own data fetching
 
   // Query for service categories to use in filters
   const { data: categories = [] } = useQuery({
@@ -661,7 +652,6 @@ export default function AdminLeads() {
           setSelectedRequestId(null);
         }}
         requestId={selectedRequestId || 0}
-        offerDetails={offerDetails}
       />
 
       {/* Provider Interactions Dialog */}

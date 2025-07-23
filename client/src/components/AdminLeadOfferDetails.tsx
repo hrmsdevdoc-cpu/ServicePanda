@@ -1,17 +1,55 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Clock, User, DollarSign, Star } from "lucide-react";
+import { Clock, User, DollarSign, Star, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { adminApiRequest } from "@/lib/queryClient";
 
 interface LeadOfferDetailsProps {
   isOpen: boolean;
   onClose: () => void;
   requestId: number;
-  offerDetails: any;
 }
 
-export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails }: LeadOfferDetailsProps) {
+export function AdminLeadOfferDetails({ isOpen, onClose, requestId }: LeadOfferDetailsProps) {
+  // Query for real-time lead offer details with auto-refresh every 30 seconds
+  const { data: offerDetails, isLoading, refetch } = useQuery({
+    queryKey: ["/api/admin/leads", requestId, "offer-details"],
+    queryFn: async () => {
+      if (!requestId) return null;
+      const response = await adminApiRequest('GET', `/api/admin/leads/${requestId}/offer-details`);
+      return response.json();
+    },
+    enabled: !!requestId && isOpen,
+    refetchInterval: 30000, // Auto-refresh every 30 seconds when popup is open
+    refetchOnWindowFocus: true, // Refresh when user focuses back on window
+    staleTime: 0, // Always consider data stale to ensure fresh updates
+  });
+
+  // Manual refresh function
+  const handleManualRefresh = () => {
+    refetch();
+  };
+
+  if (isLoading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={() => onClose()}>
+        <DialogContent className="max-w-4xl h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-blue-600">
+              Lead Offer Details - Request #{requestId}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-8">
+            <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Loading offer details...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   if (!offerDetails || !offerDetails.offers) {
     return null;
   }
@@ -80,9 +118,23 @@ export function AdminLeadOfferDetails({ isOpen, onClose, requestId, offerDetails
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-4xl h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-blue-600">
-            Lead Offer Details - Request #{requestId}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-bold text-blue-600">
+              Lead Offer Details - Request #{requestId}
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">
+                Auto-refreshes every 30s • Last updated: {new Date().toLocaleTimeString()}
+              </span>
+              <button
+                onClick={handleManualRefresh}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Refresh now"
+              >
+                <RefreshCw className="h-4 w-4 text-gray-600" />
+              </button>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="space-y-6">
