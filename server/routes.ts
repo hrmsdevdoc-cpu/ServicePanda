@@ -2335,6 +2335,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/admin/users/:id', isAdminAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
+      
+      // Prevent deletion of main admin user (id: 1 or username: 'admin')
+      const user = await storage.getAdminUser(parseInt(id));
+      if (user && (user.id === 1 || user.username === 'admin')) {
+        return res.status(403).json({ message: 'Cannot delete main admin user' });
+      }
+      
       const success = await storage.deleteAdminUser(parseInt(id));
       
       if (!success) {
@@ -2345,6 +2352,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting admin user:', error);
       res.status(500).json({ message: 'Failed to delete admin user' });
+    }
+  });
+
+  // Change password endpoint
+  app.post('/api/admin/change-password', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const token = req.headers['x-admin-token'] as string;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current password and new password are required' });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+      }
+
+      // Decode token to get admin username
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'default_admin_secret') as any;
+      const username = decoded.username;
+
+      // Get current admin user
+      const adminUser = await storage.getAdminUserByUsername(username);
+      if (!adminUser) {
+        return res.status(404).json({ message: 'Admin user not found' });
+      }
+
+      // Verify current password
+      const { comparePasswords } = require('./adminAuth');
+      const isCurrentPasswordValid = await comparePasswords(currentPassword, adminUser.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+
+      // Hash new password
+      const { hashPassword } = require('./adminAuth');
+      const hashedNewPassword = await hashPassword(newPassword);
+
+      // Update password
+      await storage.updateAdminUser(adminUser.id, { password: hashedNewPassword });
+
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('Error changing password:', error);
+      res.status(500).json({ message: 'Failed to change password' });
     }
   });
 

@@ -45,18 +45,6 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
       subItems: [],
     },
     {
-      icon: Users,
-      label: "Admin Users",
-      href: "/admin/admin-users",
-      subItems: [],
-    },
-    {
-      icon: Settings,
-      label: "Departments",
-      href: "/admin/departments",
-      subItems: [],
-    },
-    {
       icon: TrendingUp,
       label: "Leads",
       href: "/admin/leads",
@@ -83,6 +71,9 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
       label: "Settings",
       href: "/admin/settings",
       subItems: [
+        { label: "Admin Users", href: "/admin/admin-users" },
+        { label: "Departments", href: "/admin/departments" },
+        { label: "Change Password", href: "/admin/change-password" },
         { label: "Stripe Settings", href: "/admin/settings/stripe" },
         { label: "Mailgun Settings", href: "/admin/settings/mailgun" },
         { label: "Lead Management", href: "/admin/lead-settings" },

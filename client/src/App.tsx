@@ -40,6 +40,7 @@ import AdminMailgunSettings from "@/pages/admin/AdminMailgunSettings";
 import AdminVoucherManagement from "@/pages/admin/AdminVoucherManagement";
 import AdminUsers from "@/pages/AdminUsers";
 import AdminDepartments from "@/pages/AdminDepartments";
+import AdminChangePassword from "@/pages/AdminChangePassword";
 import RequestService from "@/pages/RequestService";
 
 function Router() {
@@ -88,6 +89,8 @@ function Router() {
       <Route path="/admin-users" component={AdminUsers} />
       <Route path="/admin/departments" component={AdminDepartments} />
       <Route path="/admin-departments" component={AdminDepartments} />
+      <Route path="/admin/change-password" component={AdminChangePassword} />
+      <Route path="/admin-change-password" component={AdminChangePassword} />
       <Route path="/admin/leads" component={AdminLeads} />
       <Route path="/admin/vouchers" component={AdminVoucherManagement} />
       <Route path="/admin/lead-settings" component={AdminLeadSettings} />

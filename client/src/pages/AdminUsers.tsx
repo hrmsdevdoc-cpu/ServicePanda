@@ -236,6 +236,11 @@ export default function AdminUsers() {
                             <Badge className={getStatusBadgeColor(user.status)}>
                               {user.status}
                             </Badge>
+                            {user.username === 'admin' && (
+                              <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                Main Admin
+                              </Badge>
+                            )}
                           </div>
                           {user.departments.length > 0 && (
                             <p className="text-sm text-gray-500 mt-1">
@@ -265,18 +270,30 @@ export default function AdminUsers() {
                             isLoading={updateUserMutation.isPending}
                           />
                         </Dialog>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (confirm("Are you sure you want to delete this user?")) {
-                              deleteUserMutation.mutate(user.id);
-                            }
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {user.username !== 'admin' ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this user?")) {
+                                deleteUserMutation.mutate(user.id);
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled
+                            className="text-gray-400 cursor-not-allowed"
+                            title="Cannot delete main admin"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
