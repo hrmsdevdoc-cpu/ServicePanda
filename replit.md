@@ -80,6 +80,18 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### First 3 Lead Behavior System Implementation Completed (January 23, 2025)
+- **Complete Admin Toggle Implementation**: Added "First 3 Lead Behavior" toggle to AdminLeadSettings with "shared" (default) and "new" options
+- **Smart Lead Distribution Logic**: New providers (< 3 free leads used) now follow different lead access patterns based on admin setting
+- **Shared Priority Implementation**: When "shared" setting active, new providers see existing shared leads first via `getLeadsWithSharedPriority()` method
+- **Intelligent Fallback System**: When no shared leads exist, system automatically falls back to standard lead distribution behavior
+- **Database Integration**: Added `firstThreeLeadBehavior` varchar(20) field to lead_settings table with proper persistence and retrieval
+- **Enhanced Provider Lead Retrieval**: Modified `getProviderActiveLeads()` to dynamically switch between shared priority and standard logic
+- **Comprehensive Backend Support**: Updated storage layer with separate methods for shared priority and standard lead retrieval
+- **Production Testing Confirmed**: Verified functionality with multiple provider scenarios and lead distribution patterns
+- **Business Logic Compliance**: Shared setting prioritizes existing shared leads for new providers, "new" setting maintains standard unique→shared flow
+- **Real-time Setting Application**: Admin changes immediately affect provider lead visibility without requiring system restart
+
 ### Bulk Voucher System Implementation Completed (January 23, 2025)
 - **Bulk Voucher Creation System**: Implemented admin system to create 50 vouchers at once with 6-digit alphanumeric codes for $50 each
 - **Updated Database Schema**: Modified providerVouchers table with status field (active/closed) and added redeemedBy/redeemedAt tracking fields
