@@ -88,7 +88,7 @@ export function setupAdminAuth(app: Express) {
 export const isAdminAuthenticated: RequestHandler = (req, res, next) => {
   try {
     const token = req.headers["x-admin-token"] as string;
-    console.log("Admin auth check - token:", token ? "Present" : "Missing");
+    console.log("Admin auth check - token:", token ? `Present (${token.substring(0, 20)}...)` : "Missing");
 
     if (!token) {
       console.log("Admin auth failed - no token");
