@@ -80,15 +80,19 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
-### Lead Distribution Bug Fix - Postcode Coverage Generation Completed (January 23, 2025)
-- **Critical Bug Fixed**: Resolved issue where providers weren't receiving matching leads despite having appropriate service areas due to missing postcode coverage data
-- **Root Cause Identified**: POST routes for adding location-based service areas (`/api/provider/:id/location-service-areas` and `/api/admin/providers/:id/service-areas`) weren't calling `calculateServiceAreaCoverage()` function
-- **Automatic Coverage Generation**: Both provider and admin routes now automatically generate postcode coverage when new location-based service areas are added
-- **Database Integration**: System now properly populates `provider_postcode_coverage` table with postcode mappings needed for lead distribution matching
-- **Backward Compatibility**: Fixed existing service areas by manually generating coverage data for provider 3's Brisbane City and Surfers Paradise locations
-- **Production Testing**: Verified provider 3 can now be matched for postcode 4215 leads and system correctly generates coverage for new service areas
-- **Lead Distribution Flow**: Complete lead matching process now operational - providers with proper service area coverage receive lead offers in rating-based priority order
-- **Real-time Coverage**: New service areas immediately generate postcode coverage, enabling instant lead distribution eligibility
+### Critical Business Logic Fix - Lead Exclusivity System Implementation Completed (January 23, 2025)  
+- **Fixed Incorrect Multiple Purchase Logic**: Resolved fundamental business logic flaw where providers could purchase both unique AND shared offers from the same lead
+- **Implemented Correct Lead Exclusivity**: When provider purchases unique offer for higher price ($30), they now get exclusive rights and lead is completely removed from system
+- **Shared Phase Logic Corrected**: Shared offers are now only available to providers who did NOT purchase the unique offer, preventing double-charging customers
+- **Free Lead Exception Handling**: When free lead is used on unique offer, system moves to shared phase based on admin "First 3 Lead Behavior" toggle setting
+- **Updated Purchase Flow**: 
+  - Paid unique purchase → Lead assigned, distribution ends
+  - Free unique purchase + "shared" setting → Move to shared phase (excluding purchaser)
+  - Free unique purchase + "new" setting → Lead assigned, distribution ends
+- **Database Query Enhancement**: Modified `startSharedPhase()` to exclude providers with purchased unique offers using `ne(leadOffers.status, 'purchased')`
+- **Business Model Integrity**: Customers now pay appropriate price for exclusive access (unique) or shared access (multiple providers), eliminating unfair double-charging
+- **Admin Interface Accuracy**: Resolved confusing display where providers appeared as both "Purchased" and "Active" by implementing proper lead exclusivity
+- **Production Ready**: Complete lead exclusivity system operational with proper business logic and fair pricing model
 
 ### Enhanced Admin Navigation Structure and Password Change Fix Completed (January 23, 2025)
 - **Nested Navigation Structure**: Implemented Users submenu under Settings containing Admin Users and Departments for better organization

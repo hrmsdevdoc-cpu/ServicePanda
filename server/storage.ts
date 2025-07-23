@@ -97,7 +97,7 @@ import {
   type InsertProviderLeadStatus,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql, ne } from "drizzle-orm";
 import crypto from "crypto";
 
 export interface IStorage {
@@ -1804,7 +1804,7 @@ export class DatabaseStorage implements IStorage {
 
   async startSharedPhase(requestId: number): Promise<void> {
     try {
-      // Create shared offers for all eligible providers
+      // Get all providers who had unique offers BUT did NOT purchase them
       const eligibleProviders = await db
         .select({
           providerId: leadOffers.providerId,
@@ -1813,7 +1813,8 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(leadOffers.requestId, requestId),
-            eq(leadOffers.offerType, 'unique')
+            eq(leadOffers.offerType, 'unique'),
+            ne(leadOffers.status, 'purchased') // Exclude providers who purchased unique offers
           )
         )
         .groupBy(leadOffers.providerId);
@@ -1823,7 +1824,7 @@ export class DatabaseStorage implements IStorage {
         'shared'
       );
 
-      // Create shared offers for all eligible providers
+      // Create shared offers only for providers who didn't purchase unique offers
       const offerStartTime = new Date();
       for (const provider of eligibleProviders) {
         await db.insert(leadOffers).values({
@@ -2589,9 +2590,22 @@ export class DatabaseStorage implements IStorage {
             await this.endLeadDistribution(offer.requestId);
           }
         }
-      } else {
-        // For unique offers, move to next provider or shared phase
-        await this.activateNextUniqueOffer(offer.requestId);
+      } else if (offer.offerType === 'unique') {
+        // For unique offers, check if this was a free lead purchase
+        if (isFreeLeadUsed) {
+          // Get lead settings to check free lead behavior
+          const leadSettings = await this.getLeadSettings();
+          if (leadSettings.firstThreeLeadBehavior === 'shared') {
+            // Move to shared phase for free lead
+            await this.startSharedPhase(offer.requestId);
+          } else {
+            // End distribution - lead is assigned
+            await this.endLeadDistribution(offer.requestId);
+          }
+        } else {
+          // Paid unique purchase - end distribution, lead is assigned
+          await this.endLeadDistribution(offer.requestId);
+        }
       }
       
       return {
