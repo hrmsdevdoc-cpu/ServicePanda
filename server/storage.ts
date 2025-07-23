@@ -1426,6 +1426,7 @@ export class DatabaseStorage implements IStorage {
         minProviderRating: 3.0,
         providerRestrictionsActive: false,
         firstThreeLeadBehavior: 'shared',
+        oneMinuteCronActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -1442,6 +1443,7 @@ export class DatabaseStorage implements IStorage {
         minProviderRating: 3.0,
         providerRestrictionsActive: false,
         firstThreeLeadBehavior: 'shared',
+        oneMinuteCronActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -1459,6 +1461,7 @@ export class DatabaseStorage implements IStorage {
         minProviderRating: settings.minProviderRating?.toString() || '3.0',
         providerRestrictionsActive: settings.providerRestrictionsActive || false,
         firstThreeLeadBehavior: settings.firstThreeLeadBehavior || 'shared',
+        oneMinuteCronActive: settings.oneMinuteCronActive !== undefined ? settings.oneMinuteCronActive : true,
         updatedAt: new Date(),
       };
 

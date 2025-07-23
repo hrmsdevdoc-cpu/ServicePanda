@@ -68,7 +68,13 @@ app.use((req, res, next) => {
   // Start expired lead and offer checker - runs every minute
   setInterval(async () => {
     try {
-      await storage.processExpiredLeads();
+      // Check if 1-minute cron is enabled in admin settings
+      const settings = await storage.getLeadSettings();
+      if (settings.oneMinuteCronActive) {
+        await storage.processExpiredLeads();
+      } else {
+        console.log('1-minute cron disabled in admin settings - skipping expired lead processing');
+      }
     } catch (error) {
       console.error('Error in expired lead checker:', error);
     }

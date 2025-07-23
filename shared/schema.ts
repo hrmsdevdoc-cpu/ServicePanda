@@ -671,6 +671,7 @@ export const leadSettings = pgTable("lead_settings", {
   minProviderRating: decimal("min_provider_rating", { precision: 3, scale: 1 }).default('3.0'),
   providerRestrictionsActive: boolean("provider_restrictions_active").default(false),
   firstThreeLeadBehavior: varchar("first_three_lead_behavior", { length: 20 }).notNull().default('shared'), // 'new' or 'shared'
+  oneMinuteCronActive: boolean("one_minute_cron_active").default(true), // controls if 1-minute lead offer cron runs
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

@@ -50,6 +50,9 @@ interface LeadSettings {
   // First 3 Lead Behavior
   firstThreeLeadBehavior: 'new' | 'shared'; // new leads or shared leads for first 3
   
+  // 1-Minute Cron Control
+  oneMinuteCronActive: boolean; // controls if 1-minute lead offer cron runs
+  
   // Category-specific pricing (when pricingModel is 'category')
   categoryPricing: {
     categoryId: number;
@@ -74,6 +77,7 @@ export default function AdminLeadSettings() {
     minProviderRating: 0,
     providerRestrictionsActive: false,
     firstThreeLeadBehavior: 'shared' as 'new' | 'shared',
+    oneMinuteCronActive: true,
   });
 
   // Fetch current lead settings
@@ -98,6 +102,7 @@ export default function AdminLeadSettings() {
         minProviderRating: settings.minProviderRating || 0,
         providerRestrictionsActive: settings.providerRestrictionsActive || false,
         firstThreeLeadBehavior: settings.firstThreeLeadBehavior || 'shared',
+        oneMinuteCronActive: settings.oneMinuteCronActive !== undefined ? settings.oneMinuteCronActive : true,
       });
     }
   }, [settings]);
@@ -563,6 +568,48 @@ export default function AdminLeadSettings() {
                 <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
                 <div>
                   <strong>New Leads Priority:</strong> New providers get priority access to brand new unique leads first, then shared leads if needed.
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 1-Minute Cron Control */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-blue-600" />
+              <CardTitle>1-Minute Cron Control</CardTitle>
+            </div>
+            <CardDescription>
+              Enable or disable the automated 1-minute lead offer processing system
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="space-y-1">
+                <Label className="text-base font-medium">Automated Lead Processing</Label>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Controls whether the 1-minute background system processes expired offers and distributes leads to next providers
+                </p>
+              </div>
+              <Switch
+                checked={localSettings.oneMinuteCronActive}
+                onCheckedChange={(checked) => handleSettingChange('oneMinuteCronActive', checked)}
+              />
+            </div>
+            
+            <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <strong>Enabled:</strong> System automatically processes expired offers every minute and moves leads to next eligible providers.
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <strong>Disabled:</strong> Expired offers will remain inactive until manual intervention or system restart.
                 </div>
               </div>
             </div>
