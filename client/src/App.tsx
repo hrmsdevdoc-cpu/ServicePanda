@@ -85,7 +85,9 @@ function Router() {
       <Route path="/admin/providers" component={AdminViewProviders} />
       <Route path="/admin/users" component={AdminViewUsers} />
       <Route path="/admin/admin-users" component={AdminUsers} />
+      <Route path="/admin-users" component={AdminUsers} />
       <Route path="/admin/departments" component={AdminDepartments} />
+      <Route path="/admin-departments" component={AdminDepartments} />
       <Route path="/admin/leads" component={AdminLeads} />
       <Route path="/admin/vouchers" component={AdminVoucherManagement} />
       <Route path="/admin/lead-settings" component={AdminLeadSettings} />

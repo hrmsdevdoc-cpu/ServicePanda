@@ -308,6 +308,7 @@ function AddUserDialog({ departments, onSubmit, isLoading }: {
     firstName: "",
     lastName: "",
     email: "",
+    password: "",
     role: "",
     departmentIds: [] as number[],
   });
@@ -369,6 +370,17 @@ function AddUserDialog({ departments, onSubmit, isLoading }: {
             value={formData.email}
             onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
             required
+          />
+        </div>
+        <div>
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={formData.password}
+            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+            required
+            placeholder="Enter password"
           />
         </div>
         <div>
