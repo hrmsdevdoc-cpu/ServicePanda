@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { TrendingUp, Users, MapPin, Calendar, Filter, Search, X, FileText, Clock, CheckCircle, AlertCircle, Phone, Mail, User, Globe, BarChart3 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TrendingUp, Users, MapPin, Calendar, Filter, Search, X, FileText, Clock, CheckCircle, AlertCircle, Phone, Mail, User, Globe, BarChart3, MoreVertical, MessageSquare, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { AdminLeadOfferDetails } from "@/components/AdminLeadOfferDetails";
 import { useState, useEffect } from "react";
@@ -96,6 +97,14 @@ interface ServiceRequest {
   }>;
 }
 
+interface ProviderInteraction {
+  id: number;
+  providerId: number;
+  leadId: number;
+  interactionType: 'call' | 'sms' | 'email';
+  createdAt: string;
+}
+
 export default function AdminLeads() {
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,6 +115,8 @@ export default function AdminLeads() {
   const [newNote, setNewNote] = useState("");
   const [isOfferDetailsOpen, setIsOfferDetailsOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
+  const [isInteractionsOpen, setIsInteractionsOpen] = useState(false);
+  const [selectedLeadForInteractions, setSelectedLeadForInteractions] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Check admin authentication
@@ -136,6 +147,17 @@ export default function AdminLeads() {
         return matchesSearch && matchesStatus && matchesCategory;
       });
     },
+  });
+
+  // Query to fetch provider interactions for a specific lead
+  const { data: interactions = [], isLoading: interactionsLoading } = useQuery({
+    queryKey: ["/api/admin/leads", selectedLeadForInteractions, "interactions"],
+    queryFn: async () => {
+      if (!selectedLeadForInteractions) return [];
+      const response = await adminApiRequest('GET', `/api/admin/leads/${selectedLeadForInteractions}/interactions`);
+      return response.json();
+    },
+    enabled: !!selectedLeadForInteractions,
   });
 
   // Mutation to add notes to a lead
@@ -417,18 +439,33 @@ export default function AdminLeads() {
                         <td className="px-2 py-1 text-center font-medium text-orange-600">{metrics.totalPending}</td>
                         <td className="px-2 py-1">{getLeadStatusBadge(lead.status)}</td>
                         <td className="px-2 py-1 text-center">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewOfferDetails(lead.id);
-                            }}
-                            className="text-blue-600 border-blue-300 hover:bg-blue-50 text-xs px-2 py-1"
-                          >
-                            <BarChart3 className="h-3 w-3 mr-1" />
-                            Offers
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewOfferDetails(lead.id);
+                              }}
+                              className="text-blue-600 border-blue-300 hover:bg-blue-50 text-xs px-2 py-1"
+                            >
+                              <BarChart3 className="h-3 w-3 mr-1" />
+                              Offers
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedLeadForInteractions(lead.id);
+                                setIsInteractionsOpen(true);
+                              }}
+                              className="text-green-600 border-green-300 hover:bg-green-50 text-xs px-2 py-1"
+                            >
+                              <Activity className="h-3 w-3 mr-1" />
+                              Activity
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -618,6 +655,82 @@ export default function AdminLeads() {
         requestId={selectedRequestId || 0}
         offerDetails={offerDetails}
       />
+
+      {/* Provider Interactions Dialog */}
+      <Dialog open={isInteractionsOpen} onOpenChange={setIsInteractionsOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-green-600" />
+              Provider Lead Activity - Lead #{selectedLeadForInteractions}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-hidden">
+            {interactionsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full mr-3" />
+                <span className="text-gray-600">Loading provider interactions...</span>
+              </div>
+            ) : interactions.length === 0 ? (
+              <div className="text-center py-8">
+                <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Provider Activity</h3>
+                <p className="text-gray-500">
+                  No provider interactions have been recorded for this lead yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="text-sm text-gray-600 mb-4">
+                  Showing {interactions.length} provider interaction{interactions.length !== 1 ? 's' : ''}
+                </div>
+                
+                {interactions.map((interaction: ProviderInteraction) => (
+                  <div key={interaction.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-gray-100">
+                          {interaction.interactionType === 'call' && <Phone className="h-4 w-4 text-blue-600" />}
+                          {interaction.interactionType === 'sms' && <MessageSquare className="h-4 w-4 text-green-600" />}
+                          {interaction.interactionType === 'email' && <Mail className="h-4 w-4 text-purple-600" />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">
+                              Provider #{interaction.providerId}
+                            </span>
+                            <Badge variant="outline" className={
+                              interaction.interactionType === 'call' ? 'text-blue-600 border-blue-300' :
+                              interaction.interactionType === 'sms' ? 'text-green-600 border-green-300' :
+                              'text-purple-600 border-purple-300'
+                            }>
+                              {interaction.interactionType.toUpperCase()}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {interaction.interactionType === 'call' && 'Made a phone call to customer'}
+                            {interaction.interactionType === 'sms' && 'Sent SMS to customer'}
+                            {interaction.interactionType === 'email' && 'Sent email to customer'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-500">
+                          {format(new Date(interaction.createdAt), "MMM d, yyyy")}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {format(new Date(interaction.createdAt), "h:mm a")}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
