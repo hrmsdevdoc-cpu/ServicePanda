@@ -2707,11 +2707,13 @@ export class DatabaseStorage implements IStorage {
         expiresAt: leadOffers.expiresAt,
         purchasedAt: leadOffers.purchasedAt,
         createdAt: serviceRequests.createdAt,
+        paymentMethod: providerCreditTransactions.transactionType,
       })
       .from(leadOffers)
       .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
       .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
       .innerJoin(users, eq(serviceRequests.customerId, users.id))
+      .leftJoin(providerCreditTransactions, eq(leadOffers.id, providerCreditTransactions.leadOfferId))
       .where(
         and(
           eq(leadOffers.providerId, providerId),
@@ -2760,11 +2762,13 @@ export class DatabaseStorage implements IStorage {
         expiresAt: leadOffers.expiresAt,
         purchasedAt: leadOffers.purchasedAt,
         createdAt: serviceRequests.createdAt,
+        paymentMethod: providerCreditTransactions.transactionType,
       })
       .from(leadOffers)
       .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
       .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
       .innerJoin(users, eq(serviceRequests.customerId, users.id))
+      .leftJoin(providerCreditTransactions, eq(leadOffers.id, providerCreditTransactions.leadOfferId))
       .where(
         and(
           eq(leadOffers.providerId, providerId),
@@ -2800,11 +2804,13 @@ export class DatabaseStorage implements IStorage {
           expiresAt: leadOffers.expiresAt,
           purchasedAt: leadOffers.purchasedAt,
           createdAt: serviceRequests.createdAt,
+          paymentMethod: providerCreditTransactions.transactionType,
         })
         .from(leadOffers)
         .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
         .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
         .innerJoin(users, eq(serviceRequests.customerId, users.id))
+        .leftJoin(providerCreditTransactions, eq(leadOffers.id, providerCreditTransactions.leadOfferId))
         .where(
           and(
             eq(leadOffers.providerId, providerId),
