@@ -1723,6 +1723,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin test endpoint for manual lead processing (development only)
+  app.post("/api/admin/test-lead-processing", async (req: any, res) => {
+    try {
+      // Simple admin auth check
+      const token = req.headers['x-admin-token'];
+      if (!token) {
+        return res.status(401).json({ message: "Admin token required" });
+      }
+
+      const { leadId } = req.body;
+      
+      if (!leadId) {
+        return res.status(400).json({ message: "Lead ID required" });
+      }
+
+      // Get the lead
+      const lead = await storage.getServiceRequest(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      console.log(`Admin test: Processing lead ${leadId} for postcode ${lead.postcode}, category ${lead.categoryId}`);
+      
+      // Initialize lead distribution manually (bypassing 24-hour restriction)
+      await storage.initializeLeadDistribution(leadId);
+      
+      // Get results to show what happened  
+      const distributionLogs = await db.select()
+        .from(leadDistributionLog)
+        .where(eq(leadDistributionLog.requestId, leadId));
+        
+      const offers = await db.select()
+        .from(leadOffers)
+        .where(eq(leadOffers.requestId, leadId));
+      
+      res.json({ 
+        message: `Lead ${leadId} processed successfully`,
+        leadDetails: {
+          id: lead.id,
+          postcode: lead.postcode,
+          categoryId: lead.categoryId,
+          status: lead.status
+        },
+        results: {
+          offersCreated: offers.length,
+          distributionPhases: distributionLogs.length,
+          providers: offers.map((o: any) => ({ providerId: o.providerId, status: o.status, offerType: o.offerType }))
+        }
+      });
+    } catch (error: any) {
+      console.error("Admin test lead processing error:", error);
+      res.status(500).json({ message: "Failed to process lead", error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
