@@ -2626,55 +2626,27 @@ export class DatabaseStorage implements IStorage {
 
   async getProviderActiveLeads(providerId: number): Promise<any[]> {
     try {
-      const activeLeads = await db
-        .select({
-          requestId: serviceRequests.id,
-          categoryName: serviceCategories.name,
-          customerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
-          customerEmail: users.email,
-          customerPhone: users.phoneNumber,
-          suburb: serviceRequests.suburb,
-          postcode: serviceRequests.postcode,
-          preferredDate: serviceRequests.preferredDate,
-          bookingType: serviceRequests.bookingType,
-          description: serviceRequests.description,
-          urgency: serviceRequests.urgency,
-          budget: serviceRequests.budget,
-          offerType: leadOffers.offerType,
-          leadCost: leadOffers.leadCost,
-          status: leadOffers.status,
-          isCurrentOffer: leadOffers.isCurrentOffer,
-          expiresAt: leadOffers.expiresAt,
-          purchasedAt: leadOffers.purchasedAt,
-          createdAt: serviceRequests.createdAt,
-        })
-        .from(leadOffers)
-        .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
-        .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
-        .innerJoin(users, eq(serviceRequests.customerId, users.id))
-        .where(
-          and(
-            eq(leadOffers.providerId, providerId),
-            or(
-              // Show current unique offers that are pending and active
-              and(
-                eq(leadOffers.status, 'pending'), 
-                eq(leadOffers.isCurrentOffer, true),
-                eq(leadOffers.offerType, 'unique')
-              ),
-              // Show shared offers that are pending (not purchased by this provider yet)
-              and(
-                eq(leadOffers.status, 'pending'),
-                eq(leadOffers.offerType, 'shared')
-              ),
-              // Show purchased offers (for activity history)
-              eq(leadOffers.status, 'purchased')
-            ),
-            // Only show leads that haven't expired based on job date (24 hours before)
-            sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '24 hours')`
-          )
-        )
-        .orderBy(desc(serviceRequests.createdAt));
+      // Get provider info to check free leads status
+      const [provider] = await db
+        .select()
+        .from(serviceProviders)
+        .where(eq(serviceProviders.id, providerId));
+
+      const isNewProvider = (provider?.firstLeadsFreeUsed || 0) < 3;
+
+      // Get lead settings for First 3 Lead Behavior
+      const leadSettings = await this.getLeadSettings();
+      const firstThreeLeadBehavior = leadSettings.firstThreeLeadBehavior || 'shared';
+
+      let activeLeads;
+
+      if (isNewProvider && firstThreeLeadBehavior === 'shared') {
+        // For new providers with "shared" setting: prioritize existing shared leads
+        activeLeads = await this.getLeadsWithSharedPriority(providerId);
+      } else {
+        // For regular providers or "new" setting: use standard lead retrieval
+        activeLeads = await this.getStandardActiveLeads(providerId);
+      }
 
       // Filter out shared leads where 3 providers have already purchased
       const filteredLeads = [];
@@ -2711,6 +2683,153 @@ export class DatabaseStorage implements IStorage {
       console.error('Error getting provider active leads:', error);
       return [];
     }
+  }
+
+  async getStandardActiveLeads(providerId: number): Promise<any[]> {
+    return await db
+      .select({
+        requestId: serviceRequests.id,
+        categoryName: serviceCategories.name,
+        customerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+        customerEmail: users.email,
+        customerPhone: users.phoneNumber,
+        suburb: serviceRequests.suburb,
+        postcode: serviceRequests.postcode,
+        preferredDate: serviceRequests.preferredDate,
+        bookingType: serviceRequests.bookingType,
+        description: serviceRequests.description,
+        urgency: serviceRequests.urgency,
+        budget: serviceRequests.budget,
+        offerType: leadOffers.offerType,
+        leadCost: leadOffers.leadCost,
+        status: leadOffers.status,
+        isCurrentOffer: leadOffers.isCurrentOffer,
+        expiresAt: leadOffers.expiresAt,
+        purchasedAt: leadOffers.purchasedAt,
+        createdAt: serviceRequests.createdAt,
+      })
+      .from(leadOffers)
+      .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
+      .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
+      .innerJoin(users, eq(serviceRequests.customerId, users.id))
+      .where(
+        and(
+          eq(leadOffers.providerId, providerId),
+          or(
+            // Show current unique offers that are pending and active
+            and(
+              eq(leadOffers.status, 'pending'), 
+              eq(leadOffers.isCurrentOffer, true),
+              eq(leadOffers.offerType, 'unique')
+            ),
+            // Show shared offers that are pending (not purchased by this provider yet)
+            and(
+              eq(leadOffers.status, 'pending'),
+              eq(leadOffers.offerType, 'shared')
+            ),
+            // Show purchased offers (for activity history)
+            eq(leadOffers.status, 'purchased')
+          ),
+          // Only show leads that haven't expired based on job date (24 hours before)
+          sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '24 hours')`
+        )
+      )
+      .orderBy(desc(serviceRequests.createdAt));
+  }
+
+  async getLeadsWithSharedPriority(providerId: number): Promise<any[]> {
+    // For new providers with "shared" behavior: first get existing shared leads
+    const sharedLeads = await db
+      .select({
+        requestId: serviceRequests.id,
+        categoryName: serviceCategories.name,
+        customerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+        customerEmail: users.email,
+        customerPhone: users.phoneNumber,
+        suburb: serviceRequests.suburb,
+        postcode: serviceRequests.postcode,
+        preferredDate: serviceRequests.preferredDate,
+        bookingType: serviceRequests.bookingType,
+        description: serviceRequests.description,
+        urgency: serviceRequests.urgency,
+        budget: serviceRequests.budget,
+        offerType: leadOffers.offerType,
+        leadCost: leadOffers.leadCost,
+        status: leadOffers.status,
+        isCurrentOffer: leadOffers.isCurrentOffer,
+        expiresAt: leadOffers.expiresAt,
+        purchasedAt: leadOffers.purchasedAt,
+        createdAt: serviceRequests.createdAt,
+      })
+      .from(leadOffers)
+      .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
+      .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
+      .innerJoin(users, eq(serviceRequests.customerId, users.id))
+      .where(
+        and(
+          eq(leadOffers.providerId, providerId),
+          eq(leadOffers.offerType, 'shared'),
+          eq(leadOffers.status, 'pending'),
+          // Only show leads that haven't expired based on job date (24 hours before)
+          sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '24 hours')`
+        )
+      )
+      .orderBy(desc(serviceRequests.createdAt));
+
+    // If shared leads exist, return them prioritized
+    if (sharedLeads.length > 0) {
+      // Also get any unique/purchased leads for this provider
+      const otherLeads = await db
+        .select({
+          requestId: serviceRequests.id,
+          categoryName: serviceCategories.name,
+          customerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+          customerEmail: users.email,
+          customerPhone: users.phoneNumber,
+          suburb: serviceRequests.suburb,
+          postcode: serviceRequests.postcode,
+          preferredDate: serviceRequests.preferredDate,
+          bookingType: serviceRequests.bookingType,
+          description: serviceRequests.description,
+          urgency: serviceRequests.urgency,
+          budget: serviceRequests.budget,
+          offerType: leadOffers.offerType,
+          leadCost: leadOffers.leadCost,
+          status: leadOffers.status,
+          isCurrentOffer: leadOffers.isCurrentOffer,
+          expiresAt: leadOffers.expiresAt,
+          purchasedAt: leadOffers.purchasedAt,
+          createdAt: serviceRequests.createdAt,
+        })
+        .from(leadOffers)
+        .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
+        .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
+        .innerJoin(users, eq(serviceRequests.customerId, users.id))
+        .where(
+          and(
+            eq(leadOffers.providerId, providerId),
+            or(
+              // Current unique offers
+              and(
+                eq(leadOffers.status, 'pending'), 
+                eq(leadOffers.isCurrentOffer, true),
+                eq(leadOffers.offerType, 'unique')
+              ),
+              // Purchased offers (for activity history)
+              eq(leadOffers.status, 'purchased')
+            ),
+            // Only show leads that haven't expired based on job date (24 hours before)
+            sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '24 hours')`
+          )
+        )
+        .orderBy(desc(serviceRequests.createdAt));
+
+      // Return shared leads first, then other leads
+      return [...sharedLeads, ...otherLeads];
+    }
+
+    // If no shared leads exist, fall back to standard behavior
+    return await this.getStandardActiveLeads(providerId);
   }
 
   async getProviderActivityHistory(providerId: number): Promise<any[]> {
