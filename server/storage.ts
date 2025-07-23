@@ -1363,6 +1363,7 @@ export class DatabaseStorage implements IStorage {
         maxProvidersPerArea: 10,
         minProviderRating: 3.0,
         providerRestrictionsActive: false,
+        firstThreeLeadBehavior: 'shared',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -1378,6 +1379,7 @@ export class DatabaseStorage implements IStorage {
         maxProvidersPerArea: 10,
         minProviderRating: 3.0,
         providerRestrictionsActive: false,
+        firstThreeLeadBehavior: 'shared',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -1394,6 +1396,7 @@ export class DatabaseStorage implements IStorage {
         maxProvidersPerArea: settings.maxProvidersPerArea || 10,
         minProviderRating: settings.minProviderRating?.toString() || '3.0',
         providerRestrictionsActive: settings.providerRestrictionsActive || false,
+        firstThreeLeadBehavior: settings.firstThreeLeadBehavior || 'shared',
         updatedAt: new Date(),
       };
 

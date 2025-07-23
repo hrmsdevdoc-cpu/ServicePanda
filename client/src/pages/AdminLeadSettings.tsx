@@ -47,6 +47,9 @@ interface LeadSettings {
   maxProvidersPerArea: number;
   minProviderRating: number;
   
+  // First 3 Lead Behavior
+  firstThreeLeadBehavior: 'new' | 'shared'; // new leads or shared leads for first 3
+  
   // Category-specific pricing (when pricingModel is 'category')
   categoryPricing: {
     categoryId: number;
@@ -70,6 +73,7 @@ export default function AdminLeadSettings() {
     maxProvidersPerArea: 0,
     minProviderRating: 0,
     providerRestrictionsActive: false,
+    firstThreeLeadBehavior: 'shared' as 'new' | 'shared',
   });
 
   // Fetch current lead settings
@@ -93,6 +97,7 @@ export default function AdminLeadSettings() {
         maxProvidersPerArea: settings.maxProvidersPerArea || 0,
         minProviderRating: settings.minProviderRating || 0,
         providerRestrictionsActive: settings.providerRestrictionsActive || false,
+        firstThreeLeadBehavior: settings.firstThreeLeadBehavior || 'shared',
       });
     }
   }, [settings]);
@@ -514,8 +519,55 @@ export default function AdminLeadSettings() {
           </CardContent>
         </Card>
 
-
-
+        {/* First 3 Lead Behavior */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-blue-600" />
+              <CardTitle>First 3 Lead Behavior</CardTitle>
+            </div>
+            <CardDescription>
+              Configure how the first 3 free leads are presented to new service providers
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="space-y-1">
+                <Label className="text-base font-medium">Lead Type for New Providers</Label>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Choose whether new providers receive existing shared leads or get priority access to new unique leads
+                </p>
+              </div>
+              <Select 
+                value={localSettings.firstThreeLeadBehavior} 
+                onValueChange={(value: 'new' | 'shared') => handleSettingChange('firstThreeLeadBehavior', value)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="shared">Shared Leads (Default)</SelectItem>
+                  <SelectItem value="new">New Leads Priority</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <strong>Shared Leads:</strong> New providers get access to existing shared leads first. If no shared leads exist, they receive new leads that become shared for other providers.
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <strong>New Leads Priority:</strong> New providers get priority access to brand new unique leads first, then shared leads if needed.
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
       </div>
     </div>

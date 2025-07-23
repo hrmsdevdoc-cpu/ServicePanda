@@ -616,6 +616,7 @@ export const leadSettings = pgTable("lead_settings", {
   maxProvidersPerArea: integer("max_providers_per_area").default(10),
   minProviderRating: decimal("min_provider_rating", { precision: 3, scale: 1 }).default('3.0'),
   providerRestrictionsActive: boolean("provider_restrictions_active").default(false),
+  firstThreeLeadBehavior: varchar("first_three_lead_behavior", { length: 20 }).notNull().default('shared'), // 'new' or 'shared'
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
