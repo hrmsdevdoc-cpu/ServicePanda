@@ -97,7 +97,7 @@ import {
   type ProviderLeadStatus,
   type InsertProviderLeadStatus,
 } from "@shared/schema";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql, ne } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -834,20 +834,21 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Getting service requests for customer: ${customerId}`);
       
-      // Use raw SQL to bypass schema issues
-      const result = await db.execute(sql`
-        SELECT id, customer_id, category_id, description, postcode, suburb, 
-               property_type, urgency, budget, preferred_date, booking_type, 
-               scheduled_date, status, created_at, updated_at
-        FROM service_requests 
-        WHERE customer_id = ${customerId}
-        ORDER BY created_at DESC
-      `);
+      // Use direct pool query for maximum compatibility
+      const result = await pool.query(
+        `SELECT id, customer_id, category_id, description, postcode, suburb, 
+                property_type, urgency, budget, preferred_date, booking_type, 
+                scheduled_date, status, created_at, updated_at
+         FROM service_requests 
+         WHERE customer_id = $1
+         ORDER BY created_at DESC`,
+        [customerId]
+      );
 
-      console.log(`Found ${result.length} service requests`);
+      console.log(`Found ${result.rows.length} service requests via pool.query`);
 
-      // Transform the raw results
-      const requestsWithOffers = result.map((request: any) => ({
+      // Transform the results  
+      const requestsWithOffers = result.rows.map((request: any) => ({
         id: request.id,
         customerId: request.customer_id,
         categoryId: request.category_id,
