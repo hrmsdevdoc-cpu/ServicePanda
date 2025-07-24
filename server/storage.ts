@@ -185,6 +185,17 @@ export interface IStorage {
   getAllRegions(): Promise<AustralianRegion[]>;
   getRegionsByStateId(stateId: number): Promise<AustralianRegion[]>;
   getSuburbsByRegion(regionId: number): Promise<AustralianSuburb[]>;
+  
+  // Service availability operations
+  getServiceAvailability(postcode: string, categoryId?: number): Promise<{
+    totalProviders: number;
+    availableProviders: number;
+    categoryAvailability: Array<{
+      categoryId: number;
+      categoryName: string;
+      providerCount: number;
+    }>;
+  }>;
 
   // Admin operations
   getServiceProviderCount(status?: string): Promise<number>;
