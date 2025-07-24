@@ -1128,7 +1128,11 @@ export default function ProviderDashboard() {
                     ) : (
                       <div className="space-y-2">
                         {leads.filter((l: any) => l.status === 'purchased' && getLeadStatus(l.requestId) !== 'closed').map((lead: any) => (
-                          <div key={lead.requestId} className={`border rounded-lg p-3 ${selectedLeadDetails?.requestId === lead.requestId ? 'bg-white border-blue-300' : 'bg-white border-gray-200'}`}>
+                          <div key={lead.requestId} className={`border rounded-lg p-3 ${
+                            selectedLeadDetails?.requestId === lead.requestId 
+                              ? (getLeadStatus(lead.requestId) === 'new' ? 'bg-green-50 border-blue-300' : 'border-blue-300') 
+                              : (getLeadStatus(lead.requestId) === 'new' ? 'bg-green-50 border-green-200' : 'border-gray-200')
+                          } ${getLeadStatus(lead.requestId) === 'new' ? '' : 'bg-[#ebebeb]'}`}>
                             {/* Header with Service and Status */}
                             <div className="flex items-center gap-2 mb-2">
                               <h3 className="font-medium text-sm text-gray-900">{lead.categoryName} - {lead.suburb}</h3>
