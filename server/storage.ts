@@ -970,7 +970,9 @@ export class DatabaseStorage implements IStorage {
       const result = await pool.query(
         `SELECT DISTINCT
           lo.provider_id as providerId,
-          sp.business_name as providerName,
+          sp.business_name as businessName,
+          sp.first_name as firstName,
+          sp.last_name as lastName,
           sp.email as providerEmail,
           sp.mobile_number as providerPhone,
           lo.offer_type as offerType,
@@ -982,7 +984,7 @@ export class DatabaseStorage implements IStorage {
          LEFT JOIN service_providers sp ON lo.provider_id = sp.id
          LEFT JOIN provider_ratings pr ON sp.id = pr.provider_id
          WHERE lo.request_id = $1 AND lo.status = 'purchased'
-         GROUP BY lo.provider_id, sp.business_name, sp.email, sp.mobile_number, 
+         GROUP BY lo.provider_id, sp.business_name, sp.first_name, sp.last_name, sp.email, sp.mobile_number, 
                   lo.offer_type, lo.status, lo.created_at
          ORDER BY lo.created_at DESC`,
         [requestId]

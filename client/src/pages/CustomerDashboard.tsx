@@ -621,7 +621,14 @@ function AcceptedProfessionalsView({ professionals, request, category }: any) {
             <div key={professional.providerId} className="border rounded-lg p-4 bg-green-50">
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <h3 className="font-semibold text-gray-900">{professional.providerName}</h3>
+                  {professional.businessName ? (
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{professional.businessName}</h3>
+                      <p className="text-sm text-gray-600">{professional.firstName} {professional.lastName}</p>
+                    </div>
+                  ) : (
+                    <h3 className="font-semibold text-gray-900">{professional.firstName} {professional.lastName}</h3>
+                  )}
                   <div className="flex items-center gap-2 mt-1">
                     <Star className="h-4 w-4 text-yellow-400 fill-current" />
                     <span className="text-sm text-gray-600">
@@ -634,10 +641,6 @@ function AcceptedProfessionalsView({ professionals, request, category }: any) {
                   <Badge className="bg-green-100 text-green-800">
                     Quote Accepted
                   </Badge>
-                  
-                  <div className="text-xs text-gray-500 mt-1">
-                    {professional.offerType} offer
-                  </div>
                 </div>
               </div>
               
@@ -672,7 +675,10 @@ function AcceptedProfessionalsView({ professionals, request, category }: any) {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => window.open(`mailto:${professional.providerEmail}?subject=Regarding ${category?.name} Service Request&body=Hi ${professional.providerName},%0D%0A%0D%0AThank you for accepting my ${category?.name} quote request.%0D%0A%0D%0ABest regards`)}
+                  onClick={() => {
+                    const displayName = professional.businessName || `${professional.firstName} ${professional.lastName}`;
+                    window.open(`mailto:${professional.providerEmail}?subject=Regarding ${category?.name} Service Request&body=Hi ${displayName},%0D%0A%0D%0AThank you for accepting my ${category?.name} quote request.%0D%0A%0D%0ABest regards`);
+                  }}
                 >
                   <Mail className="h-4 w-4 mr-2" />
                   Email
