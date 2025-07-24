@@ -857,7 +857,7 @@ export class DatabaseStorage implements IStorage {
             COUNT(*) as total_offers,
             COUNT(CASE WHEN status = 'purchased' THEN 1 END) as accepted_offers
            FROM lead_offers 
-           WHERE service_request_id = $1`,
+           WHERE request_id = $1`,
           [request.id]
         );
 
