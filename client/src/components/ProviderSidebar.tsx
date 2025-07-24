@@ -183,7 +183,21 @@ export default function ProviderSidebar({
                     : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                Leads Accepted
+                Active Leads
+              </button>
+              <button
+                onClick={() => {
+                  setActiveMenuItem("closed-leads");
+                  setIsMobileMenuOpen(false);
+                  navigate("/provider-dashboard");
+                }}
+                className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                  activeMenuItem === "closed-leads" 
+                    ? "bg-red-50 text-red-700" 
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Closed Leads
               </button>
             </div>
           )}

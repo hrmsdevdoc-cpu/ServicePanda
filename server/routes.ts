@@ -1707,6 +1707,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/provider/leads/closed', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = (req as any).provider?.id;
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+      
+      const closedLeads = await storage.getProviderClosedLeads(providerId);
+      res.json(closedLeads);
+    } catch (error: any) {
+      console.error('Error fetching provider closed leads:', error);
+      res.status(500).json({ message: error.message || 'Failed to fetch provider closed leads' });
+    }
+  });
+
   app.get('/api/provider/activity', isProviderAuthenticated, async (req, res) => {
     try {
       const providerId = (req as any).provider?.id;

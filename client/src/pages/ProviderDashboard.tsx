@@ -98,6 +98,12 @@ export default function ProviderDashboard() {
     insuranceCertificate: null as File | null,
   });
 
+  // Close lead dialog state
+  const [closeLeadDialog, setCloseLeadDialog] = useState<{
+    isOpen: boolean;
+    lead: any | null;
+  }>({ isOpen: false, lead: null });
+
   // Fetch provider profile
   const { data: provider, isLoading: providerLoading } = useQuery({
     queryKey: ["/api/provider/profile"],
@@ -120,6 +126,13 @@ export default function ProviderDashboard() {
   const { data: leads = [], isLoading: leadsLoading } = useQuery({
     queryKey: ["/api/provider/leads"],
     retry: false,
+  });
+
+  // Fetch closed leads
+  const { data: closedLeads = [], isLoading: closedLeadsLoading } = useQuery({
+    queryKey: ["/api/provider/leads/closed"],
+    retry: false,
+    enabled: activeMenuItem === "closed-leads",
   });
 
   // Fetch provider services
@@ -431,6 +444,33 @@ export default function ProviderDashboard() {
     },
   });
 
+  // Close lead mutation
+  const closeLeadMutation = useMutation({
+    mutationFn: async ({ leadId, wasJobBooked }: { leadId: number; wasJobBooked: boolean }) => {
+      await apiRequest("PUT", `/api/provider/leads/${leadId}/status`, {
+        status: "closed",
+        wasJobBooked
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/provider/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/provider/leads/closed"] });
+      toast({
+        title: "Lead Closed",
+        description: "The lead has been moved to your closed leads.",
+        variant: "default",
+      });
+      setCloseLeadDialog({ isOpen: false, lead: null });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to close lead.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Panel handlers
   const handleSaveServices = () => {
     setHasAttemptedSubmit(true);
@@ -603,12 +643,25 @@ export default function ProviderDashboard() {
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  <span>Leads Accepted</span>
+                  <span>Active Leads</span>
                   {acceptedLeadsCount > 0 && (
                     <Badge className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
                       {acceptedLeadsCount}
                     </Badge>
                   )}
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveMenuItem("closed-leads");
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md ${
+                    activeMenuItem === "closed-leads" 
+                      ? "bg-red-50 text-red-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <span>Closed Leads</span>
                 </button>
               </div>
             )}
@@ -1050,14 +1103,14 @@ export default function ProviderDashboard() {
               </div>
             )}
 
-            {/* Leads Accepted Content */}
+            {/* Active Leads Content */}
             {activeMenuItem === "accepted-leads" && (
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center">
-                      <CheckCircle className="h-5 w-5 mr-2" />
-                      Leads Accepted ({acceptedLeadsCount})
+                      <Target className="h-5 w-5 mr-2" />
+                      Active Leads ({acceptedLeadsCount})
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1076,21 +1129,23 @@ export default function ProviderDashboard() {
                       <div className="space-y-2">
                         {leads.filter((l: any) => l.status === 'purchased' && getLeadStatus(l.requestId) !== 'closed').map((lead: any) => (
                           <div key={lead.requestId} className="border rounded-lg p-3 bg-green-50 border-green-200">
-                            {/* Header with Status Dropdown */}
+                            {/* Header with Status and Close Button */}
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <h3 className="font-medium text-sm truncate">{lead.categoryName} - {lead.suburb}</h3>
-                                <select
-                                  value={getLeadStatus(lead.requestId)}
-                                  onChange={(e) => handleStatusChange(lead.requestId, e.target.value)}
-                                  className="text-sm border rounded px-3 py-2 bg-white ml-auto min-w-[80px] touch-manipulation"
-                                  disabled={updateLeadStatusMutation.isPending}
-                                >
-                                  <option value="new">New</option>
-                                  <option value="open">Open</option>
-                                  <option value="closed">Close</option>
-                                </select>
+                                <Badge variant="outline" className="text-xs">
+                                  {getLeadStatus(lead.requestId) === 'new' ? 'New' : 'Open'}
+                                </Badge>
                               </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-3 text-xs border-red-200 text-red-700 hover:bg-red-50"
+                                onClick={() => setCloseLeadDialog({ isOpen: true, lead })}
+                              >
+                                <X className="h-3 w-3 mr-1" />
+                                Close Lead
+                              </Button>
                             </div>
 
                             {/* Customer Info and Actions Row */}
@@ -1163,6 +1218,57 @@ export default function ProviderDashboard() {
                                   </Button>
                                 </div>
                               </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Closed Leads Content */}
+            {activeMenuItem === "closed-leads" && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <CheckSquare className="h-5 w-5 mr-2" />
+                      Closed Leads ({closedLeads.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {closedLeadsLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading closed leads...</p>
+                      </div>
+                    ) : closedLeads.length === 0 ? (
+                      <div className="text-center py-8">
+                        <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No closed leads</h3>
+                        <p className="text-gray-500">Leads you close will appear here for your records.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {closedLeads.map((lead: any) => (
+                          <div key={lead.requestId} className="border rounded-lg p-3 bg-gray-50 border-gray-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <h3 className="font-medium text-sm truncate">{lead.categoryName} - {lead.suburb}</h3>
+                                <Badge 
+                                  className={`text-xs ${lead.wasJobBooked ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                                >
+                                  {lead.wasJobBooked ? 'Job Booked' : 'Not Booked'}
+                                </Badge>
+                              </div>
+                              <span className="text-xs text-gray-500">
+                                Closed: {new Date(lead.closedAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Customer: {lead.customerName} - {lead.customerPhone}
                             </div>
                           </div>
                         ))}
@@ -2067,6 +2173,54 @@ export default function ProviderDashboard() {
                 )}
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Close Lead Dialog */}
+      <Dialog open={closeLeadDialog.isOpen} onOpenChange={(open) => setCloseLeadDialog({ isOpen: open, lead: null })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Close Lead</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-gray-600">
+              You're about to close this lead. Please let us know:
+            </p>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="font-medium text-gray-900 mb-1">
+                {closeLeadDialog.lead?.categoryName} - {closeLeadDialog.lead?.suburb}
+              </h4>
+              <p className="text-sm text-gray-600">
+                Customer: {closeLeadDialog.lead?.customerName}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="font-medium text-gray-900 mb-4">Was this job booked?</p>
+              <div className="flex gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => closeLeadMutation.mutate({ 
+                    leadId: closeLeadDialog.lead?.requestId, 
+                    wasJobBooked: false 
+                  })}
+                  disabled={closeLeadMutation.isPending}
+                  className="flex-1"
+                >
+                  No, Not Booked
+                </Button>
+                <Button
+                  onClick={() => closeLeadMutation.mutate({ 
+                    leadId: closeLeadDialog.lead?.requestId, 
+                    wasJobBooked: true 
+                  })}
+                  disabled={closeLeadMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700 flex-1"
+                >
+                  Yes, Job Booked!
+                </Button>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

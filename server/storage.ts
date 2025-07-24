@@ -243,6 +243,7 @@ export interface IStorage {
   endLeadDistribution(requestId: number): Promise<void>;
   getLeadOfferDetails(requestId: number): Promise<any>;
   getProviderActiveLeads(providerId: number): Promise<any[]>;
+  getProviderClosedLeads(providerId: number): Promise<any[]>;
   getProviderActivityHistory(providerId: number): Promise<any[]>;
   
   // Credit system operations
@@ -3246,6 +3247,64 @@ export class DatabaseStorage implements IStorage {
 
     // If no shared leads exist, fall back to standard behavior
     return await this.getStandardActiveLeads(providerId);
+  }
+
+  async getProviderClosedLeads(providerId: number): Promise<any[]> {
+    try {
+      // Get leads that have been marked as closed by the provider
+      const closedLeads = await db
+        .select({
+          requestId: serviceRequests.id,
+          categoryName: serviceCategories.name,
+          customerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+          customerEmail: users.email,
+          customerPhone: users.phoneNumber,
+          suburb: serviceRequests.suburb,
+          postcode: serviceRequests.postcode,
+          preferredDate: serviceRequests.preferredDate,
+          bookingType: serviceRequests.bookingType,
+          description: serviceRequests.description,
+          urgency: serviceRequests.urgency,
+          budget: serviceRequests.budget,
+          offerType: leadOffers.offerType,
+          leadCost: leadOffers.leadCost,
+          status: leadOffers.status,
+          isCurrentOffer: leadOffers.isCurrentOffer,
+          expiresAt: leadOffers.expiresAt,
+          purchasedAt: leadOffers.purchasedAt,
+          createdAt: serviceRequests.createdAt,
+          paymentMethod: sql<string>`COALESCE(${providerCreditTransactions.transactionType}, 'unknown')`,
+          leadStatus: providerLeadStatus.status,
+          wasJobBooked: providerLeadStatus.wasJobBooked,
+          closedAt: providerLeadStatus.updatedAt,
+        })
+        .from(leadOffers)
+        .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
+        .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
+        .innerJoin(users, eq(serviceRequests.customerId, users.id))
+        .innerJoin(providerLeadStatus, and(
+          eq(providerLeadStatus.providerId, providerId),
+          eq(providerLeadStatus.leadId, serviceRequests.id),
+          eq(providerLeadStatus.status, 'closed')
+        ))
+        .leftJoin(providerCreditTransactions, eq(leadOffers.id, providerCreditTransactions.leadOfferId))
+        .where(
+          and(
+            eq(leadOffers.providerId, providerId),
+            eq(leadOffers.status, 'purchased') // Only show purchased/closed leads
+          )
+        )
+        .orderBy(desc(providerLeadStatus.updatedAt));
+
+      return closedLeads.map(lead => ({
+        ...lead,
+        leadCost: parseFloat(lead.leadCost || '0'),
+        budget: parseFloat(lead.budget?.toString() || '0'),
+      }));
+    } catch (error) {
+      console.error('Error getting provider closed leads:', error);
+      return [];
+    }
   }
 
   async getProviderActivityHistory(providerId: number): Promise<any[]> {
