@@ -966,40 +966,39 @@ export class DatabaseStorage implements IStorage {
 
   async getServiceRequestAcceptedProfessionals(requestId: number): Promise<any[]> {
     try {
-      const acceptedProfessionals = await db
-        .select({
-          providerId: leadOffers.providerId,
-          providerName: serviceProviders.businessName,
-          providerEmail: serviceProviders.email,
-          providerPhone: serviceProviders.phoneNumber,
-          offerType: leadOffers.offerType,
-          offerStatus: leadOffers.status,
-          offerCreatedAt: leadOffers.createdAt,
-          isPurchased: sql<boolean>`true`.as('isPurchased'),
-          rating: sql<number>`COALESCE(AVG(${providerRatings.rating}), 0)`.as('rating')
-        })
-        .from(leadOffers)
-        .leftJoin(serviceProviders, eq(leadOffers.providerId, serviceProviders.id))
-        .leftJoin(providerRatings, eq(serviceProviders.id, providerRatings.providerId))
-        .where(
-          and(
-            eq(leadOffers.requestId, requestId),
-            eq(leadOffers.status, 'purchased')
-          )
-        )
-        .groupBy(
-          leadOffers.providerId,
-          serviceProviders.businessName,
-          serviceProviders.email,
-          serviceProviders.phoneNumber,
-          leadOffers.offerType,
-          leadOffers.status,
-          leadOffers.createdAt
-        )
-        .orderBy(desc(leadOffers.createdAt));
+      // Use direct pool query for maximum compatibility
+      const result = await pool.query(
+        `SELECT DISTINCT
+          lo.provider_id as providerId,
+          sp.business_name as providerName,
+          sp.email as providerEmail,
+          sp.phone_number as providerPhone,
+          lo.offer_type as offerType,
+          lo.status as offerStatus,
+          lo.created_at as offerCreatedAt,
+          true as isPurchased,
+          COALESCE(AVG(pr.rating), 0) as rating
+         FROM lead_offers lo
+         LEFT JOIN service_providers sp ON lo.provider_id = sp.id
+         LEFT JOIN provider_ratings pr ON sp.id = pr.provider_id
+         WHERE lo.request_id = $1 AND lo.status = 'purchased'
+         GROUP BY lo.provider_id, sp.business_name, sp.email, sp.phone_number, 
+                  lo.offer_type, lo.status, lo.created_at
+         ORDER BY lo.created_at DESC`,
+        [requestId]
+      );
 
-      return acceptedProfessionals.map(prof => ({
-        ...prof,
+      console.log(`Found ${result.rows.length} accepted professionals for request ${requestId}`);
+
+      return result.rows.map((prof: any) => ({
+        providerId: prof.providerid,
+        providerName: prof.providername,
+        providerEmail: prof.provideremail,
+        providerPhone: prof.providerphone,
+        offerType: prof.offertype,
+        offerStatus: prof.offerstatus,
+        offerCreatedAt: prof.offercreatedat,
+        isPurchased: prof.ispurchased,
         rating: Number(prof.rating) || 0
       }));
     } catch (error) {
