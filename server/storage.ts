@@ -3251,55 +3251,65 @@ export class DatabaseStorage implements IStorage {
 
   async getProviderClosedLeads(providerId: number): Promise<any[]> {
     try {
-      // Get leads that have been marked as closed by the provider
-      const closedLeads = await db
-        .select({
-          requestId: serviceRequests.id,
-          categoryName: serviceCategories.name,
-          customerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
-          customerEmail: users.email,
-          customerPhone: users.phoneNumber,
-          suburb: serviceRequests.suburb,
-          postcode: serviceRequests.postcode,
-          preferredDate: serviceRequests.preferredDate,
-          bookingType: serviceRequests.bookingType,
-          description: serviceRequests.description,
-          urgency: serviceRequests.urgency,
-          budget: serviceRequests.budget,
-          offerType: leadOffers.offerType,
-          leadCost: leadOffers.leadCost,
-          status: leadOffers.status,
-          isCurrentOffer: leadOffers.isCurrentOffer,
-          expiresAt: leadOffers.expiresAt,
-          purchasedAt: leadOffers.purchasedAt,
-          createdAt: serviceRequests.createdAt,
-          paymentMethod: sql<string>`COALESCE(${providerCreditTransactions.transactionType}, 'unknown')`,
-          leadStatus: providerLeadStatus.status,
-          wasJobBooked: providerLeadStatus.wasJobBooked,
-          closedAt: providerLeadStatus.updatedAt,
-        })
-        .from(leadOffers)
-        .innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id))
-        .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
-        .innerJoin(users, eq(serviceRequests.customerId, users.id))
-        .innerJoin(providerLeadStatus, and(
-          eq(providerLeadStatus.providerId, providerId),
-          eq(providerLeadStatus.leadId, serviceRequests.id),
-          eq(providerLeadStatus.status, 'closed')
-        ))
-        .leftJoin(providerCreditTransactions, eq(leadOffers.id, providerCreditTransactions.leadOfferId))
-        .where(
-          and(
-            eq(leadOffers.providerId, providerId),
-            eq(leadOffers.status, 'purchased') // Only show purchased/closed leads
-          )
-        )
-        .orderBy(desc(providerLeadStatus.updatedAt));
+      // Use completely raw SQL to avoid any Drizzle ORM issues
+      const result = await db.execute(sql`
+        SELECT 
+          sr.id as requestId,
+          sc.name as categoryName,
+          CONCAT(u.first_name, ' ', u.last_name) as customerName,
+          u.email as customerEmail,
+          u.phone_number as customerPhone,
+          sr.suburb,
+          sr.postcode,
+          sr.preferred_date as preferredDate,
+          sr.booking_type as bookingType,
+          sr.description,
+          sr.urgency,
+          sr.budget,
+          lo.offer_type as offerType,
+          lo.lead_cost as leadCost,
+          lo.status,
+          lo.is_current_offer as isCurrentOffer,
+          lo.expires_at as expiresAt,
+          lo.purchased_at as purchasedAt,
+          sr.created_at as createdAt,
+          pls.status as leadStatus,
+          pls.was_job_booked as wasJobBooked,
+          pls.closed_at as closedAt
+        FROM provider_lead_status pls
+        INNER JOIN service_requests sr ON pls.lead_id = sr.id
+        INNER JOIN service_categories sc ON sr.category_id = sc.id
+        INNER JOIN users u ON sr.customer_id = u.id
+        INNER JOIN lead_offers lo ON lo.request_id = sr.id AND lo.provider_id = pls.provider_id
+        WHERE pls.provider_id = ${providerId}
+          AND pls.status = 'closed'
+          AND lo.status = 'purchased'
+        ORDER BY pls.closed_at DESC
+      `);
 
-      return closedLeads.map(lead => ({
-        ...lead,
-        leadCost: parseFloat(lead.leadCost || '0'),
+      return result.rows.map((lead: any) => ({
+        requestId: parseInt(lead.requestid),
+        categoryName: lead.categoryname,
+        customerName: lead.customername,
+        customerEmail: lead.customeremail,  
+        customerPhone: lead.customerphone,
+        suburb: lead.suburb,
+        postcode: lead.postcode,
+        preferredDate: lead.preferreddate,
+        bookingType: lead.bookingtype,
+        description: lead.description,
+        urgency: lead.urgency,
         budget: parseFloat(lead.budget?.toString() || '0'),
+        offerType: lead.offertype,
+        leadCost: parseFloat(lead.leadcost || '0'),
+        status: lead.status,
+        isCurrentOffer: lead.iscurrentoffer,
+        expiresAt: lead.expiresat,
+        purchasedAt: lead.purchasedat,
+        createdAt: lead.createdat,
+        leadStatus: lead.leadstatus,
+        wasJobBooked: lead.wasjobooked,
+        closedAt: lead.closedat
       }));
     } catch (error) {
       console.error('Error getting provider closed leads:', error);

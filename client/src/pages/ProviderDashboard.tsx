@@ -244,6 +244,36 @@ export default function ProviderDashboard() {
   const [showJobBookedDialog, setShowJobBookedDialog] = useState<{leadId: number, visible: boolean}>({leadId: 0, visible: false});
   const [selectedLeadDetails, setSelectedLeadDetails] = useState<any>(null);
 
+  // Fetch lead statuses from server to get accurate status including closed leads
+  useEffect(() => {
+    const fetchLeadStatuses = async () => {
+      if (leads.length > 0) {
+        const statusPromises = leads
+          .filter((l: any) => l.status === 'purchased')
+          .map(async (lead: any) => {
+            try {
+              const response = await apiRequest("GET", `/api/provider/leads/${lead.requestId}/status`);
+              const data = await response.json();
+              return { leadId: lead.requestId, status: data.status };
+            } catch (error) {
+              console.error(`Failed to fetch status for lead ${lead.requestId}:`, error);
+              return { leadId: lead.requestId, status: 'new' };
+            }
+          });
+
+        const statuses = await Promise.all(statusPromises);
+        const statusMap = statuses.reduce((acc, { leadId, status }) => {
+          acc[leadId] = status;
+          return acc;
+        }, {} as {[leadId: number]: string});
+        
+        setLeadStatuses(statusMap);
+      }
+    };
+
+    fetchLeadStatuses();
+  }, [leads]);
+
   const updateLeadStatusMutation = useMutation({
     mutationFn: async ({ leadId, status, wasJobBooked }: { leadId: number; status: string; wasJobBooked?: boolean }) => {
       const response = await apiRequest("PUT", `/api/provider/leads/${leadId}/status`, {
@@ -565,7 +595,7 @@ export default function ProviderDashboard() {
   };
 
   const newLeadsCount = leads.filter((l: any) => l.status === 'pending').length;
-  const acceptedLeadsCount = leads.filter((l: any) => l.status === 'purchased').length;
+  const acceptedLeadsCount = leads.filter((l: any) => l.status === 'purchased' && getLeadStatus(l.requestId) !== 'closed').length;
 
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
