@@ -451,8 +451,15 @@ export default function ProviderDashboard() {
         status: "closed",
         wasJobBooked
       });
+      return { leadId, wasJobBooked };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Update local state to immediately remove from active leads
+      setLeadStatuses(prev => ({
+        ...prev,
+        [data.leadId]: 'closed'
+      }));
+      
       queryClient.invalidateQueries({ queryKey: ["/api/provider/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/provider/leads/closed"] });
       toast({
@@ -2217,26 +2224,35 @@ export default function ProviderDashboard() {
               <div className="flex gap-3 justify-center">
                 <Button
                   variant="outline"
-                  onClick={() => closeLeadMutation.mutate({ 
-                    leadId: closeLeadDialog.lead?.requestId, 
-                    wasJobBooked: false 
-                  })}
+                  onClick={() => {
+                    // Close lead and record as not booked
+                    closeLeadMutation.mutate({ 
+                      leadId: closeLeadDialog.lead?.requestId, 
+                      wasJobBooked: false 
+                    });
+                  }}
                   disabled={closeLeadMutation.isPending}
                   className="flex-1"
                 >
-                  No, Not Booked
+                  {closeLeadMutation.isPending ? "Closing..." : "No, Not Booked"}
                 </Button>
                 <Button
-                  onClick={() => closeLeadMutation.mutate({ 
-                    leadId: closeLeadDialog.lead?.requestId, 
-                    wasJobBooked: true 
-                  })}
+                  onClick={() => {
+                    // Close lead and record as booked
+                    closeLeadMutation.mutate({ 
+                      leadId: closeLeadDialog.lead?.requestId, 
+                      wasJobBooked: true 
+                    });
+                  }}
                   disabled={closeLeadMutation.isPending}
                   className="bg-green-600 hover:bg-green-700 flex-1"
                 >
-                  Yes, Job Booked!
+                  {closeLeadMutation.isPending ? "Closing..." : "Yes, Job Booked!"}
                 </Button>
               </div>
+              <p className="text-xs text-gray-500 mt-3">
+                This lead will be moved to your closed leads and removed from active leads.
+              </p>
             </div>
           </div>
         </DialogContent>
