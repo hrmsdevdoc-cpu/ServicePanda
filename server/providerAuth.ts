@@ -6,7 +6,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { ServiceProvider } from "@shared/schema";
 import path from "path";
-import { sendEmail } from "./emailService";
+import { sendEmail, sendProviderWelcomeEmail, sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail } from "./emailService";
 
 declare global {
   namespace Express {
@@ -57,6 +57,15 @@ export function setupProviderAuth(app: Express) {
         businessName: businessName || null,
         businessAbn: businessAbn || null,
       });
+
+      // Send welcome email after successful registration (Step 1 completion)
+      try {
+        await sendProviderWelcomeEmail(email, firstName);
+        console.log(`Welcome email sent to provider: ${email}`);
+      } catch (emailError) {
+        console.error(`Failed to send welcome email to ${email}:`, emailError);
+        // Don't fail registration if email fails
+      }
 
       res.status(201).json({
         id: provider.id,

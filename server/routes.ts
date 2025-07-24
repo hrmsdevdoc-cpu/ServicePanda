@@ -11,6 +11,7 @@ import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
+import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail } from "./emailService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware for customers
@@ -346,6 +347,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update provider status
       await storage.updateServiceProvider(providerId, { documentsUploaded: true });
+      
+      // Send application submitted email after document upload completion
+      try {
+        await sendProviderApplicationSubmittedEmail(provider.email, provider.firstName);
+        console.log(`Application submitted email sent to provider: ${provider.email}`);
+      } catch (emailError) {
+        console.error(`Failed to send application submitted email to ${provider.email}:`, emailError);
+        // Don't fail document upload if email fails
+      }
       
       res.json({ 
         message: "Documents uploaded successfully",
@@ -767,6 +777,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         oldValue: oldStatus,
         newValue: 'approved',
       });
+
+      // Send approval congratulations email
+      try {
+        await sendProviderApprovalEmail(currentProvider.email, currentProvider.firstName);
+        console.log(`Approval congratulations email sent to provider: ${currentProvider.email}`);
+      } catch (emailError) {
+        console.error(`Failed to send approval email to ${currentProvider.email}:`, emailError);
+        // Don't fail approval if email fails
+      }
 
       res.json({ message: 'Provider approved successfully' });
     } catch (error) {
