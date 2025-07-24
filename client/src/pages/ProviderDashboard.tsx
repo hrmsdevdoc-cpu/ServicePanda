@@ -50,7 +50,8 @@ import {
   Gift,
   MessageSquare,
   MoreVertical,
-  Rocket
+  Rocket,
+  Eye
 } from "lucide-react";
 import { LocationServiceAreaForm } from "@/components/LocationServiceAreaForm";
 import { DocumentUpload } from "@/components/DocumentUpload";
