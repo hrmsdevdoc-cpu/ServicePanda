@@ -80,6 +80,27 @@ The system uses a comprehensive PostgreSQL schema with the following key entitie
 
 ## Recent Changes (January 2025)
 
+### Comprehensive Provider Help System Implementation Completed (January 24, 2025)
+- **Complete Help Documentation**: Created comprehensive 7-section Help system covering all ServicePanda Partners functionality
+- **Getting Started Guide**: Profile completion, payment setup, and onboarding workflow instructions
+- **Lead System Explanation**: Detailed explanation of free leads (3 per new provider), unique vs shared pricing ($30/$12), and 24-hour expiration rules
+- **Billing & Credits Section**: Complete guide to payment methods, credit application priority, voucher system ($50 value, 30-day expiry), and billing history
+- **Customer Interaction Guide**: Instructions for accessing lead details, using contact options (Call/SMS/Email), and professional communication standards
+- **Account Management**: Service area setup with GPS coordinate matching, document management and expiry tracking, service category selection guidance
+- **Troubleshooting Section**: Common issues resolution including lead reception problems, payment issues, and application status concerns
+- **Professional Support Integration**: Complete contact information with business hours (Mon-Fri 9AM-5PM AEST) and 24-hour response commitment
+- **Production Ready**: Full help system operational with comprehensive coverage of all platform features and common provider questions
+
+### Provider Billing Display Accuracy Fix Completed (January 24, 2025)
+- **Fixed Billing Calculations**: Corrected billing display to show actual amount charged instead of misleading total cost values
+- **Purchase History Accuracy**: Free leads now correctly display $0.00 instead of incorrect $12.00 in purchase history
+- **Amount Charged Display**: Updated all billing sections to show "Amount Charged" and "Total Charged" reflecting real financial transactions
+- **Frontend Calculation Fix**: Modified billing display to use amountCharged field directly from lead data for accurate financial reporting
+- **Provider 4 Verification**: Confirmed Vishal's billing now correctly shows $24 total charged (2 paid leads × $12) instead of misleading $60 total cost
+- **Real Financial Transparency**: Both "This Month" and "All Time" billing sections now accurately represent provider's actual charges
+- **Payment Method Display Fix**: Corrected payment method labels to match database values ('free_lead' format) for consistent display
+- **Production Verified**: Complete billing accuracy achieved with proper separation of theoretical costs from actual charges
+
 ### Lead Offer Activation System Fix Completed (January 23, 2025)
 - **Multiple Issues Resolved**: Fixed systematic bug affecting Provider 4's ability to purchase available leads
 - **Root Cause**: Lead offers in shared phase created but not properly marked as `is_current_offer = true`
