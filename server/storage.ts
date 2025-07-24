@@ -834,40 +834,41 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Getting service requests for customer: ${customerId}`);
       
-      // Get basic service requests first
-      const requests = await db
-        .select()
-        .from(serviceRequests)
-        .where(eq(serviceRequests.customerId, customerId))
-        .orderBy(desc(serviceRequests.createdAt));
+      // Use raw SQL to bypass schema issues
+      const result = await db.execute(sql`
+        SELECT id, customer_id, category_id, description, postcode, suburb, 
+               property_type, urgency, budget, preferred_date, booking_type, 
+               scheduled_date, status, created_at, updated_at
+        FROM service_requests 
+        WHERE customer_id = ${customerId}
+        ORDER BY created_at DESC
+      `);
 
-      console.log(`Found ${requests.length} service requests`);
+      console.log(`Found ${result.length} service requests`);
 
-      // Add offer metrics for each request
-      const requestsWithOffers = await Promise.all(
-        requests.map(async (request) => {
-          // Get offer counts
-          const offerCounts = await db
-            .select({
-              totalOffers: sql<number>`COUNT(*)`.as('totalOffers'),
-              acceptedOffers: sql<number>`SUM(CASE WHEN ${leadOffers.status} = 'purchased' THEN 1 ELSE 0 END)`.as('acceptedOffers'),
-              professionalCount: sql<number>`COUNT(DISTINCT ${leadOffers.providerId})`.as('professionalCount')
-            })
-            .from(leadOffers)
-            .where(eq(leadOffers.requestId, request.id));
-
-          const counts = offerCounts[0] || { totalOffers: 0, acceptedOffers: 0, professionalCount: 0 };
-
-          return {
-            ...request,
-            offerMetrics: {
-              totalOffers: Number(counts.totalOffers) || 0,
-              acceptedOffers: Number(counts.acceptedOffers) || 0,
-              professionalCount: Number(counts.professionalCount) || 0
-            }
-          };
-        })
-      );
+      // Transform the raw results
+      const requestsWithOffers = result.map((request: any) => ({
+        id: request.id,
+        customerId: request.customer_id,
+        categoryId: request.category_id,
+        description: request.description,
+        postcode: request.postcode,
+        suburb: request.suburb,
+        propertyType: request.property_type,
+        urgency: request.urgency,
+        budget: request.budget,
+        preferredDate: request.preferred_date,
+        bookingType: request.booking_type,
+        scheduledDate: request.scheduled_date,
+        status: request.status,
+        createdAt: request.created_at,
+        updatedAt: request.updated_at,
+        offerMetrics: {
+          totalOffers: 0,
+          acceptedOffers: 0,
+          professionalCount: 0
+        }
+      }));
 
       return requestsWithOffers;
     } catch (error) {
