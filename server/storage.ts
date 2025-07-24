@@ -3287,30 +3287,36 @@ export class DatabaseStorage implements IStorage {
         ORDER BY pls.closed_at DESC
       `);
 
-      return result.rows.map((lead: any) => ({
-        requestId: parseInt(lead.requestid),
-        categoryName: lead.categoryname,
-        customerName: lead.customername,
-        customerEmail: lead.customeremail,  
-        customerPhone: lead.customerphone,
-        suburb: lead.suburb,
-        postcode: lead.postcode,
-        preferredDate: lead.preferreddate,
-        bookingType: lead.bookingtype,
-        description: lead.description,
-        urgency: lead.urgency,
-        budget: parseFloat(lead.budget?.toString() || '0'),
-        offerType: lead.offertype,
-        leadCost: parseFloat(lead.leadcost || '0'),
-        status: lead.status,
-        isCurrentOffer: lead.iscurrentoffer,
-        expiresAt: lead.expiresat,
-        purchasedAt: lead.purchasedat,
-        createdAt: lead.createdat,
-        leadStatus: lead.leadstatus,
-        wasJobBooked: lead.wasjobooked,
-        closedAt: lead.closedat
-      }));
+      // Successfully fixed wasJobBooked field mapping
+
+      return result.rows.map((lead: any) => {
+        const mappedLead = {
+          requestId: parseInt(lead.requestid),
+          categoryName: lead.categoryname,
+          customerName: lead.customername,
+          customerEmail: lead.customeremail,  
+          customerPhone: lead.customerphone,
+          suburb: lead.suburb,
+          postcode: lead.postcode,
+          preferredDate: lead.preferreddate,
+          bookingType: lead.bookingtype,
+          description: lead.description,
+          urgency: lead.urgency,
+          budget: parseFloat(lead.budget?.toString() || '0'),
+          offerType: lead.offertype,
+          leadCost: parseFloat(lead.leadcost || '0'),
+          status: lead.status,
+          isCurrentOffer: lead.iscurrentoffer,
+          expiresAt: lead.expiresat,
+          purchasedAt: lead.purchasedat,
+          createdAt: lead.createdat,
+          leadStatus: lead.leadstatus,
+          wasJobBooked: lead.wasjobbooked, // Fixed case sensitivity issue
+          closedAt: lead.closedat
+        };
+        // Field mapping completed successfully
+        return mappedLead;
+      });
     } catch (error) {
       console.error('Error getting provider closed leads:', error);
       return [];
