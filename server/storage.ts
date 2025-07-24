@@ -972,7 +972,7 @@ export class DatabaseStorage implements IStorage {
           lo.provider_id as providerId,
           sp.business_name as providerName,
           sp.email as providerEmail,
-          sp.phone_number as providerPhone,
+          sp.mobile_number as providerPhone,
           lo.offer_type as offerType,
           lo.status as offerStatus,
           lo.created_at as offerCreatedAt,
@@ -982,7 +982,7 @@ export class DatabaseStorage implements IStorage {
          LEFT JOIN service_providers sp ON lo.provider_id = sp.id
          LEFT JOIN provider_ratings pr ON sp.id = pr.provider_id
          WHERE lo.request_id = $1 AND lo.status = 'purchased'
-         GROUP BY lo.provider_id, sp.business_name, sp.email, sp.phone_number, 
+         GROUP BY lo.provider_id, sp.business_name, sp.email, sp.mobile_number, 
                   lo.offer_type, lo.status, lo.created_at
          ORDER BY lo.created_at DESC`,
         [requestId]
