@@ -1769,9 +1769,9 @@ export default function ProviderDashboard() {
                                     )}
                                   </div>
                                   <div className="text-right">
-                                    <p className="text-lg font-bold text-green-600">${lead.totalCost.toFixed(2)}</p>
+                                    <p className="text-lg font-bold text-green-600">${lead.amountCharged.toFixed(2)}</p>
                                     <p className="text-xs text-gray-500">
-                                      {lead.paymentMethod === 'free' ? 'Free Lead' : 
+                                      {lead.paymentMethod === 'free_lead' ? 'Free Lead' : 
                                        lead.paymentMethod === 'credit' ? 'Credit Used' : 'Card Payment'}
                                     </p>
                                   </div>
