@@ -3678,7 +3678,7 @@ export class DatabaseStorage implements IStorage {
 
       const thisMonthPurchases = thisMonthLeads.length;
       const thisMonthTotal = thisMonthLeads.reduce((sum, lead) => 
-        sum + lead.totalCost, 0
+        sum + lead.amountCharged, 0
       );
 
       return {

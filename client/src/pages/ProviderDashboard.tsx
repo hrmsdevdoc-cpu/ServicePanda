@@ -1708,8 +1708,12 @@ export default function ProviderDashboard() {
                               <span className="text-2xl font-bold text-blue-600">{billingData.thisMonthPurchases}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">Total Cost</span>
-                              <span className="text-2xl font-bold text-green-600">${billingData.thisMonthTotal.toFixed(2)}</span>
+                              <span className="text-sm text-gray-600">Amount Charged</span>
+                              <span className="text-2xl font-bold text-green-600">
+                                ${billingData.allPaidLeads
+                                  .filter(lead => new Date(lead.purchasedAt) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+                                  .reduce((sum, lead) => sum + lead.amountCharged, 0).toFixed(2)}
+                              </span>
                             </div>
                           </div>
                         </CardContent>
@@ -1726,9 +1730,9 @@ export default function ProviderDashboard() {
                               <span className="text-2xl font-bold text-blue-600">{billingData.allPaidLeads.length}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">Total Spent</span>
+                              <span className="text-sm text-gray-600">Total Charged</span>
                               <span className="text-2xl font-bold text-green-600">
-                                ${billingData.allPaidLeads.reduce((sum, lead) => sum + lead.totalCost, 0).toFixed(2)}
+                                ${billingData.allPaidLeads.reduce((sum, lead) => sum + lead.amountCharged, 0).toFixed(2)}
                               </span>
                             </div>
                           </div>
