@@ -991,10 +991,13 @@ export class DatabaseStorage implements IStorage {
       );
 
       console.log(`Found ${result.rows.length} accepted professionals for request ${requestId}`);
+      console.log("Raw professional data:", result.rows);
 
       return result.rows.map((prof: any) => ({
         providerId: prof.providerid,
-        providerName: prof.providername,
+        businessName: prof.businessname,
+        firstName: prof.firstname,
+        lastName: prof.lastname,
         providerEmail: prof.provideremail,
         providerPhone: prof.providerphone,
         offerType: prof.offertype,
