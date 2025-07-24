@@ -863,7 +863,7 @@ export class DatabaseStorage implements IStorage {
               professionalCount: sql<number>`COUNT(DISTINCT ${leadOffers.providerId})`.as('professionalCount')
             })
             .from(leadOffers)
-            .where(eq(leadOffers.serviceRequestId, request.id));
+            .where(eq(leadOffers.requestId, request.id));
 
           const counts = offerCounts[0] || { totalOffers: 0, acceptedOffers: 0, professionalCount: 0 };
 
