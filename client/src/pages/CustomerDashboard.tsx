@@ -398,9 +398,9 @@ function ServicesRequestedTab({ myRequests, categories, navigate, queryClient }:
     enabled: !!selectedRequest?.id,
   });
 
-  // Get professionals who received the service request
+  // Get professionals who accepted quotes for the service request
   const { data: professionals = [] } = useQuery({
-    queryKey: ["/api/service-requests", selectedRequest?.id, "professionals"],
+    queryKey: ["/api/service-requests", selectedRequest?.id, "accepted-professionals"],
     enabled: !!selectedRequest?.id && showProfessionals,
   });
 
@@ -444,62 +444,40 @@ function ServicesRequestedTab({ myRequests, categories, navigate, queryClient }:
               return (
                 <div key={request.id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start mb-3">
-                    <h3 className="font-semibold">{category?.name || 'Service Request'}</h3>
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{category?.name || 'Service Request'}</h3>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-sm text-gray-500">Job Type:</span>
+                        {request.bookingType && (
+                          <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                            {request.bookingType.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 ${statusColor} rounded-full`}></div>
                       <span className="text-sm text-gray-500 capitalize">{request.status}</span>
                     </div>
                   </div>
                   
-                  {/* Professional Count Display */}
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">
-                        <span className="font-medium">{professionalCount}</span> professionals received details
-                      </span>
+                  {/* Location and Dates */}
+                  <div className="grid grid-cols-2 gap-4 text-xs text-gray-600 mb-3">
+                    <div>
+                      <span className="font-medium">Location:</span><br />
+                      <span>{request.suburb}, {request.postcode}</span>
                     </div>
-                    {acceptedCount > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        {acceptedCount} accepted
-                      </Badge>
-                    )}
+                    <div>
+                      <span className="font-medium">Request Date:</span><br />
+                      {new Date(request.createdAt).toLocaleDateString()}
+                    </div>
                   </div>
                   
-                  {/* Booking Details */}
-                  <div className="space-y-2 mb-3">
-                    {request.bookingType && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                          {request.bookingType.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                        </span>
-                      </div>
-                    )}
-                    
-                    <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
-                      <div>
-                        <span className="font-medium">Request Date:</span><br />
-                        {new Date(request.createdAt).toLocaleDateString()}
-                      </div>
-                      {request.preferredDate && (
-                        <div>
-                          <span className="font-medium">Preferred Date:</span><br />
-                          {new Date(request.preferredDate).toLocaleDateString()}
-                        </div>
-                      )}
+                  {request.preferredDate && (
+                    <div className="text-xs text-gray-600 mb-3">
+                      <span className="font-medium">Preferred Date:</span> {new Date(request.preferredDate).toLocaleDateString()}
                     </div>
-                    
-                    {request.scheduledDate && (
-                      <div className="text-xs text-gray-600">
-                        <span className="font-medium">Scheduled Date:</span> {new Date(request.scheduledDate).toLocaleDateString()}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-3">{request.description}</p>
-                  <div className="text-sm text-gray-500 mb-3">
-                    <span>{request.suburb}, {request.postcode}</span>
-                  </div>
+                  )}
                   
                   {/* Action Buttons */}
                   <div className="flex gap-2">
@@ -526,7 +504,7 @@ function ServicesRequestedTab({ myRequests, categories, navigate, queryClient }:
                       </DialogContent>
                     </Dialog>
                     
-                    {professionalCount > 0 && (
+                    {acceptedCount > 0 && (
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button
@@ -538,14 +516,14 @@ function ServicesRequestedTab({ myRequests, categories, navigate, queryClient }:
                             }}
                           >
                             <Users className="h-4 w-4 mr-2" />
-                            View Professionals
+                            View Professionals ({acceptedCount})
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-3xl">
                           <DialogHeader>
-                            <DialogTitle>Professionals Who Received Your Request</DialogTitle>
+                            <DialogTitle>Professionals Who Accepted Your Quote</DialogTitle>
                           </DialogHeader>
-                          <ProfessionalsView 
+                          <AcceptedProfessionalsView 
                             professionals={professionals}
                             request={request}
                             category={category}
@@ -625,22 +603,22 @@ function ServiceRequestDetails({ request, category, details }: any) {
   );
 }
 
-// Professionals View Component
-function ProfessionalsView({ professionals, request, category }: any) {
+// Accepted Professionals View Component
+function AcceptedProfessionalsView({ professionals, request, category }: any) {
   return (
     <div className="space-y-4">
       <div className="text-sm text-gray-600 mb-4">
-        <span className="font-medium">{professionals.length}</span> professionals received your {category?.name} request.
+        <span className="font-medium">{professionals.length}</span> professional{professionals.length !== 1 ? 's' : ''} accepted your {category?.name} quote.
       </div>
       
       {professionals.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-gray-500">No professionals have responded to this request yet.</p>
+          <p className="text-gray-500">No professionals have accepted your quote yet.</p>
         </div>
       ) : (
         <div className="grid gap-4">
           {professionals.map((professional: any) => (
-            <div key={professional.providerId} className="border rounded-lg p-4">
+            <div key={professional.providerId} className="border rounded-lg p-4 bg-green-50">
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="font-semibold text-gray-900">{professional.providerName}</h3>
@@ -653,11 +631,8 @@ function ProfessionalsView({ professionals, request, category }: any) {
                 </div>
                 
                 <div className="text-right">
-                  <Badge 
-                    variant={professional.isPurchased ? "default" : "secondary"}
-                    className={professional.isPurchased ? "bg-green-100 text-green-800" : ""}
-                  >
-                    {professional.isPurchased ? "Accepted Quote" : "Received Details"}
+                  <Badge className="bg-green-100 text-green-800">
+                    Quote Accepted
                   </Badge>
                   
                   <div className="text-xs text-gray-500 mt-1">
@@ -666,7 +641,8 @@ function ProfessionalsView({ professionals, request, category }: any) {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              {/* Contact Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-gray-400" />
                   <span className="text-gray-600">{professional.providerEmail}</span>
@@ -680,9 +656,32 @@ function ProfessionalsView({ professionals, request, category }: any) {
                 )}
               </div>
               
-              <div className="flex items-center gap-2 mt-3 text-xs text-gray-500">
+              {/* Contact Action Buttons */}
+              <div className="flex gap-2 mb-3">
+                {professional.providerPhone && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(`tel:${professional.providerPhone}`)}
+                  >
+                    <Phone className="h-4 w-4 mr-2" />
+                    Call
+                  </Button>
+                )}
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.open(`mailto:${professional.providerEmail}?subject=Regarding ${category?.name} Service Request&body=Hi ${professional.providerName},%0D%0A%0D%0AThank you for accepting my ${category?.name} quote request.%0D%0A%0D%0ABest regards`)}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Email
+                </Button>
+              </div>
+              
+              <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Calendar className="h-4 w-4" />
-                <span>Received on {new Date(professional.offerCreatedAt).toLocaleDateString()}</span>
+                <span>Accepted on {new Date(professional.offerCreatedAt).toLocaleDateString()}</span>
               </div>
             </div>
           ))}

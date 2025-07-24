@@ -535,6 +535,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get professionals who accepted customer's service request quotes
+  app.get('/api/service-requests/:id/accepted-professionals', isAuthenticated, async (req: any, res) => {
+    try {
+      const requestId = parseInt(req.params.id);
+      const userId = req.user.id;
+      
+      // Verify the request belongs to this user
+      const request = await storage.getServiceRequest(requestId);
+      if (!request || request.customerId !== userId) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+      
+      const acceptedProfessionals = await storage.getServiceRequestAcceptedProfessionals(requestId);
+      res.json(acceptedProfessionals);
+    } catch (error) {
+      console.error("Error fetching accepted professionals:", error);
+      res.status(500).json({ message: "Failed to fetch accepted professionals" });
+    }
+  });
+
   // Get new leads for provider
   app.get('/api/leads/new', isAuthenticated, async (req: any, res) => {
     try {

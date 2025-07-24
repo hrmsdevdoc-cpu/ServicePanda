@@ -159,6 +159,7 @@ export interface IStorage {
   getCustomerServiceRequestsWithOffers(customerId: string): Promise<any[]>;
   getServiceRequestDetails(requestId: number): Promise<any>;
   getServiceRequestProfessionals(requestId: number): Promise<any[]>;
+  getServiceRequestAcceptedProfessionals(requestId: number): Promise<any[]>;
   getServiceRequestsByArea(postcode: string, categoryId: number): Promise<ServiceRequest[]>;
   getServiceRequest(id: number): Promise<ServiceRequest | undefined>;
   updateServiceRequestStatus(id: number, status: string): Promise<void>;
@@ -940,6 +941,50 @@ export class DatabaseStorage implements IStorage {
       }));
     } catch (error) {
       console.error("Error getting service request professionals:", error);
+      throw error;
+    }
+  }
+
+  async getServiceRequestAcceptedProfessionals(requestId: number): Promise<any[]> {
+    try {
+      const acceptedProfessionals = await db
+        .select({
+          providerId: leadOffers.providerId,
+          providerName: serviceProviders.businessName,
+          providerEmail: serviceProviders.email,
+          providerPhone: serviceProviders.phoneNumber,
+          offerType: leadOffers.offerType,
+          offerStatus: leadOffers.status,
+          offerCreatedAt: leadOffers.createdAt,
+          isPurchased: sql<boolean>`true`.as('isPurchased'),
+          rating: sql<number>`COALESCE(AVG(${providerRatings.rating}), 0)`.as('rating')
+        })
+        .from(leadOffers)
+        .leftJoin(serviceProviders, eq(leadOffers.providerId, serviceProviders.id))
+        .leftJoin(providerRatings, eq(serviceProviders.id, providerRatings.providerId))
+        .where(
+          and(
+            eq(leadOffers.serviceRequestId, requestId),
+            eq(leadOffers.status, 'purchased')
+          )
+        )
+        .groupBy(
+          leadOffers.providerId,
+          serviceProviders.businessName,
+          serviceProviders.email,
+          serviceProviders.phoneNumber,
+          leadOffers.offerType,
+          leadOffers.status,
+          leadOffers.createdAt
+        )
+        .orderBy(desc(leadOffers.createdAt));
+
+      return acceptedProfessionals.map(prof => ({
+        ...prof,
+        rating: Number(prof.rating) || 0
+      }));
+    } catch (error) {
+      console.error("Error getting accepted professionals:", error);
       throw error;
     }
   }
