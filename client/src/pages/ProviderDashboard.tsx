@@ -49,7 +49,8 @@ import {
   Plus,
   Gift,
   MessageSquare,
-  MoreVertical
+  MoreVertical,
+  Rocket
 } from "lucide-react";
 import { LocationServiceAreaForm } from "@/components/LocationServiceAreaForm";
 import { DocumentUpload } from "@/components/DocumentUpload";
@@ -1809,22 +1810,214 @@ export default function ProviderDashboard() {
               </div>
             )}
 
-            {/* Help Section (coming soon) */}
+            {/* Help Section */}
             {activeMenuItem === "help" && (
               <div className="space-y-6">
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Help & Support</h1>
+                  <p className="text-gray-600">
+                    Everything you need to know about using ServicePanda Partners
+                  </p>
+                </div>
+
+                {/* Getting Started */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Coming Soon</CardTitle>
+                    <CardTitle className="flex items-center">
+                      <Rocket className="h-5 w-5 mr-2" />
+                      Getting Started
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Complete Your Profile</h4>
+                      <p className="text-sm text-gray-600">
+                        Make sure to complete all sections: Personal Details, Services, Service Areas, and Documents. 
+                        Your application needs admin approval before you can receive leads.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Set Up Payment Methods</h4>
+                      <p className="text-sm text-gray-600">
+                        Add your credit card in the Payment section to purchase leads after using your 3 free leads.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Lead System */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Target className="h-5 w-5 mr-2" />
+                      Understanding the Lead System
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Free Leads</h4>
+                      <p className="text-sm text-gray-600">
+                        New providers get 3 free leads to try the platform. After that, leads cost $30 for unique access or $12 for shared access.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Unique vs Shared Leads</h4>
+                      <p className="text-sm text-gray-600">
+                        <strong>Unique:</strong> You get exclusive access to the customer for $30.<br/>
+                        <strong>Shared:</strong> Up to 3 providers can access the same lead for $12 each.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Lead Expiration</h4>
+                      <p className="text-sm text-gray-600">
+                        Unique offers expire after 24 hours. If not purchased, the lead moves to shared phase where multiple providers can purchase it.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Billing & Credits */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <CreditCard className="h-5 w-5 mr-2" />
+                      Billing & Credits
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Payment Methods</h4>
+                      <p className="text-sm text-gray-600">
+                        You can pay for leads using credits (if you have any) or your saved credit card. Credits are applied first.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Voucher System</h4>
+                      <p className="text-sm text-gray-600">
+                        Redeem vouchers in the Credits section to add credit to your account. Each voucher is worth $50 and expires after 30 days.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Billing History</h4>
+                      <p className="text-sm text-gray-600">
+                        View all your purchases in the Billing section. Free leads show $0.00, paid leads show the actual amount charged.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Customer Interaction */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Phone className="h-5 w-5 mr-2" />
+                      Contacting Customers
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Lead Details</h4>
+                      <p className="text-sm text-gray-600">
+                        Click on any lead to view full customer details, job requirements, and contact information.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Contact Options</h4>
+                      <p className="text-sm text-gray-600">
+                        Use the Call, SMS, or Email buttons to contact customers directly. All interactions are tracked for your records.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Professional Communication</h4>
+                      <p className="text-sm text-gray-600">
+                        Always respond promptly and professionally. Provide clear quotes and availability. This helps build your reputation on the platform.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Account Management */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Settings className="h-5 w-5 mr-2" />
+                      Managing Your Account
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Service Areas</h4>
+                      <p className="text-sm text-gray-600">
+                        You can have multiple service areas. Set realistic radius distances you're willing to travel. 
+                        The system uses GPS coordinates to match you with nearby customers.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Document Updates</h4>
+                      <p className="text-sm text-gray-600">
+                        Keep your license, insurance, and police check documents current. Admin may deactivate accounts with expired documents.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Service Categories</h4>
+                      <p className="text-sm text-gray-600">
+                        Only select services you actually provide. You'll only receive leads for selected categories. 
+                        You can update your services anytime in the Settings menu.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Troubleshooting */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <AlertCircle className="h-5 w-5 mr-2" />
+                      Common Issues
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Not Receiving Leads</h4>
+                      <p className="text-sm text-gray-600">
+                        Check that your account is approved, you've selected service categories, and set up service areas. 
+                        Ensure your documents are approved and not expired.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Payment Issues</h4>
+                      <p className="text-sm text-gray-600">
+                        Verify your credit card details in the Payment section. Make sure your card has sufficient funds and isn't expired.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Application Status</h4>
+                      <p className="text-sm text-gray-600">
+                        If your status shows "Pending Review", admin is reviewing your application. 
+                        If "Rejected", check what documents or information need updating.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Contact Support */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Mail className="h-5 w-5 mr-2" />
+                      Need More Help?
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center py-12">
-                      <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Settings className="h-8 w-8 text-gray-400" />
-                      </div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Feature Coming Soon</h3>
-                      <p className="text-gray-500">
-                        This feature is currently under development.
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <p className="text-sm text-blue-900 mb-3">
+                        Can't find what you're looking for? Our support team is here to help.
                       </p>
+                      <div className="space-y-2 text-sm">
+                        <p><strong>Email:</strong> support@servicepanda.com.au</p>
+                        <p><strong>Business Hours:</strong> Monday - Friday, 9:00 AM - 5:00 PM AEST</p>
+                        <p><strong>Response Time:</strong> Within 24 hours</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
