@@ -942,7 +942,7 @@ export class DatabaseStorage implements IStorage {
         .from(leadOffers)
         .leftJoin(serviceProviders, eq(leadOffers.providerId, serviceProviders.id))
         .leftJoin(providerRatings, eq(serviceProviders.id, providerRatings.providerId))
-        .where(eq(leadOffers.serviceRequestId, requestId))
+        .where(eq(leadOffers.requestId, requestId))
         .groupBy(
           leadOffers.providerId,
           serviceProviders.businessName,
@@ -983,7 +983,7 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(providerRatings, eq(serviceProviders.id, providerRatings.providerId))
         .where(
           and(
-            eq(leadOffers.serviceRequestId, requestId),
+            eq(leadOffers.requestId, requestId),
             eq(leadOffers.status, 'purchased')
           )
         )
