@@ -3635,25 +3635,41 @@ export class DatabaseStorage implements IStorage {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      // Get all paid leads for this provider
-      const allPaidLeads = await db
-        .select({
-          id: leadPurchases.id,
-          requestId: leadPurchases.requestId,
-          totalCost: leadPurchases.totalCost,
-          creditUsed: leadPurchases.creditUsed,
-          amountCharged: leadPurchases.amountCharged,
-          paymentMethod: leadPurchases.paymentMethod,
-          purchasedAt: leadPurchases.purchasedAt,
-          categoryName: serviceCategories.name,
-          customerName: serviceRequests.customerName,
-          location: serviceRequests.location,
-        })
+      // Get all purchases for this provider
+      const purchases = await db
+        .select()
         .from(leadPurchases)
-        .innerJoin(serviceRequests, eq(leadPurchases.requestId, serviceRequests.id))
-        .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
         .where(eq(leadPurchases.providerId, providerId))
         .orderBy(desc(leadPurchases.purchasedAt));
+
+      // Get additional details for each purchase
+      const allPaidLeads = [];
+      for (const purchase of purchases) {
+        // Get service request details
+        const [serviceRequest] = await db
+          .select()
+          .from(serviceRequests)
+          .where(eq(serviceRequests.id, purchase.requestId));
+
+        // Get category name
+        const [category] = await db
+          .select()
+          .from(serviceCategories)
+          .where(eq(serviceCategories.id, serviceRequest.categoryId));
+
+        allPaidLeads.push({
+          id: purchase.id,
+          requestId: purchase.requestId,
+          categoryName: category.name,
+          totalCost: parseFloat(purchase.totalCost.toString()),
+          creditUsed: parseFloat(purchase.creditUsed.toString()),
+          amountCharged: parseFloat(purchase.amountCharged.toString()),
+          paymentMethod: purchase.paymentMethod,
+          purchasedAt: purchase.purchasedAt.toISOString(),
+          customerName: undefined, // Not available in current schema
+          location: `${serviceRequest.suburb}, ${serviceRequest.postcode}`,
+        });
+      }
 
       // Calculate this month's statistics
       const thisMonthLeads = allPaidLeads.filter(lead => 
@@ -3662,27 +3678,13 @@ export class DatabaseStorage implements IStorage {
 
       const thisMonthPurchases = thisMonthLeads.length;
       const thisMonthTotal = thisMonthLeads.reduce((sum, lead) => 
-        sum + parseFloat(lead.totalCost.toString()), 0
+        sum + lead.totalCost, 0
       );
-
-      // Format the data for response
-      const formattedLeads = allPaidLeads.map(lead => ({
-        id: lead.id,
-        requestId: lead.requestId,
-        categoryName: lead.categoryName,
-        totalCost: parseFloat(lead.totalCost.toString()),
-        creditUsed: parseFloat(lead.creditUsed.toString()),
-        amountCharged: parseFloat(lead.amountCharged.toString()),
-        paymentMethod: lead.paymentMethod,
-        purchasedAt: lead.purchasedAt.toISOString(),
-        customerName: lead.customerName || undefined,
-        location: lead.location || undefined,
-      }));
 
       return {
         thisMonthPurchases,
         thisMonthTotal,
-        allPaidLeads: formattedLeads,
+        allPaidLeads,
       };
     } catch (error) {
       console.error('Error fetching provider billing data:', error);

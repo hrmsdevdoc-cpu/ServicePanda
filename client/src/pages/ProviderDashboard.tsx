@@ -104,11 +104,16 @@ export default function ProviderDashboard() {
   });
 
   // Fetch billing data
-  const { data: billingData, isLoading: billingLoading } = useQuery({
+  const { data: billingData, isLoading: billingLoading, error: billingError } = useQuery({
     queryKey: ["/api/provider/billing"],
     retry: false,
     enabled: activeMenuItem === "billing" && !!provider?.id,
   });
+
+  // Debug logging for billing
+  if (activeMenuItem === "billing") {
+    console.log("Billing section active - provider:", provider?.id, "billingData:", billingData, "error:", billingError);
+  }
 
   // Fetch provider leads/jobs
   const { data: leads = [], isLoading: leadsLoading } = useQuery({
