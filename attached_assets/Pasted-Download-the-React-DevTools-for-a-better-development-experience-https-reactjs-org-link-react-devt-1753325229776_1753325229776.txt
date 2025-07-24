@@ -1,0 +1,65 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:1371 Google Maps JavaScript API has been loaded directly without loading=async. This can result in suboptimal performance. For best-practice loading patterns please see https://goo.gle/js-api-loading
+jda @ js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:1371
+(anonymous) @ js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:14
+(anonymous) @ js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:1609
+(anonymous) @ js?key=AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg&libraries=places:1609Understand this warning
+main.js?attr=CTAneilkzjHptfER1sU2djGhrP27Oehl_qpo8MfRCdVpXpJ4AkXJzDUNHTvnfVTMrg0EOzRkl7mT440yF0TrRF_Dv6_8jVXNLy7p6cILhcqmQv2N_-Cb0-5JU0xsk8BIPlaUdRcC4w6uMp_qgxNUuw:2953  GET https://f7db10d9-113e-4d0c-81be-a1233ec1aab7-00-1ztesl4fej53t.spock.replit.dev/api/service-requests/my-requests 500 (Internal Server Error)
+fetchCallImpl @ main.js?attr=CTAneilkzjHptfER1sU2djGhrP27Oehl_qpo8MfRCdVpXpJ4AkXJzDUNHTvnfVTMrg0EOzRkl7mT440yF0TrRF_Dv6_8jVXNLy7p6cILhcqmQv2N_-Cb0-5JU0xsk8BIPlaUdRcC4w6uMp_qgxNUuw:2953
+window.fetch @ main.js?attr=CTAneilkzjHptfER1sU2djGhrP27Oehl_qpo8MfRCdVpXpJ4AkXJzDUNHTvnfVTMrg0EOzRkl7mT440yF0TrRF_Dv6_8jVXNLy7p6cILhcqmQv2N_-Cb0-5JU0xsk8BIPlaUdRcC4w6uMp_qgxNUuw:2955
+(anonymous) @ queryClient.ts:92
+fetchFn @ @tanstack_react-query.js?v=e36a7c4c:840
+run @ @tanstack_react-query.js?v=e36a7c4c:494
+start @ @tanstack_react-query.js?v=e36a7c4c:536
+fetch @ @tanstack_react-query.js?v=e36a7c4c:926
+executeFetch_fn @ @tanstack_react-query.js?v=e36a7c4c:2211
+onSubscribe @ @tanstack_react-query.js?v=e36a7c4c:1898
+subscribe @ @tanstack_react-query.js?v=e36a7c4c:24
+(anonymous) @ @tanstack_react-query.js?v=e36a7c4c:3022
+subscribeToStore @ chunk-RPCDYKBN.js?v=e36a7c4c:11984
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=e36a7c4c:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=e36a7c4c:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=e36a7c4c:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=e36a7c4c:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=e36a7c4c:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=e36a7c4c:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=e36a7c4c:19447
+commitRootImpl @ chunk-RPCDYKBN.js?v=e36a7c4c:19416
+commitRoot @ chunk-RPCDYKBN.js?v=e36a7c4c:19277
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=e36a7c4c:18895
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=e36a7c4c:9119
+(anonymous) @ chunk-RPCDYKBN.js?v=e36a7c4c:18627
+setTimeout
+scheduleFn @ @tanstack_react-query.js?v=e36a7c4c:555
+flush @ @tanstack_react-query.js?v=e36a7c4c:569
+batch @ @tanstack_react-query.js?v=e36a7c4c:587
+dispatch_fn @ @tanstack_react-query.js?v=e36a7c4c:996
+setData @ @tanstack_react-query.js?v=e36a7c4c:696
+onSuccess @ @tanstack_react-query.js?v=e36a7c4c:897
+resolve @ @tanstack_react-query.js?v=e36a7c4c:456
+Promise.then
+run @ @tanstack_react-query.js?v=e36a7c4c:498
+start @ @tanstack_react-query.js?v=e36a7c4c:536
+fetch @ @tanstack_react-query.js?v=e36a7c4c:926
+executeFetch_fn @ @tanstack_react-query.js?v=e36a7c4c:2211
+onSubscribe @ @tanstack_react-query.js?v=e36a7c4c:1898
+subscribe @ @tanstack_react-query.js?v=e36a7c4c:24
+(anonymous) @ @tanstack_react-query.js?v=e36a7c4c:3022
+subscribeToStore @ chunk-RPCDYKBN.js?v=e36a7c4c:11984
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=e36a7c4c:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=e36a7c4c:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=e36a7c4c:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=e36a7c4c:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=e36a7c4c:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=e36a7c4c:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=e36a7c4c:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=e36a7c4c:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=e36a7c4c:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=e36a7c4c:19432
+commitRoot @ chunk-RPCDYKBN.js?v=e36a7c4c:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=e36a7c4c:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=e36a7c4c:18718
+workLoop @ chunk-RPCDYKBN.js?v=e36a7c4c:197
+flushWork @ chunk-RPCDYKBN.js?v=e36a7c4c:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=e36a7c4c:384Understand this error
+m.stripe.network/inner.html#url=https%3A%2F%2Ff7db10d9-113e-4d0c-81be-a1233ec1aab7-00-1ztesl4fej53t.spock.replit.dev%2F&title=&referrer=https%3A%2F%2Ff7db10d9-113e-4d0c-81be-a1233ec1aab7-00-1ztesl4fej53t.spock.replit.dev%2F&muid=27e53635-2beb-42ff-b4dd-687039280d911e68e6&sid=82002ba2-5331-4ca8-b20a-b0455b273bb82d7ee2&version=6&preview=false&__shared_params__[version]=basil:1 Refused to load the script 'https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=Z59alD7vbY01ILjfa7wyVR1nCTIkkrqpLgculM-BL0n-q6kbu-PjdbjqM1UPT-D6rka0wbzAwxaYvXlQ37tDAg' because it violates the following Content Security Policy directive: "script-src https://m.stripe.network 'sha256-5DA+a07wxWmEka9IdoWjSPVHb17Cp5284/lJzfbl8KA=' 'sha256-/5Guo2nzv5n/w6ukZpOBZOtTJBJPSkJ6mhHpnBgm3Ls='". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback.

@@ -832,30 +832,21 @@ export class DatabaseStorage implements IStorage {
 
   async getCustomerServiceRequestsWithOffers(customerId: string): Promise<any[]> {
     try {
-      // Get service requests with offer counts
+      console.log(`Getting service requests for customer: ${customerId}`);
+      
+      // Get basic service requests first
       const requests = await db
-        .select({
-          id: serviceRequests.id,
-          customerId: serviceRequests.customerId,
-          categoryId: serviceRequests.categoryId,
-          suburb: serviceRequests.suburb,
-          postcode: serviceRequests.postcode,
-          address: serviceRequests.address,
-          description: serviceRequests.description,
-          bookingType: serviceRequests.bookingType,
-          preferredDate: serviceRequests.preferredDate,
-          scheduledDate: serviceRequests.scheduledDate,
-          status: serviceRequests.status,
-          createdAt: serviceRequests.createdAt,
-          updatedAt: serviceRequests.updatedAt,
-        })
+        .select()
         .from(serviceRequests)
         .where(eq(serviceRequests.customerId, customerId))
         .orderBy(desc(serviceRequests.createdAt));
 
-      // Get offer counts for each request
+      console.log(`Found ${requests.length} service requests`);
+
+      // Add offer metrics for each request
       const requestsWithOffers = await Promise.all(
         requests.map(async (request) => {
+          // Get offer counts
           const offerCounts = await db
             .select({
               totalOffers: sql<number>`COUNT(*)`.as('totalOffers'),
