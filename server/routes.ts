@@ -485,11 +485,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/service-requests/my-requests', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const requests = await storage.getServiceRequests(userId);
+      const requests = await storage.getCustomerServiceRequestsWithOffers(userId);
       res.json(requests);
     } catch (error) {
       console.error("Error fetching service requests:", error);
       res.status(500).json({ message: "Failed to fetch service requests" });
+    }
+  });
+
+  // Get detailed service request info for customer
+  app.get('/api/service-requests/:id/details', isAuthenticated, async (req: any, res) => {
+    try {
+      const requestId = parseInt(req.params.id);
+      const userId = req.user.id;
+      
+      // Verify the request belongs to this user
+      const request = await storage.getServiceRequest(requestId);
+      if (!request || request.customerId !== userId) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+      
+      const details = await storage.getServiceRequestDetails(requestId);
+      res.json(details);
+    } catch (error) {
+      console.error("Error fetching service request details:", error);
+      res.status(500).json({ message: "Failed to fetch service request details" });
+    }
+  });
+
+  // Get professionals who received customer's service request
+  app.get('/api/service-requests/:id/professionals', isAuthenticated, async (req: any, res) => {
+    try {
+      const requestId = parseInt(req.params.id);
+      const userId = req.user.id;
+      
+      // Verify the request belongs to this user
+      const request = await storage.getServiceRequest(requestId);
+      if (!request || request.customerId !== userId) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+      
+      const professionals = await storage.getServiceRequestProfessionals(requestId);
+      res.json(professionals);
+    } catch (error) {
+      console.error("Error fetching service request professionals:", error);
+      res.status(500).json({ message: "Failed to fetch professionals" });
     }
   });
 

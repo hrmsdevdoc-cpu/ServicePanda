@@ -156,6 +156,9 @@ export interface IStorage {
   // Service request operations
   createServiceRequest(request: InsertServiceRequest): Promise<ServiceRequest>;
   getServiceRequests(customerId?: string): Promise<ServiceRequest[]>;
+  getCustomerServiceRequestsWithOffers(customerId: string): Promise<any[]>;
+  getServiceRequestDetails(requestId: number): Promise<any>;
+  getServiceRequestProfessionals(requestId: number): Promise<any[]>;
   getServiceRequestsByArea(postcode: string, categoryId: number): Promise<ServiceRequest[]>;
   getServiceRequest(id: number): Promise<ServiceRequest | undefined>;
   updateServiceRequestStatus(id: number, status: string): Promise<void>;
@@ -825,6 +828,127 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query.orderBy(desc(serviceRequests.createdAt));
+  }
+
+  async getCustomerServiceRequestsWithOffers(customerId: string): Promise<any[]> {
+    try {
+      // Get service requests with offer counts
+      const requests = await db
+        .select({
+          id: serviceRequests.id,
+          customerId: serviceRequests.customerId,
+          categoryId: serviceRequests.categoryId,
+          suburb: serviceRequests.suburb,
+          postcode: serviceRequests.postcode,
+          address: serviceRequests.address,
+          description: serviceRequests.description,
+          bookingType: serviceRequests.bookingType,
+          preferredDate: serviceRequests.preferredDate,
+          scheduledDate: serviceRequests.scheduledDate,
+          status: serviceRequests.status,
+          createdAt: serviceRequests.createdAt,
+          updatedAt: serviceRequests.updatedAt,
+        })
+        .from(serviceRequests)
+        .where(eq(serviceRequests.customerId, customerId))
+        .orderBy(desc(serviceRequests.createdAt));
+
+      // Get offer counts for each request
+      const requestsWithOffers = await Promise.all(
+        requests.map(async (request) => {
+          const offerCounts = await db
+            .select({
+              totalOffers: sql<number>`COUNT(*)`.as('totalOffers'),
+              acceptedOffers: sql<number>`SUM(CASE WHEN ${leadOffers.status} = 'purchased' THEN 1 ELSE 0 END)`.as('acceptedOffers'),
+              professionalCount: sql<number>`COUNT(DISTINCT ${leadOffers.providerId})`.as('professionalCount')
+            })
+            .from(leadOffers)
+            .where(eq(leadOffers.serviceRequestId, request.id));
+
+          const counts = offerCounts[0] || { totalOffers: 0, acceptedOffers: 0, professionalCount: 0 };
+
+          return {
+            ...request,
+            offerMetrics: {
+              totalOffers: Number(counts.totalOffers) || 0,
+              acceptedOffers: Number(counts.acceptedOffers) || 0,
+              professionalCount: Number(counts.professionalCount) || 0
+            }
+          };
+        })
+      );
+
+      return requestsWithOffers;
+    } catch (error) {
+      console.error("Error getting customer service requests with offers:", error);
+      throw error;
+    }
+  }
+
+  async getServiceRequestDetails(requestId: number): Promise<any> {
+    try {
+      const [request] = await db
+        .select()
+        .from(serviceRequests)
+        .where(eq(serviceRequests.id, requestId));
+
+      if (!request) {
+        return null;
+      }
+
+      // Get category information
+      const [category] = await db
+        .select()
+        .from(serviceCategories)
+        .where(eq(serviceCategories.id, request.categoryId));
+
+      return {
+        ...request,
+        category: category
+      };
+    } catch (error) {
+      console.error("Error getting service request details:", error);
+      throw error;
+    }
+  }
+
+  async getServiceRequestProfessionals(requestId: number): Promise<any[]> {
+    try {
+      const professionals = await db
+        .select({
+          providerId: leadOffers.providerId,
+          providerName: serviceProviders.businessName,
+          providerEmail: serviceProviders.email,
+          providerPhone: serviceProviders.phoneNumber,
+          offerType: leadOffers.offerType,
+          offerStatus: leadOffers.status,
+          offerCreatedAt: leadOffers.createdAt,
+          isPurchased: sql<boolean>`CASE WHEN ${leadOffers.status} = 'purchased' THEN true ELSE false END`.as('isPurchased'),
+          rating: sql<number>`COALESCE(AVG(${providerRatings.rating}), 0)`.as('rating')
+        })
+        .from(leadOffers)
+        .leftJoin(serviceProviders, eq(leadOffers.providerId, serviceProviders.id))
+        .leftJoin(providerRatings, eq(serviceProviders.id, providerRatings.providerId))
+        .where(eq(leadOffers.serviceRequestId, requestId))
+        .groupBy(
+          leadOffers.providerId,
+          serviceProviders.businessName,
+          serviceProviders.email,
+          serviceProviders.phoneNumber,
+          leadOffers.offerType,
+          leadOffers.status,
+          leadOffers.createdAt
+        )
+        .orderBy(desc(leadOffers.createdAt));
+
+      return professionals.map(prof => ({
+        ...prof,
+        rating: Number(prof.rating) || 0
+      }));
+    } catch (error) {
+      console.error("Error getting service request professionals:", error);
+      throw error;
+    }
   }
 
   async getServiceRequestsByArea(postcode: string, categoryId: number): Promise<ServiceRequest[]> {

@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -22,7 +24,12 @@ import {
   Sprout,
   Truck,
   Wrench,
-  Zap
+  Zap,
+  Eye,
+  Users,
+  Phone,
+  Mail,
+  Calendar
 } from "lucide-react";
 
 const serviceIcons = {
@@ -36,7 +43,7 @@ const serviceIcons = {
   "Electrician": Zap,
 };
 
-export default function CustomerDashboard() {
+function CustomerDashboard() {
   const { user, logoutMutation } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [, navigate] = useLocation();
@@ -168,7 +175,7 @@ export default function CustomerDashboard() {
                     }`}
                   >
                     <ClipboardList className="h-4 w-4 mr-3" />
-                    My Bookings
+                    Services Requested
                   </button>
                   <button
                     onClick={() => setActiveTab("reviews")}
@@ -295,90 +302,12 @@ export default function CustomerDashboard() {
             )}
             
             {activeTab === "bookings" && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>My Bookings</CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/service-requests/my-requests"] })}
-                  >
-                    Refresh
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {myRequests.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No bookings yet. Start by requesting a service!</p>
-                      <Button 
-                        className="mt-4"
-                        onClick={() => navigate("/request-service")}
-                      >
-                        Request Service
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {myRequests.map((request: any) => {
-                        const category = categories.find((cat: any) => cat.id === request.categoryId);
-                        const statusColor = {
-                          'active': 'bg-blue-500',
-                          'assigned': 'bg-orange-500', 
-                          'completed': 'bg-green-500',
-                          'cancelled': 'bg-red-500'
-                        }[request.status] || 'bg-gray-500';
-                        
-                        return (
-                          <div key={request.id} className="border rounded-lg p-4">
-                            <div className="flex justify-between items-start mb-3">
-                              <h3 className="font-semibold">{category?.name || 'Service Request'}</h3>
-                              <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 ${statusColor} rounded-full`}></div>
-                                <span className="text-sm text-gray-500 capitalize">{request.status}</span>
-                              </div>
-                            </div>
-                            
-                            {/* Booking Details */}
-                            <div className="space-y-2 mb-3">
-                              {request.bookingType && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                    {request.bookingType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                  </span>
-                                </div>
-                              )}
-                              
-                              <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
-                                <div>
-                                  <span className="font-medium">Request Date:</span><br />
-                                  {new Date(request.createdAt).toLocaleDateString()}
-                                </div>
-                                {request.preferredDate && (
-                                  <div>
-                                    <span className="font-medium">Preferred Date:</span><br />
-                                    {new Date(request.preferredDate).toLocaleDateString()}
-                                  </div>
-                                )}
-                              </div>
-                              
-                              {request.scheduledDate && (
-                                <div className="text-xs text-gray-600">
-                                  <span className="font-medium">Scheduled Date:</span> {new Date(request.scheduledDate).toLocaleDateString()}
-                                </div>
-                              )}
-                            </div>
-                            
-                            <p className="text-sm text-gray-600 mb-2">{request.description}</p>
-                            <div className="text-sm text-gray-500">
-                              <span>{request.suburb}, {request.postcode}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <ServicesRequestedTab 
+                myRequests={myRequests}
+                categories={categories}
+                navigate={navigate}
+                queryClient={queryClient}
+              />
             )}
             
             {activeTab === "reviews" && (
@@ -457,3 +386,310 @@ export default function CustomerDashboard() {
     </div>
   );
 }
+
+// Services Requested Tab Component
+function ServicesRequestedTab({ myRequests, categories, navigate, queryClient }: any) {
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [showProfessionals, setShowProfessionals] = useState(false);
+
+  // Get detailed service request information
+  const { data: requestDetails } = useQuery({
+    queryKey: ["/api/service-requests", selectedRequest?.id, "details"],
+    enabled: !!selectedRequest?.id,
+  });
+
+  // Get professionals who received the service request
+  const { data: professionals = [] } = useQuery({
+    queryKey: ["/api/service-requests", selectedRequest?.id, "professionals"],
+    enabled: !!selectedRequest?.id && showProfessionals,
+  });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Services Requested</CardTitle>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/service-requests/my-requests"] })}
+        >
+          Refresh
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {myRequests.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">No services requested yet. Start by requesting a service!</p>
+            <Button 
+              className="mt-4"
+              onClick={() => navigate("/request-service")}
+            >
+              Request Service
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {myRequests.map((request: any) => {
+              const category = categories.find((cat: any) => cat.id === request.categoryId);
+              const statusColor = {
+                'active': 'bg-blue-500',
+                'assigned': 'bg-orange-500', 
+                'completed': 'bg-green-500',
+                'cancelled': 'bg-red-500'
+              }[request.status] || 'bg-gray-500';
+              
+              const professionalCount = request.offerMetrics?.professionalCount || 0;
+              const acceptedCount = request.offerMetrics?.acceptedOffers || 0;
+              
+              return (
+                <div key={request.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="font-semibold">{category?.name || 'Service Request'}</h3>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 ${statusColor} rounded-full`}></div>
+                      <span className="text-sm text-gray-500 capitalize">{request.status}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Professional Count Display */}
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">
+                        <span className="font-medium">{professionalCount}</span> professionals received details
+                      </span>
+                    </div>
+                    {acceptedCount > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {acceptedCount} accepted
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {/* Booking Details */}
+                  <div className="space-y-2 mb-3">
+                    {request.bookingType && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                          {request.bookingType.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
+                      <div>
+                        <span className="font-medium">Request Date:</span><br />
+                        {new Date(request.createdAt).toLocaleDateString()}
+                      </div>
+                      {request.preferredDate && (
+                        <div>
+                          <span className="font-medium">Preferred Date:</span><br />
+                          {new Date(request.preferredDate).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {request.scheduledDate && (
+                      <div className="text-xs text-gray-600">
+                        <span className="font-medium">Scheduled Date:</span> {new Date(request.scheduledDate).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <p className="text-sm text-gray-600 mb-3">{request.description}</p>
+                  <div className="text-sm text-gray-500 mb-3">
+                    <span>{request.suburb}, {request.postcode}</span>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedRequest(request)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>Service Request Details</DialogTitle>
+                        </DialogHeader>
+                        <ServiceRequestDetails 
+                          request={request} 
+                          category={category} 
+                          details={requestDetails}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                    
+                    {professionalCount > 0 && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setShowProfessionals(true);
+                            }}
+                          >
+                            <Users className="h-4 w-4 mr-2" />
+                            View Professionals
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-3xl">
+                          <DialogHeader>
+                            <DialogTitle>Professionals Who Received Your Request</DialogTitle>
+                          </DialogHeader>
+                          <ProfessionalsView 
+                            professionals={professionals}
+                            request={request}
+                            category={category}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Service Request Details Component
+function ServiceRequestDetails({ request, category, details }: any) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="text-sm font-medium text-gray-700">Service Category</Label>
+          <p className="text-sm text-gray-900">{category?.name || 'Unknown Service'}</p>
+        </div>
+        <div>
+          <Label className="text-sm font-medium text-gray-700">Status</Label>
+          <Badge variant="secondary" className="capitalize">
+            {request.status}
+          </Badge>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="text-sm font-medium text-gray-700">Location</Label>
+          <p className="text-sm text-gray-900">{request.suburb}, {request.postcode}</p>
+          {request.address && (
+            <p className="text-xs text-gray-600">{request.address}</p>
+          )}
+        </div>
+        <div>
+          <Label className="text-sm font-medium text-gray-700">Booking Type</Label>
+          <p className="text-sm text-gray-900">
+            {request.bookingType?.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Not specified'}
+          </p>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="text-sm font-medium text-gray-700">Request Date</Label>
+          <p className="text-sm text-gray-900">{new Date(request.createdAt).toLocaleDateString()}</p>
+        </div>
+        {request.preferredDate && (
+          <div>
+            <Label className="text-sm font-medium text-gray-700">Preferred Date</Label>
+            <p className="text-sm text-gray-900">{new Date(request.preferredDate).toLocaleDateString()}</p>
+          </div>
+        )}
+      </div>
+      
+      {request.scheduledDate && (
+        <div>
+          <Label className="text-sm font-medium text-gray-700">Scheduled Date</Label>
+          <p className="text-sm text-gray-900">{new Date(request.scheduledDate).toLocaleDateString()}</p>
+        </div>
+      )}
+      
+      <div>
+        <Label className="text-sm font-medium text-gray-700">Description</Label>
+        <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg">{request.description}</p>
+      </div>
+    </div>
+  );
+}
+
+// Professionals View Component
+function ProfessionalsView({ professionals, request, category }: any) {
+  return (
+    <div className="space-y-4">
+      <div className="text-sm text-gray-600 mb-4">
+        <span className="font-medium">{professionals.length}</span> professionals received your {category?.name} request.
+      </div>
+      
+      {professionals.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500">No professionals have responded to this request yet.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {professionals.map((professional: any) => (
+            <div key={professional.providerId} className="border rounded-lg p-4">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{professional.providerName}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                    <span className="text-sm text-gray-600">
+                      {professional.rating > 0 ? professional.rating.toFixed(1) : 'No ratings yet'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="text-right">
+                  <Badge 
+                    variant={professional.isPurchased ? "default" : "secondary"}
+                    className={professional.isPurchased ? "bg-green-100 text-green-800" : ""}
+                  >
+                    {professional.isPurchased ? "Accepted Quote" : "Received Details"}
+                  </Badge>
+                  
+                  <div className="text-xs text-gray-500 mt-1">
+                    {professional.offerType} offer
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-600">{professional.providerEmail}</span>
+                </div>
+                
+                {professional.providerPhone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-600">{professional.providerPhone}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2 mt-3 text-xs text-gray-500">
+                <Calendar className="h-4 w-4" />
+                <span>Received on {new Date(professional.offerCreatedAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default CustomerDashboard;
