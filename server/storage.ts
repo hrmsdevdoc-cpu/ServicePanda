@@ -14,6 +14,7 @@ import {
   sentEmails,
   userActivityLogs,
   systemSettings,
+  leadPurchases,
   type User,
   type UpsertUser,
   type ServiceProvider,
@@ -285,6 +286,24 @@ export interface IStorage {
   assignUserToDepartment(userId: number, departmentId: number): Promise<void>;
   removeUserFromDepartment(userId: number, departmentId: number): Promise<void>;
   updateUserDepartments(userId: number, departmentIds: number[]): Promise<void>;
+  
+  // Provider billing operations
+  getProviderBillingData(providerId: number): Promise<{
+    thisMonthPurchases: number;
+    thisMonthTotal: number;
+    allPaidLeads: Array<{
+      id: number;
+      requestId: number;
+      categoryName: string;
+      totalCost: number;
+      creditUsed: number;
+      amountCharged: number;
+      paymentMethod: string;
+      purchasedAt: string;
+      customerName?: string;
+      location?: string;
+    }>;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3591,6 +3610,82 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       console.error('Error updating user departments:', error);
+      throw error;
+    }
+  }
+
+  async getProviderBillingData(providerId: number): Promise<{
+    thisMonthPurchases: number;
+    thisMonthTotal: number;
+    allPaidLeads: Array<{
+      id: number;
+      requestId: number;
+      categoryName: string;
+      totalCost: number;
+      creditUsed: number;
+      amountCharged: number;
+      paymentMethod: string;
+      purchasedAt: string;
+      customerName?: string;
+      location?: string;
+    }>;
+  }> {
+    try {
+      // Get start of current month
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Get all paid leads for this provider
+      const allPaidLeads = await db
+        .select({
+          id: leadPurchases.id,
+          requestId: leadPurchases.requestId,
+          totalCost: leadPurchases.totalCost,
+          creditUsed: leadPurchases.creditUsed,
+          amountCharged: leadPurchases.amountCharged,
+          paymentMethod: leadPurchases.paymentMethod,
+          purchasedAt: leadPurchases.purchasedAt,
+          categoryName: serviceCategories.name,
+          customerName: serviceRequests.customerName,
+          location: serviceRequests.location,
+        })
+        .from(leadPurchases)
+        .innerJoin(serviceRequests, eq(leadPurchases.requestId, serviceRequests.id))
+        .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
+        .where(eq(leadPurchases.providerId, providerId))
+        .orderBy(desc(leadPurchases.purchasedAt));
+
+      // Calculate this month's statistics
+      const thisMonthLeads = allPaidLeads.filter(lead => 
+        new Date(lead.purchasedAt) >= startOfMonth
+      );
+
+      const thisMonthPurchases = thisMonthLeads.length;
+      const thisMonthTotal = thisMonthLeads.reduce((sum, lead) => 
+        sum + parseFloat(lead.totalCost.toString()), 0
+      );
+
+      // Format the data for response
+      const formattedLeads = allPaidLeads.map(lead => ({
+        id: lead.id,
+        requestId: lead.requestId,
+        categoryName: lead.categoryName,
+        totalCost: parseFloat(lead.totalCost.toString()),
+        creditUsed: parseFloat(lead.creditUsed.toString()),
+        amountCharged: parseFloat(lead.amountCharged.toString()),
+        paymentMethod: lead.paymentMethod,
+        purchasedAt: lead.purchasedAt.toISOString(),
+        customerName: lead.customerName || undefined,
+        location: lead.location || undefined,
+      }));
+
+      return {
+        thisMonthPurchases,
+        thisMonthTotal,
+        allPaidLeads: formattedLeads,
+      };
+    } catch (error) {
+      console.error('Error fetching provider billing data:', error);
       throw error;
     }
   }

@@ -1918,6 +1918,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Provider billing data endpoint
+  app.get('/api/provider/billing', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = (req as any).provider?.id;
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      const billingData = await storage.getProviderBillingData(providerId);
+      res.json(billingData);
+    } catch (error) {
+      console.error('Error getting provider billing data:', error);
+      res.status(500).json({ message: 'Failed to get billing data' });
+    }
+  });
+
+  // Provider billing information endpoint
+  app.get('/api/provider/billing', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = (req as any).provider?.id;
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      const billingData = await storage.getProviderBillingData(providerId);
+      res.json(billingData);
+    } catch (error) {
+      console.error('Error getting provider billing data:', error);
+      res.status(500).json({ message: 'Failed to get billing data' });
+    }
+  });
+
   // Admin voucher management endpoints
   app.get('/api/admin/vouchers', isAdminAuthenticated, async (req, res) => {
     try {

@@ -103,6 +103,13 @@ export default function ProviderDashboard() {
     retry: false,
   });
 
+  // Fetch billing data
+  const { data: billingData, isLoading: billingLoading } = useQuery({
+    queryKey: ["/api/provider/billing"],
+    retry: false,
+    enabled: activeMenuItem === "billing" && !!provider?.id,
+  });
+
   // Fetch provider leads/jobs
   const { data: leads = [], isLoading: leadsLoading } = useQuery({
     queryKey: ["/api/provider/leads"],
@@ -1669,8 +1676,132 @@ export default function ProviderDashboard() {
               </div>
             )}
 
-            {/* Other menu items (coming soon) */}
-            {(activeMenuItem === "billing" || activeMenuItem === "help") && (
+            {/* Billing Section */}
+            {activeMenuItem === "billing" && (
+              <div className="space-y-6">
+                {billingLoading ? (
+                  <Card>
+                    <CardContent>
+                      <div className="text-center py-12">
+                        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+                        <p className="text-gray-500">Loading billing information...</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : billingData ? (
+                  <>
+                    {/* Billing Statistics */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium text-gray-500">This Month</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">Leads Purchased</span>
+                              <span className="text-2xl font-bold text-blue-600">{billingData.thisMonthPurchases}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">Total Cost</span>
+                              <span className="text-2xl font-bold text-green-600">${billingData.thisMonthTotal.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium text-gray-500">All Time</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">Total Leads</span>
+                              <span className="text-2xl font-bold text-blue-600">{billingData.allPaidLeads.length}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">Total Spent</span>
+                              <span className="text-2xl font-bold text-green-600">
+                                ${billingData.allPaidLeads.reduce((sum, lead) => sum + lead.totalCost, 0).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* All Paid Leads List */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Purchase History</CardTitle>
+                        <p className="text-sm text-gray-500">All leads you have purchased</p>
+                      </CardHeader>
+                      <CardContent>
+                        {billingData.allPaidLeads.length === 0 ? (
+                          <div className="text-center py-8">
+                            <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No purchases yet</h3>
+                            <p className="text-gray-500">Your lead purchases will appear here</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {billingData.allPaidLeads.map((lead) => (
+                              <div key={lead.id} className="border rounded-lg p-4 bg-gray-50">
+                                <div className="flex justify-between items-start mb-3">
+                                  <div>
+                                    <h4 className="font-medium text-gray-900">{lead.categoryName}</h4>
+                                    <p className="text-sm text-gray-600">Request #{lead.requestId}</p>
+                                    {lead.customerName && (
+                                      <p className="text-sm text-gray-600">Customer: {lead.customerName}</p>
+                                    )}
+                                    {lead.location && (
+                                      <p className="text-sm text-gray-600">Location: {lead.location}</p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-lg font-bold text-green-600">${lead.totalCost.toFixed(2)}</p>
+                                    <p className="text-xs text-gray-500">
+                                      {lead.paymentMethod === 'free' ? 'Free Lead' : 
+                                       lead.paymentMethod === 'credit' ? 'Credit Used' : 'Card Payment'}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex justify-between items-center text-sm text-gray-600">
+                                  <div className="flex space-x-4">
+                                    {lead.creditUsed > 0 && (
+                                      <span>Credit: ${lead.creditUsed.toFixed(2)}</span>
+                                    )}
+                                    {lead.amountCharged > 0 && (
+                                      <span>Charged: ${lead.amountCharged.toFixed(2)}</span>
+                                    )}
+                                  </div>
+                                  <span>{new Date(lead.purchasedAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </>
+                ) : (
+                  <Card>
+                    <CardContent>
+                      <div className="text-center py-12">
+                        <Receipt className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No billing data</h3>
+                        <p className="text-gray-500">Unable to load billing information</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {/* Help Section (coming soon) */}
+            {activeMenuItem === "help" && (
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
