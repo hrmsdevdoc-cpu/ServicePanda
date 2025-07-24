@@ -521,7 +521,7 @@ function ServicesRequestedTab({ myRequests, categories, navigate, queryClient }:
                         </DialogTrigger>
                         <DialogContent className="max-w-3xl">
                           <DialogHeader>
-                            <DialogTitle>Professionals Who Accepted Your Quote</DialogTitle>
+                            <DialogTitle>Professionals Who Accepted Your Service Request</DialogTitle>
                           </DialogHeader>
                           <AcceptedProfessionalsView 
                             professionals={professionals}
@@ -608,12 +608,12 @@ function AcceptedProfessionalsView({ professionals, request, category }: any) {
   return (
     <div className="space-y-4">
       <div className="text-sm text-gray-600 mb-4">
-        <span className="font-medium">{professionals.length}</span> professional{professionals.length !== 1 ? 's' : ''} accepted your {category?.name} quote.
+        <span className="font-medium">{professionals.length}</span> professional{professionals.length !== 1 ? 's' : ''} accepted your {category?.name} service request.
       </div>
       
       {professionals.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-gray-500">No professionals have accepted your quote yet.</p>
+          <p className="text-gray-500">No professionals have accepted your service request yet.</p>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -629,18 +629,39 @@ function AcceptedProfessionalsView({ professionals, request, category }: any) {
                   ) : (
                     <h3 className="font-semibold text-gray-900">{professional.firstName} {professional.lastName}</h3>
                   )}
-                  <div className="flex items-center gap-2 mt-1">
-                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="text-sm text-gray-600">
-                      {professional.rating > 0 ? professional.rating.toFixed(1) : 'No ratings yet'}
-                    </span>
+                  <div className="flex items-center gap-1 mt-2">
+                    {professional.rating > 0 ? (
+                      // Show filled stars based on rating
+                      <>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star 
+                            key={star}
+                            className={`h-4 w-4 ${
+                              star <= Math.round(professional.rating) 
+                                ? 'text-yellow-400 fill-current' 
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                        <span className="text-sm text-gray-600 ml-2">
+                          {professional.rating.toFixed(1)}
+                        </span>
+                      </>
+                    ) : (
+                      // Show 5 gray stars with "no rating yet" text
+                      <>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star 
+                            key={star}
+                            className="h-4 w-4 text-gray-300"
+                          />
+                        ))}
+                        <span className="text-sm text-gray-600 ml-2">
+                          (no rating yet)
+                        </span>
+                      </>
+                    )}
                   </div>
-                </div>
-                
-                <div className="text-right">
-                  <Badge className="bg-green-100 text-green-800">
-                    Quote Accepted
-                  </Badge>
                 </div>
               </div>
               
@@ -677,7 +698,7 @@ function AcceptedProfessionalsView({ professionals, request, category }: any) {
                   variant="outline"
                   onClick={() => {
                     const displayName = professional.businessName || `${professional.firstName} ${professional.lastName}`;
-                    window.open(`mailto:${professional.providerEmail}?subject=Regarding ${category?.name} Service Request&body=Hi ${displayName},%0D%0A%0D%0AThank you for accepting my ${category?.name} quote request.%0D%0A%0D%0ABest regards`);
+                    window.open(`mailto:${professional.providerEmail}?subject=Regarding ${category?.name} Service Request&body=Hi ${displayName},%0D%0A%0D%0AThank you for accepting my ${category?.name} service request.%0D%0A%0D%0ABest regards`);
                   }}
                 >
                   <Mail className="h-4 w-4 mr-2" />
