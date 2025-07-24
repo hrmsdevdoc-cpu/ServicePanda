@@ -848,28 +848,47 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`Found ${result.rows.length} service requests via pool.query`);
 
-      // Transform the results  
-      const requestsWithOffers = result.rows.map((request: any) => ({
-        id: request.id,
-        customerId: request.customer_id,
-        categoryId: request.category_id,
-        description: request.description,
-        postcode: request.postcode,
-        suburb: request.suburb,
-        propertyType: request.property_type,
-        urgency: request.urgency,
-        budget: request.budget,
-        preferredDate: request.preferred_date,
-        bookingType: request.booking_type,
-        scheduledDate: request.scheduled_date,
-        status: request.status,
-        createdAt: request.created_at,
-        updatedAt: request.updated_at,
-        offerMetrics: {
-          totalOffers: 0,
-          acceptedOffers: 0,
-          professionalCount: 0
-        }
+      // Get offer metrics for each request
+      const requestsWithOffers = await Promise.all(result.rows.map(async (request: any) => {
+        // Get offer metrics using direct SQL for maximum compatibility
+        const offerMetricsResult = await pool.query(
+          `SELECT 
+            COUNT(DISTINCT provider_id) as professional_count,
+            COUNT(*) as total_offers,
+            COUNT(CASE WHEN status = 'purchased' THEN 1 END) as accepted_offers
+           FROM lead_offers 
+           WHERE service_request_id = $1`,
+          [request.id]
+        );
+
+        const offerMetrics = offerMetricsResult.rows[0] || {
+          professional_count: 0,
+          total_offers: 0,
+          accepted_offers: 0
+        };
+
+        return {
+          id: request.id,
+          customerId: request.customer_id,
+          categoryId: request.category_id,
+          description: request.description,
+          postcode: request.postcode,
+          suburb: request.suburb,
+          propertyType: request.property_type,
+          urgency: request.urgency,
+          budget: request.budget,
+          preferredDate: request.preferred_date,
+          bookingType: request.booking_type,
+          scheduledDate: request.scheduled_date,
+          status: request.status,
+          createdAt: request.created_at,
+          updatedAt: request.updated_at,
+          offerMetrics: {
+            totalOffers: parseInt(offerMetrics.total_offers) || 0,
+            acceptedOffers: parseInt(offerMetrics.accepted_offers) || 0,
+            professionalCount: parseInt(offerMetrics.professional_count) || 0
+          }
+        };
       }));
 
       return requestsWithOffers;
