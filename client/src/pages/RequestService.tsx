@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, ArrowLeft, MapPin, Calendar as CalendarIconLucide, FileText, Search, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Header } from "@/components/Header";
 
 export default function RequestService() {
   const [, navigate] = useLocation();
