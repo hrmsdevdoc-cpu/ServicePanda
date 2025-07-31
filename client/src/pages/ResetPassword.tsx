@@ -8,6 +8,7 @@ import { PawPrint, ArrowLeft, CheckCircle } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Header } from "@/components/Header";
 
 export default function ResetPassword() {
   const [, setLocation] = useLocation();
@@ -92,8 +93,16 @@ export default function ResetPassword() {
 
   if (isReset) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="w-full max-w-md">
+      <div className="min-h-screen bg-gray-50">
+        <Header 
+          variant="simple"
+          showBackButton={false}
+          showNavigation={false}
+          title="Password Reset Complete"
+        />
+        
+        <div className="flex items-center justify-center px-4 py-12">
+          <div className="w-full max-w-md">
           <Card>
             <CardHeader className="text-center">
               <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
@@ -113,33 +122,25 @@ export default function ResetPassword() {
               </Button>
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Back to Login Button */}
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => setLocation('/auth')}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Login
-          </Button>
-        </div>
-
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center">
-            <PawPrint className="h-10 w-10 text-primary mr-3" />
-            <span className="text-2xl font-bold text-gray-900">ServicePanda</span>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <Header 
+        variant="simple"
+        showBackButton={true}
+        backButtonText="Back to Login"
+        backButtonPath="/auth"
+        showNavigation={false}
+        title="Reset Password"
+      />
+      
+      <div className="flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
 
         <Card>
           <CardHeader>
@@ -187,6 +188,7 @@ export default function ResetPassword() {
             </form>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

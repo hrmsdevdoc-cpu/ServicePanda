@@ -10,6 +10,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { Header } from "@/components/Header";
 
 interface LoginData {
   email: string;
@@ -122,27 +123,17 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Back to Home Button */}
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => setLocation('/')}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Home
-          </Button>
-        </div>
-
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center">
-            <PawPrint className="h-10 w-10 text-primary mr-3" />
-            <span className="text-2xl font-bold text-gray-900">ServicePanda</span>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <Header 
+        variant="simple"
+        showBackButton={true}
+        backButtonText="Back to Home"
+        backButtonPath="/"
+        showNavigation={false}
+      />
+      
+      <div className="flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
 
         <Tabs defaultValue="login" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
@@ -282,6 +273,7 @@ export default function AuthPage() {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
     </div>
   );
