@@ -173,17 +173,15 @@ export default function RequestService() {
   if (step === 1) {
     return (
       <div className="min-h-screen bg-gray-50">
+        <Header 
+          showBackButton={true}
+          backButtonText="Back to Dashboard"
+          backButtonPath="/"
+          title="Request a Service"
+        />
+        
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="mb-6">
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/")}
-              className="mb-4"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <h1 className="text-2xl font-bold text-gray-900">Request a Service</h1>
             <p className="text-gray-600 mt-1">What type of service do you need?</p>
           </div>
 
@@ -252,6 +250,11 @@ export default function RequestService() {
   if (step === 3) {
     return (
       <div className="min-h-screen bg-gray-50">
+        <Header 
+          title="Request Submitted"
+          showBackButton={false}
+        />
+        
         <div className="max-w-2xl mx-auto px-4 py-8">
           <Card className="text-center">
             <CardContent className="pt-8 pb-8">
@@ -326,6 +329,13 @@ export default function RequestService() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Header 
+        showBackButton={true}
+        backButtonText="Back to Service Selection"
+        backButtonPath="#"
+        title="Service Details"
+      />
+      
       <div className="max-w-3xl mx-auto px-4 py-6">
         <div className="mb-6">
           <Button
@@ -336,7 +346,6 @@ export default function RequestService() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Service Selection
           </Button>
-          <h1 className="text-2xl font-bold text-gray-900">Service Details</h1>
           <div className="mt-1 flex items-center gap-2">
             <p className="text-gray-600">
               Selected: <span className="font-semibold text-primary">{selectedCategory?.name}</span>
