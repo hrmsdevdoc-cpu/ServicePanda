@@ -1,0 +1,3 @@
+# This file needs to be copied from node_modules/react-native-vector-icons/Fonts/
+# Run this command to copy the fonts:
+# cp node_modules/react-native-vector-icons/Fonts/*.ttf android/app/src/main/assets/fonts/
