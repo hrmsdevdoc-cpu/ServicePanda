@@ -49,9 +49,13 @@ interface LeadSettings {
   
   // First 3 Lead Behavior
   firstThreeLeadBehavior: 'new' | 'shared'; // new leads or shared leads for first 3
+  freeLeadsEnabled: boolean; // Enable/disable 3 free leads for new providers
   
   // 1-Minute Cron Control
   oneMinuteCronActive: boolean; // controls if 1-minute lead offer cron runs
+  
+  // Credit System Control
+  providersCanRedeemCredits: boolean; // Enable/disable credit redemption for providers
   
   // Category-specific pricing (when pricingModel is 'category')
   categoryPricing: {
@@ -77,7 +81,9 @@ export default function AdminLeadSettings() {
     minProviderRating: 0,
     providerRestrictionsActive: false,
     firstThreeLeadBehavior: 'shared' as 'new' | 'shared',
+    freeLeadsEnabled: true,
     oneMinuteCronActive: true,
+    providersCanRedeemCredits: true,
   });
 
   // Fetch current lead settings
@@ -102,7 +108,9 @@ export default function AdminLeadSettings() {
         minProviderRating: settings.minProviderRating || 0,
         providerRestrictionsActive: settings.providerRestrictionsActive || false,
         firstThreeLeadBehavior: settings.firstThreeLeadBehavior || 'shared',
+        freeLeadsEnabled: settings.freeLeadsEnabled !== undefined ? settings.freeLeadsEnabled : true,
         oneMinuteCronActive: settings.oneMinuteCronActive !== undefined ? settings.oneMinuteCronActive : true,
+        providersCanRedeemCredits: settings.providersCanRedeemCredits !== undefined ? settings.providersCanRedeemCredits : true,
       });
     }
   }, [settings]);
@@ -571,6 +579,35 @@ export default function AdminLeadSettings() {
                 </div>
               </div>
             </div>
+
+            {/* Free Leads Toggle */}
+            <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <div className="space-y-1">
+                <Label className="text-base font-medium">Free Leads for New Providers</Label>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Enable or disable the 3 free leads feature for new service providers
+                </p>
+              </div>
+              <Switch
+                checked={localSettings.freeLeadsEnabled}
+                onCheckedChange={(checked) => handleSettingChange('freeLeadsEnabled', checked)}
+              />
+            </div>
+            
+            <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <strong>Enabled:</strong> New providers receive 3 free leads when they join the platform.
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <strong>Disabled:</strong> New providers must purchase leads from the start, no free leads provided.
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -610,6 +647,48 @@ export default function AdminLeadSettings() {
                 <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
                 <div>
                   <strong>Disabled:</strong> Expired offers will remain inactive until manual intervention or system restart.
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Credit System Control */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-green-600" />
+              <CardTitle>Credit System Control</CardTitle>
+            </div>
+            <CardDescription>
+              Control provider access to credit redemption and voucher features
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="space-y-1">
+                <Label className="text-base font-medium">Providers Can Redeem Credits</Label>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Enable or disable credit redemption and voucher features for service providers
+                </p>
+              </div>
+              <Switch
+                checked={localSettings.providersCanRedeemCredits}
+                onCheckedChange={(checked) => handleSettingChange('providersCanRedeemCredits', checked)}
+              />
+            </div>
+            
+            <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <strong>Enabled (Yes):</strong> Providers can redeem vouchers, see credit balance, and use credits for lead purchases. Customers can see voucher area.
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <strong>Disabled (No):</strong> Providers cannot redeem credits or see credit features. Customers cannot see voucher area. Credit system is completely hidden.
                 </div>
               </div>
             </div>

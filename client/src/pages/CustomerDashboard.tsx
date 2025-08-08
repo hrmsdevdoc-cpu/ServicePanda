@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +29,9 @@ import {
   Users,
   Phone,
   Mail,
-  Calendar
+  Calendar,
+  MessageSquare,
+  Gift
 } from "lucide-react";
 
 const serviceIcons = {
@@ -62,6 +64,18 @@ function CustomerDashboard() {
 
   const { data: myRequests = [] } = useQuery({
     queryKey: ["/api/service-requests/my-requests"],
+  });
+
+  // Fetch customer reviews
+  const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
+    queryKey: ["/api/customer/reviews"],
+    retry: false,
+  });
+
+  // Fetch lead settings to check if credit system is enabled
+  const { data: leadSettings } = useQuery({
+    queryKey: ["/api/customer/lead-settings"],
+    retry: false,
   });
 
   // Profile update mutation
@@ -187,6 +201,17 @@ function CustomerDashboard() {
                   >
                     <Star className="h-4 w-4 mr-3" />
                     Reviews
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("vouchers")}
+                    className={`w-full flex items-center px-3 py-2 text-left rounded-lg transition-colors ${
+                      activeTab === "vouchers"
+                        ? "text-primary bg-blue-50"
+                        : "text-gray-600 hover:text-primary hover:bg-gray-50"
+                    }`}
+                  >
+                    <Gift className="h-4 w-4 mr-3" />
+                    Vouchers
                   </button>
                   <button
                     onClick={() => setActiveTab("profile")}
@@ -316,9 +341,106 @@ function CustomerDashboard() {
                   <CardTitle>Reviews</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No reviews yet. Complete some services to leave reviews!</p>
-                  </div>
+                  {reviewsLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+                      <p className="text-gray-500">Loading reviews...</p>
+                    </div>
+                  ) : reviews.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Star className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No reviews yet. Complete some services to leave reviews!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {reviews.map((review: any) => (
+                        <div key={review.id} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-medium text-gray-900">
+                                {review.providerFirstName} {review.providerLastName}
+                              </h3>
+                              <p className="text-sm text-gray-500">{review.requestCategory} • {review.requestLocation}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="flex items-center gap-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`h-4 w-4 ${
+                                      i < review.overallRating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {new Date(review.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {review.reviewText && (
+                            <p className="text-gray-700 text-sm">{review.reviewText}</p>
+                          )}
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                            <div>
+                              <span className="text-gray-500">Quality:</span>
+                              <div className="flex items-center gap-1 mt-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`h-3 w-3 ${
+                                      i < review.qualityRating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Professionalism:</span>
+                              <div className="flex items-center gap-1 mt-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`h-3 w-3 ${
+                                      i < review.professionalismRating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Timeliness:</span>
+                              <div className="flex items-center gap-1 mt-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`h-3 w-3 ${
+                                      i < review.timelinessRating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Value:</span>
+                              <div className="flex items-center gap-1 mt-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`h-3 w-3 ${
+                                      i < review.valueRating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -380,9 +502,98 @@ function CustomerDashboard() {
                 </CardContent>
               </Card>
             )}
+            
+            {activeTab === "vouchers" && (
+              <CustomerVouchersTab user={user} />
+            )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Customer Vouchers Tab Component
+function CustomerVouchersTab({ user }: { user: any }) {
+  const { toast } = useToast();
+
+  // Fetch available vouchers
+  const { data: vouchers = [], isLoading } = useQuery({
+    queryKey: ["/api/customer/available-vouchers"],
+    retry: false,
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Available Vouchers Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="h-5 w-5" />
+            Available Vouchers
+          </CardTitle>
+          <CardDescription>
+            Vouchers created by admin for customers
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="text-gray-500 mt-2">Loading vouchers...</p>
+            </div>
+          ) : vouchers.length === 0 ? (
+            <div className="text-center py-8">
+              <Gift className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Vouchers Available</h3>
+              <p className="text-gray-500">No vouchers are currently available. Check back later!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {vouchers.map((voucher: any) => (
+                <div key={voucher.id} className="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-purple-50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-lg text-gray-900">
+                        ${voucher.value} Credit Voucher
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {voucher.description || "Credit voucher for services"}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Expires: {new Date(voucher.expiryDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="default" className="bg-green-100 text-green-800">
+                        Active
+                      </Badge>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Code: {voucher.code}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Information Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>About Vouchers</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 text-sm text-gray-600">
+            <p>• Vouchers are promotional credits created by ServicePanda admin</p>
+            <p>• Each voucher has a specific value and expiration date</p>
+            <p>• Vouchers can be used for service bookings</p>
+            <p>• Contact support if you have questions about voucher usage</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

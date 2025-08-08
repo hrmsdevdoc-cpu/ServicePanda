@@ -1,10 +1,46 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import dotenv from 'dotenv';
+import path from 'path';
+import fileUpload from 'express-fileupload';
+import os from 'os';
+
+// Load environment variables from .env file
+const envPath = path.resolve(process.cwd(), '.env');
+console.log('Loading .env file from:', envPath);
+const result = dotenv.config({ path: envPath });
+console.log('Dotenv result:', result);
+console.log('DATABASE_URL:', process.env.DATABASE_URL);
 
 const app = express();
+
+// Set environment explicitly if not set
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'development';
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(fileUpload({
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  parseNested: true, // This is needed to parse FormData fields properly
+  useTempFiles: true, // Ensure temp files are created
+  tempFileDir: os.tmpdir(), // Use system temp directory
+}));
+
+// CORS middleware for development
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -53,39 +89,42 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
+  // Other ports are firewalled. Default to 4000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
+  const port = parseInt(process.env.PORT || '4000', 10);
   
-  // Start expired lead and offer checker - runs every minute
+  // Start expired lead and offer checker - runs every 5 minutes instead of every minute
   setInterval(async () => {
     try {
       // Check if 1-minute cron is enabled in admin settings
       const settings = await storage.getLeadSettings();
       if (settings.oneMinuteCronActive) {
+        console.log('Processing expired leads...');
         await storage.processExpiredLeads();
+        console.log('Expired leads processing completed');
       } else {
         console.log('1-minute cron disabled in admin settings - skipping expired lead processing');
       }
     } catch (error) {
       console.error('Error in expired lead checker:', error);
+      // Don't let errors crash the interval
     }
-  }, 60000); // Check every minute
+  }, 300000); // Check every 5 minutes instead of every minute
   
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
     log('Lead and offer expiration checker started - checking every minute');
   });
 })();

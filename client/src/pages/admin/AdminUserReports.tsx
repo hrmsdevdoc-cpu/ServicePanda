@@ -11,7 +11,22 @@ import {
   Download,
   Calendar,
   Mail,
+  CalendarDays,
+  ChevronDown,
+  FileText,
+  ShoppingCart,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface UserReport {
   totalUsers: number;
@@ -23,10 +38,39 @@ interface UserReport {
     category: string;
     requestCount: number;
   }>;
+  // New metrics
+  joined: number;
+  leadsGenerated: number;
+  uniqueLeadsPurchased: number;
+  sharedLeadsPurchased: number;
+  pendingLeads: number;
 }
+
+interface DateRange {
+  from: Date;
+  to: Date;
+}
+
+const datePresets = [
+  { label: "Today", value: "today" },
+  { label: "Yesterday", value: "yesterday" },
+  { label: "This Week", value: "this-week" },
+  { label: "Last Week", value: "last-week" },
+  { label: "This Month", value: "this-month" },
+  { label: "Last Month", value: "last-month" },
+  { label: "This Quarter", value: "this-quarter" },
+  { label: "Last Quarter", value: "last-quarter" },
+  { label: "This Year", value: "this-year" },
+  { label: "Last Year", value: "last-year" },
+];
 
 export default function AdminUserReports() {
   const [, navigate] = useLocation();
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // Start of current month
+    to: new Date(),
+  });
+  const [selectedPreset, setSelectedPreset] = useState<string>("this-month");
 
   // Check admin authentication
   useEffect(() => {
@@ -36,14 +80,81 @@ export default function AdminUserReports() {
     }
   }, [navigate]);
 
-  // User Reports Query
+  // Calculate date range based on preset
+  const calculateDateRange = (preset: string): DateRange => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (preset) {
+      case "today":
+        return { from: today, to: today };
+      case "yesterday":
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return { from: yesterday, to: yesterday };
+      case "this-week":
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        return { from: startOfWeek, to: today };
+      case "last-week":
+        const lastWeekStart = new Date(today);
+        lastWeekStart.setDate(today.getDate() - today.getDay() - 7);
+        const lastWeekEnd = new Date(lastWeekStart);
+        lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+        return { from: lastWeekStart, to: lastWeekEnd };
+      case "this-month":
+        return { 
+          from: new Date(now.getFullYear(), now.getMonth(), 1), 
+          to: today 
+        };
+      case "last-month":
+        return { 
+          from: new Date(now.getFullYear(), now.getMonth() - 1, 1), 
+          to: new Date(now.getFullYear(), now.getMonth(), 0) 
+        };
+      case "this-quarter":
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        const quarterStart = new Date(now.getFullYear(), currentQuarter * 3, 1);
+        return { from: quarterStart, to: today };
+      case "last-quarter":
+        const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+        const lastQuarterStart = new Date(now.getFullYear(), lastQuarter * 3, 1);
+        const lastQuarterEnd = new Date(now.getFullYear(), (lastQuarter + 1) * 3, 0);
+        return { from: lastQuarterStart, to: lastQuarterEnd };
+      case "this-year":
+        return { 
+          from: new Date(now.getFullYear(), 0, 1), 
+          to: today 
+        };
+      case "last-year":
+        return { 
+          from: new Date(now.getFullYear() - 1, 0, 1), 
+          to: new Date(now.getFullYear() - 1, 11, 31) 
+        };
+      default:
+        return { from: today, to: today };
+    }
+  };
+
+  // Update date range when preset changes
+  useEffect(() => {
+    setDateRange(calculateDateRange(selectedPreset));
+  }, [selectedPreset]);
+
+  // User Reports Query with date range
   const { data: userReports, isLoading } = useQuery({
-    queryKey: ['/api/admin/reports/users'],
+    queryKey: ['/api/admin/reports/users', dateRange],
     queryFn: async () => {
       const response = await fetch('/api/admin/reports/users', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'x-admin-token': localStorage.getItem('adminToken') || '',
         },
+        body: JSON.stringify({
+          fromDate: dateRange.from.toISOString(),
+          toDate: dateRange.to.toISOString(),
+        }),
       });
       return response.json();
     },
@@ -57,6 +168,14 @@ export default function AdminUserReports() {
   const handleExportReport = () => {
     // This would typically generate and download a CSV/PDF report
     console.log('Exporting user report...');
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   };
 
   return (
@@ -81,10 +200,64 @@ export default function AdminUserReports() {
                   </p>
                 </div>
               </div>
-              <Button onClick={handleExportReport}>
-                <Download className="h-4 w-4 mr-2" />
-                Export Report
-              </Button>
+              
+              {/* Date Range Selector */}
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="date-preset" className="text-sm font-medium">
+                    Date Range:
+                  </Label>
+                  <Select value={selectedPreset} onValueChange={setSelectedPreset}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {datePresets.map((preset) => (
+                        <SelectItem key={preset.value} value={preset.value}>
+                          {preset.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Input
+                    type="date"
+                    value={dateRange.from.toISOString().split('T')[0]}
+                    onChange={(e) => {
+                      const newFrom = new Date(e.target.value);
+                      setDateRange(prev => ({ ...prev, from: newFrom }));
+                      setSelectedPreset("custom");
+                    }}
+                    className="w-40"
+                  />
+                  <span className="text-gray-500">to</span>
+                  <Input
+                    type="date"
+                    value={dateRange.to.toISOString().split('T')[0]}
+                    onChange={(e) => {
+                      const newTo = new Date(e.target.value);
+                      setDateRange(prev => ({ ...prev, to: newTo }));
+                      setSelectedPreset("custom");
+                    }}
+                    className="w-40"
+                  />
+                </div>
+                
+                <Button onClick={handleExportReport}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Report
+                </Button>
+              </div>
+            </div>
+            
+            {/* Date Range Display */}
+            <div className="mt-4 flex items-center text-sm text-gray-600">
+              <CalendarDays className="h-4 w-4 mr-2" />
+              <span>
+                Showing data from <strong>{formatDate(dateRange.from)}</strong> to <strong>{formatDate(dateRange.to)}</strong>
+              </span>
             </div>
           </div>
         </header>
@@ -98,7 +271,85 @@ export default function AdminUserReports() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Key Metrics */}
+              {/* New Metrics - Top Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Joined</CardTitle>
+                    <Users className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">
+                      {userReports?.joined || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      New registrations
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Leads Generated</CardTitle>
+                    <FileText className="h-4 w-4 text-blue-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {userReports?.leadsGenerated || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Total service requests
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Unique Leads Purchased</CardTitle>
+                    <ShoppingCart className="h-4 w-4 text-purple-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {userReports?.uniqueLeadsPurchased || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Exclusive leads bought
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Shared Leads Purchased</CardTitle>
+                    <Users className="h-4 w-4 text-orange-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-600">
+                      {userReports?.sharedLeadsPurchased || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Shared leads bought
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pending Leads</CardTitle>
+                    <Clock className="h-4 w-4 text-yellow-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {userReports?.pendingLeads || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Awaiting response
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Original Metrics - Second Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

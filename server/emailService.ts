@@ -816,3 +816,202 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
     html: htmlContent
   });
 }
+
+/**
+ * Send customer feedback request email after job completion
+ * @param customerEmail Customer's email address
+ * @param customerName Customer's name
+ * @param providerName Service provider's name
+ * @param serviceType Type of service completed
+ * @param suburb Location where service was performed
+ * @returns Promise<boolean> indicating success
+ */
+export async function sendCustomerFeedbackEmail(
+  customerEmail: string, 
+  customerName: string, 
+  providerName: string, 
+  serviceType: string, 
+  suburb: string,
+  reviewToken: string
+): Promise<boolean> {
+  const baseUrl = process.env.REPLIT_DOMAINS 
+    ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+    : process.env.FRONTEND_URL || 'http://localhost:3000';
+  const reviewUrl = `${baseUrl}/review/${reviewToken}`;
+  
+  const textContent = `
+    Thanks for Choosing Service Panda!
+
+    Hi ${customerName},
+
+    Thanks for choosing Service Panda! ${providerName} has recently completed a ${serviceType} job in ${suburb}.
+
+    We would like to know how did he do?
+
+    Your feedback helps us maintain quality and helps other customers choose the right service providers.
+
+    Please take a moment to share your experience:
+    ${reviewUrl}
+
+    Rate the service on:
+    • Quality of work
+    • Professionalism 
+    • Timeliness
+    • Value for money
+    • Overall satisfaction
+
+    Thank you for using Service Panda!
+    ServicePanda Team
+  `;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>How was your service? - ServicePanda</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #f7f7f7;
+        }
+        .container {
+          background-color: white;
+          padding: 40px;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          padding-bottom: 20px;
+          border-bottom: 2px solid #e2e8f0;
+        }
+        .logo {
+          font-size: 28px;
+          font-weight: bold;
+          color: #1f2937;
+          margin-bottom: 10px;
+        }
+        .feedback-badge {
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+          color: white;
+          padding: 12px 20px;
+          border-radius: 25px;
+          font-size: 16px;
+          font-weight: 600;
+          display: inline-block;
+          margin-bottom: 20px;
+          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+        .service-summary {
+          background-color: #f0f9ff;
+          border-left: 4px solid #3b82f6;
+          padding: 20px;
+          margin: 20px 0;
+          border-radius: 4px;
+        }
+        .rating-criteria {
+          background-color: #f8fafc;
+          padding: 20px;
+          border-radius: 8px;
+          margin: 20px 0;
+        }
+        .criteria-item {
+          display: flex;
+          align-items: center;
+          margin-bottom: 8px;
+          padding: 8px;
+          background-color: white;
+          border-radius: 4px;
+          border-left: 3px solid #10b981;
+        }
+        .criteria-item:before {
+          content: "⭐";
+          margin-right: 10px;
+          font-size: 14px;
+        }
+        .review-button {
+          display: inline-block;
+          padding: 15px 30px;
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: white;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          margin: 20px 0;
+          text-align: center;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        .footer {
+          text-align: center;
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #e2e8f0;
+          color: #6b7280;
+          font-size: 14px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div class="logo">🐼 ServicePanda</div>
+          <p style="margin: 0; color: #6b7280;">Australian Service Marketplace</p>
+          <div class="feedback-badge">⭐ How was your service?</div>
+        </div>
+
+        <h2 style="color: #1f2937; margin-bottom: 10px;">Hi ${customerName}!</h2>
+        
+        <p><strong>Thanks for choosing ServicePanda!</strong></p>
+        
+        <div class="service-summary">
+          <h3 style="margin-top: 0; color: #1f2937;">📋 Service Completed</h3>
+          <p style="margin-bottom: 5px;"><strong>Provider:</strong> ${providerName}</p>
+          <p style="margin-bottom: 5px;"><strong>Service:</strong> ${serviceType}</p>
+          <p style="margin-bottom: 0;"><strong>Location:</strong> ${suburb}</p>
+        </div>
+        
+        <p>We would like to know how did he do? Your feedback helps us maintain quality and helps other customers choose the right service providers.</p>
+        
+        <div class="rating-criteria">
+          <h3 style="margin-top: 0; color: #1f2937;">Please rate the service on:</h3>
+          <div class="criteria-item">Quality of work</div>
+          <div class="criteria-item">Professionalism</div>
+          <div class="criteria-item">Timeliness</div>
+          <div class="criteria-item">Value for money</div>
+          <div class="criteria-item">Overall satisfaction</div>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${reviewUrl}" class="review-button">Share Your Experience</a>
+        </div>
+        
+        <p style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;">
+          <strong>💡 Your Review Matters:</strong> Help other customers make informed decisions and support quality service providers!
+        </p>
+        
+        <div class="footer">
+          <p>Thank you for using ServicePanda!<br><strong>ServicePanda Team</strong></p>
+          <p style="margin-top: 20px;">
+            Questions about your experience? Contact our support team.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendEmail({
+    to: customerEmail,
+    subject: `⭐ How was your ${serviceType} service? - ServicePanda`,
+    text: textContent.trim(),
+    html: htmlContent
+  });
+}

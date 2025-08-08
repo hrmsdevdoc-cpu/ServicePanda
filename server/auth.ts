@@ -32,13 +32,23 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: true,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+  
+  // Try to use PostgreSQL session store, fallback to memory store
+  let sessionStore;
+  try {
+    const pgStore = connectPg(session);
+    sessionStore = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+      ttl: sessionTtl,
+      tableName: "sessions",
+    });
+    console.log("✅ Using PostgreSQL session store");
+  } catch (error) {
+    console.warn("⚠️  PostgreSQL session store failed, using memory store for development");
+    console.warn("   Database connection error:", error.message);
+    sessionStore = new session.MemoryStore();
+  }
 
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "servicepanda-secret-key-change-in-production",
@@ -65,16 +75,36 @@ export function setupAuth(app: Express) {
       },
       async (email, password, done) => {
         try {
+          console.log("Passport strategy - checking user:", email);
           const user = await storage.getUserByEmail(email);
-          if (!user || !user.password || !(await comparePasswords(password, user.password))) {
+          console.log("User found:", !!user);
+          
+          if (!user) {
+            console.log("No user found with email:", email);
+            return done(null, false, { message: "Invalid email or password" });
+          }
+          
+          if (!user.password) {
+            console.log("User has no password");
+            return done(null, false, { message: "Invalid email or password" });
+          }
+          
+          console.log("Comparing passwords...");
+          const passwordMatch = await comparePasswords(password, user.password);
+          console.log("Password match:", passwordMatch);
+          
+          if (!passwordMatch) {
+            console.log("Password does not match");
             return done(null, false, { message: "Invalid email or password" });
           }
           
           // Update last login time
           await storage.updateUserLastLogin(user.id);
+          console.log("User authenticated successfully in passport strategy:", user.id);
           
           return done(null, user);
         } catch (error) {
+          console.log("Passport strategy error:", error);
           return done(error);
         }
       }
@@ -94,9 +124,11 @@ export function setupAuth(app: Express) {
   // Registration endpoint
   app.post("/api/register", async (req, res, next) => {
     try {
+      console.log("Registration attempt:", req.body);
       const { email, password, firstName, lastName, phoneNumber } = req.body;
 
       if (!email || !password || !firstName || !lastName || !phoneNumber) {
+        console.log("Missing required fields");
         return res.status(400).json({ message: "All fields are required" });
       }
 
@@ -106,13 +138,17 @@ export function setupAuth(app: Express) {
       //   return res.status(400).json({ message: "Email already exists" });
       // }
 
+      console.log("Hashing password...");
       const hashedPassword = await hashPassword(password);
+      console.log("Password hashed successfully");
       
       // For testing: if user exists, update password, otherwise create new user
+      console.log("Checking for existing user...");
       const existingUser = await storage.getUserByEmail(email);
       let user;
       
       if (existingUser) {
+        console.log("Updating existing user...");
         // Update existing user with new password for testing
         user = await storage.updateUser(existingUser.id, {
           firstName,
@@ -120,25 +156,37 @@ export function setupAuth(app: Express) {
           phoneNumber,
           password: hashedPassword,
         });
+        console.log("User updated:", user.id);
       } else {
+        console.log("Creating new user...");
         // Create new user
         const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        user = await storage.upsertUser({
+        console.log("Generated user ID:", userId);
+        
+        const userData = {
           id: userId,
           email,
           firstName,
           lastName,
           phoneNumber,
           password: hashedPassword,
-        });
+        };
+        console.log("User data to insert:", userData);
+        
+        user = await storage.upsertUser(userData);
+        console.log("User created:", user.id);
       }
 
       req.login(user, async (err) => {
-        if (err) return next(err);
+        if (err) {
+          console.log("Login error during registration:", err);
+          return next(err);
+        }
         
         // Update last login time for new registration
         await storage.updateUserLastLogin(user.id);
         
+        console.log("Registration successful for user:", user.id);
         res.status(201).json({
           id: user.id,
           email: user.email,
@@ -149,24 +197,35 @@ export function setupAuth(app: Express) {
       });
     } catch (error) {
       console.error("Registration error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       res.status(500).json({ message: "Registration failed" });
     }
   });
 
   // Login endpoint
   app.post("/api/login", (req, res, next) => {
+    console.log("Login attempt:", { email: req.body.email });
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
+        console.log("Login authentication error:", err);
         return res.status(500).json({ message: "Login failed" });
       }
       if (!user) {
+        console.log("Login failed - no user found or invalid credentials");
         return res.status(401).json({ message: info?.message || "Invalid credentials" });
       }
       
+      console.log("User authenticated successfully:", user.id);
       req.login(user, (err) => {
         if (err) {
+          console.log("Login session error:", err);
           return res.status(500).json({ message: "Login failed" });
         }
+        console.log("Login successful for user:", user.id);
         res.status(200).json({
           id: user.id,
           email: user.email,

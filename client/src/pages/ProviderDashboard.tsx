@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -176,15 +176,25 @@ export default function ProviderDashboard() {
     retry: false,
   });
 
+  // Fetch lead settings
+  const { data: leadSettings } = useQuery({
+    queryKey: ["/api/provider/lead-settings"],
+    enabled: !!provider?.id,
+    retry: false,
+  });
+
+
+
   // Track which lead is being purchased to prevent button state confusion
   const [purchasingLeadId, setPurchasingLeadId] = useState<number | null>(null);
 
   // Helper function to determine payment method for a lead
-  const getPaymentMethod = (leadCost: number) => {
+  const getPaymentMethod = useCallback((leadCost: number) => {
     const balance = creditBalance?.balance || 0;
     const freeLeadsUsed = provider?.firstLeadsFreeUsed || 0;
+    const freeLeadsEnabled = leadSettings?.freeLeadsEnabled !== false; // Default to true if not set
     
-    if (freeLeadsUsed < 3) {
+    if (freeLeadsEnabled && freeLeadsUsed < 3) {
       return { method: 'free', buttonText: 'Free Lead', description: `Free (${3 - freeLeadsUsed} remaining)` };
     } else if (balance >= leadCost) {
       return { method: 'credit', buttonText: 'Use Credit', description: `Credit Balance: $${balance.toFixed(2)}` };
@@ -193,7 +203,7 @@ export default function ProviderDashboard() {
     } else {
       return { method: 'card', buttonText: `Purchase $${leadCost}`, description: 'Charged to card' };
     }
-  };
+  }, [creditBalance?.balance, provider?.firstLeadsFreeUsed, leadSettings?.freeLeadsEnabled]);
 
   // Purchase lead mutation
   const purchaseLeadMutation = useMutation({
@@ -314,7 +324,7 @@ export default function ProviderDashboard() {
   };
 
   // Handle status change
-  const handleStatusChange = (leadId: number, newStatus: string) => {
+  const handleStatusChange = useCallback((leadId: number, newStatus: string) => {
     if (newStatus === 'closed') {
       // Show dialog to ask if job was booked
       setShowJobBookedDialog({ leadId, visible: true });
@@ -322,14 +332,14 @@ export default function ProviderDashboard() {
       // Update status directly for new/open
       updateLeadStatusMutation.mutate({ leadId, status: newStatus });
     }
-  };
+  }, [updateLeadStatusMutation]);
 
   // Handle job booked confirmation
-  const handleJobBookedResponse = (wasJobBooked: boolean) => {
+  const handleJobBookedResponse = useCallback((wasJobBooked: boolean) => {
     const leadId = showJobBookedDialog.leadId;
     updateLeadStatusMutation.mutate({ leadId, status: 'closed', wasJobBooked });
     setShowJobBookedDialog({ leadId: 0, visible: false });
-  };
+  }, [showJobBookedDialog.leadId, updateLeadStatusMutation]);
 
   // Set initial selected services when data loads
   useEffect(() => {
@@ -341,35 +351,6 @@ export default function ProviderDashboard() {
       }));
     }
   }, [services]);
-
-  // Load lead statuses for purchased leads
-  useEffect(() => {
-    const loadLeadStatuses = async () => {
-      if (leads && leads.length > 0) {
-        const purchasedLeads = leads.filter((l: any) => l.status === 'purchased');
-        const statusPromises = purchasedLeads.map(async (lead: any) => {
-          try {
-            const response = await apiRequest("GET", `/api/provider/leads/${lead.requestId}/status`);
-            const statusData = await response.json();
-            return { leadId: lead.requestId, status: statusData.status || 'new' };
-          } catch (error) {
-            console.error(`Failed to load status for lead ${lead.requestId}:`, error);
-            return { leadId: lead.requestId, status: 'new' };
-          }
-        });
-        
-        const statuses = await Promise.all(statusPromises);
-        const statusMap = statuses.reduce((acc, { leadId, status }) => ({
-          ...acc,
-          [leadId]: status
-        }), {});
-        
-        setLeadStatuses(statusMap);
-      }
-    };
-
-    loadLeadStatuses();
-  }, [leads]);
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -989,8 +970,15 @@ export default function ProviderDashboard() {
                       <Star className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">5.0</div>
-                      <p className="text-xs text-muted-foreground">Customer reviews</p>
+                      <div className="text-2xl font-bold">
+                        {provider?.rating || '5.0'}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {provider?.totalReviews ? 
+                          `${provider.totalReviews} customer reviews` : 
+                          'No reviews yet'
+                        }
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
@@ -1830,8 +1818,8 @@ export default function ProviderDashboard() {
               </div>
             )}
 
-            {/* Credits Tab */}
-            {activeMenuItem === "credits" && (
+            {/* Credits Tab - Show when enabled */}
+            {activeMenuItem === "credits" && leadSettings?.providersCanRedeemCredits === true && (
               <div className="space-y-6">
                 <div className="mb-6">
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">Credit Management</h1>
@@ -1842,6 +1830,36 @@ export default function ProviderDashboard() {
                 <ProviderCreditSystem />
               </div>
             )}
+
+            {/* Credits Disabled Message - Show when disabled */}
+            {activeMenuItem === "credits" && leadSettings?.providersCanRedeemCredits === false && (
+              <div className="space-y-6">
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Credit System Disabled</h3>
+                    <p className="text-gray-500">Credit and voucher features are currently disabled by the administrator.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Credits Loading or Default - Show when setting is undefined/null */}
+            {activeMenuItem === "credits" && (leadSettings?.providersCanRedeemCredits === undefined || leadSettings?.providersCanRedeemCredits === null) && (
+              <div className="space-y-6">
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Credit Settings...</h3>
+                    <p className="text-gray-500">Please wait while we load your credit system settings.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+
+
+
 
             {/* Billing Section */}
             {activeMenuItem === "billing" && (
@@ -2018,7 +2036,15 @@ export default function ProviderDashboard() {
                     <div>
                       <h4 className="font-medium text-gray-900 mb-2">Free Leads</h4>
                       <p className="text-sm text-gray-600">
-                        New providers get 3 free leads to try the platform. After that, leads cost $30 for unique access or $12 for shared access.
+                        {leadSettings?.freeLeadsEnabled !== false ? (
+                          <>
+                            New providers get 3 free leads to try the platform. After that, leads cost $30 for unique access or $12 for shared access.
+                          </>
+                        ) : (
+                          <>
+                            Free leads are currently disabled. All leads must be purchased at $30 for unique access or $12 for shared access.
+                          </>
+                        )}
                       </p>
                     </div>
                     <div>

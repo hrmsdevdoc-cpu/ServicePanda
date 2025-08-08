@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { insertServiceProviderSchema, insertServiceRequestSchema, leadOffers } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
 import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail } from "./emailService";
@@ -49,6 +49,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(categories);
     } catch (error) {
       console.error("Error fetching service categories:", error);
+      res.status(500).json({ message: "Failed to fetch service categories" });
+    }
+  });
+
+  // Admin endpoint to get all service categories (including inactive)
+  app.get('/api/admin/service-categories', async (req, res) => {
+    try {
+      console.log('Admin service categories endpoint called');
+      
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      console.log('Admin token provided:', !!adminToken);
+      
+      if (!adminToken) {
+        console.log('No admin token provided');
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      console.log('Fetching all service categories...');
+      const categories = await storage.getAllServiceCategories();
+      console.log('Found categories:', categories.length);
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching all service categories:", error);
       res.status(500).json({ message: "Failed to fetch service categories" });
     }
   });
@@ -1836,7 +1860,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             eq(leadOffers.requestId, requestId),
             eq(leadOffers.providerId, providerId),
             eq(leadOffers.status, 'pending'),
-            eq(leadOffers.isCurrentOffer, true)
+            or(
+              eq(leadOffers.isCurrentOffer, true),
+              eq(leadOffers.offerType, 'shared')
+            )
           )
         )
         .limit(1);
@@ -1960,6 +1987,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status,
         wasJobBooked: status === 'closed' ? wasJobBooked : undefined,
       });
+
+      // Send customer feedback email if job was completed successfully
+      if (status === 'closed' && wasJobBooked === true) {
+        try {
+          const { sendCustomerFeedbackEmail } = await import('./emailService');
+          
+          // Get lead and provider details for the email
+          const leadDetails = await storage.getServiceRequest(leadId);
+          const providerDetails = await storage.getServiceProvider(providerId);
+          const categoryDetails = await storage.getServiceCategory(leadDetails?.categoryId);
+          
+          if (leadDetails && providerDetails && categoryDetails) {
+            // Get customer details including email
+            const customerDetails = await storage.getUser(leadDetails.customerId);
+            
+            if (customerDetails) {
+              const customerName = `${customerDetails.firstName || ''} ${customerDetails.lastName || ''}`.trim();
+              const providerName = `${providerDetails.firstName || ''} ${providerDetails.lastName || ''}`.trim();
+              
+              // Create secure review token
+              const reviewToken = await storage.createReviewToken(
+                leadDetails.customerId, 
+                providerId, 
+                leadId
+              );
+              
+              await sendCustomerFeedbackEmail(
+                customerDetails.email,
+                customerName,
+                providerName,
+                categoryDetails.name,
+                leadDetails.suburb,
+                reviewToken
+              );
+              
+              console.log(`Feedback email sent to ${customerDetails.email} for completed ${categoryDetails.name} job`);
+            } else {
+              console.error(`Customer not found for customerId: ${leadDetails.customerId}`);
+            }
+          }
+        } catch (emailError) {
+          console.error('Error sending customer feedback email:', emailError);
+          // Don't fail the API request if email fails
+        }
+      }
 
       res.json(updatedStatus);
     } catch (error) {
@@ -2550,6 +2622,665 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error changing password:', error);
       res.status(500).json({ message: 'Failed to change password' });
+    }
+  });
+
+  // Review System API endpoints
+  
+  // Get review details by token (for review submission page)
+  app.get('/api/review/:token', async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const reviewData = await storage.getReviewToken(token);
+      
+      if (!reviewData) {
+        return res.status(404).json({ message: 'Review token not found or expired' });
+      }
+      
+      // Check if token is already used
+      if (reviewData.isUsed) {
+        return res.status(400).json({ message: 'Review has already been submitted' });
+      }
+      
+      // Check if token is expired
+      const now = new Date();
+      if (new Date(reviewData.expiresAt) < now) {
+        return res.status(400).json({ message: 'Review token has expired' });
+      }
+      
+      res.json(reviewData);
+    } catch (error) {
+      console.error('Error getting review token:', error);
+      res.status(500).json({ message: 'Failed to get review details' });
+    }
+  });
+  
+  // Submit customer review
+  app.post('/api/review/submit', async (req, res) => {
+    try {
+      const reviewData = req.body;
+      
+      // Validate required fields
+      if (!reviewData.token || !reviewData.overallRating || !reviewData.qualityRating || 
+          !reviewData.professionalismRating || !reviewData.timelinessRating || !reviewData.valueRating) {
+        return res.status(400).json({ message: 'All rating fields are required' });
+      }
+      
+      // Validate rating values (1-5)
+      const ratings = [
+        reviewData.overallRating, reviewData.qualityRating, reviewData.professionalismRating,
+        reviewData.timelinessRating, reviewData.valueRating
+      ];
+      
+      for (const rating of ratings) {
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+          return res.status(400).json({ message: 'Ratings must be integers between 1 and 5' });
+        }
+      }
+      
+      // Get token details first
+      const tokenData = await storage.getReviewToken(reviewData.token);
+      if (!tokenData) {
+        return res.status(404).json({ message: 'Invalid review token' });
+      }
+      
+      if (tokenData.isUsed) {
+        return res.status(400).json({ message: 'Review has already been submitted' });
+      }
+      
+      if (new Date(tokenData.expiresAt) < new Date()) {
+        return res.status(400).json({ message: 'Review token has expired' });
+      }
+      
+      // Add token data to review
+      reviewData.customerId = tokenData.customerId;
+      reviewData.providerId = tokenData.providerId;
+      reviewData.requestId = tokenData.requestId;
+      
+      const review = await storage.submitCustomerReview(reviewData);
+      
+      res.json({ 
+        success: true, 
+        message: 'Thank you for your review! Your feedback helps improve our service quality.',
+        review 
+      });
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      res.status(500).json({ 
+        message: error.message.includes('already submitted') ? error.message : 'Failed to submit review' 
+      });
+    }
+  });
+  
+  // Get provider reviews (public endpoint)
+  app.get('/api/provider/:id/reviews', async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const reviews = await storage.getProviderReviews(providerId);
+      res.json(reviews);
+    } catch (error) {
+      console.error('Error getting provider reviews:', error);
+      res.status(500).json({ message: 'Failed to get provider reviews' });
+    }
+  });
+
+  // Get customer reviews (authenticated endpoint)
+  app.get('/api/customer/reviews', isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.user?.id;
+      if (!customerId) {
+        return res.status(401).json({ message: 'Customer authentication required' });
+      }
+
+      const reviews = await storage.getCustomerReviews(customerId);
+      res.json(reviews);
+    } catch (error) {
+      console.error('Error getting customer reviews:', error);
+      res.status(500).json({ message: 'Failed to get customer reviews' });
+    }
+  });
+
+  // Get customer lead settings (authenticated endpoint)
+  app.get('/api/customer/lead-settings', isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.user?.id;
+      if (!customerId) {
+        return res.status(401).json({ message: 'Customer authentication required' });
+      }
+
+      const settings = await storage.getLeadSettings();
+      res.json({
+        providersCanRedeemCredits: settings.providersCanRedeemCredits
+      });
+    } catch (error) {
+      console.error('Error getting customer lead settings:', error);
+      res.status(500).json({ message: 'Failed to get customer lead settings' });
+    }
+  });
+
+  // Customer credit system endpoints
+  app.get('/api/customer/credit-balance', isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.user?.id;
+      if (!customerId) {
+        return res.status(401).json({ message: 'Customer authentication required' });
+      }
+
+      const balance = await storage.getCustomerCreditBalance(customerId);
+      res.json({ balance });
+    } catch (error) {
+      console.error('Error getting customer credit balance:', error);
+      res.status(500).json({ message: 'Failed to get credit balance' });
+    }
+  });
+
+  app.get('/api/customer/credit-transactions', isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.user?.id;
+      if (!customerId) {
+        return res.status(401).json({ message: 'Customer authentication required' });
+      }
+
+      const transactions = await storage.getCustomerCreditTransactions(customerId);
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error getting customer credit transactions:', error);
+      res.status(500).json({ message: 'Failed to get credit transactions' });
+    }
+  });
+
+  app.post('/api/customer/redeem-voucher', isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.user?.id;
+      if (!customerId) {
+        return res.status(401).json({ message: 'Customer authentication required' });
+      }
+
+      const { voucherCode } = req.body;
+      if (!voucherCode) {
+        return res.status(400).json({ message: 'Voucher code is required' });
+      }
+
+      const result = await storage.redeemCustomerVoucher(customerId, voucherCode);
+      res.json(result);
+    } catch (error) {
+      console.error('Error redeeming customer voucher:', error);
+      res.status(500).json({ message: 'Failed to redeem voucher' });
+    }
+  });
+
+  // Customer available vouchers endpoint
+  app.get('/api/customer/available-vouchers', isAuthenticated, async (req, res) => {
+    try {
+      const vouchers = await storage.getAvailableCustomerVouchers();
+      res.json(vouchers);
+    } catch (error) {
+      console.error('Error getting available customer vouchers:', error);
+      res.status(500).json({ message: 'Failed to get available vouchers' });
+    }
+  });
+
+  // Potential Customers endpoints
+  app.get('/api/admin/potential-customers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const customers = await storage.getAllPotentialCustomers();
+      res.json(customers);
+    } catch (error) {
+      console.error('Error getting potential customers:', error);
+      res.status(500).json({ message: 'Failed to get potential customers' });
+    }
+  });
+
+  app.get('/api/admin/potential-customers/import-groups', isAdminAuthenticated, async (req, res) => {
+    try {
+      const groups = await storage.getPotentialCustomerImportGroups();
+      res.json(groups);
+    } catch (error) {
+      console.error('Error getting potential customer import groups:', error);
+      res.status(500).json({ message: 'Failed to get import groups' });
+    }
+  });
+
+  app.post('/api/admin/potential-customers/import', isAdminAuthenticated, async (req, res) => {
+    try {
+      console.log('Import request received:');
+      console.log('req.body:', req.body);
+      console.log('req.files:', req.files ? Object.keys(req.files) : 'No files');
+      
+      // Get importName from FormData fields
+      let importName = null;
+      
+      // With parseNested: true, FormData fields should be available in req.files
+      if (req.files && req.files.importName) {
+        // For text fields in FormData, the data is in the data property
+        if (req.files.importName.data) {
+          importName = req.files.importName.data.toString();
+          console.log('Found importName in req.files.data:', importName);
+        } else {
+          // If it's not a file, it might be directly available
+          importName = req.files.importName.toString();
+          console.log('Found importName in req.files (direct):', importName);
+        }
+      } else if (req.body && req.body.importName) {
+        // Fallback to req.body if not in FormData
+        importName = req.body.importName;
+        console.log('Found importName in req.body:', importName);
+      } else {
+        console.log('No importName found in any location');
+        console.log('Available in req.files:', req.files ? Object.keys(req.files) : 'No files');
+        console.log('Available in req.body:', Object.keys(req.body));
+      }
+      
+      if (!importName) {
+        console.log('Returning error: Import name is required');
+        return res.status(400).json({ message: 'Import name is required' });
+      }
+
+      console.log('Processing import with name:', importName);
+
+      // Check if this is a test import (no file)
+      if (!req.files || !req.files.file) {
+        console.log('No file provided, using sample data');
+        // Use sample data for test imports
+        const result = await storage.importPotentialCustomers(null, importName);
+        res.json(result);
+        return;
+      }
+
+      // Handle file upload
+      const uploadedFile = req.files.file;
+      
+      if (!uploadedFile) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      console.log('Processing file upload:', uploadedFile.name);
+      console.log('File object details:', {
+        name: uploadedFile.name,
+        size: uploadedFile.size,
+        tempFilePath: uploadedFile.tempFilePath,
+        mimetype: uploadedFile.mimetype
+      });
+      
+      const result = await storage.importPotentialCustomers(uploadedFile, importName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error importing potential customers:', error);
+      res.status(500).json({ message: 'Failed to import customers' });
+    }
+  });
+
+  app.post('/api/admin/potential-customers/send-sms', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { customerIds } = req.body;
+      
+      if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
+        return res.status(400).json({ message: 'No customer IDs provided' });
+      }
+
+      const result = await storage.sendSmsToPotentialCustomers(customerIds);
+      res.json(result);
+    } catch (error) {
+      console.error('Error sending SMS to potential customers:', error);
+      res.status(500).json({ message: 'Failed to send SMS' });
+    }
+  });
+
+  // Admin User Reports endpoint
+  app.post('/api/admin/reports/users', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      // Verify admin token (you can implement proper admin auth here)
+      // For now, we'll assume any token is valid for demo purposes
+      
+      const { fromDate, toDate } = req.body;
+      
+      if (!fromDate || !toDate) {
+        return res.status(400).json({ message: 'Date range is required' });
+      }
+
+      const from = new Date(fromDate);
+      const to = new Date(toDate);
+
+      // Get user reports data for the specified date range
+      const userReports = await storage.getUserReports(from, to);
+      
+      res.json(userReports);
+    } catch (error) {
+      console.error('Error getting user reports:', error);
+      res.status(500).json({ message: 'Failed to get user reports' });
+    }
+  });
+
+  // Terms and Conditions endpoints
+  app.get('/api/admin/terms-conditions', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const terms = await storage.getTermsAndConditions();
+      res.json(terms);
+    } catch (error) {
+      console.error('Error getting terms and conditions:', error);
+      res.status(500).json({ message: 'Failed to get terms and conditions' });
+    }
+  });
+
+  app.put('/api/admin/terms-conditions', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const { providersTerms, customersTerms, websiteTerms } = req.body;
+      
+      const updatedTerms = await storage.updateTermsAndConditions({
+        providersTerms,
+        customersTerms,
+        websiteTerms,
+      });
+      
+      res.json(updatedTerms);
+    } catch (error) {
+      console.error('Error updating terms and conditions:', error);
+      res.status(500).json({ message: 'Failed to update terms and conditions' });
+    }
+  });
+
+  // Provider lead settings endpoint (read-only for providers)
+  app.get('/api/provider/lead-settings', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = (req as any).provider?.id;
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      const settings = await storage.getLeadSettings();
+      // Return settings that providers need to know about
+      res.json({ 
+        freeLeadsEnabled: settings.freeLeadsEnabled,
+        providersCanRedeemCredits: settings.providersCanRedeemCredits
+      });
+    } catch (error) {
+      console.error('Error getting lead settings:', error);
+      res.status(500).json({ message: 'Failed to get lead settings' });
+    }
+  });
+
+
+
+  // Lead Management Settings endpoints
+  app.get('/api/admin/lead-management-settings', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const settings = await storage.getLeadManagementSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error getting lead management settings:', error);
+      res.status(500).json({ message: 'Failed to get lead management settings' });
+    }
+  });
+
+  app.put('/api/admin/lead-management-settings', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const updatedSettings = await storage.updateLeadManagementSettings(req.body);
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error('Error updating lead management settings:', error);
+      res.status(500).json({ message: 'Failed to update lead management settings' });
+    }
+  });
+
+  // Service Categories management endpoints
+  app.post('/api/admin/service-categories', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const newCategory = await storage.createServiceCategory(req.body);
+      res.json(newCategory);
+    } catch (error) {
+      console.error('Error creating service category:', error);
+      res.status(500).json({ message: 'Failed to create service category' });
+    }
+  });
+
+  app.put('/api/admin/service-categories/:id', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const categoryId = parseInt(req.params.id);
+      const updatedCategory = await storage.updateServiceCategory(categoryId, req.body);
+      res.json(updatedCategory);
+    } catch (error) {
+      console.error('Error updating service category:', error);
+      res.status(500).json({ message: 'Failed to update service category' });
+    }
+  });
+
+  app.delete('/api/admin/service-categories/:id', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const categoryId = parseInt(req.params.id);
+      const deleted = await storage.deleteServiceCategory(categoryId);
+      
+      if (deleted) {
+        res.json({ message: 'Service category deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'Service category not found' });
+      }
+    } catch (error) {
+      console.error('Error deleting service category:', error);
+      res.status(500).json({ message: error.message || 'Failed to delete service category' });
+    }
+  });
+
+  // Potential Customers endpoints
+  app.get('/api/admin/potential-customers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const customers = await storage.getAllPotentialCustomers();
+      res.json(customers);
+    } catch (error) {
+      console.error('Error getting potential customers:', error);
+      res.status(500).json({ message: 'Failed to get potential customers' });
+    }
+  });
+
+  app.get('/api/admin/potential-customers/import-groups', isAdminAuthenticated, async (req, res) => {
+    try {
+      const groups = await storage.getPotentialCustomerImportGroups();
+      res.json(groups);
+    } catch (error) {
+      console.error('Error getting import groups:', error);
+      res.status(500).json({ message: 'Failed to get import groups' });
+    }
+  });
+
+  app.post('/api/admin/potential-customers/import', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { importName } = req.body;
+      const file = req.files?.file;
+      
+      if (!file || !importName) {
+        return res.status(400).json({ message: 'File and import name are required' });
+      }
+
+      const result = await storage.importPotentialCustomers(file, importName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error importing potential customers:', error);
+      res.status(500).json({ message: error.message || 'Failed to import potential customers' });
+    }
+  });
+
+  app.post('/api/admin/potential-customers/send-sms', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { customerIds } = req.body;
+      
+      if (!customerIds || !Array.isArray(customerIds)) {
+        return res.status(400).json({ message: 'Customer IDs array is required' });
+      }
+
+      const result = await storage.sendSmsToPotentialCustomers(customerIds);
+      res.json(result);
+    } catch (error) {
+      console.error('Error sending SMS to potential customers:', error);
+      res.status(500).json({ message: error.message || 'Failed to send SMS' });
+    }
+  });
+
+  // Potential Providers endpoints
+  app.get('/api/admin/potential-providers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providers = await storage.getAllPotentialProviders();
+      res.json(providers);
+    } catch (error) {
+      console.error('Error getting potential providers:', error);
+      res.status(500).json({ message: 'Failed to get potential providers' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerData = req.body;
+      const result = await storage.createPotentialProvider(providerData);
+      res.json(result);
+    } catch (error) {
+      console.error('Error creating potential provider:', error);
+      res.status(500).json({ message: 'Failed to create potential provider' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/import', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { importName, csvData } = req.body;
+      
+      if (!importName) {
+        return res.status(400).json({ message: 'Import name is required' });
+      }
+
+      const result = await storage.importPotentialProviders(csvData, importName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error importing potential providers:', error);
+      res.status(500).json({ message: 'Failed to import potential providers' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/confirm-import', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { importId, providers } = req.body;
+      
+      if (!providers || !Array.isArray(providers)) {
+        return res.status(400).json({ message: 'Providers data is required' });
+      }
+
+      const result = await storage.confirmPotentialProvidersImport(providers);
+      res.json(result);
+    } catch (error) {
+      console.error('Error confirming potential providers import:', error);
+      res.status(500).json({ message: 'Failed to confirm import' });
+    }
+  });
+
+  app.patch('/api/admin/potential-providers/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const result = await storage.updatePotentialProvider(parseInt(id), updateData);
+      res.json(result);
+    } catch (error) {
+      console.error('Error updating potential provider:', error);
+      res.status(500).json({ message: 'Failed to update potential provider' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/tasks', isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskData = req.body;
+      const result = await storage.createPotentialProviderTask(taskData);
+      res.json(result);
+    } catch (error) {
+      console.error('Error creating potential provider task:', error);
+      res.status(500).json({ message: 'Failed to create task' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/email', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { potentialProviderId, subject, content } = req.body;
+      const result = await storage.sendEmailToPotentialProvider(potentialProviderId, subject, content);
+      res.json(result);
+    } catch (error) {
+      console.error('Error sending email to potential provider:', error);
+      res.status(500).json({ message: 'Failed to send email' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/sms', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { potentialProviderId, content } = req.body;
+      const result = await storage.sendSmsToPotentialProvider(potentialProviderId, content);
+      res.json(result);
+    } catch (error) {
+      console.error('Error sending SMS to potential provider:', error);
+      res.status(500).json({ message: 'Failed to send SMS' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/:id/convert', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await storage.convertPotentialProviderToProvider(parseInt(id));
+      res.json(result);
+    } catch (error) {
+      console.error('Error converting potential provider:', error);
+      res.status(500).json({ message: 'Failed to convert provider' });
+    }
+  });
+
+  // Provider Reports endpoint
+  app.get('/api/admin/reports/providers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const reports = await storage.getProviderReports();
+      res.json(reports);
+    } catch (error) {
+      console.error('Error getting provider reports:', error);
+      res.status(500).json({ message: 'Failed to get provider reports' });
     }
   });
 

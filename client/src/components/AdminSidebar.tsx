@@ -13,6 +13,8 @@ import {
   TrendingUp,
   Gift,
   User,
+  UserPlus,
+  UserSearch,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -58,6 +60,18 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       subItems: [],
     },
     {
+      icon: UserPlus,
+      label: "Potential Customers",
+      href: "/admin/potential-customers",
+      subItems: [],
+    },
+    {
+      icon: UserSearch,
+      label: "Potential Providers",
+      href: "/admin/potential-providers",
+      subItems: [],
+    },
+    {
       icon: Gift,
       label: "Vouchers",
       href: "/admin/vouchers",
@@ -85,7 +99,9 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
         { label: "Change Password", href: "/admin/change-password" },
         { label: "Stripe Settings", href: "/admin/settings/stripe" },
         { label: "Mailgun Settings", href: "/admin/settings/mailgun" },
-        { label: "Lead Management", href: "/admin/lead-settings" },
+        { label: "Lead Settings", href: "/admin/lead-settings" },
+                  { label: "Service Type", href: "/admin/service-type" },
+        { label: "Terms and Conditions", href: "/admin/terms-conditions" },
       ],
     },
   ];

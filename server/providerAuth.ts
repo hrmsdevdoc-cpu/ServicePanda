@@ -228,9 +228,16 @@ export function setupProviderAuth(app: Express) {
         return res.status(404).json({ message: "Provider not found" });
       }
 
-      // Return provider profile without password
+      // Get provider rating data
+      const ratingData = await storage.getProviderRating(providerId);
+
+      // Return provider profile without password but with rating data
       const { password, ...providerProfile } = provider;
-      res.json(providerProfile);
+      res.json({
+        ...providerProfile,
+        rating: ratingData?.rating || '5.0',
+        totalReviews: ratingData?.totalReviews || 0
+      });
     } catch (error) {
       console.error("Error fetching provider profile:", error);
       res.status(500).json({ message: "Failed to fetch provider profile" });

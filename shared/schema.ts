@@ -37,6 +37,8 @@ export const users = pgTable("users", {
   phoneNumber: varchar("phone_number"),
   profileImageUrl: varchar("profile_image_url"),
   lastLogin: timestamp("last_login"),
+  // Credit balance for customer vouchers
+  creditBalance: decimal("credit_balance", { precision: 10, scale: 2 }).default("0.00"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -99,6 +101,7 @@ export const serviceCategories = pgTable("service_categories", {
   active: boolean("active").default(true),
   popular: boolean("popular").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Provider services - junction table for providers and categories
@@ -385,6 +388,36 @@ export const leadPurchases = pgTable("lead_purchases", {
   purchasedAt: timestamp("purchased_at").defaultNow(),
 });
 
+// Customer vouchers - for promotional codes and credits (admin managed)
+export const customerVouchers = pgTable("customer_vouchers", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 6 }).notNull().unique(), // 6-digit alphanumeric code
+  value: decimal("value", { precision: 10, scale: 2 }).notNull(), // Dollar value of voucher (default $50)
+  description: text("description"), // Description of what voucher is for
+  status: varchar("status", { length: 20 }).default("active").notNull(), // 'active', 'closed', 'expired'
+  expiryDate: timestamp("expiry_date").notNull(), // Date when voucher expires (30 days from creation)
+  redeemedBy: varchar("redeemed_by").references(() => users.id), // Customer who redeemed it
+  redeemedAt: timestamp("redeemed_at"), // When it was redeemed
+  createdBy: varchar("created_by").default("admin"), // Admin who created the voucher
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Customer credit transactions - track all credit additions and deductions
+export const customerCreditTransactions = pgTable("customer_credit_transactions", {
+  id: serial("id").primaryKey(),
+  customerId: varchar("customer_id").references(() => users.id).notNull(),
+  transactionType: varchar("transaction_type").notNull(), // 'credit', 'debit', 'voucher_redemption', 'service_payment'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // Positive for credits, negative for debits
+  balanceBefore: decimal("balance_before", { precision: 10, scale: 2 }).notNull(),
+  balanceAfter: decimal("balance_after", { precision: 10, scale: 2 }).notNull(),
+  description: text("description").notNull(), // Human readable description
+  // Related records for tracking
+  serviceRequestId: integer("service_request_id").references(() => serviceRequests.id), // If related to service payment
+  voucherCode: varchar("voucher_code", { length: 50 }), // If voucher was used
+  stripePaymentIntentId: varchar("stripe_payment_intent_id"), // If actual payment was made
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Admin departments table
 export const adminDepartments = pgTable("admin_departments", {
   id: serial("id").primaryKey(),
@@ -581,6 +614,17 @@ export const insertProviderPostcodeCoverageSchema = createInsertSchema(providerP
   id: true, 
   createdAt: true 
 });
+
+// Customer credit system insert schemas
+export const insertCustomerVoucherSchema = createInsertSchema(customerVouchers).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export const insertCustomerCreditTransactionSchema = createInsertSchema(customerCreditTransactions).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
 export const insertAdminDepartmentSchema = createInsertSchema(adminDepartments).omit({ 
   id: true, 
   createdAt: true, 
@@ -637,6 +681,12 @@ export type InsertProviderCreditTransaction = typeof providerCreditTransactions.
 export type LeadPurchase = typeof leadPurchases.$inferSelect;
 export type InsertLeadPurchase = typeof leadPurchases.$inferInsert;
 
+// Customer credit system types
+export type CustomerVoucher = typeof customerVouchers.$inferSelect;
+export type InsertCustomerVoucher = z.infer<typeof insertCustomerVoucherSchema>;
+export type CustomerCreditTransaction = typeof customerCreditTransactions.$inferSelect;
+export type InsertCustomerCreditTransaction = z.infer<typeof insertCustomerCreditTransactionSchema>;
+
 export type InsertProviderPasswordResetToken = z.infer<typeof insertProviderPasswordResetTokenSchema>;
 export type ProviderPasswordResetToken = typeof providerPasswordResetTokens.$inferSelect;
 
@@ -671,7 +721,9 @@ export const leadSettings = pgTable("lead_settings", {
   minProviderRating: decimal("min_provider_rating", { precision: 3, scale: 1 }).default('3.0'),
   providerRestrictionsActive: boolean("provider_restrictions_active").default(false),
   firstThreeLeadBehavior: varchar("first_three_lead_behavior", { length: 20 }).notNull().default('shared'), // 'new' or 'shared'
+  freeLeadsEnabled: boolean("free_leads_enabled").default(true), // Enable/disable free leads for new providers
   oneMinuteCronActive: boolean("one_minute_cron_active").default(true), // controls if 1-minute lead offer cron runs
+  providersCanRedeemCredits: boolean("providers_can_redeem_credits").default(true), // Enable/disable credit redemption for providers
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -722,6 +774,42 @@ export const providerLeadStatus = pgTable("provider_lead_status", {
   ),
 }));
 
+// Customer reviews table - stores individual reviews from customers
+export const customerReviews = pgTable("customer_reviews", {
+  id: serial("id").primaryKey(),
+  customerId: varchar("customer_id").references(() => users.id).notNull(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  requestId: integer("request_id").references(() => serviceRequests.id).notNull(),
+  overallRating: integer("overall_rating").notNull(), // 1-5 stars
+  qualityRating: integer("quality_rating").notNull(), // 1-5 stars  
+  professionalismRating: integer("professionalism_rating").notNull(), // 1-5 stars
+  timelinessRating: integer("timeliness_rating").notNull(), // 1-5 stars
+  valueRating: integer("value_rating").notNull(), // 1-5 stars
+  reviewText: text("review_text"), // Optional written review
+  isPublic: boolean("is_public").default(true), // Can be displayed publicly
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Ensure one review per customer-provider-request combination
+  uniqueReview: uniqueIndex("unique_customer_provider_request_review").on(
+    table.customerId,
+    table.providerId,
+    table.requestId
+  ),
+}));
+
+// Review tokens table - for secure one-time review access
+export const reviewTokens = pgTable("review_tokens", {
+  id: serial("id").primaryKey(),
+  token: varchar("token", { length: 64 }).unique().notNull(), // Secure random token
+  customerId: varchar("customer_id").references(() => users.id).notNull(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  requestId: integer("request_id").references(() => serviceRequests.id).notNull(),
+  isUsed: boolean("is_used").default(false),
+  expiresAt: timestamp("expires_at").notNull(), // Token expiry (e.g., 30 days)
+  usedAt: timestamp("used_at"), // When token was used
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas for lead notes and interactions
 export const insertLeadNoteSchema = createInsertSchema(leadNotes).omit({ 
   id: true, 
@@ -737,6 +825,16 @@ export const insertProviderLeadStatusSchema = createInsertSchema(providerLeadSta
   statusUpdatedAt: true
 });
 
+// Insert schemas for new review tables
+export const insertCustomerReviewSchema = createInsertSchema(customerReviews).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export const insertReviewTokenSchema = createInsertSchema(reviewTokens).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
 export type LeadSettings = typeof leadSettings.$inferSelect;
 export type InsertLeadSettings = typeof leadSettings.$inferInsert;
 export type CategoryLeadPricing = typeof categoryLeadPricing.$inferSelect;
@@ -745,3 +843,141 @@ export type ProviderLeadInteraction = typeof providerLeadInteractions.$inferSele
 export type InsertProviderLeadInteraction = z.infer<typeof insertProviderLeadInteractionSchema>;
 export type ProviderLeadStatus = typeof providerLeadStatus.$inferSelect;
 export type InsertProviderLeadStatus = z.infer<typeof insertProviderLeadStatusSchema>;
+export type CustomerReview = typeof customerReviews.$inferSelect;
+export type InsertCustomerReview = z.infer<typeof insertCustomerReviewSchema>;
+export type ReviewToken = typeof reviewTokens.$inferSelect;
+export type InsertReviewToken = z.infer<typeof insertReviewTokenSchema>;
+
+// Potential Customers table - for imported customer data
+export const potentialCustomers = pgTable("potential_customers", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  email: varchar("email").notNull(),
+  phone: varchar("phone").notNull(),
+  state: varchar("state").notNull(),
+  city: varchar("city").notNull(),
+  address: text("address").notNull(),
+  importId: varchar("import_id").notNull(), // Unique identifier for batch imports
+  importName: varchar("import_name").notNull(), // Label to identify imported groups
+  smsDeliveryStatus: varchar("sms_delivery_status", { length: 20 }).default("not_sent"), // not_sent, 1st_sent, 2nd_sent
+  firstSmsSentAt: timestamp("first_sms_sent_at"),
+  secondSmsSentAt: timestamp("second_sms_sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Terms and Conditions table
+export const termsAndConditions = pgTable("terms_and_conditions", {
+  id: serial("id").primaryKey(),
+  providersTerms: text("providers_terms"),
+  customersTerms: text("customers_terms"),
+  websiteTerms: text("website_terms"),
+  providersUpdatedAt: timestamp("providers_updated_at"),
+  customersUpdatedAt: timestamp("customers_updated_at"),
+  websiteUpdatedAt: timestamp("website_updated_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTermsAndConditionsSchema = createInsertSchema(termsAndConditions).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+// Insert schema for potential customers
+export const insertPotentialCustomerSchema = createInsertSchema(potentialCustomers).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+export type TermsAndConditions = typeof termsAndConditions.$inferSelect;
+export type InsertTermsAndConditions = z.infer<typeof insertTermsAndConditionsSchema>;
+export type PotentialCustomer = typeof potentialCustomers.$inferSelect;
+export type InsertPotentialCustomer = z.infer<typeof insertPotentialCustomerSchema>;
+
+// Potential Providers table - for managing potential service providers before they become actual providers
+export const potentialProviders = pgTable("potential_providers", {
+  id: serial("id").primaryKey(),
+  firstName: varchar("first_name").notNull(),
+  lastName: varchar("last_name").notNull(),
+  email: varchar("email").notNull(),
+  phone: varchar("phone").notNull(),
+  businessName: varchar("business_name"),
+  businessAbn: varchar("business_abn"),
+  address: text("address").notNull(),
+  state: varchar("state").notNull(),
+  city: varchar("city").notNull(),
+  postcode: varchar("postcode").notNull(),
+  serviceCategories: text("service_categories"), // JSON array of service categories
+  source: varchar("source").default("manual"), // manual, import, referral
+  importId: varchar("import_id"), // For batch imports
+  importName: varchar("import_name"), // Label for imported groups
+  status: varchar("status").default("new"), // new, first_call, follow_up, email, won, lost
+  priority: varchar("priority").default("medium"), // low, medium, high, urgent
+  assignedTo: varchar("assigned_to"), // Admin username assigned to this potential provider
+  notes: text("notes"),
+  nextFollowUpDate: timestamp("next_follow_up_date"),
+  lastContactDate: timestamp("last_contact_date"),
+  lastContactType: varchar("last_contact_type"), // call, email, sms
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Potential Provider Tasks table - for tracking individual tasks/activities
+export const potentialProviderTasks = pgTable("potential_provider_tasks", {
+  id: serial("id").primaryKey(),
+  potentialProviderId: integer("potential_provider_id").references(() => potentialProviders.id).notNull(),
+  taskType: varchar("task_type").notNull(), // call, email, sms, follow_up, note
+  status: varchar("status").default("pending"), // pending, completed, cancelled
+  title: varchar("title").notNull(),
+  description: text("description"),
+  scheduledDate: timestamp("scheduled_date"),
+  completedDate: timestamp("completed_date"),
+  assignedTo: varchar("assigned_to"), // Admin username
+  result: varchar("result"), // success, no_answer, busy, voicemail, etc.
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Potential Provider Communications table - for tracking all communications
+export const potentialProviderCommunications = pgTable("potential_provider_communications", {
+  id: serial("id").primaryKey(),
+  potentialProviderId: integer("potential_provider_id").references(() => potentialProviders.id).notNull(),
+  communicationType: varchar("communication_type").notNull(), // email, sms, call
+  direction: varchar("direction").notNull(), // inbound, outbound
+  subject: varchar("subject"),
+  content: text("content").notNull(),
+  status: varchar("status").default("sent"), // sent, delivered, failed, read
+  sentBy: varchar("sent_by").notNull(), // Admin username
+  sentAt: timestamp("sent_at").defaultNow(),
+  deliveredAt: timestamp("delivered_at"),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Insert schemas for potential providers
+export const insertPotentialProviderSchema = createInsertSchema(potentialProviders).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertPotentialProviderTaskSchema = createInsertSchema(potentialProviderTasks).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertPotentialProviderCommunicationSchema = createInsertSchema(potentialProviderCommunications).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+// Types for potential providers
+export type PotentialProvider = typeof potentialProviders.$inferSelect;
+export type InsertPotentialProvider = z.infer<typeof insertPotentialProviderSchema>;
+export type PotentialProviderTask = typeof potentialProviderTasks.$inferSelect;
+export type InsertPotentialProviderTask = z.infer<typeof insertPotentialProviderTaskSchema>;
+export type PotentialProviderCommunication = typeof potentialProviderCommunications.$inferSelect;
+export type InsertPotentialProviderCommunication = z.infer<typeof insertPotentialProviderCommunicationSchema>;

@@ -209,11 +209,11 @@ export default function ProviderSignup() {
     return storedId ? parseInt(storedId) : null;
   });
 
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] as any[] } = useQuery({
     queryKey: ["/api/service-categories"],
   });
 
-  const { data: states = [] } = useQuery({
+  const { data: states = [] as any[] } = useQuery({
     queryKey: ["/api/australian-states"],
   });
 
@@ -233,7 +233,7 @@ export default function ProviderSignup() {
 
   // Update form data when provider services are loaded
   useEffect(() => {
-    if (providerServices && providerServices.length > 0) {
+    if (providerServices && Array.isArray(providerServices) && providerServices.length > 0) {
       const serviceIds = providerServices.map((service: any) => service.categoryId);
       setFormData(prev => ({ 
         ...prev, 
@@ -244,16 +244,17 @@ export default function ProviderSignup() {
 
   // Update form data when provider profile is loaded
   useEffect(() => {
-    if (providerProfileData) {
+    if (providerProfileData && typeof providerProfileData === 'object') {
+      const profile = providerProfileData as any;
       setFormData(prev => ({ 
         ...prev,
-        firstName: providerProfileData.firstName || "",
-        lastName: providerProfileData.lastName || "",
-        email: providerProfileData.email || "",
-        mobileNumber: providerProfileData.mobileNumber || "",
-        address: providerProfileData.address || "",
-        businessName: providerProfileData.businessName || "",
-        businessAbn: providerProfileData.businessAbn || "",
+        firstName: profile.firstName || "",
+        lastName: profile.lastName || "",
+        email: profile.email || "",
+        mobileNumber: profile.mobileNumber || "",
+        address: profile.address || "",
+        businessName: profile.businessName || "",
+        businessAbn: profile.businessAbn || "",
       }));
     }
   }, [providerProfileData]);
@@ -484,6 +485,11 @@ export default function ProviderSignup() {
   });
 
   const handleStep1Submit = () => {
+    // Prevent multiple submissions
+    if (registerProviderMutation.isPending) {
+      return;
+    }
+
     // Mark that form submission was attempted
     setHasAttemptedSubmit(true);
 
@@ -549,6 +555,11 @@ export default function ProviderSignup() {
   };
 
   const handleStep2Submit = () => {
+    // Prevent multiple submissions
+    if (addServicesMutation.isPending) {
+      return;
+    }
+
     // Mark that form submission was attempted
     setHasAttemptedSubmit(true);
 
@@ -577,36 +588,19 @@ export default function ProviderSignup() {
     });
   };
 
+  // Note: handleStep3Submit is not used in the current implementation
+  // Step 3 now uses handleStep3Next which doesn't make API calls
   const handleStep3Submit = () => {
-    // Mark that form submission was attempted
-    setHasAttemptedSubmit(true);
-
-    if (formData.selectedSuburbs.length === 0) {
-      toast({
-        title: "Please select your service areas",
-        description: "You must select at least one area where you provide services",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!providerId) {
-      toast({
-        title: "Error",
-        description: "Provider information not found. Please start from Step 1.",
-        variant: "destructive",
-      });
-      setCurrentStep(1);
-      return;
-    }
-
-    addServiceAreasMutation.mutate({
-      providerId: providerId,
-      suburbIds: formData.selectedSuburbs,
-    });
+    // This function is deprecated - Step 3 now uses handleStep3Next
+    console.warn('handleStep3Submit is deprecated, use handleStep3Next instead');
   };
 
   const handleDocumentUpload = () => {
+    // Prevent multiple submissions
+    if (uploadDocumentsMutation.isPending) {
+      return;
+    }
+
     if (!providerId) {
       toast({
         title: "Error",
