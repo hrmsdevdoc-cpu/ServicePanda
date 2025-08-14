@@ -6,12 +6,13 @@ import { setupProviderAuth, isProviderAuthenticated } from "./providerAuth";
 import { setupAdminAuth, isAdminAuthenticated, hashPassword, comparePasswords } from "./adminAuth";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { insertServiceProviderSchema, insertServiceRequestSchema, leadOffers } from "@shared/schema";
+import { insertServiceProviderSchema, insertServiceRequestSchema, leadOffers, potentialCustomers } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
-import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail } from "./emailService";
+import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail, sendEmail } from "./emailService";
+import { smsService } from "./smsService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware for customers
@@ -1393,6 +1394,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error configuring Mailgun settings:', error);
       res.status(500).json({ message: 'Failed to configure Mailgun settings' });
+    }
+  });
+
+  // Setup route to run database migrations
+  app.post('/api/setup/run-migration', async (req, res) => {
+    try {
+      const { sql } = req.body;
+
+      if (!sql) {
+        return res.status(400).json({ message: 'SQL migration is required' });
+      }
+
+      // Execute the migration SQL
+      await storage.executeMigration(sql);
+
+      res.json({ message: 'Migration executed successfully' });
+    } catch (error) {
+      console.error('Error running migration:', error);
+      res.status(500).json({ message: 'Failed to execute migration', error: error.message });
     }
   });
 
@@ -3163,6 +3183,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send individual SMS to a potential customer
+  app.post('/api/admin/potential-customers/:id/send-sms', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { message, customMessage } = req.body;
+      
+      if (!id) {
+        return res.status(400).json({ message: 'Customer ID is required' });
+      }
+
+      // Get customer details
+      const [customer] = await db
+        .select()
+        .from(potentialCustomers)
+        .where(eq(potentialCustomers.id, parseInt(id)));
+
+      if (!customer) {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+
+      // Determine SMS type based on current status
+      let smsType: '1st_sent' | '2nd_sent';
+      if (customer.smsDeliveryStatus === 'not_sent') {
+        smsType = '1st_sent';
+      } else if (customer.smsDeliveryStatus === '1st_sent') {
+        smsType = '2nd_sent';
+      } else {
+        return res.status(400).json({ message: 'Maximum SMS limit reached for this customer' });
+      }
+
+      // Send SMS
+      let smsSent: boolean;
+      if (customMessage) {
+        // Send custom message
+        smsSent = await smsService.sendSms(customer.phone, customMessage, {
+          customerId: customer.id,
+          smsType,
+        });
+      } else {
+        // Send template message
+        smsSent = await smsService.sendSmsToPotentialCustomer(
+          customer.phone,
+          customer.name,
+          smsType,
+          {
+            customerId: customer.id,
+          }
+        );
+      }
+
+      if (smsSent) {
+        // Update SMS status
+        await storage.updatePotentialCustomerSmsStatus(parseInt(id), smsType);
+        
+        res.json({
+          success: true,
+          message: `SMS ${smsType} sent successfully to ${customer.name}`,
+          smsType,
+          customerId: customer.id,
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'Failed to send SMS',
+        });
+      }
+    } catch (error) {
+      console.error('Error sending individual SMS:', error);
+      res.status(500).json({ message: error.message || 'Failed to send SMS' });
+    }
+  });
+
+  // SMS service status endpoint
+  app.get('/api/admin/sms/status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const status = smsService.getStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('Error getting SMS service status:', error);
+      res.status(500).json({ message: 'Failed to get SMS service status' });
+    }
+  });
+
+  // Get all SMS messages
+  app.get('/api/admin/sms/messages', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { page = 1, limit = 50, recipientType, status, search } = req.query;
+      
+      // For now, return mock data until we implement the database storage
+      const mockMessages = [
+        {
+          id: 1,
+          recipientType: 'customer',
+          recipientId: 101,
+          recipientPhone: '+61412345678',
+          recipientName: 'John Smith',
+          message: 'Hi John! Your service request has been confirmed. A provider will contact you within 2 hours.',
+          direction: 'outbound',
+          status: 'delivered',
+          smsType: 'notification',
+          sentBy: 'admin@servicepanda.com',
+          sentAt: '2024-01-15T10:30:00Z',
+          deliveredAt: '2024-01-15T10:31:00Z'
+        },
+        {
+          id: 2,
+          recipientType: 'provider',
+          recipientId: 201,
+          recipientPhone: '+61487654321',
+          recipientName: 'Mike Johnson',
+          message: 'New lead available in your area! Check your dashboard for details.',
+          direction: 'outbound',
+          status: 'sent',
+          smsType: 'notification',
+          sentBy: 'system',
+          sentAt: '2024-01-15T09:15:00Z'
+        },
+        {
+          id: 3,
+          recipientType: 'potential_customer',
+          recipientId: 301,
+          recipientPhone: '+61411111111',
+          recipientName: 'Sarah Wilson',
+          message: 'Hi Sarah! ServicePanda here! We noticed you might be looking for reliable service providers in your area. Reply YES to get started!',
+          direction: 'outbound',
+          status: 'delivered',
+          smsType: '1st_sent',
+          sentBy: 'admin@servicepanda.com',
+          sentAt: '2024-01-15T08:00:00Z',
+          deliveredAt: '2024-01-15T08:01:00Z'
+        },
+        {
+          id: 4,
+          recipientType: 'customer',
+          recipientId: 102,
+          recipientPhone: '+61422222222',
+          recipientName: 'Emma Davis',
+          message: 'Thank you for using ServicePanda! How was your experience? Rate us 1-5 stars.',
+          direction: 'outbound',
+          status: 'sent',
+          smsType: 'custom',
+          sentBy: 'admin@servicepanda.com',
+          sentAt: '2024-01-15T07:45:00Z'
+        }
+      ];
+
+      // Apply filters
+      let filteredMessages = mockMessages;
+      
+      if (recipientType) {
+        filteredMessages = filteredMessages.filter(msg => msg.recipientType === recipientType);
+      }
+      
+      if (status) {
+        filteredMessages = filteredMessages.filter(msg => msg.status === status);
+      }
+      
+      if (search) {
+        const searchLower = search.toString().toLowerCase();
+        filteredMessages = filteredMessages.filter(msg => 
+          msg.recipientName?.toLowerCase().includes(searchLower) ||
+          msg.recipientPhone.includes(search) ||
+          msg.message.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Apply pagination
+      const startIndex = (parseInt(page.toString()) - 1) * parseInt(limit.toString());
+      const endIndex = startIndex + parseInt(limit.toString());
+      const paginatedMessages = filteredMessages.slice(startIndex, endIndex);
+
+      res.json({
+        messages: paginatedMessages,
+        pagination: {
+          page: parseInt(page.toString()),
+          limit: parseInt(limit.toString()),
+          total: filteredMessages.length,
+          totalPages: Math.ceil(filteredMessages.length / parseInt(limit.toString()))
+        }
+      });
+    } catch (error) {
+      console.error('Error getting SMS messages:', error);
+      res.status(500).json({ message: 'Failed to get SMS messages' });
+    }
+  });
+
   // Potential Providers endpoints
   app.get('/api/admin/potential-providers', isAdminAuthenticated, async (req, res) => {
     try {
@@ -3192,6 +3398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!importName) {
         return res.status(400).json({ message: 'Import name is required' });
       }
+      
 
       const result = await storage.importPotentialProviders(csvData, importName);
       res.json(result);
@@ -3281,6 +3488,272 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error getting provider reports:', error);
       res.status(500).json({ message: 'Failed to get provider reports' });
+    }
+  });
+
+  // Email Management Routes
+  app.get('/api/admin/emails', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { tab, user, search, fromDate, toDate } = req.query;
+      
+      // Get emails based on filters
+      const emails = await storage.getEmails({
+        tab: tab as string || 'inbox',
+        userId: user as string || 'all',
+        search: search as string || '',
+        fromDate: fromDate as string || '',
+        toDate: toDate as string || '',
+        isAdmin: true
+      });
+      
+      res.json(emails);
+    } catch (error) {
+      console.error('Error fetching emails:', error);
+      res.status(500).json({ message: 'Failed to fetch emails' });
+    }
+  });
+
+  // Test email service endpoint (no auth required for testing)
+  app.post('/api/test/email', async (req, res) => {
+    try {
+      const { to, subject, body } = req.body;
+      
+      if (!to || !subject || !body) {
+        return res.status(400).json({ message: 'To, subject, and body are required' });
+      }
+
+      // Check Mailgun configuration
+      const mailgunKeys = await storage.getDecryptedMailgunKeys();
+      if (!mailgunKeys) {
+        return res.status(500).json({ 
+          message: 'Email service not configured. Please configure Mailgun settings first.',
+          mailgunConfigured: false
+        });
+      }
+
+      // Test email sending
+      const emailSent = await sendEmail({
+        to,
+        subject,
+        text: body,
+        html: body
+      });
+
+      if (emailSent) {
+        res.json({ 
+          success: true, 
+          message: 'Test email sent successfully',
+          mailgunConfigured: true
+        });
+      } else {
+        res.status(500).json({ 
+          message: 'Test email failed to send',
+          mailgunConfigured: true
+        });
+      }
+    } catch (error) {
+      console.error('Error in test email:', error);
+      res.status(500).json({ 
+        message: 'Test email error: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        mailgunConfigured: false
+      });
+    }
+  });
+
+  // Update email status (archive, trash, spam, etc.)
+  app.patch('/api/admin/emails/:id/status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, folder } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ message: 'Status is required' });
+      }
+
+      // Update email status in database
+      const updatedEmail = await storage.updateEmailStatus(parseInt(id), status);
+
+      res.json({ 
+        message: 'Email status updated successfully', 
+        email: updatedEmail 
+      });
+    } catch (error) {
+      console.error('Error updating email status:', error);
+      res.status(500).json({ message: 'Failed to update email status', error: error.message });
+    }
+  });
+
+  app.post('/api/admin/emails/send', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { to, cc, bcc, subject, body, template, status } = req.body;
+      
+      if (!to || !subject || !body) {
+        return res.status(400).json({ message: 'To, subject, and body are required' });
+      }
+
+      // Check if this is a draft (don't send via email service)
+      if (status === 'draft') {
+        // Store draft in database
+        const emailData = {
+          from: 'admin@servicepanda.com.au',
+          to,
+          cc,
+          bcc,
+          subject,
+          body,
+          bodyHtml: body,
+          status: 'draft',
+          isRead: false,
+          isStarred: false,
+          hasAttachments: false,
+          priority: 'normal',
+          folder: 'draft',
+          userType: 'admin',
+          sentAt: null,
+        };
+
+        await storage.createEmail(emailData);
+        
+        res.json({ 
+          success: true, 
+          message: 'Draft saved successfully' 
+        });
+        return;
+      }
+
+      // For actual email sending, check Mailgun configuration first
+      const mailgunKeys = await storage.getDecryptedMailgunKeys();
+      if (!mailgunKeys) {
+        return res.status(500).json({ 
+          message: 'Email service not configured. Please configure Mailgun settings first.' 
+        });
+      }
+
+      // Send email using existing email service
+      const emailSent = await sendEmail({
+        to,
+        subject,
+        text: body,
+        html: body
+      });
+
+      if (emailSent) {
+        // Store email in database
+        const emailData = {
+          from: 'admin@servicepanda.com.au',
+          to,
+          cc,
+          bcc,
+          subject,
+          body,
+          bodyHtml: body,
+          status: 'sent',
+          isRead: false,
+          isStarred: false,
+          hasAttachments: false,
+          priority: 'normal',
+          folder: 'sent',
+          userType: 'admin',
+          sentAt: new Date(),
+        };
+
+        await storage.createEmail(emailData);
+        
+        res.json({ 
+          success: true, 
+          message: 'Email sent successfully' 
+        });
+      } else {
+        // Store as failed email for debugging
+        const emailData = {
+          from: 'admin@servicepanda.com.au',
+          to,
+          cc,
+          bcc,
+          subject,
+          body,
+          bodyHtml: body,
+          status: 'failed',
+          isRead: false,
+          isStarred: false,
+          hasAttachments: false,
+          priority: 'normal',
+          folder: 'failed',
+          userType: 'admin',
+          sentAt: null,
+        };
+
+        await storage.createEmail(emailData);
+        
+        res.status(500).json({ 
+          message: 'Failed to send email via Mailgun. Email saved as failed for review.' 
+        });
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      
+      // Try to save the email as failed for debugging
+      try {
+        const { to, cc, bcc, subject, body } = req.body;
+        const emailData = {
+          from: 'admin@servicepanda.com.au',
+          to,
+          cc,
+          bcc,
+          subject,
+          body,
+          bodyHtml: body,
+          status: 'failed',
+          isRead: false,
+          isStarred: false,
+          hasAttachments: false,
+          priority: 'normal',
+          folder: 'failed',
+          userType: 'admin',
+          sentAt: null,
+        };
+
+        await storage.createEmail(emailData);
+      } catch (saveError) {
+        console.error('Failed to save failed email:', saveError);
+      }
+      
+      res.status(500).json({ 
+        message: 'Failed to send email. Check server logs for details.' 
+      });
+    }
+  });
+
+  app.patch('/api/admin/emails/:id/status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ message: 'Status is required' });
+      }
+
+      const result = await storage.updateEmailStatus(parseInt(id), status);
+      res.json(result);
+    } catch (error) {
+      console.error('Error updating email status:', error);
+      res.status(500).json({ message: 'Failed to update email status' });
+    }
+  });
+
+  app.get('/api/admin/emails/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const email = await storage.getEmail(parseInt(id));
+      
+      if (!email) {
+        return res.status(404).json({ message: 'Email not found' });
+      }
+      
+      res.json(email);
+    } catch (error) {
+      console.error('Error fetching email:', error);
+      res.status(500).json({ message: 'Failed to fetch email' });
     }
   });
 

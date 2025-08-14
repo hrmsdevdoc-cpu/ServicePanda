@@ -14,6 +14,8 @@ interface EmailOptions {
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
+    console.log('sendEmail called with options:', options);
+    
     // Get Mailgun credentials from database
     const mailgunKeys = await storage.getDecryptedMailgunKeys();
     
@@ -23,23 +25,31 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     }
 
     const { apiKey, domain, domainSendingKey } = mailgunKeys;
+    console.log('Mailgun keys retrieved - domain:', domain, 'apiKey present:', !!apiKey);
     
-    // Prepare form data for Mailgun API
-    const formData = new FormData();
+    // Prepare form data for Mailgun API using URLSearchParams (Node.js compatible)
+    const formData = new URLSearchParams();
     formData.append('from', `ServicePanda <noreply@${domain}>`);
     formData.append('to', options.to);
     formData.append('subject', options.subject);
     formData.append('text', options.text);
     formData.append('html', options.html);
 
+    console.log('Form data prepared:', formData.toString());
+    console.log('Making request to Mailgun API...');
+
     // Send email via Mailgun API
     const response = await fetch(`https://api.mailgun.net/v3/${domain}/messages`, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`
+        'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: formData
+      body: formData.toString()
     });
+
+    console.log('Mailgun API response status:', response.status);
+    console.log('Mailgun API response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();

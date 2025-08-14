@@ -15,6 +15,8 @@ import {
   User,
   UserPlus,
   UserSearch,
+  Mail,
+  MessageSquare,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -75,6 +77,18 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       icon: Gift,
       label: "Vouchers",
       href: "/admin/vouchers",
+      subItems: [],
+    },
+    {
+      icon: Mail,
+      label: "Email",
+      href: "/admin/email",
+      subItems: [],
+    },
+    {
+      icon: MessageSquare,
+      label: "SMS",
+      href: "/admin/sms",
       subItems: [],
     },
     {

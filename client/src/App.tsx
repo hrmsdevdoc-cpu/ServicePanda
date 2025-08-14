@@ -45,6 +45,8 @@ import AdminDepartments from "@/pages/AdminDepartments";
 import AdminChangePassword from "@/pages/AdminChangePassword";
 import AdminTermsConditions from "@/pages/admin/AdminTermsConditions";
 import AdminLeadManagement from "@/pages/admin/AdminLeadManagement";
+import AdminEmail from "@/pages/AdminEmail";
+import AdminSmsMenu from "@/pages/AdminSmsMenu";
 import RequestService from "@/pages/RequestService";
 import ReviewSubmission from "@/pages/ReviewSubmission";
 
@@ -102,6 +104,8 @@ function Router() {
       <Route path="/admin/potential-providers" component={AdminPotentialProviders} />
       <Route path="/admin/lead-settings" component={AdminLeadSettings} />
               <Route path="/admin/service-type" component={AdminLeadManagement} />
+      <Route path="/admin/email" component={AdminEmail} />
+      <Route path="/admin/sms" component={AdminSmsMenu} />
       <Route path="/admin/reports/users" component={AdminUserReports} />
       <Route path="/admin/reports/providers" component={AdminProviderReports} />
       <Route path="/admin/reports/daily" component={AdminDailyReports} />

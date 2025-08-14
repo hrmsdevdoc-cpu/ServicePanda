@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import csv from 'csv-parser';
+import { smsService } from './smsService';
 
 // Load environment variables from .env file
 const envPath = path.resolve(process.cwd(), '.env');
@@ -21,6 +22,10 @@ import {
   leadAssignments,
   emailTemplates,
   sentEmails,
+  emails,
+  emailAttachments,
+  emailLabels,
+  emailLabelRelations,
   userActivityLogs,
   systemSettings,
   leadPurchases,
@@ -43,6 +48,14 @@ import {
   type EmailTemplate,
   type InsertSentEmail,
   type SentEmail,
+  type InsertEmail,
+  type Email,
+  type InsertEmailAttachment,
+  type EmailAttachment,
+  type InsertEmailLabel,
+  type EmailLabel,
+  type InsertEmailLabelRelation,
+  type EmailLabelRelation,
   type InsertUserActivityLog,
   type UserActivityLog,
   type InsertSystemSetting,
@@ -152,7 +165,7 @@ interface ImportGroup {
   smsDeliveryStatus: string;
 }
 import { db, pool } from "./db";
-import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql, ne, gt, gte } from "drizzle-orm";
+import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql, ne, gt, gte, like, lte } from "drizzle-orm";
 import crypto from "crypto";
 
 export interface IStorage {
@@ -5282,13 +5295,24 @@ export class DatabaseStorage implements IStorage {
             continue; // Already sent 2 SMS
           }
           
-          // Here you would integrate with your SMS service
-          // For now, we'll just update the status
-          await this.updatePotentialCustomerSmsStatus(customerId, smsStatus);
-          successCount++;
+          // Send SMS using the SMS service
+          const smsSent = await smsService.sendSmsToPotentialCustomer(
+            customer.phone,
+            customer.name,
+            smsStatus,
+            {
+              customerId: customer.id,
+            }
+          );
           
-          // TODO: Integrate with actual SMS service (Twilio, etc.)
-          console.log(`SMS ${smsStatus} sent to ${customer.name} at ${customer.phone}`);
+          if (smsSent) {
+            // Update SMS status only if SMS was sent successfully
+            await this.updatePotentialCustomerSmsStatus(customerId, smsStatus);
+            successCount++;
+            console.log(`SMS ${smsStatus} sent successfully to ${customer.name} at ${customer.phone}`);
+          } else {
+            console.error(`Failed to send SMS ${smsStatus} to ${customer.name} at ${customer.phone}`);
+          }
           
         } catch (error) {
           console.error(`Error sending SMS to customer ${customerId}:`, error);
@@ -5788,6 +5812,183 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('Error converting potential provider:', error);
+      throw error;
+    }
+  }
+
+  // Email Management Methods
+  async getEmails(filters: {
+    tab: string;
+    userId: string;
+    search: string;
+    fromDate: string;
+    toDate: string;
+    isAdmin: boolean;
+  }): Promise<Email[]> {
+    try {
+      let query = db.select().from(emails);
+
+      // Apply tab filter
+      if (filters.tab === 'unread') {
+        query = query.where(eq(emails.isRead, false));
+      } else if (filters.tab !== 'all') {
+        query = query.where(eq(emails.status, filters.tab));
+      }
+
+      // Apply user filter
+      if (filters.userId !== 'all') {
+        query = query.where(eq(emails.userId, filters.userId));
+      }
+
+      // Apply search filter
+      if (filters.search) {
+        query = query.where(
+          or(
+            like(emails.subject, `%${filters.search}%`),
+            like(emails.body, `%${filters.search}%`),
+            like(emails.from, `%${filters.search}%`),
+            like(emails.to, `%${filters.search}%`)
+          )
+        );
+      }
+
+      // Apply date filters
+      if (filters.fromDate) {
+        query = query.where(gte(emails.createdAt, new Date(filters.fromDate)));
+      }
+      if (filters.toDate) {
+        query = query.where(lte(emails.createdAt, new Date(filters.toDate)));
+      }
+
+      // Order by creation date (newest first)
+      query = query.orderBy(desc(emails.createdAt));
+
+      const result = await query;
+      return result;
+    } catch (error) {
+      console.error('Error fetching emails:', error);
+      throw error;
+    }
+  }
+
+  async createEmail(emailData: Partial<InsertEmail>): Promise<Email> {
+    try {
+      const [email] = await db.insert(emails).values({
+        from: emailData.from || '',
+        to: emailData.to || '',
+        cc: emailData.cc || null,
+        bcc: emailData.bcc || null,
+        subject: emailData.subject || '',
+        body: emailData.body || '',
+        bodyHtml: emailData.bodyHtml || null,
+        status: emailData.status || 'inbox',
+        isRead: emailData.isRead || false,
+        isStarred: emailData.isStarred || false,
+        hasAttachments: emailData.hasAttachments || false,
+        priority: emailData.priority || 'normal',
+        folder: emailData.folder || 'inbox',
+        userId: emailData.userId || null,
+        userType: emailData.userType || null,
+        providerId: emailData.providerId || null,
+        threadId: emailData.threadId || null,
+        parentEmailId: emailData.parentEmailId || null,
+        sentAt: emailData.sentAt || null,
+        readAt: emailData.readAt || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+
+      return email;
+    } catch (error) {
+      console.error('Error creating email:', error);
+      throw error;
+    }
+  }
+
+  async updateEmailStatus(emailId: number, status: string): Promise<Email> {
+    try {
+      const [email] = await db.update(emails)
+        .set({
+          status,
+          folder: status,
+          updatedAt: new Date(),
+        })
+        .where(eq(emails.id, emailId))
+        .returning();
+
+      if (!email) {
+        throw new Error('Email not found');
+      }
+
+      return email;
+    } catch (error) {
+      console.error('Error updating email status:', error);
+      throw error;
+    }
+  }
+
+  async getEmail(emailId: number): Promise<Email | null> {
+    try {
+      const [email] = await db.select().from(emails).where(eq(emails.id, emailId)).limit(1);
+      return email || null;
+    } catch (error) {
+      console.error('Error fetching email:', error);
+      throw error;
+    }
+  }
+
+  async markEmailAsRead(emailId: number): Promise<Email> {
+    try {
+      const [email] = await db.update(emails)
+        .set({
+          isRead: true,
+          readAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(emails.id, emailId))
+        .returning();
+
+      if (!email) {
+        throw new Error('Email not found');
+      }
+
+      return email;
+    } catch (error) {
+      console.error('Error marking email as read:', error);
+      throw error;
+    }
+  }
+
+  async toggleEmailStar(emailId: number): Promise<Email> {
+    try {
+      const email = await this.getEmail(emailId);
+      if (!email) {
+        throw new Error('Email not found');
+      }
+
+      const [updatedEmail] = await db.update(emails)
+        .set({
+          isStarred: !email.isStarred,
+          updatedAt: new Date(),
+        })
+        .where(eq(emails.id, emailId))
+        .returning();
+
+      return updatedEmail;
+    } catch (error) {
+      console.error('Error toggling email star:', error);
+      throw error;
+    }
+  }
+
+  // Execute database migration
+  async executeMigration(sql: string): Promise<void> {
+    try {
+      console.log('Executing migration SQL...');
+      await db.execute(sql);
+      console.log('Migration executed successfully');
+    } catch (error) {
+      console.error('Error executing migration:', error);
       throw error;
     }
   }

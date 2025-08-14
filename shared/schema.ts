@@ -288,6 +288,62 @@ export const sentEmails = pgTable("sent_emails", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Email management system - for inbox, sent, draft, etc.
+export const emails = pgTable("emails", {
+  id: serial("id").primaryKey(),
+  from: varchar("from").notNull(), // sender email
+  to: varchar("to").notNull(), // recipient email(s)
+  cc: varchar("cc"), // CC recipients
+  bcc: varchar("bcc"), // BCC recipients
+  subject: varchar("subject").notNull(),
+  body: text("body").notNull(),
+  bodyHtml: text("body_html"), // HTML version of body
+  status: varchar("status", { length: 20 }).default("inbox").notNull(), // inbox, sent, draft, trash, spam, archive
+  isRead: boolean("is_read").default(false),
+  isStarred: boolean("is_starred").default(false),
+  hasAttachments: boolean("has_attachments").default(false),
+  priority: varchar("priority", { length: 10 }).default("normal"), // low, normal, high, urgent
+  folder: varchar("folder", { length: 50 }).default("inbox"), // inbox, sent, draft, trash, spam, archive
+  userId: varchar("user_id").references(() => users.id), // user this email belongs to
+  userType: varchar("user_type", { length: 20 }), // customer, provider, admin
+  providerId: integer("provider_id").references(() => serviceProviders.id), // if email is for a provider
+  threadId: varchar("thread_id"), // for grouping related emails
+  parentEmailId: integer("parent_email_id"), // for replies/forwards - will be set after table creation
+  sentAt: timestamp("sent_at"),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Email attachments
+export const emailAttachments = pgTable("email_attachments", {
+  id: serial("id").primaryKey(),
+  emailId: integer("email_id").references(() => emails.id).notNull(),
+  filename: varchar("filename").notNull(),
+  originalName: varchar("original_name").notNull(),
+  mimeType: varchar("mime_type").notNull(),
+  size: integer("size").notNull(), // file size in bytes
+  filePath: varchar("file_path").notNull(), // path to stored file
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Email labels/tags for organization
+export const emailLabels = pgTable("email_labels", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  color: varchar("color", { length: 7 }).default("#3B82F6"), // hex color
+  userId: varchar("user_id").references(() => users.id), // null for global labels
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Email-label relationships (many-to-many)
+export const emailLabelRelations = pgTable("email_label_relations", {
+  id: serial("id").primaryKey(),
+  emailId: integer("email_id").references(() => emails.id).notNull(),
+  labelId: integer("label_id").references(() => emailLabels.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // User activity logs
 export const userActivityLogs = pgTable("user_activity_logs", {
   id: serial("id").primaryKey(),
@@ -518,6 +574,29 @@ export const sentEmailsRelations = relations(sentEmails, ({ one }) => ({
   template: one(emailTemplates, { fields: [sentEmails.templateId], references: [emailTemplates.id] }),
 }));
 
+// Email management relations
+export const emailsRelations = relations(emails, ({ one, many }) => ({
+  user: one(users, { fields: [emails.userId], references: [users.id] }),
+  provider: one(serviceProviders, { fields: [emails.providerId], references: [serviceProviders.id] }),
+  parentEmail: one(emails, { fields: [emails.parentEmailId], references: [emails.id] }),
+  attachments: many(emailAttachments),
+  labelRelations: many(emailLabelRelations),
+}));
+
+export const emailAttachmentsRelations = relations(emailAttachments, ({ one }) => ({
+  email: one(emails, { fields: [emailAttachments.emailId], references: [emails.id] }),
+}));
+
+export const emailLabelsRelations = relations(emailLabels, ({ one, many }) => ({
+  user: one(users, { fields: [emailLabels.userId], references: [users.id] }),
+  emailRelations: many(emailLabelRelations),
+}));
+
+export const emailLabelRelationsRelations = relations(emailLabelRelations, ({ one }) => ({
+  email: one(emails, { fields: [emailLabelRelations.emailId], references: [emails.id] }),
+  label: one(emailLabels, { fields: [emailLabelRelations.labelId], references: [emailLabels.id] }),
+}));
+
 export const userActivityLogsRelations = relations(userActivityLogs, ({ one }) => ({
   user: one(users, { fields: [userActivityLogs.userId], references: [users.id] }),
 }));
@@ -640,6 +719,25 @@ export const insertAdminUserDepartmentSchema = createInsertSchema(adminUserDepar
   createdAt: true 
 });
 
+// Email management insert schemas
+export const insertEmailSchema = createInsertSchema(emails).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertEmailAttachmentSchema = createInsertSchema(emailAttachments).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export const insertEmailLabelSchema = createInsertSchema(emailLabels).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export const insertEmailLabelRelationSchema = createInsertSchema(emailLabelRelations).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -661,6 +759,14 @@ export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
 export type InsertSentEmail = z.infer<typeof insertSentEmailSchema>;
 export type SentEmail = typeof sentEmails.$inferSelect;
+export type InsertEmail = z.infer<typeof insertEmailSchema>;
+export type Email = typeof emails.$inferSelect;
+export type InsertEmailAttachment = z.infer<typeof insertEmailAttachmentSchema>;
+export type EmailAttachment = typeof emailAttachments.$inferSelect;
+export type InsertEmailLabel = z.infer<typeof insertEmailLabelSchema>;
+export type EmailLabel = typeof emailLabels.$inferSelect;
+export type InsertEmailLabelRelation = z.infer<typeof insertEmailLabelRelationSchema>;
+export type EmailLabelRelation = typeof emailLabelRelations.$inferSelect;
 export type InsertUserActivityLog = z.infer<typeof insertUserActivityLogSchema>;
 export type UserActivityLog = typeof userActivityLogs.$inferSelect;
 export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
@@ -981,3 +1087,34 @@ export type PotentialProviderTask = typeof potentialProviderTasks.$inferSelect;
 export type InsertPotentialProviderTask = z.infer<typeof insertPotentialProviderTaskSchema>;
 export type PotentialProviderCommunication = typeof potentialProviderCommunications.$inferSelect;
 export type InsertPotentialProviderCommunication = z.infer<typeof insertPotentialProviderCommunicationSchema>;
+
+// SMS Messages table - for storing all SMS communications
+export const smsMessages = pgTable("sms_messages", {
+  id: serial("id").primaryKey(),
+  recipientType: varchar("recipient_type", { length: 20 }).notNull(), // 'customer', 'provider', 'potential_customer', 'potential_provider'
+  recipientId: integer("recipient_id"), // ID of the recipient (user, provider, potential customer, etc.)
+  recipientPhone: varchar("recipient_phone").notNull(),
+  recipientName: varchar("recipient_name"),
+  message: text("message").notNull(),
+  direction: varchar("direction", { length: 20 }).notNull(), // 'inbound', 'outbound'
+  status: varchar("status", { length: 20 }).default("sent"), // sent, delivered, failed, read
+  smsType: varchar("sms_type", { length: 20 }), // '1st_sent', '2nd_sent', 'custom', 'notification'
+  sentBy: varchar("sent_by"), // Admin username or system
+  sentAt: timestamp("sent_at").defaultNow(),
+  deliveredAt: timestamp("delivered_at"),
+  readAt: timestamp("read_at"),
+  apiResponse: text("api_response"), // Store API response for debugging
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert schema for SMS messages
+export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+// Types for SMS messages
+export type SmsMessage = typeof smsMessages.$inferSelect;
+export type InsertSmsMessage = z.infer<typeof insertSmsMessageSchema>;
