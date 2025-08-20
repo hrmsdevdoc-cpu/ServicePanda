@@ -81,14 +81,16 @@ export function setupProviderAuth(app: Express) {
 
   // Provider login endpoint
   app.post("/api/provider/login", async (req, res) => {
+    console.log("provider",req);
     try {
       const { email, password } = req.body;
-
+  
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
       }
 
       const provider = await storage.getServiceProviderByEmail(email);
+
       if (!provider || !provider.password || !(await comparePasswords(password, provider.password))) {
         return res.status(401).json({ message: "Invalid email or password" });
       }

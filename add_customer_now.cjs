@@ -62,3 +62,4 @@ console.log('4. Click it to test SMS functionality!');
 
 console.log('\n⚠️  IMPORTANT: The data is NOT added yet!');
 console.log('You need to use one of the methods above to actually add it.');
+

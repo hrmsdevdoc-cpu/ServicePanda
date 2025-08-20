@@ -145,19 +145,30 @@ export default function AdminPotentialCustomers() {
   // Send SMS mutation
   const sendSmsMutation = useMutation({
     mutationFn: async (customerIds: number[]) => {
-      const response = await adminApiRequest('POST', '/api/admin/potential-customers/send-sms', { customerIds });
+      console.log("Sending SMS to customer IDs:", customerIds);  // 👈 log before request
+      const response = await adminApiRequest(
+        'POST', 
+        '/api/admin/potential-customers/send-sms', 
+        { customerIds }
+      );
+      console.log("Raw Response 1:", response); // 👈 log full response
       return response.json();
     },
     onSuccess: (data) => {
+      console.log("SMS Success Response1:", data); // 👈 log parsed data
+      if (data?.details) {
+        console.table(data.details);
+      }
       toast({
-        title: "SMS Sent Successfully",
-        description: `SMS sent to ${data.count} customers.`,
+        title: "SMS Sent",
+        description: `Attempted: ${data.details?.length ?? 0}, Success: ${data.count}`,
       });
       setIsSmsDialogOpen(false);
       setSelectedCustomersForSms([]);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-customers'] });
     },
     onError: (error: any) => {
+      console.error("SMS Error:", error); // 👈 log error details
       toast({
         title: "SMS Failed",
         description: error.message || "Failed to send SMS",
@@ -165,7 +176,7 @@ export default function AdminPotentialCustomers() {
       });
     },
   });
-
+  
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -196,6 +207,7 @@ export default function AdminPotentialCustomers() {
   };
 
   const handleSendSms = async () => {
+    
     if (selectedCustomersForSms.length === 0) {
       toast({
         title: "No Customers Selected",

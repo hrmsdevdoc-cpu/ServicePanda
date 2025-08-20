@@ -5,6 +5,8 @@ interface EmailOptions {
   subject: string;
   text: string;
   html: string;
+  cc?: string;
+  bcc?: string;
 }
 
 /**
@@ -31,6 +33,12 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     const formData = new URLSearchParams();
     formData.append('from', `ServicePanda <noreply@${domain}>`);
     formData.append('to', options.to);
+    if (options.cc) {
+      formData.append('cc', options.cc);
+    }
+    if (options.bcc) {
+      formData.append('bcc', options.bcc);
+    }
     formData.append('subject', options.subject);
     formData.append('text', options.text);
     formData.append('html', options.html);
@@ -74,202 +82,18 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
  * @returns Promise<boolean> indicating success
  */
 export async function sendProviderWelcomeEmail(email: string, firstName: string): Promise<boolean> {
-  const baseUrl = process.env.REPLIT_DOMAINS 
+  const baseUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
     : process.env.FRONTEND_URL || 'http://localhost:3000';
   const loginUrl = `${baseUrl}/provider-login`;
-  
-  const textContent = `
-    Welcome to ServicePanda!
 
-    Hi ${firstName},
-
-    Thank you for joining ServicePanda as a service provider!
-
-    Your account has been created successfully. Here's what happens next:
-
-    1. Complete your application by providing:
-       - Service categories you offer
-       - Service areas you cover
-       - Required documents (license, insurance, police check)
-
-    2. Once your application is complete, we'll review it within 24 hours
-
-    3. After approval, you'll receive your first 3 leads absolutely FREE!
-
-    Login Details:
-    - Website: ${loginUrl}
-    - Email: ${email}
-    - Use the password you created during registration
-
-    Complete your application as soon as possible to start receiving leads from customers in your area.
-
-    If you have any questions, feel free to contact our support team.
-
-    Welcome aboard!
-    ServicePanda Team
-  `;
-
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Welcome to ServicePanda</title>
-      <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          line-height: 1.6;
-          color: #333;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-          background-color: #f7f7f7;
-        }
-        .container {
-          background-color: white;
-          padding: 40px;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header {
-          text-align: center;
-          margin-bottom: 30px;
-          padding-bottom: 20px;
-          border-bottom: 2px solid #e2e8f0;
-        }
-        .logo {
-          font-size: 28px;
-          font-weight: bold;
-          color: #1f2937;
-          margin-bottom: 10px;
-        }
-        .welcome-badge {
-          background-color: #10b981;
-          color: white;
-          padding: 8px 16px;
-          border-radius: 20px;
-          font-size: 14px;
-          font-weight: 500;
-          display: inline-block;
-          margin-bottom: 20px;
-        }
-        .steps {
-          background-color: #f8fafc;
-          border-left: 4px solid #3b82f6;
-          padding: 20px;
-          margin: 20px 0;
-          border-radius: 4px;
-        }
-        .step {
-          margin-bottom: 15px;
-          padding-left: 20px;
-          position: relative;
-        }
-        .step:before {
-          content: counter(step-counter);
-          counter-increment: step-counter;
-          position: absolute;
-          left: 0;
-          top: 0;
-          background-color: #3b82f6;
-          color: white;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          font-size: 12px;
-          font-weight: bold;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .steps {
-          counter-reset: step-counter;
-        }
-        .login-box {
-          background-color: #eff6ff;
-          border: 1px solid #dbeafe;
-          padding: 20px;
-          border-radius: 6px;
-          margin: 20px 0;
-        }
-        .login-button {
-          display: inline-block;
-          padding: 12px 24px;
-          background-color: #3b82f6;
-          color: white;
-          text-decoration: none;
-          border-radius: 6px;
-          font-weight: 500;
-          margin: 15px 0;
-          text-align: center;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #e2e8f0;
-          color: #6b7280;
-          font-size: 14px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="logo">🐼 ServicePanda</div>
-          <p style="margin: 0; color: #6b7280;">Australian Service Marketplace</p>
-          <div class="welcome-badge">Welcome to the Team!</div>
-        </div>
-
-        <h2 style="color: #1f2937; margin-bottom: 10px;">Hi ${firstName}!</h2>
-        
-        <p>Thank you for joining ServicePanda as a service provider! Your account has been created successfully.</p>
-        
-        <div class="steps">
-          <h3 style="margin-top: 0; color: #1f2937;">What happens next:</h3>
-          <div class="step">
-            <strong>Complete your application</strong> by providing your service categories, coverage areas, and required documents
-          </div>
-          <div class="step">
-            <strong>We'll review your application</strong> within 24 hours of submission
-          </div>
-          <div class="step">
-            <strong>Start earning immediately</strong> with your first 3 leads absolutely FREE after approval!
-          </div>
-        </div>
-        
-        <div class="login-box">
-          <h3 style="margin-top: 0; color: #1f2937;">Your Login Details:</h3>
-          <p><strong>Website:</strong> <a href="${loginUrl}" style="color: #3b82f6;">${loginUrl}</a></p>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Password:</strong> Use the password you created during registration</p>
-          
-          <div style="text-align: center;">
-            <a href="${loginUrl}" class="login-button">Complete Your Application</a>
-          </div>
-        </div>
-        
-        <p style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;">
-          <strong>⚡ Pro Tip:</strong> Complete your application as soon as possible to start receiving leads from customers in your area!
-        </p>
-        
-        <div class="footer">
-          <p>Welcome aboard!<br><strong>ServicePanda Team</strong></p>
-          <p style="margin-top: 20px;">
-            Need help? Contact our support team anytime.
-          </p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+  const textContent = `Welcome to ServicePanda!\n\nHi ${firstName},\n\nYour provider account has been created. Visit ${loginUrl} to complete your application.\n\nServicePanda Team`;
+  const htmlContent = `<p>Welcome to ServicePanda!</p><p>Hi ${firstName},</p><p>Your provider account has been created. <a href="${loginUrl}">Complete your application</a>.</p><p>ServicePanda Team</p>`;
 
   return await sendEmail({
     to: email,
-    subject: '🎉 Welcome to ServicePanda - Complete Your Application',
-    text: textContent.trim(),
+    subject: 'Welcome to ServicePanda',
+    text: textContent,
     html: htmlContent
   });
 }
@@ -844,184 +668,18 @@ export async function sendCustomerFeedbackEmail(
   suburb: string,
   reviewToken: string
 ): Promise<boolean> {
-  const baseUrl = process.env.REPLIT_DOMAINS 
+  const baseUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
     : process.env.FRONTEND_URL || 'http://localhost:3000';
-  const reviewUrl = `${baseUrl}/review/${reviewToken}`;
-  
-  const textContent = `
-    Thanks for Choosing Service Panda!
+  const reviewUrl = `${baseUrl}/review-submission?token=${reviewToken}`;
 
-    Hi ${customerName},
-
-    Thanks for choosing Service Panda! ${providerName} has recently completed a ${serviceType} job in ${suburb}.
-
-    We would like to know how did he do?
-
-    Your feedback helps us maintain quality and helps other customers choose the right service providers.
-
-    Please take a moment to share your experience:
-    ${reviewUrl}
-
-    Rate the service on:
-    • Quality of work
-    • Professionalism 
-    • Timeliness
-    • Value for money
-    • Overall satisfaction
-
-    Thank you for using Service Panda!
-    ServicePanda Team
-  `;
-
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>How was your service? - ServicePanda</title>
-      <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          line-height: 1.6;
-          color: #333;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-          background-color: #f7f7f7;
-        }
-        .container {
-          background-color: white;
-          padding: 40px;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header {
-          text-align: center;
-          margin-bottom: 30px;
-          padding-bottom: 20px;
-          border-bottom: 2px solid #e2e8f0;
-        }
-        .logo {
-          font-size: 28px;
-          font-weight: bold;
-          color: #1f2937;
-          margin-bottom: 10px;
-        }
-        .feedback-badge {
-          background: linear-gradient(135deg, #f59e0b, #d97706);
-          color: white;
-          padding: 12px 20px;
-          border-radius: 25px;
-          font-size: 16px;
-          font-weight: 600;
-          display: inline-block;
-          margin-bottom: 20px;
-          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-        }
-        .service-summary {
-          background-color: #f0f9ff;
-          border-left: 4px solid #3b82f6;
-          padding: 20px;
-          margin: 20px 0;
-          border-radius: 4px;
-        }
-        .rating-criteria {
-          background-color: #f8fafc;
-          padding: 20px;
-          border-radius: 8px;
-          margin: 20px 0;
-        }
-        .criteria-item {
-          display: flex;
-          align-items: center;
-          margin-bottom: 8px;
-          padding: 8px;
-          background-color: white;
-          border-radius: 4px;
-          border-left: 3px solid #10b981;
-        }
-        .criteria-item:before {
-          content: "⭐";
-          margin-right: 10px;
-          font-size: 14px;
-        }
-        .review-button {
-          display: inline-block;
-          padding: 15px 30px;
-          background: linear-gradient(135deg, #10b981, #059669);
-          color: white;
-          text-decoration: none;
-          border-radius: 8px;
-          font-weight: 600;
-          margin: 20px 0;
-          text-align: center;
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-        .footer {
-          text-align: center;
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #e2e8f0;
-          color: #6b7280;
-          font-size: 14px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="logo">🐼 ServicePanda</div>
-          <p style="margin: 0; color: #6b7280;">Australian Service Marketplace</p>
-          <div class="feedback-badge">⭐ How was your service?</div>
-        </div>
-
-        <h2 style="color: #1f2937; margin-bottom: 10px;">Hi ${customerName}!</h2>
-        
-        <p><strong>Thanks for choosing ServicePanda!</strong></p>
-        
-        <div class="service-summary">
-          <h3 style="margin-top: 0; color: #1f2937;">📋 Service Completed</h3>
-          <p style="margin-bottom: 5px;"><strong>Provider:</strong> ${providerName}</p>
-          <p style="margin-bottom: 5px;"><strong>Service:</strong> ${serviceType}</p>
-          <p style="margin-bottom: 0;"><strong>Location:</strong> ${suburb}</p>
-        </div>
-        
-        <p>We would like to know how did he do? Your feedback helps us maintain quality and helps other customers choose the right service providers.</p>
-        
-        <div class="rating-criteria">
-          <h3 style="margin-top: 0; color: #1f2937;">Please rate the service on:</h3>
-          <div class="criteria-item">Quality of work</div>
-          <div class="criteria-item">Professionalism</div>
-          <div class="criteria-item">Timeliness</div>
-          <div class="criteria-item">Value for money</div>
-          <div class="criteria-item">Overall satisfaction</div>
-        </div>
-
-        <div style="text-align: center;">
-          <a href="${reviewUrl}" class="review-button">Share Your Experience</a>
-        </div>
-        
-        <p style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;">
-          <strong>💡 Your Review Matters:</strong> Help other customers make informed decisions and support quality service providers!
-        </p>
-        
-        <div class="footer">
-          <p>Thank you for using ServicePanda!<br><strong>ServicePanda Team</strong></p>
-          <p style="margin-top: 20px;">
-            Questions about your experience? Contact our support team.
-          </p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+  const textContent = `How was your service?\n\nHi ${customerName},\n\nPlease share feedback for ${providerName} (${serviceType}) in ${suburb}.\n${reviewUrl}\n\nThank you,\nServicePanda Team`;
+  const htmlContent = `<p><strong>How was your service?</strong></p><p>Hi ${customerName},</p><p>Please share feedback for <strong>${providerName}</strong> (${serviceType}) in ${suburb}.</p><p><a href="${reviewUrl}">Share your experience</a></p><p>Thank you,<br/>ServicePanda Team</p>`;
 
   return await sendEmail({
     to: customerEmail,
-    subject: `⭐ How was your ${serviceType} service? - ServicePanda`,
-    text: textContent.trim(),
+    subject: `How was your ${serviceType} service? - ServicePanda`,
+    text: textContent,
     html: htmlContent
   });
 }

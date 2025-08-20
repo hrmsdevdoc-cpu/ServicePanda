@@ -62,3 +62,4 @@ console.log('2. Go to Admin Panel > Potential Customers');
 console.log('3. Use the "Import Customers" feature');
 console.log('4. Add the customer data above');
 console.log('5. Test the "Send SMS" button!');
+

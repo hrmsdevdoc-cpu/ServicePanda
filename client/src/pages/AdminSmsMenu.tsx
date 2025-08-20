@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Search, MessageSquare, Phone, Calendar, User, Send, MoreVertical } from "lucide-react";
 import { format } from 'date-fns';
 import { AdminSidebar } from "@/components/AdminSidebar";
+import { adminApiRequest } from "@/lib/adminAuth";
 
 interface SmsMessage {
   id: number;
@@ -325,33 +326,68 @@ export default function AdminSmsMenu() {
     ]
   };
 
-  // Update conversations when tab changes
+  // Load messages from server and construct conversations
   useEffect(() => {
-    const currentConversations = activeTab === 'customers' ? dummyData.customers : dummyData.providers;
-    setConversations(currentConversations);
-    
-    // Reset selected conversation if it's not in the current tab
-    if (selectedConversation && !currentConversations.find(c => c.id === selectedConversation.id)) {
-      setSelectedConversation(null);
-      setConversationMessages([]);
+    let cancelled = false;
+    async function fetchMessages() {
+      try {
+        const res = await adminApiRequest('GET', '/api/admin/sms/messages');
+        const data = await res.json();
+        if (cancelled) return;
+
+        // data can be either array of messages or {messages: []}
+        const messages: SmsMessage[] = Array.isArray(data) ? data : (data.messages || []);
+        setSmsMessages(messages);
+
+        // Build conversations grouped by recipientType + recipientId/phone
+        const map = new Map<string, Conversation>();
+        for (const msg of messages) {
+          const key = `${msg.recipientType}:${msg.recipientId || msg.recipientPhone}`;
+          const existing = map.get(key);
+          const conv: Conversation = existing || {
+            id: key,
+            recipientType: msg.recipientType,
+            recipientId: msg.recipientId,
+            recipientPhone: msg.recipientPhone,
+            recipientName: msg.recipientName,
+            lastMessage: msg.message,
+            lastMessageTime: msg.sentAt,
+            unreadCount: 0,
+            status: 'active',
+          };
+          if (!existing || new Date(msg.sentAt) > new Date(conv.lastMessageTime)) {
+            conv.lastMessage = msg.message;
+            conv.lastMessageTime = msg.sentAt;
+          }
+          map.set(key, conv);
+        }
+
+        const allConversations = Array.from(map.values());
+        const customerConvs = allConversations.filter(c => c.recipientType === 'customer' || c.recipientType === 'potential_customer');
+        const providerConvs = allConversations.filter(c => c.recipientType === 'provider' || c.recipientType === 'potential_provider');
+
+        setConversations(activeTab === 'customers' ? customerConvs : providerConvs);
+        setIsLoading(false);
+      } catch (e) {
+        setIsLoading(false);
+      }
     }
+    fetchMessages();
+    return () => { cancelled = true; };
   }, [activeTab]);
 
-  // Load conversation messages when a conversation is selected
+  // Load conversation messages for selected conversation
   useEffect(() => {
-    if (selectedConversation && dummyMessages[selectedConversation.id as keyof typeof dummyMessages]) {
-      setConversationMessages(dummyMessages[selectedConversation.id as keyof typeof dummyMessages]);
-    } else {
+    if (!selectedConversation) {
       setConversationMessages([]);
+      return;
     }
-  }, [selectedConversation]);
-
-  // Simulate loading
-  useEffect(() => {
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+    const filtered = smsMessages.filter(m => {
+      const key = `${m.recipientType}:${m.recipientId || m.recipientPhone}`;
+      return key === selectedConversation.id;
+    }).sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
+    setConversationMessages(filtered);
+  }, [selectedConversation, smsMessages]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -448,8 +484,8 @@ export default function AdminSmsMenu() {
         <div className="bg-white border-b border-gray-200 px-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="customers">Customer Chats ({dummyData.customers.length})</TabsTrigger>
-              <TabsTrigger value="providers">Provider Chats ({dummyData.providers.length})</TabsTrigger>
+              <TabsTrigger value="customers">Customer</TabsTrigger>
+              <TabsTrigger value="providers">Provider</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

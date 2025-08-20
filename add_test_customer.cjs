@@ -74,3 +74,4 @@ async function addTestCustomer() {
 
 // Run the function
 addTestCustomer().catch(console.error);
+

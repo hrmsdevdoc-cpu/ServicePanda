@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   TrendingUp,
   Gift,
   User,
@@ -25,6 +26,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+type SubItem = {
+  href: string;
+  subItems?: SubItem[];
+};
+
 interface AdminSidebarProps {
   onLogout: () => void;
   adminUser?: {
@@ -37,6 +43,7 @@ interface AdminSidebarProps {
 export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
   const [location] = useLocation();
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const menuItems = [
     {
@@ -127,7 +134,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
     return location.startsWith(href);
   };
 
-  const hasActiveSubItem = (subItems: any[]) => {
+  const hasActiveSubItem = (subItems: SubItem[]): boolean => {
     return subItems.some(item => {
       if (item.subItems) {
         return hasActiveSubItem(item.subItems);
@@ -149,7 +156,22 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
   };
 
   return (
-    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen">
+    <>
+      {/* Sidebar toggle button - positioned near top-left outside sidebar */}
+      <Button
+        variant="secondary"
+        size="icon"
+        aria-label={isCollapsed ? "Show sidebar" : "Hide sidebar"}
+        onClick={() => setIsCollapsed(prev => !prev)}
+        className="fixed top-4 z-50 shadow"
+        style={{ left: isCollapsed ? 8 : 268 }}
+      >
+        {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </Button>
+
+      <div className={`bg-white dark:bg-gray-800 flex flex-col h-screen overflow-hidden transition-all duration-300 border-r sticky left-0 top-0 ${
+        isCollapsed ? 'w-0 border-0' : 'w-64 border-gray-200 dark:border-gray-700'
+      }`}>
       {/* Header */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center">
@@ -308,6 +330,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

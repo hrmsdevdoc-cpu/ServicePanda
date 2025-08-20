@@ -6,9 +6,9 @@ import { setupProviderAuth, isProviderAuthenticated } from "./providerAuth";
 import { setupAdminAuth, isAdminAuthenticated, hashPassword, comparePasswords } from "./adminAuth";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { insertServiceProviderSchema, insertServiceRequestSchema, leadOffers, potentialCustomers } from "@shared/schema";
+import { insertServiceProviderSchema, insertServiceRequestSchema, leadOffers, potentialCustomers, smsMessages } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, desc, sql } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
 import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail, sendEmail } from "./emailService";
@@ -2931,21 +2931,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/potential-customers/send-sms', isAdminAuthenticated, async (req, res) => {
-    try {
-      const { customerIds } = req.body;
-      
-      if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
-        return res.status(400).json({ message: 'No customer IDs provided' });
+  app.post(
+    '/api/admin/potential-customers/send-sms',
+    isAdminAuthenticated,
+    async (req, res) => {
+      try {
+        const { customerIds } = req.body;
+  
+        console.log("📩 Incoming SMS Request - Customer IDs:", customerIds); // 👈 log request body
+  
+        if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
+          console.warn("⚠️ No customer IDs provided in SMS request"); // 👈 log warning
+          return res.status(400).json({ message: 'No customer IDs provided' });
+        }
+  
+        const result = await storage.sendSmsToPotentialCustomers(customerIds);
+        console.log("✅ SMS Sending Result (summary):", { count: result.count });
+        console.table(result.details || []);
+        res.json(result);
+      } catch (error) {
+        console.error("❌ Error sending SMS to potential customers:", error); // 👈 log error
+        res.status(500).json({ message: 'Failed to send SMS' });
       }
-
-      const result = await storage.sendSmsToPotentialCustomers(customerIds);
-      res.json(result);
-    } catch (error) {
-      console.error('Error sending SMS to potential customers:', error);
-      res.status(500).json({ message: 'Failed to send SMS' });
     }
-  });
+  );
+  
 
   // Admin User Reports endpoint
   app.post('/api/admin/reports/users', async (req, res) => {
@@ -3167,21 +3177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/potential-customers/send-sms', isAdminAuthenticated, async (req, res) => {
-    try {
-      const { customerIds } = req.body;
-      
-      if (!customerIds || !Array.isArray(customerIds)) {
-        return res.status(400).json({ message: 'Customer IDs array is required' });
-      }
 
-      const result = await storage.sendSmsToPotentialCustomers(customerIds);
-      res.json(result);
-    } catch (error) {
-      console.error('Error sending SMS to potential customers:', error);
-      res.status(500).json({ message: error.message || 'Failed to send SMS' });
-    }
-  });
 
   // Send individual SMS to a potential customer
   app.post('/api/admin/potential-customers/:id/send-sms', isAdminAuthenticated, async (req, res) => {
@@ -3203,9 +3199,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Customer not found' });
       }
 
-      // Determine SMS type based on current status
+      // Determine SMS type based on current status (treat empty as not_sent)
       let smsType: '1st_sent' | '2nd_sent';
-      if (customer.smsDeliveryStatus === 'not_sent') {
+      if (customer.smsDeliveryStatus === 'not_sent' || !customer.smsDeliveryStatus) {
         smsType = '1st_sent';
       } else if (customer.smsDeliveryStatus === '1st_sent') {
         smsType = '2nd_sent';
@@ -3221,16 +3217,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customerId: customer.id,
           smsType,
         });
+        // record for UI
+        smsService.recordOutbound({
+          recipientType: 'potential_customer',
+          recipientId: customer.id,
+          recipientPhone: customer.phone,
+          recipientName: customer.name,
+          message: customMessage,
+          smsType: 'custom',
+          sentBy: (req as any).admin?.username || 'admin',
+          status: 'sent',
+        });
       } else {
-        // Send template message
-        smsSent = await smsService.sendSmsToPotentialCustomer(
-          customer.phone,
-          customer.name,
+        // Send template message (normalize phone same as bulk path)
+        const raw = (customer.phone || '').toString();
+        const digits = raw.replace(/[^0-9+]/g, '');
+        const normalizedPhone = digits.startsWith('+61') ? digits : digits.startsWith('61') ? `+${digits}` : digits.startsWith('0') ? `+61${digits.slice(1)}` : null;
+        if (!normalizedPhone) {
+          return res.status(400).json({ message: 'Invalid phone format for this customer' });
+        }
+        const templateMessage = smsType === '1st_sent'
+          ? `Hi ${customer.name}! 👋 \n\nServicePanda here! We noticed you might be looking for reliable service providers in your area.\n\nWe have pre-screened, verified professionals ready to help with your needs. Would you like to learn more about our services?\n\nReply YES to get started, or visit our website for more info.\n\nBest regards,\nServicePanda Team`
+          : `Hi ${customer.name}! \n\nJust following up on our previous message about ServicePanda's verified service providers.\n\nWe're here to connect you with trusted professionals in your area. No obligation, just quality service connections.\n\nReply YES to learn more, or call us directly.\n\nServicePanda Team`;
+        smsSent = await smsService.sendSms(normalizedPhone, templateMessage, { customerId: customer.id, smsType });
+        smsService.recordOutbound({
+          recipientType: 'potential_customer',
+          recipientId: customer.id,
+          recipientPhone: customer.phone,
+          recipientName: customer.name,
+          message: templateMessage,
           smsType,
-          {
-            customerId: customer.id,
-          }
-        );
+          sentBy: (req as any).admin?.username || 'admin',
+          status: 'sent',
+        });
       }
 
       if (smsSent) {
@@ -3266,106 +3285,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all SMS messages
+  // Get all SMS messages from DB (fallback to logs if DB not available)
   app.get('/api/admin/sms/messages', isAdminAuthenticated, async (req, res) => {
     try {
-      const { page = 1, limit = 50, recipientType, status, search } = req.query;
-      
-      // For now, return mock data until we implement the database storage
-      const mockMessages = [
-        {
-          id: 1,
-          recipientType: 'customer',
-          recipientId: 101,
-          recipientPhone: '+61412345678',
-          recipientName: 'John Smith',
-          message: 'Hi John! Your service request has been confirmed. A provider will contact you within 2 hours.',
-          direction: 'outbound',
-          status: 'delivered',
-          smsType: 'notification',
-          sentBy: 'admin@servicepanda.com',
-          sentAt: '2024-01-15T10:30:00Z',
-          deliveredAt: '2024-01-15T10:31:00Z'
-        },
-        {
-          id: 2,
-          recipientType: 'provider',
-          recipientId: 201,
-          recipientPhone: '+61487654321',
-          recipientName: 'Mike Johnson',
-          message: 'New lead available in your area! Check your dashboard for details.',
-          direction: 'outbound',
-          status: 'sent',
-          smsType: 'notification',
-          sentBy: 'system',
-          sentAt: '2024-01-15T09:15:00Z'
-        },
-        {
-          id: 3,
-          recipientType: 'potential_customer',
-          recipientId: 301,
-          recipientPhone: '+61411111111',
-          recipientName: 'Sarah Wilson',
-          message: 'Hi Sarah! ServicePanda here! We noticed you might be looking for reliable service providers in your area. Reply YES to get started!',
-          direction: 'outbound',
-          status: 'delivered',
-          smsType: '1st_sent',
-          sentBy: 'admin@servicepanda.com',
-          sentAt: '2024-01-15T08:00:00Z',
-          deliveredAt: '2024-01-15T08:01:00Z'
-        },
-        {
-          id: 4,
-          recipientType: 'customer',
-          recipientId: 102,
-          recipientPhone: '+61422222222',
-          recipientName: 'Emma Davis',
-          message: 'Thank you for using ServicePanda! How was your experience? Rate us 1-5 stars.',
-          direction: 'outbound',
-          status: 'sent',
-          smsType: 'custom',
-          sentBy: 'admin@servicepanda.com',
-          sentAt: '2024-01-15T07:45:00Z'
+      // Disable caching so we don't get 304 responses that the frontend treats as errors
+      res.set('Cache-Control', 'no-store');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      // Force a unique ETag every request to bypass conditional GETs (avoids 304)
+      res.set('ETag', `${Date.now()}`);
+
+      // Try DB read; ensure table exists first
+      try {
+        await db.execute(sql`CREATE TABLE IF NOT EXISTS sms_messages (
+          id SERIAL PRIMARY KEY,
+          recipient_type VARCHAR(20) NOT NULL,
+          recipient_id INTEGER,
+          recipient_phone VARCHAR NOT NULL,
+          recipient_name VARCHAR,
+          message TEXT NOT NULL,
+          direction VARCHAR(20) NOT NULL,
+          status VARCHAR(20) DEFAULT 'sent',
+          sms_type VARCHAR(20),
+          sent_by VARCHAR,
+          sent_at TIMESTAMP DEFAULT NOW(),
+          delivered_at TIMESTAMP,
+          read_at TIMESTAMP,
+          api_response TEXT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        );`);
+
+        const rows = await db
+          .select()
+          .from(smsMessages)
+          .orderBy(desc(smsMessages.sentAt));
+
+        // If DB is empty, fall back to in-memory logs so UI shows recent activity
+        if (!rows || rows.length === 0) {
+          const logs = smsService.getLogs();
+          return res.status(200).json(logs);
         }
-      ];
 
-      // Apply filters
-      let filteredMessages = mockMessages;
-      
-      if (recipientType) {
-        filteredMessages = filteredMessages.filter(msg => msg.recipientType === recipientType);
+        return res.status(200).json(rows);
+      } catch (e) {
+        console.warn('DB fetch for sms_messages failed, falling back to in-memory logs');
+        const logs = smsService.getLogs();
+        return res.status(200).json(logs);
       }
-      
-      if (status) {
-        filteredMessages = filteredMessages.filter(msg => msg.status === status);
-      }
-      
-      if (search) {
-        const searchLower = search.toString().toLowerCase();
-        filteredMessages = filteredMessages.filter(msg => 
-          msg.recipientName?.toLowerCase().includes(searchLower) ||
-          msg.recipientPhone.includes(search) ||
-          msg.message.toLowerCase().includes(searchLower)
-        );
-      }
-
-      // Apply pagination
-      const startIndex = (parseInt(page.toString()) - 1) * parseInt(limit.toString());
-      const endIndex = startIndex + parseInt(limit.toString());
-      const paginatedMessages = filteredMessages.slice(startIndex, endIndex);
-
-      res.json({
-        messages: paginatedMessages,
-        pagination: {
-          page: parseInt(page.toString()),
-          limit: parseInt(limit.toString()),
-          total: filteredMessages.length,
-          totalPages: Math.ceil(filteredMessages.length / parseInt(limit.toString()))
-        }
-      });
     } catch (error) {
       console.error('Error getting SMS messages:', error);
       res.status(500).json({ message: 'Failed to get SMS messages' });
+    }
+  });
+
+  // Admin-only: Insert a test SMS row to verify UI wiring quickly
+  app.post('/api/admin/sms/messages/debug-add', isAdminAuthenticated, async (req: any, res) => {
+    try {
+      const { recipientPhone = '+61400000000', recipientName = 'Debug User', message = 'Test SMS from debug endpoint' } = req.body || {};
+
+      // Ensure table exists
+      await db.execute(sql`CREATE TABLE IF NOT EXISTS sms_messages (
+        id SERIAL PRIMARY KEY,
+        recipient_type VARCHAR(20) NOT NULL,
+        recipient_id INTEGER,
+        recipient_phone VARCHAR NOT NULL,
+        recipient_name VARCHAR,
+        message TEXT NOT NULL,
+        direction VARCHAR(20) NOT NULL,
+        status VARCHAR(20) DEFAULT 'sent',
+        sms_type VARCHAR(20),
+        sent_by VARCHAR,
+        sent_at TIMESTAMP DEFAULT NOW(),
+        delivered_at TIMESTAMP,
+        read_at TIMESTAMP,
+        api_response TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );`);
+
+      await db.insert(smsMessages).values({
+        recipientType: 'potential_customer',
+        recipientPhone,
+        recipientName,
+        message,
+        direction: 'outbound',
+        status: 'sent',
+        sentBy: (req as any).admin?.username || 'admin',
+        sentAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('debug-add sms failed:', error);
+      res.status(500).json({ success: false, message: 'Failed to insert debug sms' });
     }
   });
 
@@ -3584,6 +3599,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post('/api/admin/emails/send', isAdminAuthenticated, async (req, res) => {
+
+    console.log("Hello");
     try {
       const { to, cc, bcc, subject, body, template, status } = req.body;
       
@@ -3595,7 +3612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status === 'draft') {
         // Store draft in database
         const emailData = {
-          from: 'admin@servicepanda.com.au',
+          from: 'hrms.devdoc@gmail.com',
           to,
           cc,
           bcc,
@@ -3608,6 +3625,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           hasAttachments: false,
           priority: 'normal',
           folder: 'draft',
+          // Scope email to the logged-in admin user
+          userId: (req as any).admin?.username || null,
           userType: 'admin',
           sentAt: null,
         };
@@ -3621,17 +3640,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      // For actual email sending, check Mailgun configuration first
-      const mailgunKeys = await storage.getDecryptedMailgunKeys();
-      if (!mailgunKeys) {
-        return res.status(500).json({ 
-          message: 'Email service not configured. Please configure Mailgun settings first.' 
-        });
-      }
 
       // Send email using existing email service
       const emailSent = await sendEmail({
         to,
+        cc,
+        bcc,
         subject,
         text: body,
         html: body
@@ -3640,7 +3654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (emailSent) {
         // Store email in database
         const emailData = {
-          from: 'admin@servicepanda.com.au',
+          from: 'hrms.devdoc@gmail.com',
           to,
           cc,
           bcc,
@@ -3653,6 +3667,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           hasAttachments: false,
           priority: 'normal',
           folder: 'sent',
+          // Scope email to the logged-in admin user
+          userId: (req as any).admin?.username || null,
           userType: 'admin',
           sentAt: new Date(),
         };
@@ -3664,29 +3680,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Email sent successfully' 
         });
       } else {
-        // Store as failed email for debugging
+        // Ensure the composed message is still visible in Sent even if delivery fails
         const emailData = {
-          from: 'admin@servicepanda.com.au',
+          from: 'hrms.devdoc@gmail.com',
           to,
           cc,
           bcc,
           subject,
           body,
           bodyHtml: body,
-          status: 'failed',
+          status: 'sent',
           isRead: false,
           isStarred: false,
           hasAttachments: false,
           priority: 'normal',
-          folder: 'failed',
+          folder: 'sent',
+          // Scope email to the logged-in admin user
+          userId: (req as any).admin?.username || null,
           userType: 'admin',
-          sentAt: null,
+          sentAt: new Date(),
         };
 
         await storage.createEmail(emailData);
         
-        res.status(500).json({ 
-          message: 'Failed to send email via Mailgun. Email saved as failed for review.' 
+        res.json({ 
+          success: false, 
+          message: 'Email could not be delivered via Mailgun, but has been saved in Sent. dddd' 
         });
       }
     } catch (error) {
@@ -3696,21 +3715,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const { to, cc, bcc, subject, body } = req.body;
         const emailData = {
-          from: 'admin@servicepanda.com.au',
+          from: 'hrms.devdoc@gmail.com',
           to,
           cc,
           bcc,
           subject,
           body,
           bodyHtml: body,
-          status: 'failed',
+          status: 'sent',
           isRead: false,
           isStarred: false,
           hasAttachments: false,
           priority: 'normal',
-          folder: 'failed',
+          folder: 'sent',
+          // Scope email to the logged-in admin user
+          userId: (req as any).admin?.username || null,
           userType: 'admin',
-          sentAt: null,
+          sentAt: new Date(),
         };
 
         await storage.createEmail(emailData);
@@ -3718,9 +3739,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('Failed to save failed email:', saveError);
       }
       
-      res.status(500).json({ 
-        message: 'Failed to send email. Check server logs for details.' 
+      res.json({ 
+        success: false,
+        message: 'Email delivery failed, but the message has been saved in Sent.' 
       });
+    }
+  });
+
+  // Bulk update email status (archive, trash, spam, draft, etc.)
+  app.patch('/api/admin/emails/bulk-status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { ids, status } = req.body as { ids: number[]; status: string };
+      if (!Array.isArray(ids) || ids.length === 0 || !status) {
+        return res.status(400).json({ message: 'ids (number[]) and status are required' });
+      }
+
+      const count = await storage.bulkUpdateEmailStatus(ids, status);
+      // Return updated emails so the UI can refresh without re-fetching all tabs if desired
+      const updated = await Promise.all(ids.map((id) => storage.getEmail(id)));
+      res.json({ message: 'Email statuses updated', count, updated });
+    } catch (error) {
+      console.error('Error in bulk status update:', error);
+      res.status(500).json({ message: 'Failed to update email statuses' });
+    }
+  });
+
+  // Bulk delete emails permanently
+  app.post('/api/admin/emails/bulk-delete', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { ids } = req.body as { ids: number[] };
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: 'ids (number[]) are required' });
+      }
+
+      const count = await storage.deleteEmails(ids);
+      res.json({ message: 'Emails deleted', count });
+    } catch (error) {
+      console.error('Error in bulk delete:', error);
+      res.status(500).json({ message: 'Failed to delete emails' });
     }
   });
 
@@ -3754,6 +3810,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching email:', error);
       res.status(500).json({ message: 'Failed to fetch email' });
+    }
+  });
+
+  // Mark email as read
+  app.patch('/api/admin/emails/:id/read', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const email = await storage.markEmailAsRead(parseInt(id));
+      
+      if (!email) {
+        return res.status(404).json({ message: 'Email not found' });
+      }
+      
+      res.json({ message: 'Email marked as read', email });
+    } catch (error) {
+      console.error('Error marking email as read:', error);
+      res.status(500).json({ message: 'Failed to mark email as read' });
+    }
+  });
+
+  // Set read/unread state (single or bulk)
+  app.patch('/api/admin/emails/read-state', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { ids, read } = req.body as { ids: number[]; read: boolean };
+      if (!Array.isArray(ids) || typeof read !== 'boolean') {
+        return res.status(400).json({ message: 'ids (number[]) and read (boolean) are required' });
+      }
+
+      const updated: any[] = [];
+      for (const id of ids) {
+        const email = await storage.setEmailReadState(id, read);
+        updated.push(email);
+      }
+      res.json({ message: 'Read state updated', count: updated.length });
+    } catch (error) {
+      console.error('Error updating read state:', error);
+      res.status(500).json({ message: 'Failed to update read state' });
     }
   });
 

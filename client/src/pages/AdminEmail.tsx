@@ -80,317 +80,26 @@ interface Email {
   userId?: string;
 }
 
-// Dummy data for emails
-const dummyEmailsData: Email[] = [
-  {
-    id: 272069,
-    from: "Start Your Own Business Expo",
-    to: "abdul@business2sell.com.au",
-    subject: "🚀 Melbourne Business Expo 2025",
-    body: "Join us for the biggest business expo in Melbourne this year!",
-    status: 'inbox',
-    isRead: false,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-08-07T09:59:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 270933,
-    from: "Franchising Expo",
-    to: "abdul@business2sell.com.au",
-    subject: "🚀 We're Back! Franchising Expo 2025",
-    body: "The most successful franchising event is returning this year!",
-    status: 'inbox',
-    isRead: false,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-07-31T15:00:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 264140,
-    from: "Business2Sell",
-    to: "abdul@business2sell.com.au",
-    subject: "The Cheesecake Shop Opportunity",
-    body: "Exclusive opportunity to own a Cheesecake Shop franchise!",
-    status: 'inbox',
-    isRead: true,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-06-26T10:30:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 262970,
-    from: "Start Your Own Business Expo",
-    to: "abdul@business2sell.com.au",
-    subject: "🚀 Brisbane Business Expo 2025",
-    body: "Don't miss the Brisbane business expo this June!",
-    status: 'inbox',
-    isRead: true,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-06-20T10:00:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 261380,
-    from: "Franchising Expo",
-    to: "abdul@business2sell.com.au",
-    subject: "🚀 We're Back! Franchising Expo 2025",
-    body: "The most successful franchising event is returning this year!",
-    status: 'inbox',
-    isRead: true,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-06-11T11:30:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 258909,
-    from: "Business2Sell",
-    to: "abdul@business2sell.com.au",
-    subject: "Exciting franchise opportunity",
-    body: "New franchise opportunity available in your area!",
-    status: 'inbox',
-    isRead: true,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-05-29T10:30:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 257179,
-    from: "Business2Sell",
-    to: "abdul@business2sell.com.au",
-    subject: "New RND Brand Template",
-    body: "Check out our latest brand template for your business!",
-    status: 'inbox',
-    isRead: true,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-05-20T10:30:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 252043,
-    from: "Business2Sell",
-    to: "abdul@business2sell.com.au",
-    subject: "Grab the opportunity: New Business",
-    body: "Limited time offer for new business owners!",
-    status: 'inbox',
-    isRead: true,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-04-17T10:31:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 251749,
-    from: "Bsale Hub",
-    to: "abdul@business2sell.com.au",
-    subject: "Hardware Store Owners Can Retire Thanks",
-    body: "Learn how hardware store owners are achieving financial freedom!",
-    status: 'inbox',
-    isRead: true,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-04-15T15:00:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 251281,
-    from: "Bsale eMagazine",
-    to: "abdul@business2sell.com.au",
-    subject: "Out Now - April 2025 Bsale eMagazine",
-    body: "Read the latest issue of our eMagazine!",
-    status: 'inbox',
-    isRead: true,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-04-11T12:30:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 250687,
-    from: "Bsale Hub",
-    to: "abdul@business2sell.com.au",
-    subject: "Ηυση 5 Million Dollar",
-    body: "Discover the secret to building a 5 million dollar business!",
-    status: 'inbox',
-    isRead: true,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-04-08T15:00:00Z",
-    userId: "abdul123"
-  },
-  // Add more emails with different statuses to demonstrate filtering
-  {
-    id: 250000,
-    from: "abdul@business2sell.com.au",
-    to: "jay@business2sell.com.au",
-    subject: "Weekly Report - Business Opportunities",
-    body: "Here's my weekly report on new business opportunities...",
-    status: 'sent',
-    isRead: true,
-    isStarred: false,
-    hasAttachments: true,
-    createdAt: "2025-04-07T14:30:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 249999,
-    from: "abdul@business2sell.com.au",
-    to: "jay@business2sell.com.au",
-    subject: "Draft: New Marketing Strategy",
-    body: "I'm working on a new marketing strategy for...",
-    status: 'draft',
-    isRead: false,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-04-06T16:45:00Z",
-    userId: "abdul123"
-  },
-  {
-    id: 249998,
-    from: "spammer@fake.com",
-    to: "abdul@business2sell.com.au",
-    subject: "URGENT: You've won $1,000,000!",
-    body: "Congratulations! You've been selected...",
-    status: 'spam',
-    isRead: false,
-    isStarred: false,
-    hasAttachments: false,
-    createdAt: "2025-04-05T09:15:00Z",
-    userId: "abdul123"
-  },
-     {
-     id: 249997,
-     from: "old@business2sell.com.au",
-     to: "abdul@business2sell.com.au",
-     subject: "Old Newsletter - March 2025",
-     body: "This is an old newsletter that should be archived...",
-     status: 'archive',
-     isRead: true,
-     isStarred: false,
-     hasAttachments: false,
-     createdAt: "2025-03-15T10:00:00Z",
-     userId: "abdul123"
-   },
-   // Add emails for other users to demonstrate filtering
-   {
-     id: 249996,
-     from: "anjana@business2sell.com.au",
-     to: "jay@business2sell.com.au",
-     subject: "Monthly Report - Anjana",
-     body: "Here's my monthly report for March...",
-     status: 'sent',
-     isRead: true,
-     isStarred: false,
-     hasAttachments: false,
-     createdAt: "2025-03-10T14:30:00Z",
-     userId: "anjana"
-   },
-   {
-     id: 249995,
-     from: "jay@business2sell.com.au",
-     to: "anjana@business2sell.com.au",
-     subject: "Re: Monthly Report - Anjana",
-     body: "Thank you for the report, Anjana...",
-     status: 'inbox',
-     isRead: false,
-     isStarred: false,
-     hasAttachments: false,
-     createdAt: "2025-03-11T09:15:00Z",
-     userId: "anjana"
-   },
-   {
-     id: 249994,
-     from: "anjana@business2sell.com.au",
-     to: "abdul@business2sell.com.au",
-     subject: "Draft: Project Update",
-     body: "Working on project update...",
-     status: 'draft',
-     isRead: false,
-     isStarred: false,
-     hasAttachments: false,
-     createdAt: "2025-03-12T16:20:00Z",
-     userId: "anjana"
-   },
-   {
-     id: 249993,
-     from: "jay@business2sell.com.au",
-     to: "james@business2sell.com.au",
-     subject: "Team Meeting Schedule",
-     body: "Let's schedule our next team meeting...",
-     status: 'sent',
-     isRead: true,
-     isStarred: false,
-     hasAttachments: true,
-     createdAt: "2025-03-08T11:00:00Z",
-     userId: "james"
-   },
-   {
-     id: 249992,
-     from: "james@business2sell.com.au",
-     to: "jay@business2sell.com.au",
-     subject: "Re: Team Meeting Schedule",
-     body: "I'm available on Tuesday and Thursday...",
-     status: 'inbox',
-     isRead: true,
-     isStarred: false,
-     hasAttachments: false,
-     createdAt: "2025-03-09T10:30:00Z",
-     userId: "james"
-   }
-];
-
-// Dummy users for filtering
-const dummyUsers = [
-  { id: "all", firstName: "All", lastName: "Users" },
-  { id: "abdul123", firstName: "Abdul", lastName: "" },
-  { id: "anamika12953", firstName: "Anamika", lastName: "12953" },
-  { id: "anjana", firstName: "Anjana", lastName: "" },
-  { id: "ashu", firstName: "ashu", lastName: "" },
-  { id: "bill", firstName: "Bill", lastName: "" },
-  { id: "gagandeep7", firstName: "Gagandeep", lastName: "Helpdesk 7" },
-  { id: "invoices", firstName: "Invoices", lastName: "" },
-  { id: "james", firstName: "James", lastName: "" },
-  { id: "jarryd", firstName: "Jarryd", lastName: "" },
-  { id: "jay", firstName: "Jay", lastName: "" },
-  { id: "kanupriya", firstName: "Kanupriya", lastName: "" },
-  { id: "madhukar", firstName: "Madhukar", lastName: "" },
-  { id: "mahima", firstName: "Mahima", lastName: "" },
-  { id: "moni", firstName: "Moni", lastName: "" },
-  { id: "nandini", firstName: "nandini", lastName: "" },
-  { id: "paul", firstName: "Paul", lastName: "" },
-  { id: "payal43", firstName: "payal", lastName: "b2s 43" },
-  { id: "reema", firstName: "Reema", lastName: "Jindal B2S" },
-  { id: "rima", firstName: "Rima", lastName: "" },
-  { id: "ron", firstName: "Ron", lastName: "" },
-  { id: "seema", firstName: "Seema", lastName: "" },
-  { id: "shayok", firstName: "Shayok", lastName: "" },
-  { id: "shikhar", firstName: "Shikhar", lastName: "Arya" },
-  { id: "sonal", firstName: "sonal", lastName: "" },
-  { id: "sonika", firstName: "Sonika", lastName: "" },
-  { id: "terry", firstName: "Terry", lastName: "" },
-  { id: "toshi4", firstName: "Toshi", lastName: "4" },
-  { id: "vijaypal", firstName: "Vijaypal", lastName: "" },
-  { id: "vishakha", firstName: "Vishakha", lastName: "" },
-  { id: "vishalt", firstName: "Vishal", lastName: "T" },
-  { id: "yathartha", firstName: "Yathartha", lastName: "" }
-];
+// Users for filter will be fetched from backend
 
 export default function AdminEmail() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [dummyEmails, setDummyEmails] = useState<Email[]>(dummyEmailsData);
-  const [selectedUser, setSelectedUser] = useState<string>("abdul123");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [activeTab, setActiveTab] = useState<string>("inbox"); // Add active tab state
+  const initialSelectedUser = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.selectedUser')) || 'all';
+  const initialActiveTab = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.activeTab')) || 'inbox';
+  const initialSearch = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.searchTerm')) || '';
+  const initialFrom = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.fromDate')) || '';
+  const initialTo = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.toDate')) || '';
+
+  const [emails, setEmails] = useState<Email[]>([]);
+  const [users, setUsers] = useState<{ id: string; firstName: string; lastName: string }[]>([
+    { id: 'all', firstName: 'All', lastName: 'Users' },
+  ]);
+  const [selectedUser, setSelectedUser] = useState<string>(initialSelectedUser);
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [fromDate, setFromDate] = useState(initialFrom);
+  const [toDate, setToDate] = useState(initialTo);
+  const [activeTab, setActiveTab] = useState<string>(initialActiveTab);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isComposeDialogOpen, setIsComposeDialogOpen] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
@@ -403,6 +112,16 @@ export default function AdminEmail() {
     template: "none",
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [tabCounts, setTabCounts] = useState<Record<string, number>>({
+    inbox: 0,
+    sent: 0,
+    draft: 0,
+    trash: 0,
+    spam: 0,
+    archive: 0,
+    unread: 0,
+  });
   
   // Confirmation dialog states
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -420,44 +139,94 @@ export default function AdminEmail() {
     }
   }, [navigate]);
 
-  // Get emails filtered by user selection first
-  const getUserFilteredEmails = () => {
-    if (selectedUser === "all") return dummyEmails;
-    return dummyEmails.filter(email => email.userId === selectedUser);
+  // Persist filters/tabs in localStorage
+  useEffect(() => {
+    localStorage.setItem('adminEmail.activeTab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('adminEmail.selectedUser', selectedUser);
+  }, [selectedUser]);
+
+  useEffect(() => {
+    localStorage.setItem('adminEmail.searchTerm', searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    localStorage.setItem('adminEmail.fromDate', fromDate);
+    localStorage.setItem('adminEmail.toDate', toDate);
+  }, [fromDate, toDate]);
+
+  const authHeaders = () => {
+    const adminToken = localStorage.getItem('adminToken');
+    return {
+      'Authorization': `Bearer ${adminToken || ''}`,
+      'Content-Type': 'application/json',
+    } as HeadersInit;
   };
 
-  // Filter emails based on current selection and active tab
-  const filteredEmails = getUserFilteredEmails().filter(email => {
-    // First filter by active tab (like Gmail)
-    if (activeTab === 'unread' && email.isRead) return false;
-    if (activeTab !== 'unread' && activeTab !== 'inbox' && email.status !== activeTab) return false;
-    
-    // Then filter by search term
-    if (searchTerm && !email.subject.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !email.body.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    
-    // Then filter by date range
-    if (fromDate && new Date(email.createdAt) < new Date(fromDate)) return false;
-    if (toDate && new Date(email.createdAt) > new Date(toDate)) return false;
-    
-    return true;
-  });
+  // Fetch users for filter
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users', { headers: authHeaders() });
+      if (!res.ok) return;
+      const list = await res.json();
+      const mapped = [{ id: 'all', firstName: 'All', lastName: 'Users' }, ...list.map((u: any) => ({ id: u.id, firstName: u.firstName || u.username || 'User', lastName: u.lastName || '' }))];
+      setUsers(mapped);
+    } catch {}
+  };
 
-  const getTabCount = (tab: string) => {
-    // Get emails for the currently selected user
-    const userEmails = selectedUser === "all" ? dummyEmails : dummyEmails.filter(email => email.userId === selectedUser);
-    
-    if (tab === 'unread') {
-      return userEmails.filter(email => !email.isRead).length;
+  // Fetch emails based on current filters
+  const fetchEmails = async () => {
+    try {
+      const params = new URLSearchParams({
+        tab: activeTab,
+        user: selectedUser,
+        search: searchTerm,
+        fromDate,
+        toDate,
+      });
+      const res = await fetch(`/api/admin/emails?${params.toString()}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch emails');
+      const data = await res.json();
+      setEmails(data);
+      setSelectedIds([]);
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Failed to load emails', variant: 'destructive' });
     }
-    return userEmails.filter(email => email.status === tab).length;
   };
 
-  const getUnreadCount = () => {
-    // Get emails for the currently selected user
-    const userEmails = selectedUser === "all" ? dummyEmails : dummyEmails.filter(email => email.userId === selectedUser);
-    return userEmails.filter(email => !email.isRead).length;
+  // Fetch counts for side tabs
+  const fetchCounts = async () => {
+    try {
+      const tabs = ['inbox','sent','draft','trash','spam','archive','unread'];
+      const results = await Promise.all(
+        tabs.map(async (tab) => {
+          const params = new URLSearchParams({ tab, user: selectedUser, search: '', fromDate: '', toDate: '' });
+          const res = await fetch(`/api/admin/emails?${params.toString()}`, { headers: authHeaders() });
+          if (!res.ok) return [tab, 0] as const;
+          const data = await res.json();
+          return [tab, Array.isArray(data) ? data.length : 0] as const;
+        })
+      );
+      const next: Record<string, number> = {};
+      for (const [tab, count] of results) next[tab] = count;
+      setTabCounts((prev) => ({ ...prev, ...next }));
+    } catch {}
   };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    fetchEmails();
+    fetchCounts();
+  }, [activeTab, selectedUser, searchTerm, fromDate, toDate]);
+
+  const getTabCount = (tab: string) => tabCounts[tab] || 0;
+  const getUnreadCount = () => tabCounts['unread'] || 0;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -469,9 +238,18 @@ export default function AdminEmail() {
     });
   };
 
-  const handleViewEmail = (email: Email) => {
+  const handleViewEmail = async (email: Email) => {
     setSelectedEmail(email);
     setIsViewDialogOpen(true);
+    // mark as read in backend
+    try {
+      if (!email.isRead) {
+        await fetch(`/api/admin/emails/${email.id}/read`, { method: 'PATCH', headers: authHeaders() });
+        // reflect locally
+        setEmails((prev) => prev.map((e) => e.id === email.id ? { ...e, isRead: true } : e));
+        fetchCounts();
+      }
+    } catch {}
   };
 
   // Confirmation dialog handlers
@@ -541,13 +319,8 @@ export default function AdminEmail() {
       });
 
       if (response.ok) {
-        // Update local state
-        setDummyEmails(prev => prev.map(e => 
-          e.id === email.id 
-            ? { ...e, status: 'archive' as const, folder: 'archive' }
-            : e
-        ));
-        
+        await fetchEmails();
+        await fetchCounts();
         toast({
           title: "Email archived",
           description: "Email has been moved to archive.",
@@ -597,13 +370,8 @@ export default function AdminEmail() {
       });
 
       if (response.ok) {
-        // Update local state
-        setDummyEmails(prev => prev.map(e => 
-          e.id === email.id 
-            ? { ...e, status: 'trash' as const, folder: 'trash' }
-            : e
-        ));
-        
+        await fetchEmails();
+        await fetchCounts();
         toast({
           title: "Email moved to trash",
           description: "Email has been moved to trash.",
@@ -653,13 +421,8 @@ export default function AdminEmail() {
       });
 
       if (response.ok) {
-        // Update local state
-        setDummyEmails(prev => prev.map(e => 
-          e.id === email.id 
-            ? { ...e, status: 'spam' as const, folder: 'spam' }
-            : e
-        ));
-        
+        await fetchEmails();
+        await fetchCounts();
         toast({
           title: "Email marked as spam",
           description: "Email has been marked as spam.",
@@ -732,7 +495,7 @@ export default function AdminEmail() {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Success response:', result);
+        console.log('Success response ff:', result);
         toast({
           title: "Email sent successfully",
           description: result.message || "Your email has been sent.",
@@ -893,6 +656,76 @@ export default function AdminEmail() {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  // If some rows are selected, use bulk; otherwise, apply to the single email
+  const executeStatusAction = async (status: 'archive' | 'trash' | 'spam', email: Email) => {
+    if (selectedIds.length > 0) {
+      await bulkUpdateStatus(status);
+      return;
+    }
+    if (status === 'archive') await handleArchive(email);
+    if (status === 'trash') await handleMoveToTrash(email);
+    if (status === 'spam') await handleMarkAsSpam(email);
+  };
+
+  // Bulk actions
+  const bulkUpdateStatus = async (status: 'archive' | 'trash' | 'spam' | 'draft') => {
+    try {
+      if (selectedIds.length === 0) {
+        toast({ title: 'Select emails first', variant: 'destructive' });
+        return;
+      }
+
+      const res = await fetch('/api/admin/emails/bulk-status', {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ ids: selectedIds, status })
+      });
+      if (!res.ok) {
+        let detail = '';
+        try { const j = await res.json(); detail = j?.message || ''; } catch {}
+        console.error('Bulk status failed', res.status, detail);
+        throw new Error(detail || `HTTP ${res.status}`);
+      }
+      const payload = await res.json();
+      console.log('bulk-status response', payload);
+      toast({ title: 'Updated', description: `Applied ${status} to ${selectedIds.length} email(s).` });
+      await fetchEmails();
+      await fetchCounts();
+      setSelectedIds([]);
+    } catch (err) {
+      console.error('bulkUpdateStatus error', err);
+      toast({ title: 'Bulk action failed', description: err instanceof Error ? err.message : '', variant: 'destructive' });
+    }
+  };
+
+  const bulkDelete = async () => {
+    try {
+      if (selectedIds.length === 0) {
+        toast({ title: 'Select emails first', variant: 'destructive' });
+        return;
+      }
+
+      const res = await fetch('/api/admin/emails/bulk-delete', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ ids: selectedIds })
+      });
+      if (!res.ok) {
+        let detail = '';
+        try { const j = await res.json(); detail = j?.message || ''; } catch {}
+        console.error('Bulk delete failed', res.status, detail);
+        throw new Error(detail || `HTTP ${res.status}`);
+      }
+      toast({ title: 'Deleted', description: `${selectedIds.length} email(s) deleted.` });
+      await fetchEmails();
+      await fetchCounts();
+      setSelectedIds([]);
+    } catch (err) {
+      console.error('bulkDelete error', err);
+      toast({ title: 'Bulk delete failed', description: err instanceof Error ? err.message : '', variant: 'destructive' });
+    }
+  };
+
 
 
   return (
@@ -923,7 +756,7 @@ export default function AdminEmail() {
                     <SelectValue placeholder="Select user" />
                   </SelectTrigger>
                   <SelectContent>
-                    {dummyUsers.map((user) => (
+                    {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.firstName} {user.lastName}
                       </SelectItem>
@@ -959,6 +792,36 @@ export default function AdminEmail() {
               <Button variant="outline" size="sm">
                 Reset
               </Button>
+
+              {selectedIds.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      Action <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="z-50">
+                    <DropdownMenuLabel>Bulk Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => bulkUpdateStatus('archive')}>
+                      <Archive className="h-4 w-4 mr-2" /> Archive
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => bulkUpdateStatus('trash')}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Move to Trash
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => bulkUpdateStatus('spam')}>
+                      <Shield className="h-4 w-4 mr-2" /> Mark as Spam
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => bulkUpdateStatus('draft')}>
+                      <FileText className="h-4 w-4 mr-2" /> Save as Draft
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => bulkDelete()}>
+                      <X className="h-4 w-4 mr-2" /> Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
         </div>
@@ -966,7 +829,7 @@ export default function AdminEmail() {
         {/* User/Category Filter Buttons */}
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex items-center space-x-2 overflow-x-auto">
-            {dummyUsers.map((user) => (
+            {users.map((user) => (
               <Button
                 key={user.id}
                 variant={selectedUser === user.id ? "default" : "outline"}
@@ -1070,18 +933,18 @@ export default function AdminEmail() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200">
+            {/* <div className="p-4 border-t border-gray-200">
               <Button variant="outline" className="w-full">
                 <FolderPlus className="h-4 w-4 mr-2" />
                 Create Folder
               </Button>
-            </div>
+            </div> */}
           </div>
 
           {/* Right Side - Email List */}
           <div className="flex-1 bg-white">
             {/* Email List Header */}
-            <div className="border-b border-gray-200 p-4">
+            {/* <div className="border-b border-gray-200 p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900 capitalize">
                   {activeTab === 'inbox' ? 'Inbox' : 
@@ -1111,19 +974,39 @@ export default function AdminEmail() {
                   Show Read Emails
                 </Button>
               </div>
-            </div>
+            </div> */}
 
+            {selectedIds.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+                <div className="text-sm">{selectedIds.length} selected</div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={async () => { await bulkUpdateStatus('archive'); }}>Archive</Button>
+                  <Button variant="outline" size="sm" onClick={async () => { await bulkUpdateStatus('trash'); }}>Move to Trash</Button>
+                  <Button variant="outline" size="sm" onClick={async () => { await bulkUpdateStatus('spam'); }}>Mark as Spam</Button>
+                  <Button variant="outline" size="sm" onClick={async () => { await bulkUpdateStatus('draft'); }}>Save as Draft</Button>
+                  <Button variant="destructive" size="sm" onClick={async () => { await bulkDelete(); }}>Delete</Button>
+                </div>
+              </div>
+            )}
             {/* Email Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[80vh] overflow-y-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <input type="checkbox" className="rounded border-gray-300" />
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300"
+                        checked={emails.length > 0 && selectedIds.length === emails.length}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          if (checked) setSelectedIds(emails.map((e) => e.id)); else setSelectedIds([]);
+                        }}
+                      />
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       <Star className="h-4 w-4" />
-                    </th>
+                    </th> */}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Id
                     </th>
@@ -1139,33 +1022,41 @@ export default function AdminEmail() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Contact
-                    </th>
+                    </th> */}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Action
                     </th>
                   </tr>
                 </thead>
                                  <tbody className="bg-white divide-y divide-gray-200">
-                   {filteredEmails.map((email) => (
-                    <tr key={email.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleViewEmail(email)}>
-                      <td className="px-4 py-3">
-                        <input type="checkbox" className="rounded border-gray-300" />
+                   {emails.map((email) => (
+                    <tr key={email.id} className={`hover:bg-gray-50 cursor-pointer ${email.isRead ? '' : 'bg-blue-50'}`} onClick={() => handleViewEmail(email)}>
+                      <td className="px-4 py-3" onClick={(e) => { e.stopPropagation(); }}>
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-300" 
+                          checked={selectedIds.includes(email.id)}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setSelectedIds((prev) => checked ? Array.from(new Set([...prev, email.id])) : prev.filter((id) => id !== email.id));
+                          }}
+                        />
                       </td>
-                      <td className="px-4 py-3">
+                      {/* <td className="px-4 py-3">
                         {email.isStarred ? (
                           <Star className="h-4 w-4 text-yellow-500 fill-current" />
                         ) : (
                           <Star className="h-4 w-4 text-gray-400" />
                         )}
-                      </td>
+                      </td> */}
                       <td className="px-4 py-3 text-sm text-gray-900">{email.id}</td>
                       <td className="px-4 py-3 text-sm text-gray-900">{email.from}</td>
                       <td className="px-4 py-3 text-sm text-gray-900">{email.to}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">{email.subject}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">{formatDate(email.createdAt)}</td>
-                      <td className="px-4 py-3">
+                      {/* <td className="px-4 py-3">
                         <div className="flex items-center space-x-2">
                           <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
                             +
@@ -1174,7 +1065,7 @@ export default function AdminEmail() {
                             ⋯
                           </div>
                         </div>
-                      </td>
+                      </td> */}
                       <td className="px-4 py-3">
                                                  <DropdownMenu>
                            <DropdownMenuTrigger asChild>
@@ -1197,23 +1088,23 @@ export default function AdminEmail() {
                                <Eye className="h-4 w-4 mr-2" />
                                View
                              </DropdownMenuItem>
-                             <DropdownMenuItem onClick={(e) => {
+                             <DropdownMenuItem onClick={async (e) => {
                                e.stopPropagation();
-                               showConfirmDialogForAction('archive', email);
+                               await executeStatusAction('archive', email);
                              }}>
                                 <Archive className="h-4 w-4 mr-2" />
                                 Archive
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => {
+                              <DropdownMenuItem onClick={async (e) => {
                                 e.stopPropagation();
-                                showConfirmDialogForAction('trash', email);
+                                await executeStatusAction('trash', email);
                               }}>
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Move to Trash
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => {
+                              <DropdownMenuItem onClick={async (e) => {
                                 e.stopPropagation();
-                                showConfirmDialogForAction('spam', email);
+                                await executeStatusAction('spam', email);
                               }}>
                                 <Shield className="h-4 w-4 mr-2" />
                                 Mark as Spam

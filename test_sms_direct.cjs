@@ -1,30 +1,15 @@
 const axios = require('axios');
-require('dotenv').config();
 
 // Direct SMS test to user's number
 async function testSmsDirect() {
   console.log('🧪 Testing SMS Service Directly to Your Number...\n');
   
-  // Test environment variables
-  const smsApiUrl = process.env.SMS_API_URL;
-  const smsApiKey = process.env.SMS_API_KEY;
-  
-  console.log('Environment Variables:');
-  console.log('SMS_API_URL:', smsApiUrl ? '✓ Set' : '✗ Not set');
-  console.log('SMS_API_KEY:', smsApiKey ? '✓ Set (length: ' + smsApiKey.length + ')' : '✗ Not set');
-  
-  if (!smsApiUrl || !smsApiKey) {
-    console.log('\n❌ SMS service is not properly configured.');
-    console.log('Please check your .env file has:');
-    console.log('SMS_API_URL=https://dialpad.com/api/v2/sms');
-    console.log('SMS_API_KEY=your_api_key_here');
-    return;
-  }
-  
-  console.log('\n✅ SMS service configuration looks good!');
+  // Use provided Dialpad credentials directly (no .env)
+  const smsApiUrl = 'https://dialpad.com/api/v2/sms';
+  const smsApiKey = '3prDbqty5SVg6sVEeVPXzupjyUVnZUTFG75CrmPXK4rB76hP4LuE4HvVKMqutFt44bEffSPV6jAuntpGh3kgSKn3Mu9Rd2ZHL7Vc';
   
   // User's phone number (with country code)
-  const userPhone = '+918077158797'; // Added +91 for India
+  const userPhone = '+61485901939';
   const testMessage = `🧪 Test SMS from ServicePanda!
 
 This is a direct test message to verify our SMS service is working correctly.
@@ -66,12 +51,12 @@ ServicePanda Team`;
     const responseData = response.data;
     console.log('\n📤 SMS API Response:', responseData);
 
-    if (responseData.id && responseData.id.trim() !== '') {
+    if (responseData && typeof responseData.id === 'string' && responseData.id.trim() !== '') {
       console.log('\n🎉 SUCCESS! SMS sent successfully!');
       console.log('Message ID:', responseData.id);
       console.log('To:', userPhone);
-      console.log('\n✅ Your SMS service is working perfectly!');
-      console.log('\n📱 Check your phone for the test message');
+      console.log('\n✅ API acknowledged send.');
+      console.log('\n📱 Please confirm the SMS arrived on +61 485 901 939.');
       console.log('\n📋 Next steps:');
       console.log('1. Verify you received the SMS');
       console.log('2. Test the admin panel SMS functionality');
@@ -104,3 +89,4 @@ ServicePanda Team`;
 // Run the test
 console.log('🚀 Starting Direct SMS Test...\n');
 testSmsDirect().catch(console.error);
+

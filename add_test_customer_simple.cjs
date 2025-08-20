@@ -55,3 +55,4 @@ console.log('\n📱 After adding the customer, you can test SMS by:');
 console.log('1. Finding "Puneet Verma" in the Potential Customers list');
 console.log('2. Clicking the "Send SMS" button');
 console.log('3. Or using API: POST /api/admin/potential-customers/{id}/send-sms');
+

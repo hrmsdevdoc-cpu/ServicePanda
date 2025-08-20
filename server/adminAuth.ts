@@ -1,4 +1,5 @@
 import { Express, RequestHandler } from "express";
+import { storage } from "./storage";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import jwt from "jsonwebtoken";
@@ -101,28 +102,29 @@ export function setupAdminAuth(app: Express) {
   app.post("/api/admin/login", async (req, res) => {
     try {
       const { username, password } = req.body;
+      console.log('Admin login attempt for username:', username);
 
       if (!username || !password) {
         return res.status(400).json({ message: "Username and password are required" });
       }
 
-      // Import storage here to avoid circular dependency
-      const { storage } = await import("./storage");
-      
       // Get admin user from database
       const adminUser = await storage.getAdminUserByUsername(username);
+      console.log('Admin user lookup result:', adminUser ? 'Found' : 'Not found');
       if (!adminUser) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // Check password against database hash
       const isPasswordValid = await comparePasswords(password, adminUser.password);
+      console.log('Password validation result:', isPasswordValid);
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // Generate JWT token
       const token = generateAdminToken(username);
+      console.log('Admin login successful for:', username);
 
       res.json({
         message: "Login successful",
@@ -134,6 +136,7 @@ export function setupAdminAuth(app: Express) {
       });
     } catch (error) {
       console.error("Admin login error:", error);
+      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
       res.status(500).json({ message: "Internal server error" });
     }
   });

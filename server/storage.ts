@@ -112,6 +112,10 @@ import {
   type InsertProviderCreditTransaction,
   type LeadPurchase,
   type InsertLeadPurchase,
+  // SMS messages
+  smsMessages,
+  type SmsMessage,
+  type InsertSmsMessage,
   // Customer credit system imports
   customerVouchers,
   customerCreditTransactions,
@@ -481,6 +485,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  private smsTableChecked: boolean = false;
   private readonly ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'servicepanda-encryption-key-default-32chars';
   private readonly ALGORITHM = 'aes-256-gcm';
 
@@ -505,6 +510,34 @@ export class DatabaseStorage implements IStorage {
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
+  }
+
+  // Ensure sms_messages table exists (idempotent)
+  private async ensureSmsMessagesTable(): Promise<void> {
+    if (this.smsTableChecked) return;
+    try {
+      await db.execute(sql`CREATE TABLE IF NOT EXISTS sms_messages (
+        id SERIAL PRIMARY KEY,
+        recipient_type VARCHAR(20) NOT NULL,
+        recipient_id INTEGER,
+        recipient_phone VARCHAR NOT NULL,
+        recipient_name VARCHAR,
+        message TEXT NOT NULL,
+        direction VARCHAR(20) NOT NULL,
+        status VARCHAR(20) DEFAULT 'sent',
+        sms_type VARCHAR(20),
+        sent_by VARCHAR,
+        sent_at TIMESTAMP DEFAULT NOW(),
+        delivered_at TIMESTAMP,
+        read_at TIMESTAMP,
+        api_response TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );`);
+      this.smsTableChecked = true;
+    } catch (e) {
+      console.warn('ensureSmsMessagesTable failed (continuing):', e);
+    }
   }
   // User operations
   async getUser(id: string): Promise<User | undefined> {
@@ -5271,9 +5304,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async sendSmsToPotentialCustomers(customerIds: number[]): Promise<{ count: number }> {
+  async sendSmsToPotentialCustomers(customerIds: number[]): Promise<{ count: number, details: Array<{ customerId: number, name: string, phone: string, status: '1st_sent' | '2nd_sent' | 'skipped', sent: boolean, reason?: string }> }> {
     try {
       let successCount = 0;
+      const details: Array<{ customerId: number, name: string, phone: string, status: '1st_sent' | '2nd_sent' | 'skipped', sent: boolean, reason?: string }> = [];
       
       for (const customerId of customerIds) {
         try {
@@ -5283,43 +5317,134 @@ export class DatabaseStorage implements IStorage {
             .from(potentialCustomers)
             .where(eq(potentialCustomers.id, customerId));
           
-          if (!customer) continue;
+          if (!customer) {
+            console.warn(`[SMS][skip] Customer not found: id=${customerId}`);
+            details.push({ customerId, name: '', phone: '', status: 'skipped', sent: false, reason: 'not_found' });
+            continue;
+          }
+
+          console.log(`[SMS] Preparing send -> id=${customer.id} name=${customer.name} phone=${customer.phone} currentStatus=${customer.smsDeliveryStatus}`);
+
+          // Normalize AU phone number to E.164 (+61...) format
+          const normalizedPhone = (() => {
+            const raw = (customer.phone || '').toString();
+            const digits = raw.replace(/[^0-9+]/g, '');
+            if (!digits) return null;
+            if (digits.startsWith('+61')) return digits;
+            if (digits.startsWith('61')) return `+${digits}`;
+            if (digits.startsWith('0')) return `+61${digits.slice(1)}`; // e.g., 04.. -> +614..
+            return null; // unknown format
+          })();
+
+          if (!normalizedPhone) {
+            console.warn(`[SMS][skip] Invalid phone format -> id=${customer.id} raw=${customer.phone}`);
+            details.push({ customerId: customer.id, name: customer.name, phone: customer.phone, status: 'skipped', sent: false, reason: 'invalid_phone' });
+            continue;
+          }
           
-          // Determine which SMS to send
+          // Determine which SMS to send (treat null/undefined as not_sent)
           let smsStatus: '1st_sent' | '2nd_sent';
-          if (customer.smsDeliveryStatus === 'not_sent') {
+          if (customer.smsDeliveryStatus === 'not_sent' || !customer.smsDeliveryStatus) {
             smsStatus = '1st_sent';
           } else if (customer.smsDeliveryStatus === '1st_sent') {
             smsStatus = '2nd_sent';
           } else {
+            console.warn(`[SMS][skip] Already sent 2 SMS -> id=${customer.id}`);
+            details.push({ customerId: customer.id, name: customer.name, phone: customer.phone, status: 'skipped', sent: false, reason: 'limit_reached' });
             continue; // Already sent 2 SMS
           }
           
           // Send SMS using the SMS service
-          const smsSent = await smsService.sendSmsToPotentialCustomer(
-            customer.phone,
-            customer.name,
-            smsStatus,
-            {
-              customerId: customer.id,
-            }
-          );
+          const templateMessage = smsStatus === '1st_sent'
+            ? `Hi ${customer.name}! 👋 \n\nServicePanda here! We noticed you might be looking for reliable service providers in your area.\n\nWe have pre-screened, verified professionals ready to help with your needs. Would you like to learn more about our services?\n\nReply YES to get started, or visit our website for more info.\n\nBest regards,\nServicePanda Team`
+            : `Hi ${customer.name}! \n\nJust following up on our previous message about ServicePanda's verified service providers.\n\nWe're here to connect you with trusted professionals in your area. No obligation, just quality service connections.\n\nReply YES to learn more, or call us directly.\n\nServicePanda Team`;
+          console.log(`[SMS] Sending -> id=${customer.id} status=${smsStatus} to=${normalizedPhone}`);
+          const smsSent = await smsService.sendSms(normalizedPhone, templateMessage, { customerId: customer.id, smsType: smsStatus });
           
           if (smsSent) {
             // Update SMS status only if SMS was sent successfully
             await this.updatePotentialCustomerSmsStatus(customerId, smsStatus);
             successCount++;
             console.log(`SMS ${smsStatus} sent successfully to ${customer.name} at ${customer.phone}`);
+
+            // Log for Admin UI
+            smsService.recordOutbound({
+              recipientType: 'potential_customer',
+              recipientId: customer.id,
+              recipientPhone: normalizedPhone,
+              recipientName: customer.name,
+              message: templateMessage,
+              smsType: smsStatus,
+              sentBy: 'admin',
+              status: 'sent',
+            });
+
+            // Persist to DB (ensure table exists first)
+            try {
+              await this.ensureSmsMessagesTable();
+              await db.insert(smsMessages).values({
+                recipientType: 'potential_customer',
+                recipientId: customer.id,
+                recipientPhone: normalizedPhone,
+                recipientName: customer.name,
+                message: templateMessage,
+                direction: 'outbound',
+                status: 'sent',
+                smsType: smsStatus,
+                sentBy: 'admin',
+                sentAt: new Date(),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+            } catch (e) {
+              console.warn('Failed to persist SMS to DB (non-fatal):', e);
+            }
+            details.push({ customerId: customer.id, name: customer.name, phone: normalizedPhone, status: smsStatus, sent: true });
           } else {
             console.error(`Failed to send SMS ${smsStatus} to ${customer.name} at ${customer.phone}`);
+            details.push({ customerId: customer.id, name: customer.name, phone: normalizedPhone, status: smsStatus, sent: false, reason: 'api_failed' });
+
+            // Record failed attempt in memory so Admin UI shows activity
+            smsService.recordOutbound({
+              recipientType: 'potential_customer',
+              recipientId: customer.id,
+              recipientPhone: normalizedPhone,
+              recipientName: customer.name,
+              message: templateMessage,
+              smsType: smsStatus,
+              sentBy: 'admin',
+              status: 'failed',
+            });
+
+            // Persist failed attempt to DB for visibility and auditing
+            try {
+              await this.ensureSmsMessagesTable();
+              await db.insert(smsMessages).values({
+                recipientType: 'potential_customer',
+                recipientId: customer.id,
+                recipientPhone: normalizedPhone,
+                recipientName: customer.name,
+                message: templateMessage,
+                direction: 'outbound',
+                status: 'failed',
+                smsType: smsStatus,
+                sentBy: 'admin',
+                sentAt: new Date(),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+            } catch (e) {
+              console.warn('Failed to persist failed SMS to DB (non-fatal):', e);
+            }
           }
           
         } catch (error) {
           console.error(`Error sending SMS to customer ${customerId}:`, error);
+          details.push({ customerId, name: '', phone: '', status: 'skipped', sent: false, reason: 'exception' });
         }
       }
       
-      return { count: successCount };
+      return { count: successCount, details };
     } catch (error) {
       console.error('Error sending SMS to potential customers:', error);
       throw new Error('Failed to send SMS');
@@ -5727,6 +5852,15 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Potential provider not found');
       }
 
+      const providerRow = provider[0];
+
+      // Attempt to send SMS via Dialpad
+      try {
+        await smsService.sendSms(providerRow.phone, content);
+      } catch (e) {
+        console.warn('Non-fatal: failed to send SMS via provider flow', e);
+      }
+
       // Log the communication
       await db.insert(potentialProviderCommunications).values({
         potentialProviderId: providerId,
@@ -5737,6 +5871,18 @@ export class DatabaseStorage implements IStorage {
         status: 'sent',
         sentAt: new Date(),
         createdAt: new Date(),
+      });
+
+      // Log for Admin SMS UI
+      smsService.recordOutbound({
+        recipientType: 'potential_provider',
+        recipientId: providerId,
+        recipientPhone: providerRow.phone,
+        recipientName: providerRow.firstName + ' ' + providerRow.lastName,
+        message: content,
+        smsType: 'custom',
+        sentBy: 'admin',
+        status: 'sent',
       });
 
       // Update provider status and last contact
@@ -5927,6 +6073,31 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async bulkUpdateEmailStatus(emailIds: number[], status: string): Promise<number> {
+    try {
+      if (!Array.isArray(emailIds) || emailIds.length === 0) return 0;
+      const updated = await db
+        .update(emails)
+        .set({ status, folder: status, updatedAt: new Date() })
+        .where(inArray(emails.id, emailIds))
+        .returning({ id: emails.id });
+      return updated?.length ?? 0;
+    } catch (error) {
+      console.error('Error bulk updating email status:', error);
+      throw error;
+    }
+  }
+
+  async deleteEmails(emailIds: number[]): Promise<number> {
+    try {
+      const result = await db.delete(emails).where(inArray(emails.id, emailIds));
+      return Array.isArray(emailIds) ? emailIds.length : 0;
+    } catch (error) {
+      console.error('Error deleting emails:', error);
+      throw error;
+    }
+  }
+
   async getEmail(emailId: number): Promise<Email | null> {
     try {
       const [email] = await db.select().from(emails).where(eq(emails.id, emailId)).limit(1);
@@ -5977,6 +6148,28 @@ export class DatabaseStorage implements IStorage {
       return updatedEmail;
     } catch (error) {
       console.error('Error toggling email star:', error);
+      throw error;
+    }
+  }
+
+  async setEmailReadState(emailId: number, read: boolean): Promise<Email> {
+    try {
+      const [email] = await db.update(emails)
+        .set({
+          isRead: read,
+          readAt: read ? new Date() : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(emails.id, emailId))
+        .returning();
+
+      if (!email) {
+        throw new Error('Email not found');
+      }
+
+      return email;
+    } catch (error) {
+      console.error('Error setting email read state:', error);
       throw error;
     }
   }

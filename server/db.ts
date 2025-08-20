@@ -14,7 +14,7 @@ neonConfig.webSocketConstructor = ws;
 // Check if DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
   console.warn("⚠️  DATABASE_URL not set. Using fallback configuration for development.");
-  process.env.DATABASE_URL = 'postgresql://postgres:password@localhost:5432/servicepanda';
+  process.env.DATABASE_URL='postgresql://neondb_owner:npg_VriYIgl69eLd@ep-divine-paper-afbqojt6.c-2.us-west-2.aws.neon.tech/neondb?sslmode=require'
 }
 
 let pool: Pool;
