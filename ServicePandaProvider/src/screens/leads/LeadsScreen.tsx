@@ -1,11 +1,40 @@
 const React = require('react');
-const { View, Text, StyleSheet, ScrollView, TouchableOpacity } = require('react-native');
-const { Card, Title, Paragraph, Button, Chip } = require('react-native-paper');
+const { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } = require('react-native');
+const { Card, Title, Paragraph, Button, Chip, ActivityIndicator } = require('react-native-paper');
+const { useQuery } = require('@tanstack/react-query');
+const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
 
 function LeadsScreen({ onNavigate, onBack }) {
+  // Fetch all leads data for dynamic counts
+  const { data: allLeads = [], isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
+    queryKey: ['/api/provider/leads'],
+    queryFn: () => apiService.getLeads(),
+    retry: false,
+  });
+
+  // Fetch closed leads for completed count
+  const { data: closedLeads = [], isLoading: closedLeadsLoading } = useQuery({
+    queryKey: ['/api/provider/leads/closed'],
+    queryFn: () => apiService.getClosedLeads(),
+    retry: false,
+  });
+
+  // Calculate dynamic counts
+  const newLeadsCount = allLeads.filter(lead => lead.status === 'pending').length;
+  const activeLeadsCount = allLeads.filter(lead => lead.status === 'purchased').length;
+  const completedLeadsCount = closedLeads.length;
+
+  // Loading state
+  const isLoading = leadsLoading || closedLeadsLoading;
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={isLoading} onRefresh={refetchLeads} />
+      }
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -17,11 +46,15 @@ function LeadsScreen({ onNavigate, onBack }) {
         <Text style={styles.title}>Leads Management</Text>
       </View>
 
-      {/* Quick Stats */}
+      {/* Quick Stats - Now Dynamic! */}
       <View style={styles.statsContainer}>
         <Card style={styles.statCard}>
           <Card.Content style={styles.statContent}>
-            <Text style={styles.statNumber}>12</Text>
+            {isLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.statNumber}>{newLeadsCount}</Text>
+            )}
             <Text style={styles.statLabel}>New Leads</Text>
             <Text style={styles.statStatus}>Available to purchase</Text>
           </Card.Content>
@@ -29,7 +62,11 @@ function LeadsScreen({ onNavigate, onBack }) {
 
         <Card style={styles.statCard}>
           <Card.Content style={styles.statContent}>
-            <Text style={styles.statNumber}>8</Text>
+            {isLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.statNumber}>{activeLeadsCount}</Text>
+            )}
             <Text style={styles.statLabel}>Active Leads</Text>
             <Text style={styles.statStatus}>Currently working on</Text>
           </Card.Content>
@@ -37,7 +74,11 @@ function LeadsScreen({ onNavigate, onBack }) {
 
         <Card style={styles.statCard}>
           <Card.Content style={styles.statContent}>
-            <Text style={styles.statNumber}>24</Text>
+            {isLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.statNumber}>{completedLeadsCount}</Text>
+            )}
             <Text style={styles.statLabel}>Completed</Text>
             <Text style={styles.statStatus}>Successfully closed</Text>
           </Card.Content>

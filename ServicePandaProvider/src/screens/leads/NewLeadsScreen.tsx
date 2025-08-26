@@ -1,90 +1,38 @@
 const React = require('react');
 const { useState } = require('react');
-const { View, StyleSheet, ScrollView, TouchableOpacity, Text } = require('react-native');
+const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl } = require('react-native');
 const { Title, Paragraph, Card, Button, Chip, Searchbar, Badge } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
+const { useQuery } = require('@tanstack/react-query');
+const { getLeads } = require('../../services/api');
 
 function NewLeadsScreen({ onNavigate }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
 
-  // Mock data for new leads
-  const newLeads = [
-    {
-      id: '1',
-      title: 'Kitchen Remodeling',
-      description: 'Complete kitchen renovation including cabinets, countertops, and appliances',
-      location: 'Downtown Area',
-      budget: '$15,000 - $25,000',
-      urgency: 'High',
-      serviceType: 'Remodeling',
-      cost: 25,
-      postedTime: '2 hours ago',
-      distance: '2.3 miles'
-    },
-    {
-      id: '2',
-      title: 'Bathroom Renovation',
-      description: 'Full bathroom remodel with new fixtures, tiles, and plumbing',
-      location: 'Westside',
-      budget: '$8,000 - $15,000',
-      urgency: 'Medium',
-      serviceType: 'Renovation',
-      cost: 20,
-      postedTime: '4 hours ago',
-      distance: '3.1 miles'
-    },
-    {
-      id: '3',
-      title: 'Deck Building',
-      description: 'Custom wooden deck with railing and stairs',
-      location: 'North Suburbs',
-      budget: '$5,000 - $12,000',
-      urgency: 'Low',
-      serviceType: 'Construction',
-      cost: 18,
-      postedTime: '6 hours ago',
-      distance: '5.2 miles'
-    },
-    {
-      id: '4',
-      title: 'Electrical Panel Upgrade',
-      description: 'Upgrade electrical panel to support new appliances and increased capacity',
-      location: 'Eastside',
-      budget: '$3,000 - $6,000',
-      urgency: 'High',
-      serviceType: 'Electrical',
-      cost: 22,
-      postedTime: '1 day ago',
-      distance: '1.8 miles'
-    },
-    {
-      id: '5',
-      title: 'Landscaping Design',
-      description: 'Complete landscape design and installation for residential property',
-      location: 'South Suburbs',
-      budget: '$10,000 - $20,000',
-      urgency: 'Medium',
-      serviceType: 'Landscaping',
-      cost: 15,
-      postedTime: '1 day ago',
-      distance: '4.7 miles'
-    }
-  ];
+  // Fetch leads from API
+  const { data: leads, isLoading: leadsLoading, error: leadsError, refetch } = useQuery({
+    queryKey: ['provider-leads'],
+    queryFn: getLeads,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Filter for new/pending leads only
+  const newLeads = leads?.filter(lead => lead.status === 'pending') || [];
 
   const filters = [
     { key: 'all', label: 'All Leads', count: newLeads.length },
-    { key: 'high', label: 'High Urgency', count: newLeads.filter(lead => lead.urgency === 'High').length },
-    { key: 'medium', label: 'Medium Urgency', count: newLeads.filter(lead => lead.urgency === 'Medium').length },
-    { key: 'low', label: 'Low Urgency', count: newLeads.filter(lead => lead.urgency === 'Low').length }
+    { key: 'high', label: 'High Urgency', count: newLeads.filter(lead => lead.urgency === 'high').length },
+    { key: 'medium', label: 'Medium Urgency', count: newLeads.filter(lead => lead.urgency === 'medium').length },
+    { key: 'low', label: 'Low Urgency', count: newLeads.filter(lead => lead.urgency === 'low').length }
   ];
 
   const filteredLeads = newLeads.filter(lead => {
-    const matchesSearch = lead.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         lead.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         lead.location.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = lead.categoryName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         lead.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         lead.suburb?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesFilter = selectedFilter === 'all' || lead.urgency.toLowerCase() === selectedFilter;
+    const matchesFilter = selectedFilter === 'all' || lead.urgency?.toLowerCase() === selectedFilter;
     
     return matchesSearch && matchesFilter;
   });
@@ -96,7 +44,7 @@ function NewLeadsScreen({ onNavigate }) {
   };
 
   const getUrgencyColor = (urgency) => {
-    switch (urgency.toLowerCase()) {
+    switch (urgency?.toLowerCase()) {
       case 'high': return '#EF4444';
       case 'medium': return '#F59E0B';
       case 'low': return '#10B981';
@@ -104,8 +52,44 @@ function NewLeadsScreen({ onNavigate }) {
     }
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 1) return 'Today';
+    return `${diffDays} days ago`;
+  };
+
+  if (leadsLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading leads...</Text>
+      </View>
+    );
+  }
+
+  if (leadsError) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Error loading leads</Text>
+        <Button mode="contained" onPress={() => refetch()} style={styles.retryButton}>
+          Retry
+        </Button>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={leadsLoading} onRefresh={refetch} />
+      }
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -158,50 +142,59 @@ function NewLeadsScreen({ onNavigate }) {
             <Card.Content>
               <View style={styles.leadHeader}>
                 <View style={styles.leadTitleContainer}>
-                  <Title style={styles.leadTitle}>{lead.title}</Title>
+                  <Title style={styles.leadTitle}>{lead.categoryName || 'Service Request'}</Title>
                   <Chip 
                     mode="outlined" 
                     style={[styles.urgencyChip, { borderColor: getUrgencyColor(lead.urgency) }]}
                     textStyle={{ color: getUrgencyColor(lead.urgency) }}
                   >
-                    {lead.urgency} Urgency
+                    {lead.urgency || 'Normal'} Urgency
                   </Chip>
                 </View>
                 <View style={styles.leadCost}>
                   <Text style={styles.costLabel}>Lead Cost</Text>
-                  <Text style={styles.costAmount}>${lead.cost}</Text>
+                  <Text style={styles.costAmount}>${lead.leadCost || 0}</Text>
                 </View>
               </View>
 
-              <Paragraph style={styles.leadDescription}>{lead.description}</Paragraph>
+              <Paragraph style={styles.leadDescription}>{lead.description || 'No description provided'}</Paragraph>
 
               <View style={styles.leadDetails}>
                 <View style={styles.detailItem}>
                   <Text style={styles.detailIcon}>📍</Text>
-                  <Text style={styles.detailText}>{lead.location}</Text>
-                  <Text style={styles.detailSubtext}>({lead.distance})</Text>
+                  <Text style={styles.detailText}>{lead.suburb || 'Location not specified'}</Text>
+                  {lead.postcode && (
+                    <Text style={styles.detailSubtext}>({lead.postcode})</Text>
+                  )}
                 </View>
 
                 <View style={styles.detailItem}>
-                  <Text style={styles.detailIcon}>💰</Text>
-                  <Text style={styles.detailText}>{lead.budget}</Text>
+                  <Text style={styles.detailIcon}>👤</Text>
+                  <Text style={styles.detailText}>{lead.customerName || 'Customer'}</Text>
                 </View>
 
                 <View style={styles.detailItem}>
-                  <Text style={styles.detailIcon}>🏷️</Text>
-                  <Text style={styles.detailText}>{lead.serviceType}</Text>
+                  <Text style={styles.detailIcon}>📞</Text>
+                  <Text style={styles.detailText}>{lead.customerPhone || 'Phone not provided'}</Text>
                 </View>
 
                 <View style={styles.detailItem}>
-                  <Text style={styles.detailIcon}>⏰</Text>
-                  <Text style={styles.detailText}>{lead.postedTime}</Text>
+                  <Text style={styles.detailIcon}>📅</Text>
+                  <Text style={styles.detailText}>Preferred: {lead.preferredDate ? formatDate(lead.preferredDate) : 'Flexible'}</Text>
                 </View>
+
+                {lead.postedAt && (
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailIcon}>⏰</Text>
+                    <Text style={styles.detailText}>Posted: {formatDate(lead.postedAt)}</Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.leadActions}>
                 <Button
                   mode="outlined"
-                  onPress={() => onNavigate('leadDetails')}
+                  onPress={() => onNavigate('leadDetails', { leadId: lead.id })}
                   style={styles.actionButton}
                 >
                   View Details
@@ -224,7 +217,10 @@ function NewLeadsScreen({ onNavigate }) {
             <Text style={styles.emptyIcon}>🔍</Text>
             <Title style={styles.emptyTitle}>No leads found</Title>
             <Paragraph style={styles.emptyDescription}>
-              Try adjusting your search or filters to find more leads
+              {searchQuery || selectedFilter !== 'all' 
+                ? 'Try adjusting your search or filters to find more leads'
+                : 'No new leads available at the moment. Check back later!'
+              }
             </Paragraph>
           </View>
         )}
@@ -237,6 +233,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: colors.error || '#EF4444',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
   },
   header: {
     flexDirection: 'row',

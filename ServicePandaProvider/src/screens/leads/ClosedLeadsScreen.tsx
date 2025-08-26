@@ -1,4 +1,5 @@
 const React = require('react');
+const { useState } = require('react');
 const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl } = require('react-native');
 const { Title, Paragraph, Card, Button, Chip, ActivityIndicator } = require('react-native-paper');
 const { useQuery } = require('@tanstack/react-query');
@@ -6,10 +7,10 @@ const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
 
 function ClosedLeadsScreen({ onNavigate }) {
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch closed leads from API
-  const { data: closedLeads = [], isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
+  // Fetch closed leads from API - exactly like web app
+  const { data: closedLeads = [], isLoading: closedLeadsLoading, refetch: refetchLeads } = useQuery({
     queryKey: ['/api/provider/leads/closed'],
     queryFn: () => apiService.getClosedLeads(),
     retry: false,
@@ -38,12 +39,12 @@ function ClosedLeadsScreen({ onNavigate }) {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Title style={styles.title}>Closed Leads ({closedLeads.length})</Title>
-          <Paragraph style={styles.subtitle}>Your completed projects</Paragraph>
+          <Paragraph style={styles.subtitle}>Your completed leads and records</Paragraph>
         </View>
       </View>
 
       {/* Loading State */}
-      {leadsLoading ? (
+      {closedLeadsLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading closed leads...</Text>
@@ -55,97 +56,100 @@ function ClosedLeadsScreen({ onNavigate }) {
             <Card style={styles.statCard}>
               <Card.Content style={styles.statContent}>
                 <Text style={styles.statNumber}>{closedLeads.length}</Text>
-                <Text style={styles.statLabel}>Completed Projects</Text>
+                <Text style={styles.statLabel}>Total Closed</Text>
               </Card.Content>
             </Card>
 
             <Card style={styles.statCard}>
               <Card.Content style={styles.statContent}>
                 <Text style={styles.statNumber}>
-                  ${closedLeads.reduce((sum, lead) => {
-                    const earnings = lead.leadCost || 0;
-                    return sum + earnings;
-                  }, 0).toLocaleString()}
+                  {closedLeads.filter(lead => lead.wasJobBooked).length}
                 </Text>
-                <Text style={styles.statLabel}>Total Earnings</Text>
+                <Text style={styles.statLabel}>Jobs Booked</Text>
               </Card.Content>
             </Card>
 
             <Card style={styles.statCard}>
               <Card.Content style={styles.statContent}>
                 <Text style={styles.statNumber}>
-                  {closedLeads.length > 0 ? 
-                    (closedLeads.reduce((sum, lead) => sum + (lead.rating || 0), 0) / closedLeads.length).toFixed(1) : 
-                    '0.0'
-                  }
+                  {closedLeads.filter(lead => !lead.wasJobBooked).length}
                 </Text>
-                <Text style={styles.statLabel}>Average Rating</Text>
+                <Text style={styles.statLabel}>Not Booked</Text>
               </Card.Content>
             </Card>
           </View>
-        </>
-      )}
 
-      {/* Closed Leads List */}
-      {!leadsLoading && (
-        <View style={styles.leadsContainer}>
-          {closedLeads.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>📋</Text>
-              <Text style={styles.emptyTitle}>No Closed Leads</Text>
-              <Text style={styles.emptyText}>You haven't completed any leads yet.</Text>
-            </View>
-          ) : (
-            closedLeads.map((lead) => (
-              <Card key={lead.requestId || lead.id} style={styles.leadCard}>
-                <Card.Content>
-                  <View style={styles.leadHeader}>
-                    <View style={styles.leadTitleContainer}>
-                      <Text style={styles.leadTitle}>
-                        {lead.categoryName} - {lead.suburb?.toUpperCase() || 'LOCATION'}
-                      </Text>
-                      <Chip 
-                        mode="outlined" 
-                        style={styles.statusChip}
-                        textStyle={styles.statusChipText}
-                      >
-                        {lead.leadStatus === 'closed' && lead.wasJobBooked ? 'Job Booked' : 'Closed'}
-                      </Chip>
+          {/* Closed Leads List - Exactly like web app */}
+          <View style={styles.leadsContainer}>
+            {closedLeads.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyIcon}>✅</Text>
+                <Text style={styles.emptyTitle}>No closed leads</Text>
+                <Text style={styles.emptyText}>Leads you close will appear here for your records.</Text>
+              </View>
+            ) : (
+              closedLeads.map((lead) => (
+                <Card key={lead.requestId || lead.id} style={styles.leadCard}>
+                  <Card.Content>
+                    <View style={styles.leadHeader}>
+                      <View style={styles.leadTitleContainer}>
+                        <Title style={styles.leadTitle}>
+                          {lead.categoryName || 'N/A'} - {lead.suburb?.toUpperCase() || 'LOCATION'}
+                        </Title>
+                        <View style={styles.statusContainer}>
+                          <Chip 
+                            mode="outlined" 
+                            style={[
+                              styles.statusChip, 
+                              { 
+                                borderColor: lead.wasJobBooked ? '#10B981' : '#6B7280',
+                                backgroundColor: lead.wasJobBooked ? '#F0FDF4' : '#F9FAFB'
+                              }
+                            ]}
+                            textStyle={{ 
+                              color: lead.wasJobBooked ? '#10B981' : '#6B7280'
+                            }}
+                          >
+                            {lead.wasJobBooked ? 'Job Booked' : 'Not Booked'}
+                          </Chip>
+                        </View>
+                      </View>
+                      <View style={styles.closedDate}>
+                        <Text style={styles.closedDateLabel}>Closed:</Text>
+                        <Text style={styles.closedDateText}>
+                          {lead.closedAt ? new Date(lead.closedAt).toLocaleDateString() : 'N/A'}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  
-                  <View style={styles.leadDetails}>
-                    <Text style={styles.leadCustomer}>
-                      Customer: {lead.customerName} - {lead.customerPhone}
-                    </Text>
-                    <Text style={styles.leadLocation}>
-                      Location: {lead.suburb}, {lead.postcode}
-                    </Text>
+
+                    <View style={styles.customerInfo}>
+                      <Text style={styles.customerLabel}>
+                        Customer: {lead.customerName || 'N/A'} - {lead.customerPhone || 'N/A'}
+                      </Text>
+                    </View>
+
+                    {/* Additional lead details if available */}
                     {lead.description && (
-                      <Text style={styles.leadDescription}>
-                        Description: {lead.description}
-                      </Text>
+                      <Paragraph style={styles.leadDescription}>
+                        {lead.description}
+                      </Paragraph>
                     )}
-                    {lead.budget && (
-                      <Text style={styles.leadBudget}>
-                        Budget: ${lead.budget}
-                      </Text>
-                    )}
-                  </View>
-                  
-                  <View style={styles.leadFooter}>
-                    <Text style={styles.leadCost}>
-                      Lead Cost: ${lead.leadCost || 0}
-                    </Text>
-                    <Text style={styles.leadClosedDate}>
-                      Closed: {lead.closedAt ? new Date(lead.closedAt).toLocaleDateString() : 'N/A'}
-                    </Text>
-                  </View>
-                </Card.Content>
-              </Card>
-            ))
-          )}
-        </View>
+
+                    <View style={styles.leadActions}>
+                      <Button
+                        mode="outlined"
+                        onPress={() => onNavigate('leadDetails', { leadId: lead.requestId || lead.id })}
+                        style={styles.actionButton}
+                      >
+                        View Details
+                      </Button>
+                    </View>
+                  </Card.Content>
+                </Card>
+              ))
+            )}
+          </View>
+        </>
       )}
     </ScrollView>
   );
@@ -236,6 +240,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 8,
   },
+  statusContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   statusChip: {
     alignSelf: 'flex-start',
     backgroundColor: colors.success + '20',
@@ -246,47 +254,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  leadDetails: {
+  closedDate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  closedDateLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginRight: 4,
+  },
+  closedDateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  customerInfo: {
     marginBottom: 16,
   },
-  leadCustomer: {
+  customerLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
   },
-  leadLocation: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 6,
-  },
   leadDescription: {
     fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 6,
+    marginBottom: 16,
     lineHeight: 20,
   },
-  leadBudget: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 6,
+  leadActions: {
+    marginTop: 16,
+    alignItems: 'flex-end',
   },
-  leadFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  leadCost: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  leadClosedDate: {
-    fontSize: 12,
-    color: colors.textSecondary,
+  actionButton: {
+    borderRadius: 8,
   },
   loadingContainer: {
     flex: 1,

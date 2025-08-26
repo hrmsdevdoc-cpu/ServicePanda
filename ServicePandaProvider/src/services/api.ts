@@ -128,6 +128,15 @@ class ApiService {
     return this.request('POST', '/api/provider/reset-password', { token, password });
   }
 
+  // Authentication endpoints
+  async login(email: string, password: string) {
+    return this.request('POST', '/api/provider/login', { email, password });
+  }
+
+  async logout() {
+    return this.request('POST', '/api/provider/logout');
+  }
+
   // Provider endpoints
   async getProfile() {
     return this.request('GET', '/api/provider/profile');
