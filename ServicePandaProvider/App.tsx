@@ -100,7 +100,6 @@ const AppContent = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header with back button for non-dashboard screens */}
       {currentScreen !== 'dashboard' && (
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={goToDashboard}>
@@ -113,6 +112,49 @@ const AppContent = () => {
       )}
       
       {renderScreen()}
+      
+      {/* Static Footer Navigation Bar - Always Visible */}
+      <View style={styles.footer}>
+        <TouchableOpacity 
+          style={[styles.footerTab, currentScreen === 'dashboard' && styles.activeFooterTab]}
+          onPress={() => navigateTo('dashboard')}
+        >
+          <Text style={[styles.footerIcon, currentScreen === 'dashboard' && styles.activeFooterIcon]}>🏠</Text>
+          <Text style={[styles.footerLabel, currentScreen === 'dashboard' && styles.activeFooterLabel]}>Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.footerTab, currentScreen === 'leads' && styles.activeFooterTab]}
+          onPress={() => navigateTo('leads')}
+        >
+          <Text style={[styles.footerIcon, currentScreen === 'leads' && styles.activeFooterIcon]}>🎯</Text>
+          <Text style={styles.footerLabel}>Leads</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.footerTab, currentScreen === 'services' && styles.activeFooterTab]}
+          onPress={() => navigateTo('services')}
+        >
+          <Text style={[styles.footerIcon, currentScreen === 'services' && styles.activeFooterIcon]}>⚙️</Text>
+          <Text style={styles.footerLabel}>Services</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.footerTab, currentScreen === 'payment' && styles.activeFooterTab]}
+          onPress={() => navigateTo('payment')}
+        >
+          <Text style={[styles.footerIcon, currentScreen === 'payment' && styles.activeFooterIcon]}>💳</Text>
+          <Text style={styles.footerLabel}>Payment</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.footerTab, currentScreen === 'profile' && styles.activeFooterTab]}
+          onPress={() => navigateTo('profile')}
+        >
+          <Text style={[styles.footerIcon, currentScreen === 'profile' && styles.activeFooterIcon]}>👤</Text>
+          <Text style={styles.footerLabel}>Profile</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -134,6 +176,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    paddingBottom: 80, // Add padding to prevent content from being hidden behind footer
   },
   header: {
     flexDirection: 'row',
@@ -167,6 +210,48 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: colors.textSecondary,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    zIndex: 1000,
+  },
+  footerTab: {
+    alignItems: 'center',
+    padding: 8,
+  },
+  footerIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  footerLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  activeFooterTab: {
+    color: colors.primary,
+  },
+  activeFooterIcon: {
+    color: colors.primary,
+  },
+  activeFooterLabel: {
+    fontWeight: 'bold',
+    color: colors.primary,
   },
 });
 

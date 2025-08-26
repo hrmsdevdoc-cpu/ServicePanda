@@ -512,10 +512,10 @@ function DashboardScreen({ onNavigate }) {
               </View>
             )}
           </View>
-      </ScrollView>
-    </View>
-  );
-}
+        </ScrollView>
+      </View>
+    );
+  }
 
 const styles = StyleSheet.create({
   container: {
@@ -730,6 +730,7 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
+    paddingBottom: 80, // Add padding to prevent content from being hidden behind footer
   },
   dashboardHeader: {
     padding: 24,
