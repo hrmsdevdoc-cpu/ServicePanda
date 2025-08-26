@@ -9,7 +9,7 @@
     <script type="module" src="/src/main.tsx"></script>
     <!-- Google Maps API - Load dynamically -->
     <script>
-      window.addEventListener('DOMContentLoaded', async function() {
+      // window.addEventListener('DOMContentLoaded', async function() {
         try {
           const response = await fetch('/api/config/google-maps');
           const config = await response.json();

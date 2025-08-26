@@ -4,3 +4,7 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+/ServicePandaProvider/android/.gradle/
+/ServicePandaProvider/android/build/
+/ServicePandaProvider/android/app/build/
+/ServicePandaProvider/node_modules/

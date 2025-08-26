@@ -42,6 +42,17 @@ app.use((req, res, next) => {
   }
 });
 
+// Health check endpoint for mobile app connectivity testing - must be before Vite setup
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    message: 'ServicePanda API is running'
+  });
+});
+
+
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

@@ -81,7 +81,13 @@ export function setupProviderAuth(app: Express) {
 
   // Provider login endpoint
   app.post("/api/provider/login", async (req, res) => {
-    console.log("provider",req);
+    console.log("=== PROVIDER LOGIN REQUEST ===");
+    console.log("Request headers:", req.headers);
+    console.log("Request body:", req.body);
+    console.log("Content-Type:", req.get('Content-Type'));
+    console.log("User-Agent:", req.get('User-Agent'));
+    console.log("===============================");
+    
     try {
       const { email, password } = req.body;
   
@@ -100,6 +106,10 @@ export function setupProviderAuth(app: Express) {
         email: provider.email,
         firstName: provider.firstName,
         lastName: provider.lastName,
+        status: provider.status,
+        documentsUploaded: provider.documentsUploaded,
+        termsAccepted: provider.termsAccepted,
+        providerStatus: provider.providerStatus
       });
     } catch (error) {
       console.error("Provider login error:", error);

@@ -24,6 +24,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware for admins
   setupAdminAuth(app);
 
+
+
   // Configure multer for file uploads
   const upload = multer({
     dest: "uploads/",
