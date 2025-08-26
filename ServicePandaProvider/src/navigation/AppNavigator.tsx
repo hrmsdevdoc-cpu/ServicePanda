@@ -71,7 +71,12 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       {isAuthenticated ? (
-        <MainNavigator onLogout={logout} />
+        <MainNavigator onLogout={logout} onNavigate={(screen) => {
+          // Handle navigation to different screens
+          console.log('🔍 Navigating to:', screen);
+          // For now, we'll just log the navigation
+          // In the future, this can be expanded to handle different screen navigation
+        }} />
       ) : (
         <AuthNavigator onLoginSuccess={() => setIsAuthenticated(true)} />
       )}

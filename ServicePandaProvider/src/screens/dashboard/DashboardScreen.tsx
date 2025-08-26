@@ -268,9 +268,9 @@ function DashboardScreen({ onNavigate }) {
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={styles.sidebarSubItem}
-                      onPress={() => handleNavigation('services')}
+                      onPress={() => handleNavigation('serviceArea')}
                     >
-                      <Text style={styles.sidebarSubText}>Services</Text>
+                      <Text style={styles.sidebarSubText}>Services Area</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={styles.sidebarSubItem}
@@ -512,10 +512,10 @@ function DashboardScreen({ onNavigate }) {
               </View>
             )}
           </View>
-        </ScrollView>
-      </View>
-    );
-  }
+      </ScrollView>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -730,7 +730,6 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
-    paddingBottom: 80, // Add padding to prevent content from being hidden behind footer
   },
   dashboardHeader: {
     padding: 24,

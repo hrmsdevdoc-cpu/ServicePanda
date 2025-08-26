@@ -1,15 +1,29 @@
-const React = require('react');
-const { View, StyleSheet } = require('react-native');
-const { Title, Paragraph, Card } = require('react-native-paper');
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Title, Paragraph, Card } from 'react-native-paper';
 const { colors } = require('../../utils/theme');
 
-const ServicesScreen = ({ onNavigate, onBack }) => {
+const ServicesScreen = () => {
   return (
     <View style={styles.container}>
       <Card style={styles.card}>
         <Card.Content>
-          <Title>Services Configuration</Title>
-          <Paragraph>Configure your service categories and areas here.</Paragraph>
+          <Title>Services Overview</Title>
+          <Paragraph>Manage your service offerings and categories</Paragraph>
+        </Card.Content>
+      </Card>
+      
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Service Categories</Title>
+          <Paragraph>Plumbing, Electrical, Cleaning, and more</Paragraph>
+        </Card.Content>
+      </Card>
+
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Service Areas</Title>
+          <Paragraph>Configure your service coverage locations</Paragraph>
         </Card.Content>
       </Card>
     </View>
@@ -24,6 +38,7 @@ const styles = StyleSheet.create({
   },
   card: {
     elevation: 2,
+    marginBottom: 16,
   },
 });
 

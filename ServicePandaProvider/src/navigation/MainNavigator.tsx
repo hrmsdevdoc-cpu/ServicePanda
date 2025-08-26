@@ -14,11 +14,13 @@ const ActiveLeadsScreen = require('../screens/leads/ActiveLeadsScreen');
 const ClosedLeadsScreen = require('../screens/leads/ClosedLeadsScreen');
 const ProfileScreen = require('../screens/profile/ProfileScreen');
 const ServicesScreen = require('../screens/services/ServicesScreen');
+const ServiceAreaScreen = require('../screens/services/ServiceAreaScreen');
 const DocumentsScreen = require('../screens/documents/DocumentsScreen');
 const PaymentScreen = require('../screens/payment/PaymentScreen');
 
 const Tab = createBottomTabNavigator();
 const LeadsStack = createStackNavigator();
+const ServicesStack = createStackNavigator();
 
 function LeadsNavigator() {
   return (
@@ -52,7 +54,39 @@ function LeadsNavigator() {
   );
 }
 
-function MainNavigator({ onLogout }) {
+function ServicesNavigator() {
+  return (
+    <ServicesStack.Navigator>
+      <ServicesStack.Screen 
+        name="ServicesMain" 
+        component={ServicesScreen}
+        options={{ title: 'Services' }}
+      />
+      <ServicesStack.Screen 
+        name="ServiceArea" 
+        component={ServiceAreaScreen}
+        options={{ title: 'Service Areas' }}
+      />
+    </ServicesStack.Navigator>
+  );
+}
+
+// Create a stack navigator for the main app to handle screen navigation
+const MainStack = createStackNavigator();
+
+function MainStackNavigator({ onLogout }) {
+  return (
+    <MainStack.Navigator screenOptions={{ headerShown: false }}>
+      <MainStack.Screen name="MainTabs" component={MainTabs} />
+      <MainStack.Screen name="ServiceArea" component={ServiceAreaScreen} />
+      <MainStack.Screen name="PersonalDetails" component={require('../screens/profile/PersonalDetailsScreen')} />
+      <MainStack.Screen name="Documents" component={require('../screens/documents/DocumentsScreen')} />
+      <MainStack.Screen name="Payment" component={require('../screens/payment/PaymentScreen')} />
+    </MainStack.Navigator>
+  );
+}
+
+function MainTabs({ onLogout }) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -133,13 +167,13 @@ function MainNavigator({ onLogout }) {
       />
       <Tab.Screen 
         name="Services" 
+        component={ServicesNavigator}
         options={{ 
-          title: 'Services',
+          title: 'Services', 
+          headerShown: false,
           tabBarLabel: 'Services'
         }}
-      >
-        {(props) => <ServicesScreen {...props} onLogout={onLogout} />}
-      </Tab.Screen>
+      />
       <Tab.Screen 
         name="Profile" 
         options={{ 
@@ -151,6 +185,10 @@ function MainNavigator({ onLogout }) {
       </Tab.Screen>
     </Tab.Navigator>
   );
+}
+
+function MainNavigator({ onLogout }) {
+  return <MainStackNavigator onLogout={onLogout} />;
 }
 
 module.exports = MainNavigator;
