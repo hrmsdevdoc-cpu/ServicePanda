@@ -133,3 +133,14 @@ export interface BillingData {
   }>;
 }
 
+export interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  isRead: boolean;
+  timestamp: string;
+  actionUrl?: string;
+  category?: 'lead' | 'payment' | 'system' | 'general';
+}
+

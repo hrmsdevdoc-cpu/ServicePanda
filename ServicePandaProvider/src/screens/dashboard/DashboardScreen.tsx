@@ -15,6 +15,9 @@ const { useQuery } = require('@tanstack/react-query');
 const { useAuth } = require('../../contexts/AuthContext');
 const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
+const NotificationIcon = require('../../components/NotificationIcon');
+const NotificationList = require('../../components/NotificationList');
+const notificationService = require('../../services/notifications');
 
 const { width } = Dimensions.get('window');
 
@@ -25,6 +28,11 @@ function DashboardScreen({ onNavigate }) {
     leads: true,
     settings: true,
   });
+  
+  // Notification state
+  const [notificationsVisible, setNotificationsVisible] = React.useState(false);
+  const [notifications, setNotifications] = React.useState([]);
+  const [notificationsLoading, setNotificationsLoading] = React.useState(false);
 
   const { data: leads = [], isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
     queryKey: ['/api/provider/leads'],
@@ -52,6 +60,15 @@ function DashboardScreen({ onNavigate }) {
     setRefreshing(true);
     await Promise.all([
       refetchLeads(),
+      // Refresh notifications
+      (async () => {
+        try {
+          const fetchedNotifications = await notificationService.getNotifications();
+          setNotifications(fetchedNotifications);
+        } catch (error) {
+          console.error('Error refreshing notifications:', error);
+        }
+      })(),
       // Add other refetch calls here
     ]);
     setRefreshing(false);
@@ -116,6 +133,66 @@ function DashboardScreen({ onNavigate }) {
     }
   };
 
+  // Notification handlers
+  const handleNotificationPress = async (notification) => {
+    try {
+      // Mark notification as read via service
+      await notificationService.markAsRead(notification.id);
+      
+      // Update local state
+      setNotifications(prev => 
+        prev.map(n => 
+          n.id === notification.id ? { ...n, isRead: true } : n
+        )
+      );
+      
+      // Close notification list
+      setNotificationsVisible(false);
+      
+      // Handle navigation based on notification type
+      if (notification.category === 'lead') {
+        handleNavigation('leads');
+      } else if (notification.category === 'payment') {
+        handleNavigation('payment');
+      }
+    } catch (error) {
+      console.error('Error handling notification:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      // Mark all as read via service
+      await notificationService.markAllAsRead();
+      
+      // Update local state
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, isRead: true }))
+      );
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
+  const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
+
+  // Fetch notifications on component mount
+  React.useEffect(() => {
+    const fetchNotifications = async () => {
+      setNotificationsLoading(true);
+      try {
+        const fetchedNotifications = await notificationService.getNotifications();
+        setNotifications(fetchedNotifications);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      } finally {
+        setNotificationsLoading(false);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
+
   // Handle Android back button
   React.useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -155,6 +232,11 @@ function DashboardScreen({ onNavigate }) {
             <Text style={styles.subtitle}>Partners</Text>
           </View>
         </View>
+        <NotificationIcon
+          unreadCount={unreadNotificationsCount}
+          onPress={() => setNotificationsVisible(true)}
+          size={24}
+        />
       </View>
 
       {/* Sidebar */}
@@ -421,7 +503,9 @@ function DashboardScreen({ onNavigate }) {
                 </Text>
                 <Text style={styles.metricLabel}>Credit Balance</Text>
                 <View style={styles.metricAction}>
-                  <Text style={styles.actionText}>💳 Add Credit</Text>
+                  <TouchableOpacity onPress={() => handleNavigation('credits')}>
+                    <Text style={styles.actionText}>💳 Add Credit</Text>
+                  </TouchableOpacity>
                 </View>
               </Card.Content>
             </Card>
@@ -513,6 +597,15 @@ function DashboardScreen({ onNavigate }) {
             )}
           </View>
       </ScrollView>
+
+      {/* Notification List Modal */}
+      <NotificationList
+        visible={notificationsVisible}
+        notifications={notifications}
+        onClose={() => setNotificationsVisible(false)}
+        onNotificationPress={handleNotificationPress}
+        onMarkAllAsRead={handleMarkAllAsRead}
+      />
     </View>
   );
 }
@@ -525,10 +618,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    zIndex: 1000,
+    elevation: 5,
   },
   menuButton: {
     padding: 8,
@@ -541,6 +637,7 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   logo: {
     fontSize: 24,

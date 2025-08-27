@@ -1118,3 +1118,41 @@ export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({
 // Types for SMS messages
 export type SmsMessage = typeof smsMessages.$inferSelect;
 export type InsertSmsMessage = z.infer<typeof insertSmsMessageSchema>;
+
+// ============================================================================
+// NOTIFICATION SYSTEM - SINGLE TABLE APPROACH
+// ============================================================================
+
+// Provider notifications table - handles everything in one place
+export const providerNotifications = pgTable("provider_notifications", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").references(() => serviceProviders.id).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  type: varchar("type", { length: 20 }).notNull().default("info"), // info, success, warning, error
+  category: varchar("category", { length: 50 }).notNull().default("general"), // lead, payment, system, general
+  isRead: boolean("is_read").notNull().default(false),
+  actionUrl: varchar("action_url", { length: 500 }),
+  metadata: jsonb("metadata"), // Store any additional data like amounts, locations, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  readAt: timestamp("read_at"),
+}, (table) => [
+  // Essential indexes for performance
+  index("idx_provider_notifications_provider_id").on(table.providerId),
+  index("idx_provider_notifications_is_read").on(table.isRead),
+  index("idx_provider_notifications_created_at").on(table.createdAt),
+  // Composite index for common queries
+  index("idx_provider_notifications_provider_read").on(table.providerId, table.isRead),
+]);
+
+// Insert schema for notifications
+export const insertProviderNotificationSchema = createInsertSchema(providerNotifications).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+// Types for notifications
+export type ProviderNotification = typeof providerNotifications.$inferSelect;
+export type InsertProviderNotification = z.infer<typeof insertProviderNotificationSchema>;

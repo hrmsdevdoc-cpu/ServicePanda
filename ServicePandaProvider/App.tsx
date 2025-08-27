@@ -19,6 +19,9 @@ const ServiceAreaScreen = require('./src/screens/services/ServiceAreaScreen');
 const DocumentsScreen = require('./src/screens/documents/DocumentsScreen');
 const PaymentScreen = require('./src/screens/payment/PaymentScreen');
 const ProfileScreen = require('./src/screens/profile/ProfileScreen');
+const CreditsScreen = require('./src/screens/credits/CreditsScreen');
+const BillingScreen = require('./src/screens/billing/BillingScreen');
+const HelpScreen = require('./src/screens/help/HelpScreen');
 const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } = require('react-native');
 const { colors } = require('./src/utils/theme');
 
@@ -90,11 +93,11 @@ const AppContent = () => {
       case 'payment':
         return <PaymentScreen onNavigate={navigateTo} onBack={goToDashboard} />;
       case 'credits':
-        return <PaymentScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <CreditsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
       case 'billing':
-        return <PaymentScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <BillingScreen onNavigate={navigateTo} onBack={goToDashboard} />;
       case 'help':
-        return <PaymentScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <HelpScreen onNavigate={navigateTo} onBack={goToDashboard} />;
       
       default:
         return <DashboardScreen onNavigate={navigateTo} />;
@@ -140,6 +143,30 @@ const AppContent = () => {
         >
           <Text style={[styles.footerIcon, currentScreen === 'services' && styles.activeFooterIcon]}>⚙️</Text>
           <Text style={styles.footerLabel}>Services</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.footerTab, currentScreen === 'credits' && styles.activeFooterTab]}
+          onPress={() => navigateTo('credits')}
+        >
+          <Text style={[styles.footerIcon, currentScreen === 'credits' && styles.activeFooterIcon]}>💰</Text>
+          <Text style={styles.footerLabel}>Credits</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.footerTab, currentScreen === 'billing' && styles.activeFooterTab]}
+          onPress={() => navigateTo('billing')}
+        >
+          <Text style={[styles.footerIcon, currentScreen === 'billing' && styles.activeFooterIcon]}>📊</Text>
+          <Text style={styles.footerLabel}>Billing</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.footerTab, currentScreen === 'help' && styles.activeFooterTab]}
+          onPress={() => navigateTo('help')}
+        >
+          <Text style={[styles.footerIcon, currentScreen === 'help' && styles.activeFooterIcon]}>❓</Text>
+          <Text style={styles.footerLabel}>Help</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
