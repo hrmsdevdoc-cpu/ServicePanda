@@ -6,7 +6,9 @@ const React = require('react');
 const { useState } = require('react');
 const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
 const { AuthProvider, useAuth } = require('./src/contexts/AuthContext');
+// Direct registration screen for testing
 const LoginScreen = require('./src/screens/auth/LoginScreen');
+const ProviderRegistrationScreen = require('./src/screens/auth/ProviderRegistrationScreen');
 const DashboardScreen = require('./src/screens/dashboard/DashboardScreen');
 const ActiveLeadsScreen = require('./src/screens/leads/ActiveLeadsScreen');
 const ClosedLeadsScreen = require('./src/screens/leads/ClosedLeadsScreen');
@@ -56,8 +58,13 @@ const AppContent = () => {
   }
 
   if (!isAuthenticated) {
+    // Direct registration screen for testing
     return <LoginScreen />;
   }
+  // if (!isAuthenticated) {
+  //   // Direct registration screen for testing
+  //   return <ProviderRegistrationScreen />;
+  // }
 
   // Render different screens based on currentScreen
   const renderScreen = () => {

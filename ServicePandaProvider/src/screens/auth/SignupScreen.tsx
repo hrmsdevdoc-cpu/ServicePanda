@@ -1,7 +1,7 @@
 const React = require('react');
 const { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } = require('react-native');
 
-const SignupScreen = ({ onNavigate }) => {
+const SignupScreen = ({ onNavigate, navigation }) => {
   const [fullName, setFullName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [phone, setPhone] = React.useState('');
@@ -15,6 +15,12 @@ const SignupScreen = ({ onNavigate }) => {
 
   const handleLogin = () => {
     onNavigate('login');
+  };
+
+  const handleProviderRegistration = () => {
+    if (navigation) {
+      navigation.navigate('ProviderRegistration');
+    }
   };
 
   return (
@@ -89,6 +95,21 @@ const SignupScreen = ({ onNavigate }) => {
             <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
               <Text style={styles.signupButtonText}>Create Account</Text>
             </TouchableOpacity>
+
+            {/* Provider Registration Button */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity 
+              style={styles.providerButton} 
+              onPress={handleProviderRegistration}
+            >
+              <Text style={styles.providerButtonText}>Join as Service Provider</Text>
+              <Text style={styles.providerButtonSubtext}>Complete multi-step registration</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.footer}>
@@ -159,6 +180,40 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  dividerText: {
+    marginHorizontal: 15,
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  providerButton: {
+    backgroundColor: '#34C759',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  providerButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  providerButtonSubtext: {
+    color: '#fff',
+    fontSize: 12,
+    opacity: 0.9,
   },
   footer: {
     flexDirection: 'row',

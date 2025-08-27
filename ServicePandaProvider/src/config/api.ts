@@ -1,5 +1,5 @@
 // API Configuration for different environments
-export const API_CONFIG = {
+const API_CONFIG = {
   development: {
     // Try these URLs in order - the first one that works will be used
     urls: [
@@ -20,9 +20,15 @@ export const API_CONFIG = {
 const isDevelopment = __DEV__;
 
 // Export the current configuration
-export const getCurrentApiConfig = () => {
+const getCurrentApiConfig = () => {
   return isDevelopment ? API_CONFIG.development : API_CONFIG.production;
 };
 
 // Export the base URL for use in API service
-export const API_BASE_URL = getCurrentApiConfig().defaultUrl;
+const API_BASE_URL = getCurrentApiConfig().defaultUrl;
+
+module.exports = {
+  API_CONFIG,
+  getCurrentApiConfig,
+  API_BASE_URL
+};

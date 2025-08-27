@@ -185,17 +185,17 @@ const LoginScreen = () => {
                 <Text style={styles.registerText}>
                   Don't have a provider account?{' '}
                 </Text>
-                <Button
-                  mode="text"
-                  onPress={() => {
-                    // TODO: Navigate to signup screen
-                    Alert.alert("Coming Soon", "Signup functionality will be added soon.");
-                  }}
-                  style={styles.linkButton}
-                  textColor={colors.primary}
-                >
-                  Join us as a Partner
-                </Button>
+                                                   <Button
+                    mode="text"
+                    onPress={() => {
+                      // TODO: Navigation will be implemented later
+                      Alert.alert("Coming Soon", "Provider registration navigation will be added soon.");
+                    }}
+                    style={styles.linkButton}
+                    textColor={colors.primary}
+                  >
+                    Join us as a Partner
+                  </Button>
               </View>
             </View>
           </Card.Content>

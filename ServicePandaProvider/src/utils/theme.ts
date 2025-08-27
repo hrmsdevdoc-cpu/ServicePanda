@@ -32,11 +32,16 @@ const colors = {
   info: '#3b82f6', // Blue-500 for info
   background: '#fafafa',
   surface: '#ffffff',
+  white: '#ffffff',
   text: '#111827', // Dark gray
   textSecondary: '#6b7280', // Medium gray
   textTertiary: '#9ca3af', // Light gray
   border: '#d1d5db', // Light gray
   borderLight: '#e5e7eb', // Very light gray
+  // Additional colors for registration components
+  primaryLight: '#dbeafe', // Light blue background
+  successLight: '#d1fae5', // Light green background
+  infoLight: '#dbeafe', // Light blue background
 };
 
 module.exports = { theme, colors };
