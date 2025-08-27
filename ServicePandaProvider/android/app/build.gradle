@@ -46,4 +46,5 @@ dependencies {
     implementation("com.facebook.react:react-native:+")
     implementation("com.facebook.react:hermes-android")
     implementation project(':@react-native-async-storage_async-storage')
+    implementation project(':react-native-image-picker')
 }
