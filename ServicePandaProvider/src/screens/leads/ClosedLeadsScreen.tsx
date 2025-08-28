@@ -30,7 +30,7 @@ function ClosedLeadsScreen({ onNavigate }) {
       }
     >
       {/* Header */}
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => onNavigate('leads')}
@@ -41,7 +41,7 @@ function ClosedLeadsScreen({ onNavigate }) {
           <Title style={styles.title}>Closed Leads ({closedLeads.length})</Title>
           <Paragraph style={styles.subtitle}>Your completed leads and records</Paragraph>
         </View>
-      </View>
+      </View> */}
 
       {/* Loading State */}
       {closedLeadsLoading ? (
@@ -89,63 +89,61 @@ function ClosedLeadsScreen({ onNavigate }) {
               </View>
             ) : (
               closedLeads.map((lead) => (
-                <Card key={lead.requestId || lead.id} style={styles.leadCard}>
-                  <Card.Content>
-                    <View style={styles.leadHeader}>
-                      <View style={styles.leadTitleContainer}>
-                        <Title style={styles.leadTitle}>
-                          {lead.categoryName || 'N/A'} - {lead.suburb?.toUpperCase() || 'LOCATION'}
-                        </Title>
-                        <View style={styles.statusContainer}>
-                          <Chip 
-                            mode="outlined" 
-                            style={[
-                              styles.statusChip, 
-                              { 
-                                borderColor: lead.wasJobBooked ? '#10B981' : '#6B7280',
-                                backgroundColor: lead.wasJobBooked ? '#F0FDF4' : '#F9FAFB'
-                              }
-                            ]}
-                            textStyle={{ 
-                              color: lead.wasJobBooked ? '#10B981' : '#6B7280'
-                            }}
-                          >
-                            {lead.wasJobBooked ? 'Job Booked' : 'Not Booked'}
-                          </Chip>
-                        </View>
-                      </View>
-                      <View style={styles.closedDate}>
-                        <Text style={styles.closedDateLabel}>Closed:</Text>
-                        <Text style={styles.closedDateText}>
-                          {lead.closedAt ? new Date(lead.closedAt).toLocaleDateString() : 'N/A'}
-                        </Text>
+                <View key={lead.requestId || lead.id} style={styles.leadCard}>
+                  {/* Top Row - Category & Status */}
+                  <View style={styles.leadTopRow}>
+                    <View style={styles.categorySection}>
+                      <Text style={styles.categoryIcon}>🏠</Text>
+                      <View style={styles.categoryText}>
+                        <Text style={styles.categoryName}>{lead.categoryName || 'N/A'}</Text>
+                        <Text style={styles.locationText}>{lead.suburb?.toUpperCase() || 'LOCATION'}</Text>
                       </View>
                     </View>
-
-                    <View style={styles.customerInfo}>
-                      <Text style={styles.customerLabel}>
-                        Customer: {lead.customerName || 'N/A'} - {lead.customerPhone || 'N/A'}
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: lead.wasJobBooked ? '#10B981' : '#6B7280' }
+                    ]}>
+                      <Text style={styles.statusText}>
+                        {lead.wasJobBooked ? 'Job Booked' : 'Not Booked'}
                       </Text>
                     </View>
+                  </View>
 
-                    {/* Additional lead details if available */}
-                    {lead.description && (
-                      <Paragraph style={styles.leadDescription}>
-                        {lead.description}
-                      </Paragraph>
-                    )}
-
-                    <View style={styles.leadActions}>
-                      <Button
-                        mode="outlined"
-                        onPress={() => onNavigate('leadDetails', { leadId: lead.requestId || lead.id })}
-                        style={styles.actionButton}
-                      >
-                        View Details
-                      </Button>
+                  {/* Middle Row - Customer Info */}
+                  <View style={styles.customerRow}>
+                    <View style={styles.customerIconContainer}>
+                      <Text style={styles.customerIcon}>👤</Text>
                     </View>
-                  </Card.Content>
-                </Card>
+                    <View style={styles.customerDetails}>
+                      <Text style={styles.customerName}>{lead.customerName || 'N/A'}</Text>
+                      <Text style={styles.customerPhone}>{lead.customerPhone || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.dateContainer}>
+                      <Text style={styles.dateLabel}>Closed</Text>
+                      <Text style={styles.dateValue}>
+                        {lead.closedAt ? new Date(lead.closedAt).toLocaleDateString() : 'N/A'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Description Row */}
+                  {lead.description && (
+                    <View style={styles.descriptionRow}>
+                      <Text style={styles.descriptionText}>{lead.description}</Text>
+                    </View>
+                  )}
+
+                  {/* Bottom Row - Action Button */}
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity 
+                      style={styles.viewButton}
+                      onPress={() => onNavigate('leadDetails', { leadId: lead.requestId || lead.id })}
+                    >
+                      <Text style={styles.viewButtonText}>View Details</Text>
+                      <Text style={styles.viewButtonIcon}>→</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               ))
             )}
           </View>
@@ -217,79 +215,135 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   leadCard: {
-    marginBottom: 16,
-    marginHorizontal: 20,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    marginHorizontal: 4,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
-  leadHeader: {
+  leadTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  leadTitleContainer: {
-    flex: 1,
-  },
-  leadTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  statusChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.success + '20',
-    borderColor: colors.success,
-  },
-  statusChipText: {
-    color: colors.success,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  closedDate: {
+  categorySection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    flex: 1,
   },
-  closedDateLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginRight: 4,
+  categoryIcon: {
+    fontSize: 20,
+    marginRight: 10,
   },
-  closedDateText: {
+  categoryText: {
+    flex: 1,
+  },
+  categoryName: {
     fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 3,
+  },
+  locationText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 18,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  customerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: colors.background,
+    borderRadius: 6,
+  },
+  customerIconContainer: {
+    marginRight: 10,
+  },
+  customerIcon: {
+    fontSize: 18,
+  },
+  customerDetails: {
+    flex: 1,
+  },
+  customerName: {
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text,
+    marginBottom: 2,
   },
-  customerInfo: {
-    marginBottom: 16,
-  },
-  customerLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  leadDescription: {
-    fontSize: 14,
+  customerPhone: {
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 16,
-    lineHeight: 20,
   },
-  leadActions: {
-    marginTop: 16,
+  dateContainer: {
     alignItems: 'flex-end',
   },
-  actionButton: {
-    borderRadius: 8,
+  dateLabel: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  dateValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  descriptionRow: {
+    marginBottom: 12,
+    paddingHorizontal: 3,
+  },
+  descriptionText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
+  actionRow: {
+    alignItems: 'flex-end',
+  },
+  viewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: 'flex-end',
+  },
+  viewButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    marginRight: 6,
+  },
+  viewButtonIcon: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '700',
   },
   loadingContainer: {
     flex: 1,

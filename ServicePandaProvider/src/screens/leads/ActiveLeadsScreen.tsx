@@ -33,7 +33,7 @@ function ActiveLeadsScreen({ onNavigate }) {
       }
     >
       {/* Header */}
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => onNavigate('leads')}
@@ -44,7 +44,7 @@ function ActiveLeadsScreen({ onNavigate }) {
           <Title style={styles.title}>Active Leads ({purchasedLeads.length})</Title>
           <Paragraph style={styles.subtitle}>Manage your current projects</Paragraph>
         </View>
-      </View>
+      </View> */}
 
       {/* Loading State */}
       {leadsLoading ? (
@@ -217,8 +217,8 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
+    padding: 12,
+    gap: 8,
   },
   statCard: {
     flex: 1,
@@ -226,41 +226,41 @@ const styles = StyleSheet.create({
   },
   statContent: {
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.primary,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     textAlign: 'center',
   },
   leadsContainer: {
-    padding: 16,
+    padding: 12,
   },
   leadCard: {
-    marginBottom: 16,
+    marginBottom: 12,
     elevation: 2,
   },
   leadHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   leadTitleContainer: {
     flex: 1,
-    marginRight: 16,
+    marginRight: 12,
   },
   leadTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   statusContainer: {
     flexDirection: 'row',
@@ -273,44 +273,44 @@ const styles = StyleSheet.create({
   },
   statusChipText: {
     color: colors.success,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   leadBudget: {
     alignItems: 'center',
   },
   budgetLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   budgetAmount: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.success,
   },
   leadDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 16,
+    lineHeight: 18,
+    marginBottom: 12,
   },
   leadDetails: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   detailIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    fontSize: 14,
+    marginRight: 6,
   },
   detailText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.text,
-    marginRight: 8,
+    marginRight: 6,
   },
   leadActions: {
     flexDirection: 'row',
@@ -329,28 +329,28 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: 12,
+    fontSize: 14,
     color: colors.textSecondary,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 40,
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: 40,
+    marginBottom: 12,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
   },

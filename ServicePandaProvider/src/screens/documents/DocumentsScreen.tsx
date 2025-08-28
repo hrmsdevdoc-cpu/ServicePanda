@@ -31,29 +31,60 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
     policeCheck: null,
     insuranceCertificate: null,
   });
+  const [providerId, setProviderId] = useState(null);
 
   // Fetch existing documents when component mounts
   useEffect(() => {
-    fetchExistingDocuments();
+    // Get provider ID from AsyncStorage first (same as web version)
+    const getProviderId = async () => {
+      try {
+        const storedProviderId = await AsyncStorage.getItem('providerId');
+        console.log('🔍 DocumentsScreen - Initial providerId from AsyncStorage:', storedProviderId);
+        
+        if (storedProviderId) {
+          // Convert to number to ensure proper API calls
+          const numericProviderId = parseInt(storedProviderId, 10);
+          console.log('🔍 DocumentsScreen - Converted providerId to number:', numericProviderId);
+          setProviderId(numericProviderId);
+          // Now fetch documents with the numeric provider ID
+          await fetchExistingDocuments(numericProviderId);
+        } else {
+          console.log('❌ DocumentsScreen - No providerId found in AsyncStorage');
+          setIsLoadingDocuments(false);
+        }
+      } catch (error) {
+        console.error('❌ DocumentsScreen - Error getting providerId:', error);
+        setIsLoadingDocuments(false);
+      }
+    };
+    
+    getProviderId();
   }, []);
 
-  const fetchExistingDocuments = async () => {
+  const fetchExistingDocuments = async (providerIdParam: number | null = null) => {
     try {
       setIsLoadingDocuments(true);
       
-      // Get provider ID from AsyncStorage
-      const providerId = await AsyncStorage.getItem('providerId');
-      if (!providerId) {
-        console.log('Provider ID not found, skipping document fetch');
+      // Use provided providerId or get from state
+      const currentProviderId = providerIdParam || providerId;
+      console.log('🔍 DocumentsScreen - Using providerId:', currentProviderId);
+      
+      if (!currentProviderId) {
+        console.log('❌ Provider ID not found, skipping document fetch');
         setIsLoadingDocuments(false);
         return;
       }
 
       // Fetch documents from API (same endpoint as web app)
-      const documents = await ApiService.getDocuments(providerId);
-      console.log('Fetched documents from API:', documents);
+      console.log('🔍 DocumentsScreen - Calling API with providerId:', currentProviderId);
+      console.log('🔍 DocumentsScreen - API endpoint: /api/service-providers/${currentProviderId}/documents');
+      
+      const documents = await ApiService.getDocuments(currentProviderId);
+      console.log('✅ DocumentsScreen - API response:', documents);
+      console.log('✅ DocumentsScreen - API response type:', typeof documents);
+      console.log('✅ DocumentsScreen - API response isArray:', Array.isArray(documents));
 
-      // Map API response to our document structure
+      // Map API response to our document structure - DYNAMIC LIST FROM REAL DATA
       const mappedDocs = {
         license: null,
         policeCheck: null,
@@ -61,10 +92,23 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       };
 
       if (documents && Array.isArray(documents)) {
-        documents.forEach(doc => {
-          console.log('Processing document:', doc);
+        console.log('✅ DocumentsScreen - Processing', documents.length, 'documents');
+        
+        // Sort documents by upload date (newest first)
+        const sortedDocuments = documents.sort((a, b) => {
+          const dateA = new Date(a.uploadedAt || a.createdAt || 0);
+          const dateB = new Date(b.uploadedAt || b.createdAt || 0);
+          return dateB - dateA; // Newest first
+        });
+        
+        console.log('✅ DocumentsScreen - Sorted documents (newest first):', sortedDocuments);
+        
+        // Process each document type and get the LATEST one
+        sortedDocuments.forEach((doc, index) => {
+          console.log(`✅ DocumentsScreen - Document ${index + 1}:`, doc);
           
-          if (doc.documentType === 'license') {
+          // Map document types correctly
+          if (doc.documentType === 'license' && !mappedDocs.license) {
             mappedDocs.license = {
               id: doc.id,
               name: doc.fileName || 'License Document',
@@ -75,7 +119,8 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
               filePath: doc.filePath,
               fileName: doc.fileName,
             };
-          } else if (doc.documentType === 'police_check') {
+            console.log('✅ DocumentsScreen - Latest License:', mappedDocs.license);
+          } else if (doc.documentType === 'police_check' && !mappedDocs.policeCheck) {
             mappedDocs.policeCheck = {
               id: doc.id,
               name: doc.fileName || 'Police Check',
@@ -86,7 +131,8 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
               filePath: doc.filePath,
               fileName: doc.fileName,
             };
-          } else if (doc.documentType === 'insurance') {
+            console.log('✅ DocumentsScreen - Latest Police Check:', mappedDocs.policeCheck);
+          } else if (doc.documentType === 'insurance' && !mappedDocs.insuranceCertificate) {
             mappedDocs.insuranceCertificate = {
               id: doc.id,
               name: doc.fileName || 'Insurance Certificate',
@@ -97,9 +143,12 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
               filePath: doc.filePath,
               fileName: doc.fileName,
             };
+            console.log('✅ DocumentsScreen - Latest Insurance:', mappedDocs.insuranceCertificate);
           }
         });
       }
+
+      console.log('✅ Final mapped documents:', mappedDocs);
 
       console.log('Mapped documents:', mappedDocs);
       setExistingDocuments(mappedDocs);
@@ -138,6 +187,8 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
     }
   };
 
+
+
   // This function calls the exact same API as your web app
   const handleViewDocument = async (document, title) => {
     if (!document || !document.hasDocument) {
@@ -157,7 +208,9 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       let filename = document.fileName;
       if (document.filePath) {
         // Extract filename from path (same logic as web app)
-        filename = document.filePath.split('/').pop();
+        // Handle both forward slashes and backslashes
+        const pathSeparator = document.filePath.includes('\\') ? '\\' : '/';
+        filename = document.filePath.split(pathSeparator).pop();
       }
 
       if (!filename) {
@@ -165,10 +218,16 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         return;
       }
 
+      console.log('🔍 Original filePath:', document.filePath);
+      console.log('🔍 Extracted filename:', filename);
+
       // Construct the document view URL (EXACT SAME as web app)
-      const documentViewUrl = `${ApiService.API_BASE_URL}/api/provider/documents/view/${filename}/${providerId}`;
+      const documentViewUrl = `http://192.168.1.39:4000/api/provider/documents/view/${filename}/${providerId}`;
       
-      console.log('Opening document URL (same as web app):', documentViewUrl);
+      console.log('🔍 FULL DOCUMENT URL:', documentViewUrl);
+      console.log('🔍 API Base URL:', 'http://192.168.1.39:4000');
+      console.log('🔍 Filename:', filename);
+      console.log('🔍 Provider ID:', providerId);
 
       // Open document in external browser/app (same as web app behavior)
       const supported = await Linking.canOpenURL(documentViewUrl);
@@ -177,10 +236,10 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         await Linking.openURL(documentViewUrl);
         console.log('Document opened successfully in external viewer');
       } else {
-        // Fallback: show document details
-        Alert.alert('Document Details', 
-          `File: ${document.name}\nSize: ${formatFileSize(document.fileSize)}\nType: ${document.mimeType}\n\nDocument will open in external viewer.`
-        );
+              // Fallback: show document details with FULL URL
+      Alert.alert('Document Details', 
+        `File: ${document.name}\nSize: ${formatFileSize(document.fileSize)}\nType: ${document.mimeType}\n\nFULL URL: ${documentViewUrl}\n\nDocument will open in external viewer.`
+      );
       }
 
     } catch (error) {
@@ -314,10 +373,9 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
 
       setIsUploading(true);
 
-      // Get provider ID from AsyncStorage
-      const providerId = await AsyncStorage.getItem('providerId');
+      // Use provider ID from state (same as web version)
       if (!providerId) {
-        throw new Error('Provider information not found.');
+        throw new Error('Provider information not found. Please complete registration first.');
       }
 
       // Create FormData for React Native - WORKING VERSION
@@ -600,25 +658,7 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
             <Text style={styles.buttonHint}>
               Tap Gallery to select from photos, or Camera to take a new photo
             </Text>
-            <TouchableOpacity
-              onPress={() => {
-                // Demo option for testing on emulators
-                const demoFile = {
-                  uri: 'file://demo',
-                  type: 'image/jpeg',
-                  name: `demo_${documentType}_${Date.now()}.jpg`,
-                  size: 1024 * 1024, // 1MB
-                };
-                setDocumentFiles(prev => ({
-                  ...prev,
-                  [documentType]: demoFile
-                }));
-                Alert.alert('Demo Mode', 'Demo document added for testing. This will not work for actual uploads.');
-              }}
-              style={styles.demoButton}
-            >
-              <Text style={styles.demoButtonText}>🧪 Demo (Emulator Testing)</Text>
-            </TouchableOpacity>
+
           </View>
         ) : (
           <View style={styles.selectedDocument}>
@@ -646,9 +686,12 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       {/* Existing Documents Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Title style={styles.sectionTitle}>Existing Documents</Title>
+          <View style={styles.titleRow}>
+            <Text style={styles.sectionIcon}>📄</Text>
+            <Title style={styles.sectionTitle}>Existing Documents</Title>
+          </View>
           <TouchableOpacity onPress={fetchExistingDocuments} style={styles.refreshButton}>
-            <Text style={styles.refreshButtonText}>🔄 Refresh</Text>
+            <Text style={styles.refreshButtonText}>🔄</Text>
           </TouchableOpacity>
         </View>
         
@@ -681,7 +724,7 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       {/* Update Documents Section */}
       <View style={styles.section}>
         <View style={styles.updateSectionHeader}>
-          <Text style={styles.updateSectionIcon}>📤</Text>
+          <Text style={styles.sectionIcon}>📤</Text>
           <Title style={styles.sectionTitle}>Update Documents</Title>
         </View>
         <Paragraph style={styles.updateSectionDescription}>
@@ -726,31 +769,37 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionIcon: {
+    fontSize: 20,
+    marginRight: 8,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text,
-    marginBottom: 16,
-    paddingHorizontal: 16,
   },
   refreshButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    backgroundColor: colors.primary + '20',
+    borderRadius: 6,
   },
   refreshButtonText: {
-    fontSize: 14,
-    color: colors.text,
+    fontSize: 16,
+    color: colors.primary,
   },
   loadingContainer: {
     flex: 1,
@@ -760,23 +809,25 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
   },
   existingDocsContainer: {
     paddingHorizontal: 16,
-    gap: 12,
+    gap: 10,
   },
   existingDocCard: {
     elevation: 1,
-    backgroundColor: '#f8f9fa',
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    marginBottom: 8,
+    borderRadius: 8,
   },
   existingDocContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   existingDocInfo: {
     flexDirection: 'row',
@@ -784,160 +835,148 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   existingDocIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: 20,
+    marginRight: 10,
   },
   existingDocText: {
     flex: 1,
   },
   existingDocTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   existingDocDate: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
   },
   existingDocSize: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: 1,
   },
   viewButton: {
     backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   uploadRequiredButton: {
     borderColor: colors.textSecondary,
     borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   updateSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  updateSectionIcon: {
-    fontSize: 24,
-    marginRight: 8,
+    marginBottom: 6,
   },
   updateSectionDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 18,
     paddingHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   updateDocsContainer: {
     paddingHorizontal: 16,
-    gap: 16,
+    gap: 12,
   },
   updateDocSection: {
-    backgroundColor: '#f8f9fa',
-    borderWidth: 2,
-    borderColor: '#dee2e6',
-    borderStyle: 'dashed',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 8,
-    padding: 16,
+    padding: 14,
   },
   updateDocTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   updateDocSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   uploadArea: {
     alignItems: 'center',
   },
   uploadIcon: {
-    fontSize: 48,
-    marginBottom: 12,
+    fontSize: 32,
+    marginBottom: 8,
   },
   uploadText: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'center',
   },
   uploadFormats: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 16,
+    marginBottom: 12,
     textAlign: 'center',
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: 6,
   },
   chooseFilesButton: {
     backgroundColor: colors.primary,
     flex: 1,
+    paddingVertical: 6,
   },
   cameraButton: {
     borderColor: colors.primary,
     flex: 1,
+    paddingVertical: 6,
   },
   halfWidth: {
     flex: 1,
   },
   buttonHint: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     textAlign: 'center',
     fontStyle: 'italic',
-  },
-  demoButton: {
-    backgroundColor: '#ff9800',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    marginTop: 8,
-    alignSelf: 'center',
-  },
-  demoButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
   },
   selectedDocument: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#e3f2fd',
-    padding: 12,
+    backgroundColor: colors.primary + '10',
+    padding: 10,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.primary + '30',
   },
   documentInfo: {
     flex: 1,
   },
   documentName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   documentSize: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
   },
   removeButton: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    backgroundColor: colors.error,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   removeButtonText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
   uploadSection: {

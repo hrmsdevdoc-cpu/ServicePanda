@@ -6,7 +6,12 @@ const { useQuery, useQueryClient } = require('@tanstack/react-query');
 const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
 
-function ProfileScreen({ onNavigate, onLogout }) {
+interface ProfileScreenProps {
+  onNavigate?: (screen: string) => void;
+  onLogout?: () => void;
+}
+
+function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
   // const navigation = useNavigation(); // Temporarily commented out
   const queryClient = useQueryClient();
 
@@ -26,7 +31,7 @@ function ProfileScreen({ onNavigate, onLogout }) {
           style: 'destructive',
           onPress: () => {
             queryClient.clear();
-            onLogout();
+            onLogout?.();
           }
         },
       ]
@@ -82,7 +87,7 @@ function ProfileScreen({ onNavigate, onLogout }) {
           <List.Item
             title="Business Name"
             description={profile.businessName || 'Not specified'}
-            left={props => <List.Icon {...props} icon="store" />}
+            left={(props: any) => <List.Icon {...props} icon="store" />}
           />
           
           <Divider />
@@ -90,7 +95,7 @@ function ProfileScreen({ onNavigate, onLogout }) {
           <List.Item
             title="Business ABN"
             description={profile.businessAbn || 'Not specified'}
-            left={props => <List.Icon {...props} icon="card-account-details" />}
+            left={(props: any) => <List.Icon {...props} icon="card-account-details" />}
           />
           
           <Divider />
@@ -98,7 +103,7 @@ function ProfileScreen({ onNavigate, onLogout }) {
           <List.Item
             title="Mobile Number"
             description={profile.mobileNumber || 'Not specified'}
-            left={props => <List.Icon {...props} icon="phone" />}
+            left={(props: any) => <List.Icon {...props} icon="phone" />}
           />
           
           <Divider />
@@ -106,7 +111,7 @@ function ProfileScreen({ onNavigate, onLogout }) {
           <List.Item
             title="Address"
             description={profile.address || 'Not specified'}
-            left={props => <List.Icon {...props} icon="map-marker" />}
+            left={(props: any) => <List.Icon {...props} icon="map-marker" />}
           />
         </Card.Content>
       </Card>
@@ -119,7 +124,7 @@ function ProfileScreen({ onNavigate, onLogout }) {
           <List.Item
             title="Provider Status"
             description={profile.providerStatus === 'activated' ? '✅ Activated' : '❌ Deactivated'}
-            left={props => <List.Icon {...props} icon="account-check" />}
+            left={(props: any) => <List.Icon {...props} icon="account-check" />}
           />
           
           <Divider />
@@ -127,7 +132,7 @@ function ProfileScreen({ onNavigate, onLogout }) {
           <List.Item
             title="Documents Uploaded"
             description={profile.documentsUploaded ? '✅ Complete' : '❌ Incomplete'}
-            left={props => <List.Icon {...props} icon="file-document" />}
+            left={(props: any) => <List.Icon {...props} icon="file-document" />}
           />
           
           <Divider />
@@ -135,7 +140,7 @@ function ProfileScreen({ onNavigate, onLogout }) {
           <List.Item
             title="Terms Accepted"
             description={profile.termsAccepted ? '✅ Accepted' : '❌ Not Accepted'}
-            left={props => <List.Icon {...props} icon="check-circle" />}
+            left={(props: any) => <List.Icon {...props} icon="check-circle" />}
           />
           
           <Divider />
@@ -143,7 +148,7 @@ function ProfileScreen({ onNavigate, onLogout }) {
           <List.Item
             title="Rating"
             description={`${profile.rating || '5.0'} ⭐ (${profile.totalReviews || 0} reviews)`}
-            left={props => <List.Icon {...props} icon="star" />}
+            left={(props: any) => <List.Icon {...props} icon="star" />}
           />
         </Card.Content>
       </Card>
@@ -214,57 +219,57 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 16,
   },
   profileCard: {
-    margin: 16,
-    elevation: 2,
+    margin: 12,
+    elevation: 1,
   },
   profileContent: {
     alignItems: 'center',
-    padding: 24,
+    padding: 16,
   },
   avatar: {
-    marginBottom: 16,
+    marginBottom: 12,
     backgroundColor: colors.primary,
   },
   profileInfo: {
     alignItems: 'center',
   },
   profileName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   profileEmail: {
-    fontSize: 16,
+    fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   profileStatus: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
   },
   infoCard: {
-    margin: 16,
+    margin: 12,
     marginTop: 0,
-    elevation: 2,
+    elevation: 1,
   },
   sectionTitle: {
-    fontSize: 18,
-    marginBottom: 16,
+    fontSize: 14,
+    marginBottom: 12,
   },
   actionButton: {
-    marginBottom: 12,
+    marginBottom: 10,
     borderColor: colors.primary,
   },
   logoutCard: {
-    margin: 16,
+    margin: 12,
     marginTop: 0,
-    elevation: 2,
+    elevation: 1,
   },
   logoutButton: {
-    marginTop: 8,
+    marginTop: 6,
   },
 });
 

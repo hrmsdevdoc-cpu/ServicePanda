@@ -251,8 +251,9 @@ function DashboardScreen({ onNavigate }) {
           <View style={styles.sidebar}>
             {/* Sidebar Header with Close Button */}
             <View style={styles.sidebarHeader}>
-              <View style={styles.sidebarHeaderTop}>
+              <View style={styles.sidebarHeaderRow}>
                 <Text style={styles.sidebarLogo}>🐼</Text>
+                <Text style={styles.sidebarTitle}>ServicePanda</Text>
                 <TouchableOpacity 
                   style={styles.closeButton}
                   onPress={closeSidebar}
@@ -260,12 +261,6 @@ function DashboardScreen({ onNavigate }) {
                   <Text style={styles.closeButtonText}>✕</Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.sidebarTitleContainer}>
-                <Text style={styles.sidebarTitle}>ServicePanda</Text>
-                <Text style={styles.sidebarSubtitle}>Partners</Text>
-              </View>
-              {/* Swipe hint */}
-              <Text style={styles.swipeHint}>💡 Tap outside or use ✕ to close</Text>
             </View>
             
             <ScrollView style={styles.sidebarContent}>
@@ -429,12 +424,12 @@ function DashboardScreen({ onNavigate }) {
         }
       >
         {/* Dashboard Header */}
-        <View style={styles.dashboardHeader}>
+        {/* <View style={styles.dashboardHeader}>
           <Title style={styles.dashboardTitle}>Dashboard</Title>
           <Paragraph style={styles.dashboardSubtitle}>
             Overview of your provider activities
           </Paragraph>
-        </View>
+        </View> */}
 
         {/* Status Alert */}
         {profile?.status === 'pending' && (
@@ -459,7 +454,7 @@ function DashboardScreen({ onNavigate }) {
               <Card.Content style={styles.metricContent}>
                 <View style={styles.metricHeader}>
                   <View style={styles.metricIconContainer}>
-                    <Text style={styles.metricIcon}>🔔</Text>
+                    <Text style={styles.metricIcon}>🎯</Text>
                   </View>
                   <Text style={styles.metricStatus}>New Leads Available</Text>
                 </View>
@@ -559,37 +554,42 @@ function DashboardScreen({ onNavigate }) {
               <View style={styles.activitiesContainer}>
                 {activities.slice(0, 10).map((activity, index) => (
                   <View key={activity.id || index} style={styles.activityItem}>
-                    <View style={styles.activityItemHeader}>
+                    <View style={styles.activityChipContainer}>
                       <Chip
                         mode="outlined"
                         style={[styles.activityChip, { borderColor: getActivityColor(activity.activityType) }]}
-                        textStyle={{ color: getActivityColor(activity.activityType) }}
+                        textStyle={[styles.activityChipText, { color: getActivityColor(activity.activityType) }]}
                       >
                         {getActivityIcon(activity.activityType)} {activity.activityType.replace('_', ' ').toUpperCase()}
                       </Chip>
+                    </View>
+                    
+                    <Paragraph style={styles.activityMessage} numberOfLines={3}>
+                      {activity.message}
+                    </Paragraph>
+                    
+                    <View style={styles.descriptionRow}>
+                      {activity.description && (
+                        <Paragraph style={styles.activityDescription} numberOfLines={2}>
+                          {activity.description}
+                        </Paragraph>
+                      )}
+                      
                       <Text style={styles.activityTime}>
                         {new Date(activity.timestamp).toLocaleDateString()}
                       </Text>
                     </View>
                     
-                    <Paragraph style={styles.activityMessage}>
-                      {activity.message}
-                    </Paragraph>
-                    
-                    {activity.description && (
-                      <Paragraph style={styles.activityDescription}>
-                        {activity.description}
-                      </Paragraph>
-                    )}
-                    
                     {activity.activityType === 'new_offer' && activity.leadCost && (
-                      <Chip
-                        mode="outlined"
-                        style={[styles.costChip, { borderColor: colors.success }]}
-                        textStyle={{ color: colors.success }}
-                      >
-                        ${activity.leadCost}
-                      </Chip>
+                      <View style={styles.costChipContainer}>
+                        <Chip
+                          mode="outlined"
+                          style={[styles.costChip, { borderColor: colors.success }]}
+                          textStyle={[styles.costChipText, { color: colors.success }]}
+                        >
+                          ${activity.leadCost}
+                        </Chip>
+                      </View>
                     )}
                   </View>
                 ))}
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: width * 0.8,
+    width: width * 0.6,
     height: '100%',
     backgroundColor: colors.surface,
     borderRightWidth: 1,
@@ -665,9 +665,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   sidebarHeader: {
-    padding: 16,
-    paddingTop: 32, // Better top padding
-    paddingBottom: 16,
+    padding: 12,
+    paddingTop: 24,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: '#FFFFFF',
@@ -676,20 +676,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 100, // Reduced height for better proportions
+    minHeight: 60,
   },
-  sidebarHeaderTop: {
+  sidebarHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 16,
   },
   closeButton: {
     padding: 8,
-    marginLeft: 'auto', // Push to right side
   },
   closeButtonText: {
     fontSize: 20,
@@ -697,37 +693,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   sidebarLogo: {
-    fontSize: 32, // Slightly smaller for better balance
+    fontSize: 22,
     color: '#3B82F6',
-    textAlign: 'center',
-    marginBottom: 8, // Reduced margin
-  },
-  sidebarTitleContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
   },
   sidebarTitle: {
-    fontSize: 20, // Better proportion
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4, // Reduced margin
+    flex: 1,
     textAlign: 'center',
-  },
-  sidebarSubtitle: {
-    fontSize: 14, // Better proportion
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 8, // Add bottom margin
   },
   sidebarContent: {
     flex: 1,
-    paddingTop: 16, // Reduced since we now have a proper header
+    paddingTop: 0, // Reduced since we now have a proper header
   },
   sidebarItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
@@ -737,13 +720,13 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.primary,
   },
   sidebarIcon: {
-    fontSize: 20,
-    marginRight: 12,
-    width: 24,
+    fontSize: 18,
+    marginRight: 10,
+    width: 20,
     textAlign: 'center', // Center the emoji icons
   },
   sidebarText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text,
     flex: 1,
     fontWeight: '500', // Slightly bolder for better readability
@@ -760,7 +743,7 @@ const styles = StyleSheet.create({
   sidebarSectionHeader: { // Renamed to avoid conflict
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
     backgroundColor: colors.background + '50', // Slight background difference
     borderBottomWidth: 0.5, // Subtle border
     borderBottomColor: colors.borderLight,
@@ -776,33 +759,33 @@ const styles = StyleSheet.create({
     paddingLeft: 8, // Slight indentation
   },
   sidebarSubItem: {
-    padding: 12,
-    paddingLeft: 52,
+    padding: 10,
+    paddingLeft: 42,
     borderBottomWidth: 0.5, // Thinner border
     borderBottomColor: colors.borderLight,
     backgroundColor: colors.surface + '30', // Very subtle background
   },
   sidebarSubText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
     fontWeight: '400',
   },
   userProfile: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
     marginTop: 'auto',
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.background + '30', // Slight background difference
   },
   userIcon: {
-    fontSize: 20,
-    marginRight: 12,
+    fontSize: 18,
+    marginRight: 10,
     textAlign: 'center', // Center the emoji
   },
   userName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
     flex: 1, // Take remaining space
@@ -810,18 +793,18 @@ const styles = StyleSheet.create({
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.error + '10', // Light red background
   },
   logoutIcon: {
-    fontSize: 20,
-    marginRight: 12,
+    fontSize: 18,
+    marginRight: 10,
     textAlign: 'center',
   },
   logoutText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.error, // Red text for logout
   },
@@ -895,8 +878,8 @@ const styles = StyleSheet.create({
   },
   metricContent: {
     alignItems: 'center',
-    padding: 20,
-    minHeight: 140,
+    padding: 16,
+    minHeight: 120,
   },
   metricHeader: {
     flexDirection: 'row',
@@ -904,30 +887,30 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   metricIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.primary + '10',
     justifyContent: 'center',
     alignItems: 'center',
   },
   metricIcon: {
-    fontSize: 24,
+    fontSize: 18,
     color: colors.primary,
   },
   metricStatus: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginLeft: 12,
+    marginLeft: 8,
   },
   metricNumber: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     color: colors.primary,
     marginBottom: 4,
   },
   metricLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 2,
   },
@@ -938,7 +921,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   trendText: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.success,
     fontWeight: '500',
   },
@@ -950,7 +933,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   actionText: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.primary,
     fontWeight: '500',
   },
@@ -965,16 +948,16 @@ const styles = StyleSheet.create({
   },
   secondaryMetricContent: {
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
   },
   secondaryMetricNumber: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.primary,
     marginBottom: 4,
   },
   secondaryMetricLabel: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 2,
   },
@@ -1056,40 +1039,78 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   activitiesContainer: {
-    gap: 12,
+    // gap is now handled by individual item marginBottom
   },
   activityItem: {
-    padding: 12,
+    padding: 20,
     borderWidth: 1,
     borderColor: colors.borderLight,
     borderRadius: 8,
     backgroundColor: colors.surface,
-  },
-  activityItemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 8,
   },
+  // activityItemHeader style removed - no longer needed
+  activityChipContainer: {
+    width: '100%',
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
   activityChip: {
-    height: 24,
+    height: 'auto',
+    minHeight: 32,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+  activityChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    flexShrink: 0,
+    flexWrap: 'wrap',
   },
   activityTime: {
     fontSize: 12,
     color: colors.textSecondary,
+    textAlign: 'right',
+    alignSelf: 'flex-end',
+    flexShrink: 0,
   },
   activityMessage: {
     fontSize: 14,
     marginBottom: 4,
+    lineHeight: 20,
+    flexShrink: 1,
+  },
+  descriptionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
   activityDescription: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 8,
+    lineHeight: 16,
+    flexShrink: 1,
+    flex: 1,
+    marginRight: 12,
+  },
+  costChipContainer: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
   },
   costChip: {
-    alignSelf: 'flex-start',
-    height: 24,
+    height: 'auto',
+    minHeight: 24,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  costChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   overlay: {
     position: 'absolute',

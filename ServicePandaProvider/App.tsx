@@ -62,13 +62,18 @@ const AppContent = () => {
     return <LoginScreen />;
   }
   // if (!isAuthenticated) {
-  //   // Direct registration screen for testing
-  //   return <ProviderRegistrationScreen />;
+  //   // Show login or registration based on currentScreen
+  //   if (currentScreen === 'login') {
+  //     return <LoginScreen onNavigate={navigateTo} />;
+  //   }
+  //   return <ProviderRegistrationScreen onNavigate={navigateTo} />;
   // }
 
   // Render different screens based on currentScreen
   const renderScreen = () => {
     switch (currentScreen) {
+      case 'login':
+        return <LoginScreen onNavigate={navigateTo} />;
       case 'dashboard':
         return <DashboardScreen onNavigate={navigateTo} />;
       
@@ -145,14 +150,6 @@ const AppContent = () => {
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.footerTab, currentScreen === 'services' && styles.activeFooterTab]}
-          onPress={() => navigateTo('services')}
-        >
-          <Text style={[styles.footerIcon, currentScreen === 'services' && styles.activeFooterIcon]}>⚙️</Text>
-          <Text style={styles.footerLabel}>Services</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
           style={[styles.footerTab, currentScreen === 'credits' && styles.activeFooterTab]}
           onPress={() => navigateTo('credits')}
         >
@@ -166,22 +163,6 @@ const AppContent = () => {
         >
           <Text style={[styles.footerIcon, currentScreen === 'billing' && styles.activeFooterIcon]}>📊</Text>
           <Text style={styles.footerLabel}>Billing</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.footerTab, currentScreen === 'help' && styles.activeFooterTab]}
-          onPress={() => navigateTo('help')}
-        >
-          <Text style={[styles.footerIcon, currentScreen === 'help' && styles.activeFooterIcon]}>❓</Text>
-          <Text style={styles.footerLabel}>Help</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.footerTab, currentScreen === 'payment' && styles.activeFooterTab]}
-          onPress={() => navigateTo('payment')}
-        >
-          <Text style={[styles.footerIcon, currentScreen === 'payment' && styles.activeFooterIcon]}>💳</Text>
-          <Text style={styles.footerLabel}>Payment</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 

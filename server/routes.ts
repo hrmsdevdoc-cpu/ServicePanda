@@ -24,8 +24,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware for admins
   setupAdminAuth(app);
 
-
-
   // Configure multer for file uploads
   const upload = multer({
     dest: "uploads/",
@@ -42,8 +40,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     },
   });
-
-
 
   // Service categories
   app.get('/api/service-categories', async (req, res) => {
@@ -314,8 +310,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload provider documents
-  app.post('/api/service-providers/:id/documents', isProviderAuthenticated, upload.fields([
+  // Upload provider documents during registration (no auth required)
+  app.post('/api/provider/:id/registration-documents', upload.fields([
+    { name: 'license', maxCount: 1 },
+    { name: 'policeCheck', maxCount: 1 },
+    { name: 'insuranceCertificate', maxCount: 1 }
+  ]), async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      // Verify provider exists
+      const provider = await storage.getServiceProvider(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+      
+      const uploadedDocs = [];
+      
+      // Process each document type
+      if (files.license && files.license[0]) {
+        const file = files.license[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'license',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      if (files.policeCheck && files.policeCheck[0]) {
+        const file = files.policeCheck[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'police_check',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      if (files.insuranceCertificate && files.insuranceCertificate[0]) {
+        const file = files.insuranceCertificate[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'insurance',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      // Update provider status
+      await storage.updateServiceProvider(providerId, { documentsUploaded: true });
+      
+      // Send application submitted email after document upload completion
+      try {
+        await sendProviderApplicationSubmittedEmail(provider.email, provider.firstName);
+        console.log(`Application submitted email sent to provider: ${provider.email}`);
+      } catch (emailError) {
+        console.error(`Failed to send application submitted email to ${provider.email}:`, emailError);
+        // Don't fail document upload if email fails
+      }
+      
+      res.json({ 
+        message: "Documents uploaded successfully",
+        documents: uploadedDocs 
+      });
+    } catch (error) {
+      console.error("Error uploading registration documents:", error);
+      res.status(500).json({ message: "Failed to upload documents" });
+    }
+  });
+
+  // Upload provider documents (authenticated) - TEMPORARILY COMMENTED OUT FOR BOTH REGISTRATION AND APP USE
+  app.post('/api/service-providers/:id/documents', /* isProviderAuthenticated, */ upload.fields([
     { name: 'license', maxCount: 1 },
     { name: 'policeCheck', maxCount: 1 },
     { name: 'insuranceCertificate', maxCount: 1 }
@@ -391,6 +467,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading documents:", error);
       res.status(500).json({ message: "Failed to upload documents" });
+    }
+  });
+
+  // NEW: Registration documents upload (NO AUTHENTICATION REQUIRED)
+  app.post('/api/provider/:id/registration-documents', upload.fields([
+    { name: 'license', maxCount: 1 },
+    { name: 'policeCheck', maxCount: 1 },
+    { name: 'insuranceCertificate', maxCount: 1 }
+  ]), async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      // Verify provider exists
+      const provider = await storage.getServiceProvider(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+      
+      const uploadedDocs = [];
+      
+      // Process each document type
+      if (files.license && files.license[0]) {
+        const file = files.license[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'license',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      if (files.policeCheck && files.policeCheck[0]) {
+        const file = files.policeCheck[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'police_check',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      if (files.insuranceCertificate && files.insuranceCertificate[0]) {
+        const file = files.insuranceCertificate[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'insurance',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      // Update provider status
+      await storage.updateServiceProvider(providerId, { documentsUploaded: true });
+      
+      // Send application submitted email after document upload completion
+      try {
+        await sendProviderApplicationSubmittedEmail(provider.email, provider.firstName);
+        console.log(`Application submitted email sent to provider: ${provider.email}`);
+      } catch (emailError) {
+        console.error(`Failed to send application submitted email to ${provider.email}:`, emailError);
+        // Don't fail document upload if email fails
+      }
+      
+      res.json({ 
+        message: "Registration documents uploaded successfully",
+        documents: uploadedDocs 
+      });
+    } catch (error) {
+      console.error("Error uploading registration documents:", error);
+      res.status(500).json({ message: "Failed to upload registration documents" });
     }
   });
 

@@ -163,7 +163,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         {/* Header */}
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <Button 
             mode="text" 
             onPress={onBack}
@@ -172,7 +172,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
             ← Back
           </Button>
           <Title style={styles.headerTitle}>Personal Details</Title>
-        </View>
+        </View> */}
 
         <Card style={styles.card}>
           <Card.Content>
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
   },
   errorContainer: {
@@ -338,94 +338,106 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
-    padding: 20,
+    padding: 16,
   },
   errorText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.error || '#EF4444',
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'center',
   },
   errorSubtext: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 16,
+    marginBottom: 12,
     textAlign: 'center',
   },
   retryButton: {
     backgroundColor: colors.primary,
   },
   content: {
-    padding: 16,
+    padding: 12,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   backButton: {
-    marginRight: 16,
+    marginRight: 12,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
   },
   card: {
     elevation: 2,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 16,
     color: colors.text,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   label: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   input: {
     backgroundColor: colors.surface,
+    height: 40,
+    fontSize: 14,
   },
   disabledInput: {
     backgroundColor: colors.borderLight || '#f5f5f5',
+    height: 40,
+    fontSize: 14,
   },
   errorInput: {
     borderColor: colors.error || '#EF4444',
+    height: 40,
+    fontSize: 14,
   },
   infoText: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     fontStyle: 'italic',
   },
   warningText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#F59E0B',
     fontStyle: 'italic',
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 20,
+    gap: 10,
+    marginTop: 16,
   },
   editButton: {
     backgroundColor: colors.primary,
+    height: 36,
+    fontSize: 14,
   },
   cancelButton: {
     borderColor: colors.border,
+    height: 36,
+    fontSize: 14,
   },
   saveButton: {
     backgroundColor: colors.primary,
+    height: 36,
+    fontSize: 14,
   },
 });
 

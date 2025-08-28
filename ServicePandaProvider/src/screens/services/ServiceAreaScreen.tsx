@@ -180,7 +180,7 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <IconButton
             icon="arrow-left"
             size={24}
@@ -195,10 +195,10 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
           <Text variant="headlineSmall" style={styles.headerTitle}>
             Service Area
           </Text>
-        </View>
+        </View> */}
 
         <Text variant="titleMedium" style={styles.subtitle}>
-          Configure your service coverage
+          {/* Configure your service coverage */}
         </Text>
 
         {/* Configure Service Area Section */}
@@ -372,27 +372,27 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                       <Text variant="bodyMedium" style={styles.serviceAreaAddress}>
                         {area.address}
                       </Text>
+                      <Text variant="bodySmall" style={styles.serviceAreaRadius}>
+                        {area.radius}
+                      </Text>
                       <Text variant="bodySmall" style={styles.serviceAreaName}>
                         {area.areaName}
                       </Text>
                     </View>
                   </View>
                   <View style={styles.serviceAreaActions}>
-                    <Text variant="bodySmall" style={styles.radiusText}>
-                      {area.radius}
-                    </Text>
-                                         <IconButton
-                       icon="pencil"
-                       size={20}
-                       iconColor={colors.primary}
-                       onPress={() => handleEditServiceArea(area.id)}
-                     />
-                     <IconButton
-                       icon="delete"
-                       size={20}
-                       iconColor={colors.error}
-                       onPress={() => handleDeleteServiceArea(area.id)}
-                     />
+                    <IconButton
+                      icon="pencil"
+                      size={20}
+                      iconColor={colors.primary}
+                      onPress={() => handleEditServiceArea(area.id)}
+                    />
+                    <IconButton
+                      icon="delete"
+                      size={20}
+                      iconColor={colors.error}
+                      onPress={() => handleDeleteServiceArea(area.id)}
+                    />
                   </View>
                 </View>
                 {index < serviceAreas.length - 1 && <Divider style={styles.itemDivider} />}
@@ -610,10 +610,16 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
+  serviceAreaRadius: {
+    color: colors.primary,
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '500',
+  },
   serviceAreaActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
   },
   radiusText: {
     color: colors.textSecondary,

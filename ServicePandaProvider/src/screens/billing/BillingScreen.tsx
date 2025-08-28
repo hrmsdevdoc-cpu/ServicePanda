@@ -13,7 +13,12 @@ const { useAuth } = require('../../contexts/AuthContext');
 const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
 
-function BillingScreen({ onNavigate, onBack }) {
+interface BillingScreenProps {
+  onNavigate?: (screen: string) => void;
+  onBack?: () => void;
+}
+
+function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
   const { providerData } = useAuth();
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -37,16 +42,16 @@ function BillingScreen({ onNavigate, onBack }) {
     });
   }, [refetchBilling]);
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ', ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const formatCurrency = (amount) => {
-    return `$${parseFloat(amount || 0).toFixed(2)}`;
+  const formatCurrency = (amount: number | string) => {
+    return `$${parseFloat(String(amount) || '0').toFixed(2)}`;
   };
 
-  const getPaymentMethodIcon = (method) => {
+  const getPaymentMethodIcon = (method: string) => {
     switch (method?.toLowerCase()) {
       case 'credit': return '💰';
       case 'card': return '💳';
@@ -55,7 +60,7 @@ function BillingScreen({ onNavigate, onBack }) {
     }
   };
 
-  const getPaymentMethodLabel = (method) => {
+  const getPaymentMethodLabel = (method: string) => {
     switch (method?.toLowerCase()) {
       case 'credit': return 'Credit Used';
       case 'card': return 'Card Payment';
@@ -171,10 +176,14 @@ function BillingScreen({ onNavigate, onBack }) {
             </View>
           ) : (
             <View style={styles.billingHistoryList}>
-              {billingData.allPaidLeads.map((lead, index) => (
+              {billingData.allPaidLeads.map((lead: any, index: number) => (
                 <View key={lead.id || index} style={styles.billingHistoryItem}>
                   <View style={styles.billingHistoryHeader}>
                     <View style={styles.billingHistoryLeft}>
+                      <View style={styles.transactionTypeContainer}>
+                        <Text style={styles.transactionTypeIcon}>💳</Text>
+                        <Text style={styles.transactionTypeLabel}>Lead Purchase</Text>
+                      </View>
                       <Text style={styles.billingHistoryTitle}>
                         {lead.categoryName}
                       </Text>
@@ -187,8 +196,8 @@ function BillingScreen({ onNavigate, onBack }) {
                     </View>
                     
                     <View style={styles.billingHistoryRight}>
-                      <Text style={styles.billingHistoryAmount}>
-                        {formatCurrency(lead.totalCost)}
+                      <Text style={[styles.billingHistoryAmount, styles.debitAmount]}>
+                        -{formatCurrency(lead.totalCost)}
                       </Text>
                       <View style={styles.paymentMethodContainer}>
                         <Text style={styles.paymentMethodIcon}>
@@ -205,18 +214,18 @@ function BillingScreen({ onNavigate, onBack }) {
                   <View style={styles.paymentBreakdown}>
                     {lead.creditUsed > 0 && (
                       <View style={styles.breakdownItem}>
-                        <Text style={styles.breakdownLabel}>Credit Used:</Text>
+                        <Text style={styles.breakdownLabel}>Credit Applied:</Text>
                         <Text style={[styles.breakdownValue, styles.creditValue]}>
-                          {formatCurrency(lead.creditUsed)}
+                          +{formatCurrency(lead.creditUsed)}
                         </Text>
                       </View>
                     )}
                     
                     {lead.amountCharged > 0 && (
                       <View style={styles.breakdownItem}>
-                        <Text style={styles.breakdownLabel}>Amount Charged:</Text>
+                        <Text style={styles.breakdownLabel}>Card Charged:</Text>
                         <Text style={[styles.breakdownValue, styles.chargedValue]}>
-                          {formatCurrency(lead.amountCharged)}
+                          -{formatCurrency(lead.amountCharged)}
                         </Text>
                       </View>
                     )}
@@ -236,7 +245,7 @@ function BillingScreen({ onNavigate, onBack }) {
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => onNavigate('credits')}
+              onPress={() => onNavigate?.('credits')}
             >
               <Text style={styles.quickActionIcon}>💰</Text>
               <Text style={styles.quickActionText}>Manage Credits</Text>
@@ -244,7 +253,7 @@ function BillingScreen({ onNavigate, onBack }) {
             
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => onNavigate('payment')}
+              onPress={() => onNavigate?.('payment')}
             >
               <Text style={styles.quickActionIcon}>💳</Text>
               <Text style={styles.quickActionText}>Payment Methods</Text>
@@ -252,7 +261,7 @@ function BillingScreen({ onNavigate, onBack }) {
             
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => onNavigate('leads')}
+              onPress={() => onNavigate?.('leads')}
             >
               <Text style={styles.quickActionIcon}>🎯</Text>
               <Text style={styles.quickActionText}>View Leads</Text>
@@ -260,7 +269,7 @@ function BillingScreen({ onNavigate, onBack }) {
             
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => onNavigate('newLeads')}
+              onPress={() => onNavigate?.('newLeads')}
             >
               <Text style={styles.quickActionIcon}>🆕</Text>
               <Text style={styles.quickActionText}>New Leads</Text>
@@ -303,113 +312,113 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    padding: 16,
+    padding: 12,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: 12,
     color: colors.textSecondary,
-    lineHeight: 22,
+    lineHeight: 16,
   },
   summaryContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   summaryCard: {
     flex: 1,
-    marginHorizontal: 4,
-    elevation: 2,
+    marginHorizontal: 3,
+    elevation: 1,
   },
   summaryCardContent: {
-    padding: 16,
+    padding: 10,
   },
   summaryCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   summaryIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: 20,
+    marginRight: 10,
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   summaryValue: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.textPrimary,
     marginBottom: 2,
   },
   summarySubtext: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textSecondary,
   },
   billingHistoryCard: {
-    marginBottom: 16,
-    elevation: 2,
+    marginBottom: 12,
+    elevation: 1,
   },
   sectionHeader: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
   },
   loadingContainer: {
-    paddingVertical: 32,
+    paddingVertical: 24,
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
+    marginTop: 8,
+    fontSize: 13,
     color: colors.textSecondary,
   },
   emptyState: {
-    paddingVertical: 32,
+    paddingVertical: 24,
     alignItems: 'center',
   },
   emptyStateIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: 36,
+    marginBottom: 12,
   },
   emptyStateTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   emptyStateText: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 16,
+    lineHeight: 16,
+    paddingHorizontal: 12,
   },
   billingHistoryList: {
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   billingHistoryItem: {
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -417,65 +426,84 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   billingHistoryLeft: {
     flex: 1,
-    marginRight: 16,
+    marginRight: 12,
+  },
+  transactionTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  transactionTypeIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  transactionTypeLabel: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   billingHistoryTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   billingHistorySubtitle: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   billingHistoryDate: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textTertiary,
   },
   billingHistoryRight: {
     alignItems: 'flex-end',
   },
   billingHistoryAmount: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: 6,
+  },
+  debitAmount: {
+    color: colors.error,
   },
   paymentMethodContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   paymentMethodIcon: {
-    fontSize: 16,
-    marginRight: 6,
+    fontSize: 14,
+    marginRight: 4,
   },
   paymentMethodLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textSecondary,
   },
   paymentBreakdown: {
     backgroundColor: colors.surfaceVariant,
-    padding: 12,
-    borderRadius: 8,
+    padding: 8,
+    borderRadius: 6,
   },
   breakdownItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   breakdownLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textSecondary,
   },
   breakdownValue: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
   },
   creditValue: {
@@ -485,55 +513,55 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   quickActionsCard: {
-    marginBottom: 16,
-    elevation: 2,
+    marginBottom: 12,
+    elevation: 1,
   },
   quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 12,
   },
   quickActionButton: {
     width: '48%',
     backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 8,
+    padding: 12,
+    borderRadius: 6,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     elevation: 1,
   },
   quickActionIcon: {
-    fontSize: 24,
-    marginBottom: 8,
+    fontSize: 20,
+    marginBottom: 6,
   },
   quickActionText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.textPrimary,
     textAlign: 'center',
   },
   infoCard: {
-    marginBottom: 16,
-    elevation: 2,
+    marginBottom: 12,
+    elevation: 1,
   },
   infoSection: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   infoSectionTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   infoList: {
-    // Styles for info list
+    gap: 4,
   },
   infoListItem: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 8,
-    lineHeight: 20,
+    marginBottom: 4,
+    lineHeight: 14,
   },
 });
 

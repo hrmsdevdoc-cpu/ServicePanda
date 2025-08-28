@@ -35,16 +35,7 @@ function LeadsScreen({ onNavigate, onBack }) {
         <RefreshControl refreshing={isLoading} onRefresh={refetchLeads} />
       }
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={onBack}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Leads Management</Text>
-      </View>
+      {/* Header removed - back button already exists at top level */}
 
       {/* Quick Stats - Now Dynamic! */}
       <View style={styles.statsContainer}>
@@ -91,6 +82,7 @@ function LeadsScreen({ onNavigate, onBack }) {
         
         <TouchableOpacity 
           style={styles.actionButton}
+          activeOpacity={0.7}
           onPress={() => onNavigate('newLeads')}
         >
           <Card style={styles.actionCard}>
@@ -107,26 +99,11 @@ function LeadsScreen({ onNavigate, onBack }) {
           </Card>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => onNavigate('activeLeads')}
-        >
-          <Card style={styles.actionCard}>
-            <Card.Content style={styles.actionContent}>
-              <Text style={styles.actionIcon}>⚡</Text>
-              <View style={styles.actionText}>
-                <Title style={styles.actionTitle}>Manage Active Leads</Title>
-                <Paragraph style={styles.actionDescription}>
-                  Track progress and update status of current leads
-                </Paragraph>
-              </View>
-              <Text style={styles.actionArrow}>→</Text>
-            </Card.Content>
-          </Card>
-        </TouchableOpacity>
+
 
         <TouchableOpacity 
           style={styles.actionButton}
+          activeOpacity={0.7}
           onPress={() => onNavigate('closedLeads')}
         >
           <Card style={styles.actionCard}>
@@ -208,8 +185,8 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
+    padding: 12,
+    gap: 8,
   },
   statCard: {
     flex: 1,
@@ -217,96 +194,113 @@ const styles = StyleSheet.create({
   },
   statContent: {
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.primary,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: colors.text,
     marginBottom: 2,
   },
   statStatus: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     textAlign: 'center',
   },
   actionsContainer: {
-    padding: 16,
+    padding: 12,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   actionButton: {
     marginBottom: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   actionCard: {
     elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   actionContent: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
   },
   actionIcon: {
-    fontSize: 32,
-    marginRight: 16,
+    fontSize: 24,
+    marginRight: 12,
+    marginTop: 4,
   },
   actionText: {
     flex: 1,
+    justifyContent: 'flex-start',
   },
   actionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
+    marginTop: 0,
+    marginBottom: 2,
   },
   actionDescription: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   actionArrow: {
-    fontSize: 20,
+    fontSize: 18,
     color: colors.primary,
   },
+  actionButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
   activityContainer: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: 12,
+    paddingBottom: 24,
   },
   activityCard: {
-    marginBottom: 12,
+    marginBottom: 8,
     elevation: 2,
   },
   activityItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   activityIcon: {
-    fontSize: 24,
-    marginRight: 16,
+    fontSize: 20,
+    marginRight: 12,
+    marginTop: 4,
   },
   activityDetails: {
     flex: 1,
+    justifyContent: 'flex-start',
   },
   activityTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: colors.text,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   activityDescription: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   activityTime: {
     fontSize: 12,

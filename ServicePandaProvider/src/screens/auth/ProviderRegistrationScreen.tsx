@@ -20,8 +20,8 @@ const ServicesStep = require('../../components/registration/ServicesStep');
 const ServiceAreasStep = require('../../components/registration/ServiceAreasStep');
 const DocumentUploadStep = require('../../components/registration/DocumentUploadStep');
 
-const ProviderRegistrationScreen = () => {
-  const [currentStep, setCurrentStep] = useState(1);
+const ProviderRegistrationScreen = ({ onNavigate }) => {
+  const [currentStep, setCurrentStep] = useState(1); // Start from step 1 for complete registration flow
   const [isLoading, setIsLoading] = useState(false);
   const [providerId, setProviderId] = useState(null);
   const [isExistingProvider, setIsExistingProvider] = useState(false);
@@ -48,100 +48,100 @@ const ProviderRegistrationScreen = () => {
     insuranceCertificate: null,
   });
 
-  // Check for existing provider and determine current step
-  useEffect(() => {
-    const checkProviderProgress = async () => {
-      setIsCheckingProgress(true);
-      
-      try {
-        let storedProviderId = null;
-        try {
-          if (AsyncStorage && AsyncStorage.getItem) {
-            storedProviderId = await AsyncStorage.getItem('providerId');
-          }
-        } catch (storageError) {
-          console.log('AsyncStorage getItem error:', storageError);
-        }
-        
-        if (!storedProviderId) {
-          throw new Error('No provider session');
-        }
-        
-        const provider = await apiService.request('GET', '/api/provider/profile');
-        if (provider) {
-          setIsExistingProvider(true);
-          setProviderId(provider.id);
-          
-          try {
-            if (AsyncStorage && AsyncStorage.setItem) {
-              await AsyncStorage.setItem('providerId', provider.id.toString());
-            }
-          } catch (storageError) {
-            console.log('AsyncStorage setItem error:', storageError);
-          }
-          
-          // Determine current step based on completed data
-          let targetStep = 1;
-          
-          // Step 1: Basic info (always completed if provider exists)
-          if (provider.firstName && provider.lastName && provider.email) {
-            targetStep = 2;
-            
-            // Check if services are selected (Step 2)
-            try {
-              const services = await apiService.request('GET', '/api/provider/services');
-              if (services && services.length > 0) {
-                targetStep = 3;
-                
-                // Check if service areas are set (Step 3)
-                try {
-                  const areas = await apiService.request('GET', `/api/provider/${provider.id}/service-areas`);
-                  if (areas && areas.length > 0) {
-                    targetStep = 4;
-                    
-                    // Check if documents are uploaded (Step 4)
-                    try {
-                      const documents = await apiService.request('GET', `/api/provider/${provider.id}/documents`);
-                      if (documents && documents.length >= 3) {
-                        targetStep = 5; // All steps completed
-                      }
-                    } catch (error) {
-                      console.log('Documents not uploaded yet');
-                    }
-                  }
-                } catch (error) {
-                  console.log('Service areas not set yet');
-                }
-              }
-            } catch (error) {
-              console.log('Services not selected yet');
-            }
-          }
-          
-          setCurrentStep(targetStep);
-          
-          // Populate form data
-          setFormData(prev => ({
-            ...prev,
-            firstName: provider.firstName || '',
-            lastName: provider.lastName || '',
-            email: provider.email || '',
-            mobileNumber: provider.mobileNumber || '',
-            address: provider.address || '',
-            businessName: provider.businessName || '',
-            businessAbn: provider.businessAbn || '',
-          }));
-        }
-      } catch (error) {
-        console.log('No existing provider session, starting fresh');
-        setCurrentStep(1);
-      } finally {
-        setIsCheckingProgress(false);
-      }
-    };
-
-    checkProviderProgress();
-  }, []);
+  // DISABLED: Check for existing provider and determine current step
+  // useEffect(() => {
+  //   const checkProviderProgress = async () => {
+  //     setIsCheckingProgress(true);
+  //     
+  //     try {
+  //       let storedProviderId = null;
+  //       try {
+  //         if (AsyncStorage && AsyncStorage.getItem) {
+  //           storedProviderId = await AsyncStorage.getItem('providerId');
+  //         }
+  //       } catch (storageError) {
+  //         console.log('AsyncStorage getItem error:', storageError);
+  //       }
+  //       
+  //       if (!storedProviderId) {
+  //         throw new Error('No provider session');
+  //       }
+  //       
+  //       const provider = await apiService.request('GET', '/api/provider/profile');
+  //       if (provider) {
+  //         setIsExistingProvider(true);
+  //         setProviderId(provider.id);
+  //           
+  //         try {
+  //           if (AsyncStorage && AsyncStorage.setItem) {
+  //             await AsyncStorage.setItem('providerId', provider.id.toString());
+  //           }
+  //         } catch (storageError) {
+  //           console.log('AsyncStorage setItem error:', storageError);
+  //         }
+  //           
+  //         // Determine current step based on completed data
+  //         let targetStep = 1;
+  //           
+  //         // Step 1: Basic info (always completed if provider exists)
+  //         if (provider.firstName && provider.lastName && provider.email) {
+  //           targetStep = 2;
+  //             
+  //           // Check if services are selected (Step 2)
+  //           try {
+  //             const services = await apiService.request('GET', '/api/provider/services');
+  //             if (services && services.length > 0) {
+  //               targetStep = 3;
+  //                 
+  //               // Check if service areas are set (Step 3)
+  //               try {
+  //                 const areas = await apiService.request('GET', `/api/provider/${provider.id}/service-areas`);
+  //                 if (areas && areas.length > 0) {
+  //                   targetStep = 4;
+  //                     
+  //                   // Check if documents are uploaded (Step 4)
+  //                   try {
+  //                     const documents = await apiService.request('GET', `/api/service-providers/${provider.id}/documents`);
+  //                       if (documents && documents.length >= 3) {
+  //                         targetStep = 5; // All steps completed
+  //                       }
+  //                     } catch (error) {
+  //                       console.log('Documents not uploaded yet');
+  //                     }
+  //                   }
+  //                 } catch (error) {
+  //                   console.log('Service areas not set yet');
+  //                 }
+  //               }
+  //             } catch (error) {
+  //               console.log('Services not selected yet');
+  //             }
+  //           }
+  //           
+  //           setCurrentStep(targetStep);
+  //           
+  //           // Populate form data
+  //           setFormData(prev => ({
+  //             ...prev,
+  //             firstName: provider.firstName || '',
+  //             lastName: provider.lastName || '',
+  //             email: provider.email || '',
+  //             mobileNumber: provider.mobileNumber || '',
+  //             address: provider.address || '',
+  //             businessName: provider.businessName || '',
+  //             businessAbn: provider.businessAbn || '',
+  //           }));
+  //         }
+  //       } catch (error) {
+  //         console.log('No existing provider session, starting fresh');
+  //         setCurrentStep(1);
+  //       } finally {
+  //         setIsCheckingProgress(false);
+  //       }
+  //     };
+  // 
+  //     checkProviderProgress();
+  //   }, []);
 
   const handleStep1Submit = async (data) => {
     setIsLoading(true);
@@ -159,21 +159,62 @@ const ProviderRegistrationScreen = () => {
 
       setProviderId(response.id);
       
-      // Try to save to AsyncStorage, but don't fail if it doesn't work
+      // After creating account, log the provider in to get authentication (SAME AS WEB VERSION)
       try {
+        console.log('🔐 Auto-login after account creation...');
+        
+        // Save providerId to AsyncStorage FIRST (before login call)
         if (AsyncStorage && AsyncStorage.setItem) {
           await AsyncStorage.setItem('providerId', response.id.toString());
-          await AsyncStorage.setItem('currentProvider', JSON.stringify(response));
+          console.log('✅ providerId saved to AsyncStorage:', response.id);
+          
+          // Verify it was saved with retry mechanism
+          let savedProviderId = null;
+          let retryCount = 0;
+          const maxRetries = 5;
+          
+          while (!savedProviderId && retryCount < maxRetries) {
+            // Add small delay to ensure AsyncStorage operation completes
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            savedProviderId = await AsyncStorage.getItem('providerId');
+            retryCount++;
+            
+            if (!savedProviderId) {
+              console.log(`⏳ Retry ${retryCount}: providerId not found, retrying...`);
+            }
+          }
+          
+          if (savedProviderId) {
+            console.log('✅ Verified providerId in AsyncStorage:', savedProviderId);
+          } else {
+            throw new Error('Failed to save providerId to AsyncStorage after multiple retries');
+          }
         }
-      } catch (storageError) {
-        console.log('AsyncStorage error (non-critical):', storageError);
-        // Continue without storage - not critical for registration
+        
+        // Now login (this will use the providerId from AsyncStorage)
+        const loginResponse = await apiService.request('POST', '/api/provider/login', {
+          email: data.email,
+          password: data.password
+        });
+        
+        // Save additional authentication data
+        if (AsyncStorage && AsyncStorage.setItem) {
+          await AsyncStorage.setItem('currentProvider', JSON.stringify(loginResponse));
+          await AsyncStorage.setItem('providerAuthToken', 'authenticated');
+          console.log('✅ Additional auth data saved to AsyncStorage');
+        }
+        
+        console.log('✅ Provider auto-logged in after registration:', loginResponse);
+      } catch (loginError) {
+        console.error('❌ Auto-login failed after registration:', loginError);
+        // Continue anyway - user can manually login later
       }
       
-      setFormData(prev => ({ ...prev, ...data }));
-      setCurrentStep(2);
-      
-      Alert.alert('Success', 'Account created! Now select the services you provide.');
+             setFormData(prev => ({ ...prev, ...data }));
+       setCurrentStep(2);
+       
+       // Removed success alert - user can see progress in step indicator
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to create account. Please try again.');
     } finally {
@@ -210,10 +251,10 @@ const ProviderRegistrationScreen = () => {
       
       console.log('✅ Step 2 Submit - Success response:', response);
       
-      setFormData(prev => ({ ...prev, selectedServices }));
-      setCurrentStep(3);
-      
-      Alert.alert('Success', 'Services added! Now set your service areas.');
+             setFormData(prev => ({ ...prev, selectedServices }));
+       setCurrentStep(3);
+       
+       // Removed success alert - user can see progress in step indicator
     } catch (error) {
       console.error('❌ Step 2 Submit - Error:', error);
       Alert.alert('Error', error.message || 'Failed to add services. Please try again.');
@@ -230,9 +271,9 @@ const ProviderRegistrationScreen = () => {
         serviceAreas
       });
       
-      setCurrentStep(4);
-      
-      Alert.alert('Success', 'Service areas set! Now upload your documents.');
+             setCurrentStep(4);
+       
+       // Removed success alert - user can see progress in step indicator
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to set service areas. Please try again.');
     } finally {
@@ -241,6 +282,11 @@ const ProviderRegistrationScreen = () => {
   };
 
   const handleStep4Submit = async () => {
+    if (!providerId) {
+      Alert.alert('Error', 'Provider ID not found. Please complete step 1 first.');
+      return;
+    }
+    
     if (!documentFiles.license || !documentFiles.policeCheck || !documentFiles.insuranceCertificate) {
       Alert.alert('Error', 'Please upload all three required documents.');
       return;
@@ -248,12 +294,118 @@ const ProviderRegistrationScreen = () => {
 
     setIsLoading(true);
     try {
+            console.log('🔍 Step 4 Submit - providerId:', providerId);
+      console.log('🔍 Step 4 Submit - documentFiles:', documentFiles);
+      
+      // COMMENTED OUT: Authentication middleware check since user is already logged in from auto-login
+      // Debug authentication before document upload with retry mechanism
+      console.log('🔐 Checking authentication before document upload...');
+      let storedProviderId = null;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!storedProviderId && retryCount < maxRetries) {
+        try {
+          // Add small delay to ensure AsyncStorage is ready
+          if (retryCount > 0) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+          
+          storedProviderId = await AsyncStorage.getItem('providerId');
+          const currentProvider = await AsyncStorage.getItem('currentProvider');
+          const authToken = await AsyncStorage.getItem('providerAuthToken');
+          
+          console.log(`🔐 Attempt ${retryCount + 1}:`);
+          console.log('🔐 Stored providerId:', storedProviderId);
+          console.log('🔐 Current provider data:', currentProvider ? 'Found' : 'Not found');
+          console.log('🔐 Auth token:', authToken);
+          
+          if (storedProviderId) {
+            console.log('✅ Authentication check passed');
+            break;
+          } else {
+            retryCount++;
+            if (retryCount < maxRetries) {
+              console.log(`⏳ Retry ${retryCount}: providerId not found, retrying...`);
+            }
+          }
+        } catch (authError) {
+          console.error(`❌ Authentication check attempt ${retryCount + 1} failed:`, authError);
+          retryCount++;
+        }
+      }
+      
+      // COMMENTED OUT: Skip authentication error since user is already logged in
+      // if (!storedProviderId) {
+      //   console.error('❌ Authentication failed after all retries');
+      //   Alert.alert('Authentication Error', 'Please log in again to continue.');
+      //   return;
+      // }
+      
+      // Use the providerId from state instead of AsyncStorage check
+      console.log('✅ Using providerId from state:', providerId);
+      
+      // Create FormData for React Native - WORKING VERSION (same as DocumentsScreen)
       const formData = new FormData();
-      formData.append('license', documentFiles.license);
-      formData.append('policeCheck', documentFiles.policeCheck);
-      formData.append('insuranceCertificate', documentFiles.insuranceCertificate);
+      
+      console.log('Creating FormData with files:', documentFiles);
+      
+      if (documentFiles.license) {
+        console.log('Adding license file:', documentFiles.license);
+        
+        // Validate file URI
+        if (!documentFiles.license.uri) {
+          throw new Error('License file URI is missing');
+        }
+        
+        // React Native FormData - WORKING STRUCTURE
+        const licenseFile = {
+          uri: documentFiles.license.uri,
+          type: documentFiles.license.type || 'image/jpeg',
+          name: documentFiles.license.name || 'license.jpg',
+        };
+        console.log('License file object:', licenseFile);
+        formData.append('license', licenseFile);
+      }
+      
+      if (documentFiles.policeCheck) {
+        console.log('Adding policeCheck file:', documentFiles.policeCheck);
+        
+        // Validate file URI
+        if (!documentFiles.policeCheck.uri) {
+          throw new Error('Police check file URI is missing');
+        }
+        
+        const policeFile = {
+          uri: documentFiles.policeCheck.uri,
+          type: documentFiles.policeCheck.type || 'image/jpeg',
+          name: documentFiles.policeCheck.name || 'police_check.jpg',
+        };
+        console.log('Police file object:', policeFile);
+        formData.append('policeCheck', policeFile);
+      }
+      
+      if (documentFiles.insuranceCertificate) {
+        console.log('Adding insurance file:', documentFiles.insuranceCertificate);
+        
+        // Validate file URI
+        if (!documentFiles.insuranceCertificate.uri) {
+          throw new Error('Insurance certificate file URI is missing');
+        }
+        
+        const insuranceFile = {
+          uri: documentFiles.insuranceCertificate.uri,
+          type: documentFiles.insuranceCertificate.type || 'image/jpeg',
+          name: documentFiles.insuranceCertificate.name || 'insurance.jpg',
+        };
+        console.log('Insurance file object:', insuranceFile);
+        formData.append('insuranceCertificate', insuranceFile);
+      }
+      
+      console.log('FormData created successfully');
 
-      await apiService.request('POST', `/api/provider/${providerId}/documents`, formData);
+             // Use the new registration-specific endpoint (no authentication required)
+       await apiService.request('POST', `/api/provider/${providerId}/registration-documents`, formData);
       
       setCurrentStep(5);
       
@@ -263,7 +415,12 @@ const ProviderRegistrationScreen = () => {
         [
           {
             text: 'OK',
-            onPress: () => Alert.alert('Info', 'Registration completed! You can now login.')
+            onPress: () => {
+              // Clear registration data and redirect to login
+              AsyncStorage.removeItem('providerId');
+              // You can add navigation to login screen here
+              Alert.alert('Registration Complete', 'Please log in with your email and password to access your account.');
+            }
           }
         ]
       );
@@ -304,16 +461,17 @@ const ProviderRegistrationScreen = () => {
     );
   };
 
-  if (isCheckingProgress) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Checking your progress...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // DISABLED: Loading screen since we're not checking progress
+  // if (isCheckingProgress) {
+  //   return (
+  //     <SafeAreaView style={styles.container}>
+  //       <View style={styles.loadingContainer}>
+  //         <ActivityIndicator size="large" color={colors.primary} />
+  //         <Text style={styles.loadingText}>Checking your progress...</Text>
+  //       </View>
+  //     </SafeAreaView>
+  //   );
+  // }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -379,12 +537,36 @@ const ProviderRegistrationScreen = () => {
                   Our office hours are from 9 AM to 5 PM, Monday to Friday
                 </Text>
               </View>
-              <TouchableOpacity
-                style={styles.loginButton}
-                onPress={() => Alert.alert('Info', 'Registration completed! You can now login.')}
-              >
-                <Text style={styles.loginButtonText}>Login Now</Text>
-              </TouchableOpacity>
+                                                           <TouchableOpacity
+                  style={styles.loginButton}
+                                     onPress={async () => {
+                     try {
+                       // Clear registration data and navigate directly to login
+                       if (AsyncStorage && AsyncStorage.removeItem) {
+                         await AsyncStorage.removeItem('providerId');
+                         await AsyncStorage.removeItem('currentProvider');
+                         await AsyncStorage.removeItem('providerAuthToken');
+                         console.log('✅ Registration data cleared from AsyncStorage');
+                       }
+                       
+                       // Navigate directly to login screen using the app's navigation system
+                       if (onNavigate) {
+                         onNavigate('login');
+                       } else {
+                         // Fallback if navigation prop is not available
+                         Alert.alert('Login Required', 'Please log in with your email and password to access your account.');
+                       }
+                     } catch (error) {
+                       console.error('❌ Error clearing AsyncStorage:', error);
+                       // Continue with navigation even if clearing fails
+                       if (onNavigate) {
+                         onNavigate('login');
+                       }
+                     }
+                   }}
+                >
+                  <Text style={styles.loginButtonText}>Login Now</Text>
+                </TouchableOpacity>
             </View>
           )}
         </View>

@@ -14,7 +14,25 @@ const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
 const SimplePaymentForm = require('../../components/SimplePaymentForm');
 
-const PaymentScreen = ({ onNavigate, onBack }) => {
+interface PaymentMethod {
+  id: string;
+  cardBrand: string;
+  cardLastFour: string;
+  cardExpMonth: string;
+  cardExpYear: string;
+  isPrimary: boolean;
+}
+
+interface Lead {
+  status: string;
+}
+
+interface PaymentScreenProps {
+  onNavigate?: (screen: string) => void;
+  onBack?: () => void;
+}
+
+const PaymentScreen: React.FC<PaymentScreenProps> = ({ onNavigate, onBack }) => {
   const { providerData } = useAuth();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = React.useState(false);
@@ -33,28 +51,28 @@ const PaymentScreen = ({ onNavigate, onBack }) => {
     queryFn: () => apiService.getLeads(),
   });
 
-  const newLeadsCount = leads.filter(l => l.status === 'pending').length;
+  const newLeadsCount = leads.filter((l: Lead) => l.status === 'pending').length;
 
   // Set primary payment method mutation
   const setPrimaryMutation = useMutation({
-    mutationFn: (paymentMethodId) => apiService.setPrimaryPaymentMethod(providerData?.id, paymentMethodId),
+    mutationFn: (paymentMethodId: string) => apiService.setPrimaryPaymentMethod(providerData?.id, paymentMethodId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/provider/payment-methods'] });
       Alert.alert('Success', 'Primary payment method updated successfully.');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       Alert.alert('Error', error.message || 'Failed to update primary payment method.');
     },
   });
 
   // Delete payment method mutation
   const deletePaymentMethodMutation = useMutation({
-    mutationFn: (paymentMethodId) => apiService.deletePaymentMethod(providerData?.id, paymentMethodId),
+    mutationFn: (paymentMethodId: string) => apiService.deletePaymentMethod(providerData?.id, paymentMethodId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/provider/payment-methods'] });
       Alert.alert('Success', 'Payment method removed successfully.');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       Alert.alert('Error', error.message || 'Failed to remove payment method.');
     },
   });
@@ -67,7 +85,7 @@ const PaymentScreen = ({ onNavigate, onBack }) => {
     setRefreshing(false);
   }, [refetchPayments]);
 
-  const formatCardBrand = (brand) => {
+  const formatCardBrand = (brand: string) => {
     switch (brand?.toLowerCase()) {
       case 'visa': return 'Visa';
       case 'mastercard': return 'Mastercard';
@@ -77,7 +95,7 @@ const PaymentScreen = ({ onNavigate, onBack }) => {
     }
   };
 
-  const handleSetPrimary = (paymentMethodId) => {
+  const handleSetPrimary = (paymentMethodId: string) => {
     Alert.alert(
       'Set Primary',
       'Are you sure you want to set this as your primary payment method?',
@@ -88,7 +106,7 @@ const PaymentScreen = ({ onNavigate, onBack }) => {
     );
   };
 
-  const handleDeletePaymentMethod = (paymentMethodId) => {
+  const handleDeletePaymentMethod = (paymentMethodId: string) => {
     Alert.alert(
       'Delete Payment Method',
       'Are you sure you want to remove this payment method?',
@@ -196,11 +214,12 @@ const PaymentScreen = ({ onNavigate, onBack }) => {
       <Card style={styles.paymentMethodsCard}>
         <Card.Content>
           <View style={styles.paymentMethodsHeader}>
-            <Title style={styles.sectionTitle}>Your Payment Methods</Title>
+            <Title style={styles.sectionTitle}>Payment Methods</Title>
             <Button
               mode="contained"
               onPress={handleAddPaymentMethod}
               style={styles.addButton}
+              labelStyle={styles.buttonLabel}
             >
               Add Payment Method
             </Button>
@@ -221,7 +240,7 @@ const PaymentScreen = ({ onNavigate, onBack }) => {
             </View>
           ) : (
             <View style={styles.paymentMethodsList}>
-              {paymentMethods.map((method) => (
+              {paymentMethods.map((method: PaymentMethod) => (
                 <View key={method.id} style={styles.paymentMethodItem}>
                   <View style={styles.paymentMethodInfo}>
                     <View style={styles.paymentMethodIcon}>
@@ -251,6 +270,7 @@ const PaymentScreen = ({ onNavigate, onBack }) => {
                           onPress={() => handleSetPrimary(method.id)}
                           disabled={setPrimaryMutation.isPending}
                           style={styles.actionButton}
+                          labelStyle={styles.buttonLabel}
                         >
                           Set Primary
                         </Button>
@@ -261,6 +281,7 @@ const PaymentScreen = ({ onNavigate, onBack }) => {
                         disabled={deletePaymentMethodMutation.isPending}
                         style={[styles.deleteButton, { borderColor: colors.error }]}
                         textColor={colors.error}
+                        labelStyle={styles.buttonLabel}
                       >
                         Delete
                       </Button>
@@ -321,61 +342,62 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 16,
+    padding: 12,
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   pageSubtitle: {
-    fontSize: 16,
+    fontSize: 12,
     color: colors.textSecondary,
+    lineHeight: 16,
   },
   statusCardsContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   statusCardsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   statusCard: {
     flex: 1,
-    marginHorizontal: 4,
-    elevation: 2,
+    marginHorizontal: 3,
+    elevation: 1,
   },
   statusCardContent: {
-    padding: 16,
+    padding: 10,
   },
   statusCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   statusIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
   iconText: {
-    fontSize: 24,
+    fontSize: 18,
   },
   statusCardText: {
     flex: 1,
   },
   statusCardLabel: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statusCardValue: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   paymentMethodsCard: {
@@ -389,141 +411,154 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   addButton: {
-    marginLeft: 6,
+    marginLeft: 4,
+  },
+  buttonLabel: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 12,
+    padding: 10,
   },
   loadingText: {
-    marginTop: 6,
+    marginTop: 4,
     color: colors.textSecondary,
+    fontSize: 11,
   },
   emptyContainer: {
     alignItems: 'center',
-    padding: 12,
+    padding: 10,
   },
   emptyIcon: {
-    fontSize: 36,
-    marginBottom: 6,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 28,
     marginBottom: 4,
   },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
   emptyText: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
+    lineHeight: 14,
   },
   paymentMethodsList: {
-    //
+    gap: 8,
   },
   paymentMethodItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingVertical: 8,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   paymentMethodInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flex: 1,
+    marginRight: 8,
   },
   paymentMethodIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.primary + '10',
-    marginRight: 10,
+    marginRight: 8,
+    marginTop: 2,
   },
   paymentMethodIconText: {
-    fontSize: 16,
+    fontSize: 14,
   },
   paymentMethodDetails: {
     flex: 1,
-    marginRight: 12,
   },
   paymentMethodTitle: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: 'bold',
+    lineHeight: 14,
   },
   paymentMethodSubtitle: {
-    fontSize: 11,
+    fontSize: 9,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: 1,
+    lineHeight: 12,
   },
   primaryBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
     alignSelf: 'flex-start',
-    marginBottom: 5,
+    marginBottom: 4,
   },
   primaryBadgeText: {
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   paymentMethodRight: {
     alignItems: 'flex-end',
-    gap: 8,
-    minWidth: 80,
+    gap: 4,
+    minWidth: 120,
   },
   paymentMethodActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 4,
   },
   actionButton: {
-    marginRight: 8,
+    marginBottom: 4,
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    minWidth: 110,
   },
   deleteButton: {
-    borderRadius: 5,
-    height: 44,
-    // borderWidth: 1,
-    // paddingHorizontal: 2,
-    // paddingVertical: 5,
-    // minHeight: 5,
+    borderRadius: 6,
+    height: 40,
+    paddingHorizontal: 16,
+    minWidth: 110,
   },
   infoCard: {
-    marginTop: 16,
-    elevation: 2,
+    marginTop: 12,
+    elevation: 1,
   },
   infoGrid: {
     flexDirection: 'column',
-    marginTop: 10,
+    marginTop: 8,
   },
   infoSection: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   infoSectionTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   infoList: {
-    //
+    gap: 4,
   },
   infoListItem: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 5,
+    marginBottom: 3,
+    lineHeight: 14,
   },
   paymentFormCard: {
-    marginBottom: 16,
-    elevation: 2,
+    marginBottom: 12,
+    elevation: 1,
   },
 });
 

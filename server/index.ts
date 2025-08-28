@@ -3,9 +3,6 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import dotenv from 'dotenv';
 import path from 'path';
-import fileUpload from 'express-fileupload';
-import os from 'os';
-
 // Load environment variables from .env file
 const envPath = path.resolve(process.cwd(), '.env');
 console.log('Loading .env file from:', envPath);
@@ -22,12 +19,6 @@ if (!process.env.NODE_ENV) {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(fileUpload({
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-  parseNested: true, // This is needed to parse FormData fields properly
-  useTempFiles: true, // Ensure temp files are created
-  tempFileDir: os.tmpdir(), // Use system temp directory
-}));
 
 // CORS middleware for development
 app.use((req, res, next) => {

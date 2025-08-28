@@ -11,7 +11,19 @@ const {
   Platform,
 } = require('react-native');
 const { colors } = require('../../utils/theme');
-const DocumentPicker = require('react-native-document-picker');
+
+// Import image picker with proper error handling (same as DocumentsScreen)
+let launchImageLibrary = null;
+let launchCamera = null;
+
+try {
+  const ImagePicker = require('react-native-image-picker');
+  launchImageLibrary = ImagePicker.launchImageLibrary;
+  launchCamera = ImagePicker.launchCamera;
+  console.log('Image picker imported successfully');
+} catch (error) {
+  console.error('Failed to import image picker:', error);
+}
 
 const documentTypes = [
   {
@@ -43,47 +55,100 @@ const DocumentUploadStep = ({
 }) => {
   const [uploadingDocument, setUploadingDocument] = useState(null);
 
-  const pickDocument = async (documentType) => {
+  const pickDocument = async (documentType, source = 'library') => {
     try {
       setUploadingDocument(documentType);
       
-      console.log('🔍 Starting document pick for:', documentType);
+      console.log('🔍 Starting document pick for:', documentType, 'from:', source);
       
-      const result = await DocumentPicker.pick({
-        type: [
-          DocumentPicker.types.pdf,
-          DocumentPicker.types.images,
-        ],
-        copyTo: 'cachesDirectory',
-      });
+      // Check if image picker functions are available
+      if (!launchImageLibrary || !launchCamera) {
+        Alert.alert(
+          'Image Picker Not Available', 
+          'The image picker module is not properly installed. Please restart the app or check the installation.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
 
-      console.log('🔍 Document pick result:', result);
+      let result;
+      
+      if (source === 'camera') {
+        result = await launchCamera({
+          mediaType: 'photo',
+          quality: 0.8,
+          includeBase64: false,
+          saveToPhotos: false,
+        });
+      } else {
+        result = await launchImageLibrary({
+          mediaType: 'photo',
+          quality: 0.8,
+          includeBase64: false,
+          selectionLimit: 1,
+        });
+      }
 
-      if (result && result.length > 0) {
-        const file = result[0];
+      console.log('🔍 Image picker result:', result);
+
+      if (result.didCancel) {
+        console.log('User cancelled image selection');
+        return;
+      }
+
+      if (result.errorCode) {
+        console.error('Image picker error:', result.errorCode, result.errorMessage);
+        
+        // Handle specific error codes
+        let errorMessage = 'Failed to select document. ';
+        
+        switch (result.errorCode) {
+          case 'camera_unavailable':
+            errorMessage += 'Camera is not available on this device.';
+            break;
+          case 'permission':
+            errorMessage += 'Permission denied. Please grant camera/photo library access.';
+            break;
+          case 'others':
+            errorMessage += 'Unknown error occurred.';
+            break;
+          default:
+            errorMessage += result.errorMessage || 'Please try again.';
+        }
+        
+        Alert.alert('Selection Error', errorMessage, [{ text: 'OK' }]);
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
         console.log('🔍 Selected file:', file);
         
         // Check file size (10MB limit)
-        if (file.size && file.size > 10 * 1024 * 1024) {
+        if (file.fileSize && file.fileSize > 10 * 1024 * 1024) {
           Alert.alert('Error', 'File size must be less than 10MB. Please choose a smaller file.');
           return;
         }
 
-        // Check file type
-        const allowedTypes = ['pdf', 'jpeg', 'jpg', 'png'];
-        const fileExtension = file.name?.split('.').pop()?.toLowerCase();
-        
-        if (!fileExtension || !allowedTypes.includes(fileExtension)) {
-          Alert.alert('Error', 'Please select a PDF, JPG, or PNG file.');
-          return;
-        }
+        // Create a file object compatible with FormData (same as DocumentsScreen)
+        const fileObj = {
+          uri: file.uri,
+          type: file.type || 'image/jpeg',
+          name: file.fileName || `document_${Date.now()}.jpg`,
+          size: file.fileSize || 0,
+        };
+
+        console.log('🔍 Created file object:', fileObj);
 
         setDocumentFiles(prev => ({
           ...prev,
-          [documentType]: file,
+          [documentType]: fileObj,
         }));
 
-        Alert.alert('Success', `${documentTypes.find(d => d.key === documentType)?.title} uploaded successfully!`);
+        // Removed success alert - user can see the uploaded file in the UI
+      } else {
+        console.log('No assets found in result');
+        Alert.alert('No File Selected', 'Please select a file to continue.');
       }
     } catch (error) {
       console.error('❌ Document pick error:', error);
@@ -93,9 +158,7 @@ const DocumentUploadStep = ({
         stack: error.stack
       });
       
-      if (!DocumentPicker.isCancel(error)) {
-        Alert.alert('Error', `Failed to pick document: ${error.message || 'Unknown error'}. Please try again.`);
-      }
+      Alert.alert('Error', `Failed to pick document: ${error.message || 'Unknown error'}. Please try again.`);
     } finally {
       setUploadingDocument(null);
     }
@@ -174,16 +237,35 @@ const DocumentUploadStep = ({
               {!file ? (
                 <TouchableOpacity
                   style={styles.uploadButton}
-                  onPress={() => pickDocument(docType.key)}
+                  onPress={() => {
+                    Alert.alert(
+                      'Select Source',
+                      'Choose how you want to add your document:',
+                      [
+                        {
+                          text: 'Photo Library',
+                          onPress: () => pickDocument(docType.key, 'library')
+                        },
+                        {
+                          text: 'Camera',
+                          onPress: () => pickDocument(docType.key, 'camera')
+                        },
+                        {
+                          text: 'Cancel',
+                          style: 'cancel'
+                        }
+                      ]
+                    );
+                  }}
                   disabled={isUploading}
                 >
                   {isUploading ? (
                     <ActivityIndicator color={colors.primary} size="small" />
                   ) : (
                     <>
-                      <Text style={styles.uploadIcon}>📁</Text>
-                      <Text style={styles.uploadText}>Choose File</Text>
-                      <Text style={styles.uploadSubtext}>PDF, JPG, PNG (10MB max)</Text>
+                      <Text style={styles.uploadIcon}>📷</Text>
+                      <Text style={styles.uploadText}>Add Document</Text>
+                      <Text style={styles.uploadSubtext}>Camera or Photo Library</Text>
                     </>
                   )}
                 </TouchableOpacity>

@@ -116,15 +116,13 @@ function CreditsScreen({ onNavigate, onBack }) {
       </View>
 
       {/* Credit Balance Card */}
-      <Card style={styles.card}>
+      <Card style={styles.balanceCard}>
         <Card.Content>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardIcon}>💰</Text>
-            <View>
-              <Title style={styles.cardTitle}>Credit Balance</Title>
-              <Paragraph style={styles.cardDescription}>
-                Your current credit balance and free leads status
-              </Paragraph>
+          <View style={styles.balanceCardHeader}>
+            <Text style={styles.balanceCardIcon}>💰</Text>
+            <View style={styles.balanceCardInfo}>
+              <Text style={styles.balanceCardTitle}>Credit Balance</Text>
+              <Text style={styles.balanceCardSubtitle}>Available Credits</Text>
             </View>
           </View>
           
@@ -260,142 +258,180 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    padding: 16,
+    padding: 12,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: 12,
     color: colors.textSecondary,
-    lineHeight: 22,
+    lineHeight: 16,
   },
   card: {
-    marginBottom: 16,
+    marginBottom: 12,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  balanceCard: {
+    marginBottom: 12,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 12,
+  },
+  balanceCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  cardIcon: {
+  balanceCardIcon: {
     fontSize: 24,
     marginRight: 12,
+    color: 'white',
+  },
+  balanceCardInfo: {
+    flex: 1,
+  },
+  balanceCardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 2,
+  },
+  balanceCardSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  cardIcon: {
+    fontSize: 20,
+    marginRight: 10,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   cardDescription: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 14,
   },
   balanceContainer: {
     alignItems: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 8,
   },
   balanceAmount: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: '#22c55e',
+    color: 'white',
     marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   balanceLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
   },
   loadingSpinner: {
-    paddingVertical: 20,
+    paddingVertical: 16,
   },
   voucherInputContainer: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   voucherInput: {
     flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    fontSize: 13,
     color: colors.textPrimary,
-    marginRight: 8,
+    marginRight: 6,
   },
   redeemButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 100,
+    minWidth: 80,
   },
   redeemButtonDisabled: {
     backgroundColor: colors.border,
   },
   redeemButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
   },
   voucherHelpText: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 16,
   },
   loadingContainer: {
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   transactionSkeleton: {
-    height: 80,
+    height: 64,
     backgroundColor: '#e5e7eb',
-    borderRadius: 8,
-    marginBottom: 12,
+    borderRadius: 6,
+    marginBottom: 10,
   },
   emptyState: {
-    paddingVertical: 32,
+    paddingVertical: 24,
     alignItems: 'center',
   },
   emptyStateText: {
-    fontSize: 16,
+    fontSize: 13,
     color: colors.textSecondary,
     textAlign: 'center',
   },
   transactionsContainer: {
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   transactionItem: {
     flexDirection: 'row',
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   transactionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   transactionIconText: {
-    fontSize: 18,
+    fontSize: 14,
   },
   transactionContent: {
     flex: 1,
@@ -404,16 +440,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   transactionTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textPrimary,
     flex: 1,
   },
   transactionAmount: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
   },
   positiveAmount: {
@@ -423,22 +459,22 @@ const styles = StyleSheet.create({
     color: '#ef4444',
   },
   transactionDescription: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 8,
-    lineHeight: 18,
+    marginBottom: 6,
+    lineHeight: 14,
   },
   voucherChip: {
     alignSelf: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 6,
     backgroundColor: '#f3f4f6',
   },
   voucherChipText: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textSecondary,
   },
   transactionMeta: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textSecondary,
   },
 });
