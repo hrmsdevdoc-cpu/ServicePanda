@@ -1,6 +1,6 @@
 const React = require('react');
 const { useState, useEffect } = require('react');
-const { View, StyleSheet, TouchableOpacity, Text, Alert, ScrollView, ActivityIndicator, Linking } = require('react-native');
+const { View, StyleSheet, TouchableOpacity, Text, Alert, ScrollView, ActivityIndicator, Linking, Image } = require('react-native');
 const { Title, Paragraph, Card, Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 // Import image picker with proper error handling
@@ -16,6 +16,7 @@ try {
   console.error('Failed to import image picker:', error);
 }
 const ApiService = require('../../services/api');
+const { API_BASE_URL } = require('../../config/api');
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 
 const DocumentsScreen = ({ onNavigate, onBack }) => {
@@ -32,6 +33,7 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
     insuranceCertificate: null,
   });
   const [providerId, setProviderId] = useState(null);
+  const [viewingDocument, setViewingDocument] = useState(null);
 
   // Fetch existing documents when component mounts
   useEffect(() => {
@@ -204,43 +206,31 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         return;
       }
 
-      // Extract filename from filePath or use fileName (same logic as web app)
-      let filename = document.fileName;
-      if (document.filePath) {
-        // Extract filename from path (same logic as web app)
-        // Handle both forward slashes and backslashes
-        const pathSeparator = document.filePath.includes('\\') ? '\\' : '/';
-        filename = document.filePath.split(pathSeparator).pop();
-      }
-
+      // Use fileName directly (same as web app)
+      const filename = document.fileName;
+      
       if (!filename) {
         Alert.alert('Error', 'Document filename not found.');
         return;
       }
 
-      console.log('🔍 Original filePath:', document.filePath);
-      console.log('🔍 Extracted filename:', filename);
+      console.log('🔍 Document fileName:', filename);
+      console.log('🔍 Provider ID:', providerId);
 
       // Construct the document view URL (EXACT SAME as web app)
-      const documentViewUrl = `http://192.168.1.39:4000/api/provider/documents/view/${filename}/${providerId}`;
+      const documentViewUrl = `${API_BASE_URL}/api/provider/documents/view/${filename}/${providerId}`;
       
       console.log('🔍 FULL DOCUMENT URL:', documentViewUrl);
-      console.log('🔍 API Base URL:', 'http://192.168.1.39:4000');
+      console.log('🔍 API Base URL:', API_BASE_URL);
       console.log('🔍 Filename:', filename);
       console.log('🔍 Provider ID:', providerId);
 
-      // Open document in external browser/app (same as web app behavior)
-      const supported = await Linking.canOpenURL(documentViewUrl);
-      
-      if (supported) {
-        await Linking.openURL(documentViewUrl);
-        console.log('Document opened successfully in external viewer');
-      } else {
-              // Fallback: show document details with FULL URL
-      Alert.alert('Document Details', 
-        `File: ${document.name}\nSize: ${formatFileSize(document.fileSize)}\nType: ${document.mimeType}\n\nFULL URL: ${documentViewUrl}\n\nDocument will open in external viewer.`
-      );
-      }
+      // Show document inline instead of opening externally
+      setViewingDocument({
+        ...document,
+        viewUrl: documentViewUrl,
+        title: title
+      });
 
     } catch (error) {
       console.error('Error opening document:', error);
@@ -759,6 +749,48 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
           {isUploading ? 'Updating...' : 'Update Documents'}
         </Button>
       </View>
+
+      {/* Simple Image Viewer Modal */}
+      {viewingDocument && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{viewingDocument.title}</Text>
+              <TouchableOpacity 
+                onPress={() => setViewingDocument(null)}
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.imageContainer}>
+              <Text style={styles.imageFileName}>{viewingDocument.fileName}</Text>
+              <Text style={styles.imageInfo}>
+                Size: {formatFileSize(viewingDocument.fileSize)} | Type: {viewingDocument.mimeType}
+              </Text>
+              
+              <View style={styles.imageViewContainer}>
+                <Image
+                  source={{ uri: viewingDocument.viewUrl }}
+                  style={styles.documentImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+            
+            <View style={styles.modalFooter}>
+              <Button
+                mode="outlined"
+                onPress={() => setViewingDocument(null)}
+                style={styles.closeModalButton}
+              >
+                Close
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -987,6 +1019,96 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 16,
     paddingVertical: 8,
+  },
+  // Simple modal styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 20,
+    margin: 20,
+    maxWidth: '90%',
+    maxHeight: '80%',
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: colors.error + '20',
+  },
+  closeButtonText: {
+    color: colors.error,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  imageContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  imageFileName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  imageInfo: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  imageViewContainer: {
+    backgroundColor: colors.background,
+    padding: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 350,
+  },
+  documentImage: {
+    width: 300,
+    height: 300,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+  },
+  modalFooter: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    alignItems: 'center',
+  },
+  closeModalButton: {
+    minWidth: 100,
   },
 });
 

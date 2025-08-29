@@ -585,37 +585,37 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 40,
+    padding: 16, // Reduced from 20
+    paddingTop: 20, // Reduced from 40
   },
   title: {
-    fontSize: 28,
+    fontSize: 22, // Reduced from 28
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 6, // Reduced from 8
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16
     color: colors.textSecondary,
     textAlign: 'center',
   },
   stepIndicator: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 30,
+    paddingHorizontal: 16, // Reduced from 20
+    marginBottom: 20, // Reduced from 30
   },
   stepItem: {
     alignItems: 'center',
     flex: 1,
   },
   stepCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32, // Reduced from 40
+    height: 32, // Reduced from 40
+    borderRadius: 16, // Reduced from 20
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 6, // Reduced from 8
   },
   stepPending: {
     backgroundColor: colors.border,
@@ -634,16 +634,16 @@ const styles = StyleSheet.create({
   },
   stepNumber: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16
     fontWeight: 'bold',
   },
   stepCheck: {
     color: colors.white,
-    fontSize: 18,
+    fontSize: 16, // Reduced from 18
     fontWeight: 'bold',
   },
   stepLabel: {
-    fontSize: 12,
+    fontSize: 11, // Reduced from 12
     color: colors.textSecondary,
     textAlign: 'center',
   },
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   stepContainer: {
-    padding: 20,
+    padding: 16, // Reduced from 20
   },
   loadingContainer: {
     flex: 1,
@@ -660,19 +660,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: 12, // Reduced from 16
+    fontSize: 14, // Reduced from 16
     color: colors.textSecondary,
   },
   successContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 20, // Reduced from 40
   },
   successIcon: {
-    width: 80,
-    height: 80,
+    width: 60, // Reduced from 80
+    height: 60, // Reduced from 80
     backgroundColor: colors.success,
-    borderRadius: 40,
+    borderRadius: 30, // Reduced from 40
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,

@@ -9,6 +9,7 @@ const { AuthProvider, useAuth } = require('./src/contexts/AuthContext');
 // Direct registration screen for testing
 const LoginScreen = require('./src/screens/auth/LoginScreen');
 const ProviderRegistrationScreen = require('./src/screens/auth/ProviderRegistrationScreen');
+const ForgotPasswordScreen = require('./src/screens/auth/ForgotPasswordScreen');
 const DashboardScreen = require('./src/screens/dashboard/DashboardScreen');
 const ActiveLeadsScreen = require('./src/screens/leads/ActiveLeadsScreen');
 const ClosedLeadsScreen = require('./src/screens/leads/ClosedLeadsScreen');
@@ -38,7 +39,7 @@ const LoadingScreen = () => (
 // Main app component that handles authentication flow and navigation
 const AppContent = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
-  const [currentScreen, setCurrentScreen] = useState('dashboard');
+  const [currentScreen, setCurrentScreen] = useState('login');
   const [currentSubScreen, setCurrentSubScreen] = useState(null);
 
   // Navigation function to be passed to screens
@@ -58,8 +59,15 @@ const AppContent = () => {
   }
 
   if (!isAuthenticated) {
-    // Direct registration screen for testing
-    return <LoginScreen />;
+    // Show login, registration, or forgot password based on currentScreen
+    if (currentScreen === 'login') {
+      return <LoginScreen onNavigate={navigateTo} />;
+    } else if (currentScreen === 'ProviderRegistration') {
+      return <ProviderRegistrationScreen onNavigate={navigateTo} />;
+    } else if (currentScreen === 'ForgotPassword') {
+      return <ForgotPasswordScreen onNavigate={navigateTo} />;
+    }
+    return <LoginScreen onNavigate={navigateTo} />;
   }
   // if (!isAuthenticated) {
   //   // Show login or registration based on currentScreen
@@ -72,8 +80,6 @@ const AppContent = () => {
   // Render different screens based on currentScreen
   const renderScreen = () => {
     switch (currentScreen) {
-      case 'login':
-        return <LoginScreen onNavigate={navigateTo} />;
       case 'dashboard':
         return <DashboardScreen onNavigate={navigateTo} />;
       
@@ -124,7 +130,13 @@ const AppContent = () => {
             <Text style={styles.backButtonText}>← Back to Dashboard</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
-            {currentScreen.charAt(0).toUpperCase() + currentScreen.slice(1)}
+            {currentScreen === 'personalDetails' ? 'Personal Details' : 
+             currentScreen === 'leadDetails' ? 'Lead Details' :
+             currentScreen === 'newLeads' ? 'New Leads' :
+             currentScreen === 'activeLeads' ? 'Active Leads' :
+             currentScreen === 'closedLeads' ? 'Closed Leads' :
+             currentScreen === 'serviceArea' ? 'Service Area' :
+             currentScreen.charAt(0).toUpperCase() + currentScreen.slice(1)}
           </Text>
         </View>
       )}

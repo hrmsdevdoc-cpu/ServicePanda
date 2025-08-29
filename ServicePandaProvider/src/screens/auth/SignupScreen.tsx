@@ -127,64 +127,66 @@ const SignupScreen = ({ onNavigate, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5FCFF',
+    backgroundColor: '#fafafa',
   },
   content: {
     flex: 1,
-    padding: 20,
   },
   header: {
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 30,
+    paddingTop: 12, // Reduced from 20
+    marginBottom: 16, // Reduced from 20
   },
   title: {
-    fontSize: 28,
+    fontSize: 20, // Reduced from 24
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 4, // Reduced from 6
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 13, // Reduced from 14
     color: '#666',
     textAlign: 'center',
   },
   form: {
     flex: 1,
+    paddingHorizontal: 16, // Reduced from 20
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 12, // Reduced from 16
   },
   label: {
-    fontSize: 16,
+    fontSize: 13, // Reduced from 14
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 4, // Reduced from 6
   },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 15,
-    fontSize: 16,
+    borderRadius: 6, // Reduced from 8
+    padding: 10, // Reduced from 12
+    fontSize: 14, // Reduced from 15
+    height: 40, // Add fixed height for consistency
   },
   signupButton: {
     backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 15,
+    borderRadius: 6, // Reduced from 8
+    padding: 10, // Reduced from 12
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 12, // Reduced from 16
+    height: 40, // Add fixed height for consistency
   },
   signupButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14, // Reduced from 15
     fontWeight: '600',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 12, // Reduced from 16
   },
   dividerLine: {
     flex: 1,
@@ -192,43 +194,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#ddd',
   },
   dividerText: {
-    marginHorizontal: 15,
+    marginHorizontal: 10, // Reduced from 12
     color: '#666',
-    fontSize: 14,
+    fontSize: 12, // Reduced from 13
     fontWeight: '500',
   },
   providerButton: {
     backgroundColor: '#34C759',
-    borderRadius: 8,
-    padding: 15,
+    borderRadius: 6, // Reduced from 8
+    padding: 10, // Reduced from 12
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12, // Reduced from 16
+    height: 40, // Add fixed height for consistency
   },
   providerButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14, // Reduced from 15
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2, // Reduced from 3
   },
   providerButtonSubtext: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10, // Reduced from 11
     opacity: 0.9,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 30,
-    marginBottom: 30,
+    marginTop: 16, // Reduced from 20
+    marginBottom: 16, // Reduced from 20
   },
   footerText: {
     color: '#666',
-    fontSize: 14,
+    fontSize: 12, // Reduced from 13
   },
   loginLink: {
     color: '#007AFF',
-    fontSize: 14,
+    fontSize: 12, // Reduced from 13
     fontWeight: '600',
   },
 });

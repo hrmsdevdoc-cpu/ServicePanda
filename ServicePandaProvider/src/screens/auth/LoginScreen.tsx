@@ -14,7 +14,8 @@ const { useMutation } = require('@tanstack/react-query');
 const { useAuth } = require('../../contexts/AuthContext');
 const { colors } = require('../../utils/theme');
 
-const LoginScreen = () => {
+const LoginScreen = ({ onNavigate }) => {
+  console.log('🔍 LoginScreen rendered with onNavigate:', !!onNavigate, onNavigate);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -167,17 +168,17 @@ const LoginScreen = () => {
 
             {/* Links - matching web design */}
             <View style={styles.links}>
-              <Button
-                mode="text"
-                onPress={() => {
-                  // TODO: Navigate to forgot password screen
-                  Alert.alert("Coming Soon", "Forgot password functionality will be added soon.");
-                }}
-                style={styles.linkButton}
-                textColor={colors.primary}
-              >
-                Forgot your password?
-              </Button>
+                             <Button
+                 mode="text"
+                 onPress={() => {
+                   console.log('🔍 Forgot password clicked! Navigating to ForgotPassword');
+                   onNavigate('ForgotPassword');
+                 }}
+                 style={styles.linkButton}
+                 textColor={colors.primary}
+               >
+                 Forgot your password?
+               </Button>
               
               <View style={styles.divider} />
               
@@ -188,8 +189,13 @@ const LoginScreen = () => {
                                                    <Button
                     mode="text"
                     onPress={() => {
-                      // TODO: Navigation will be implemented later
-                      Alert.alert("Coming Soon", "Provider registration navigation will be added soon.");
+                      console.log('🔍 Button clicked! onNavigate exists:', !!onNavigate);
+                      if (onNavigate) {
+                        console.log('🔍 Calling onNavigate with ProviderRegistration');
+                        onNavigate('ProviderRegistration');
+                      } else {
+                        console.log('❌ onNavigate is undefined!');
+                      }
                     }}
                     style={styles.linkButton}
                     textColor={colors.primary}
@@ -213,42 +219,43 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'flex-start',
-    padding: 20,
-    paddingTop: 20, // Reduced from 40 to move logo/title higher
+    padding: 16, // Reduced from 20
+    paddingTop: 16, // Reduced from 20
   },
   header: {
     alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 5, // Reduced from 10 to move content higher
+    marginBottom: 12, // Reduced from 16
+    marginTop: 0, // Reduced from 5
   },
   logoContainer: {
-    marginBottom: 32, // Increased from 20 to push "Partner Login" further down
+    marginBottom: 20, // Reduced from 32
   },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   logo: {
-    fontSize: 48, // Increased to 48 for better panda emoji display
-    marginRight: 16, // Increased from 12 for better spacing
+    fontSize: 36, // Reduced from 48
+    marginRight: 12, // Reduced from 16
   },
   title: {
-    fontSize: 30, // Increased from 28 for better balance with panda
+    fontSize: 24, // Reduced from 30
     fontWeight: 'bold',
     color: '#111827', // Dark gray matching web
   },
   subtitle: {
-    fontSize: 26,
+    fontSize: 20, // Reduced from 26
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 4, // Reduced from 6
+    marginBottom: 2, // Reduced from 4
   },
   description: {
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 24,
-    marginTop: 0, // Reduced from 2
+    lineHeight: 20, // Reduced from 24
+    marginTop: 0,
+    paddingHorizontal: 20, // Add horizontal padding for better text wrapping
   },
   card: {
     elevation: 8,
@@ -259,7 +266,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#FFFFFF', // Pure white background matching web
     borderWidth: 0, // Remove any borders
-    marginTop: 4, // Reduced from 8 for tighter spacing
+    marginTop: 2, // Reduced from 4
   },
   cardContent: {
     backgroundColor: '#FFFFFF', // Ensure pure white background for content
@@ -271,18 +278,18 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     textAlign: 'center',
-    marginBottom: 24,
-    fontSize: 20,
+    marginBottom: 20, // Reduced from 24
+    fontSize: 18, // Reduced from 20
     color: '#111827', // Dark gray matching web
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: 20, // Reduced from 24
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 13, // Reduced from 14
     fontWeight: '500',
     color: '#374151', // Medium gray matching web
-    marginBottom: 8,
+    marginBottom: 6, // Reduced from 8
   },
   required: {
     color: '#EF4444', // Red color matching web
@@ -294,19 +301,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF', // Pure white input background
   },
   button: {
-    marginTop: 8,
-    marginBottom: 24,
+    marginTop: 6, // Reduced from 8
+    marginBottom: 20, // Reduced from 24
     borderRadius: 6,
-    height: 44,
+    height: 40, // Reduced from 44
   },
   buttonLabel: {
-    fontSize: 16,
+    fontSize: 15, // Reduced from 16
     fontWeight: '600',
     color: '#FFFFFF',
   },
   links: {
     alignItems: 'center',
-    gap: 16,
+    gap: 12, // Reduced from 16
   },
   linkButton: {
     marginVertical: 0,
@@ -315,7 +322,7 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E5E7EB', // Light gray matching web
     width: '100%',
-    marginVertical: 16,
+    marginVertical: 12, // Reduced from 16
   },
   registerContainer: {
     alignItems: 'center',
@@ -325,10 +332,10 @@ const styles = StyleSheet.create({
   },
   registerText: {
     color: '#6B7280', // Medium gray matching web
-    fontSize: 14,
+    fontSize: 13, // Reduced from 14
   },
   backButton: {
-    marginTop: 8,
+    marginTop: 6, // Reduced from 8
   },
 });
 

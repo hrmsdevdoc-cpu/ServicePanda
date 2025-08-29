@@ -34,20 +34,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 16,
+    padding: 12, // Reduced from 16
   },
   backButton: {
-    marginBottom: 16,
+    marginBottom: 12, // Reduced from 16
   },
   backButtonText: {
     color: colors.primary,
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16
   },
   card: {
     elevation: 2,
   },
   backToLoginButton: {
-    marginTop: 16,
+    marginTop: 12, // Reduced from 16
   },
 });
 

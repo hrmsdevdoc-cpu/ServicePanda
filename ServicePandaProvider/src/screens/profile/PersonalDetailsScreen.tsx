@@ -163,7 +163,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         {/* Header */}
-        {/* <View style={styles.header}>
+        <View style={styles.header}>
           <Button 
             mode="text" 
             onPress={onBack}
@@ -172,7 +172,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
             ← Back
           </Button>
           <Title style={styles.headerTitle}>Personal Details</Title>
-        </View> */}
+        </View>
 
         <Card style={styles.card}>
           <Card.Content>

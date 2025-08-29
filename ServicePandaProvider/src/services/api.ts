@@ -30,6 +30,10 @@ class ApiService {
     return headers;
   }
 
+  async getProviderId() {
+    return await AsyncStorage.getItem('providerId');
+  }
+
   async request(method: string, endpoint: string, body?: any) {
     console.log('🌐 API Request:', { method, endpoint, body });
     console.log('🔗 Full URL:', `${API_BASE_URL}${endpoint}`);
