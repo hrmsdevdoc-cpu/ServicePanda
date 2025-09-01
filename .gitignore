@@ -1,6 +1,9 @@
 node_modules
+node_modules.zip
+*.zip
 dist
 server-js
+server-js/node_modules
 .DS_Store
 server/public
 vite.config.ts.*
