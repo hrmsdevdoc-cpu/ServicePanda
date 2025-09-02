@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -248,6 +249,37 @@ const ServicesScreen = () => {
         </Card.Content>
       </Card>
     </ScrollView>
+=======
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Title, Paragraph, Card } from 'react-native-paper';
+const { colors } = require('../../utils/theme');
+
+const ServicesScreen = () => {
+  return (
+    <View style={styles.container}>
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Services Overview</Title>
+          <Paragraph>Manage your service offerings and categories</Paragraph>
+        </Card.Content>
+      </Card>
+      
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Service Categories</Title>
+          <Paragraph>Plumbing, Electrical, Cleaning, and more</Paragraph>
+        </Card.Content>
+      </Card>
+
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Service Areas</Title>
+          <Paragraph>Configure your service coverage locations</Paragraph>
+        </Card.Content>
+      </Card>
+    </View>
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   );
 };
 
@@ -257,6 +289,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     padding: 16,
   },
+<<<<<<< HEAD
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -432,6 +465,15 @@ const styles = StyleSheet.create({
 });
 
 export default ServicesScreen;
+=======
+  card: {
+    elevation: 2,
+    marginBottom: 16,
+  },
+});
+
+module.exports = ServicesScreen;
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
 
 
 

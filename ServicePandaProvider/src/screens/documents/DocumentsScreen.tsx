@@ -1,6 +1,10 @@
 const React = require('react');
 const { useState, useEffect } = require('react');
+<<<<<<< HEAD
 const { View, StyleSheet, TouchableOpacity, Text, Alert, ScrollView, ActivityIndicator, Linking, Image } = require('react-native');
+=======
+const { View, StyleSheet, TouchableOpacity, Text, Alert, ScrollView, ActivityIndicator, Linking } = require('react-native');
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
 const { Title, Paragraph, Card, Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 // Import image picker with proper error handling
@@ -16,7 +20,10 @@ try {
   console.error('Failed to import image picker:', error);
 }
 const ApiService = require('../../services/api');
+<<<<<<< HEAD
 const { API_BASE_URL } = require('../../config/api');
+=======
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 
 const DocumentsScreen = ({ onNavigate, onBack }) => {
@@ -33,7 +40,10 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
     insuranceCertificate: null,
   });
   const [providerId, setProviderId] = useState(null);
+<<<<<<< HEAD
   const [viewingDocument, setViewingDocument] = useState(null);
+=======
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
 
   // Fetch existing documents when component mounts
   useEffect(() => {
@@ -206,14 +216,27 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         return;
       }
 
+<<<<<<< HEAD
       // Use fileName directly (same as web app)
       const filename = document.fileName;
       
+=======
+      // Extract filename from filePath or use fileName (same logic as web app)
+      let filename = document.fileName;
+      if (document.filePath) {
+        // Extract filename from path (same logic as web app)
+        // Handle both forward slashes and backslashes
+        const pathSeparator = document.filePath.includes('\\') ? '\\' : '/';
+        filename = document.filePath.split(pathSeparator).pop();
+      }
+
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
       if (!filename) {
         Alert.alert('Error', 'Document filename not found.');
         return;
       }
 
+<<<<<<< HEAD
       console.log('🔍 Document fileName:', filename);
       console.log('🔍 Provider ID:', providerId);
 
@@ -231,6 +254,31 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         viewUrl: documentViewUrl,
         title: title
       });
+=======
+      console.log('🔍 Original filePath:', document.filePath);
+      console.log('🔍 Extracted filename:', filename);
+
+      // Construct the document view URL (EXACT SAME as web app)
+      const documentViewUrl = `http://192.168.1.39:4000/api/provider/documents/view/${filename}/${providerId}`;
+      
+      console.log('🔍 FULL DOCUMENT URL:', documentViewUrl);
+      console.log('🔍 API Base URL:', 'http://192.168.1.39:4000');
+      console.log('🔍 Filename:', filename);
+      console.log('🔍 Provider ID:', providerId);
+
+      // Open document in external browser/app (same as web app behavior)
+      const supported = await Linking.canOpenURL(documentViewUrl);
+      
+      if (supported) {
+        await Linking.openURL(documentViewUrl);
+        console.log('Document opened successfully in external viewer');
+      } else {
+              // Fallback: show document details with FULL URL
+      Alert.alert('Document Details', 
+        `File: ${document.name}\nSize: ${formatFileSize(document.fileSize)}\nType: ${document.mimeType}\n\nFULL URL: ${documentViewUrl}\n\nDocument will open in external viewer.`
+      );
+      }
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
 
     } catch (error) {
       console.error('Error opening document:', error);
@@ -749,6 +797,7 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
           {isUploading ? 'Updating...' : 'Update Documents'}
         </Button>
       </View>
+<<<<<<< HEAD
 
       {/* Simple Image Viewer Modal */}
       {viewingDocument && (
@@ -791,6 +840,8 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
           </View>
         </View>
       )}
+=======
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     </ScrollView>
   );
 };
@@ -1020,6 +1071,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingVertical: 8,
   },
+<<<<<<< HEAD
   // Simple modal styles
   modalOverlay: {
     position: 'absolute',
@@ -1110,6 +1162,8 @@ const styles = StyleSheet.create({
   closeModalButton: {
     minWidth: 100,
   },
+=======
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
 });
 
 module.exports = DocumentsScreen;

@@ -127,6 +127,7 @@ const SignupScreen = ({ onNavigate, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+<<<<<<< HEAD
     backgroundColor: '#fafafa',
   },
   content: {
@@ -145,11 +146,33 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13, // Reduced from 14
+=======
+    backgroundColor: '#F5FCFF',
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+  header: {
+    alignItems: 'center',
+    marginTop: 40,
+    marginBottom: 30,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     color: '#666',
     textAlign: 'center',
   },
   form: {
     flex: 1,
+<<<<<<< HEAD
     paddingHorizontal: 16, // Reduced from 20
   },
   inputContainer: {
@@ -160,11 +183,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 4, // Reduced from 6
+=======
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ddd',
+<<<<<<< HEAD
     borderRadius: 6, // Reduced from 8
     padding: 10, // Reduced from 12
     fontSize: 14, // Reduced from 15
@@ -181,12 +216,32 @@ const styles = StyleSheet.create({
   signupButtonText: {
     color: '#fff',
     fontSize: 14, // Reduced from 15
+=======
+    borderRadius: 8,
+    padding: 15,
+    fontSize: 16,
+  },
+  signupButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  signupButtonText: {
+    color: '#fff',
+    fontSize: 16,
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     fontWeight: '600',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
+<<<<<<< HEAD
     marginVertical: 12, // Reduced from 16
+=======
+    marginVertical: 20,
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   dividerLine: {
     flex: 1,
@@ -194,13 +249,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ddd',
   },
   dividerText: {
+<<<<<<< HEAD
     marginHorizontal: 10, // Reduced from 12
     color: '#666',
     fontSize: 12, // Reduced from 13
+=======
+    marginHorizontal: 15,
+    color: '#666',
+    fontSize: 14,
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     fontWeight: '500',
   },
   providerButton: {
     backgroundColor: '#34C759',
+<<<<<<< HEAD
     borderRadius: 6, // Reduced from 8
     padding: 10, // Reduced from 12
     alignItems: 'center',
@@ -216,12 +278,29 @@ const styles = StyleSheet.create({
   providerButtonSubtext: {
     color: '#fff',
     fontSize: 10, // Reduced from 11
+=======
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  providerButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  providerButtonSubtext: {
+    color: '#fff',
+    fontSize: 12,
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     opacity: 0.9,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+<<<<<<< HEAD
     marginTop: 16, // Reduced from 20
     marginBottom: 16, // Reduced from 20
   },
@@ -232,6 +311,18 @@ const styles = StyleSheet.create({
   loginLink: {
     color: '#007AFF',
     fontSize: 12, // Reduced from 13
+=======
+    marginTop: 30,
+    marginBottom: 30,
+  },
+  footerText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  loginLink: {
+    color: '#007AFF',
+    fontSize: 14,
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     fontWeight: '600',
   },
 });

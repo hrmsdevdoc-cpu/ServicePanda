@@ -34,6 +34,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+<<<<<<< HEAD
     padding: 12, // Reduced from 16
   },
   backButton: {
@@ -42,12 +43,26 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: colors.primary,
     fontSize: 14, // Reduced from 16
+=======
+    padding: 16,
+  },
+  backButton: {
+    marginBottom: 16,
+  },
+  backButtonText: {
+    color: colors.primary,
+    fontSize: 16,
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   card: {
     elevation: 2,
   },
   backToLoginButton: {
+<<<<<<< HEAD
     marginTop: 12, // Reduced from 16
+=======
+    marginTop: 16,
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
 });
 

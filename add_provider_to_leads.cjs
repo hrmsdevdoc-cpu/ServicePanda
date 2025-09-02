@@ -4,7 +4,7 @@ require('dotenv').config();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL
 });
-    
+
 async function addProviderToLeads() {
   try {
     console.log('🔧 Adding New Provider to Existing Leads\n');

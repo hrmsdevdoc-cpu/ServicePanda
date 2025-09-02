@@ -26,7 +26,10 @@ npm run android
 
 
 
+<<<<<<< HEAD
 
 
 
 
+=======
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059

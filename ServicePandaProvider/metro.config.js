@@ -9,6 +9,7 @@ const path = require('path');
  */
 const config = {
   resolver: {
+<<<<<<< HEAD
     ...getDefaultConfig(__dirname).resolver,
     alias: {
       '@babel/runtime': path.resolve(__dirname, 'node_modules/@babel/runtime'),
@@ -27,6 +28,11 @@ const config = {
   },
   serializer: {
     getModulesRunBeforeMainModule: () => [],
+=======
+    alias: {
+      '@babel/runtime': path.resolve(__dirname, 'node_modules/@babel/runtime'),
+    },
+>>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
 };
 
