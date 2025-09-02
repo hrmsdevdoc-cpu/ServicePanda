@@ -1,6 +1,14 @@
 node_modules
+node_modules.zip
+*.zip
 dist
+server-js
+server-js/node_modules
 .DS_Store
 server/public
 vite.config.ts.*
 *.tar.gz
+/ServicePandaProvider/android/.gradle/
+/ServicePandaProvider/android/build/
+/ServicePandaProvider/android/app/build/
+/ServicePandaProvider/node_modules/

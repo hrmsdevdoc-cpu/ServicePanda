@@ -1,4 +1,5 @@
 import { Express, RequestHandler } from "express";
+import { storage } from "./storage";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import jwt from "jsonwebtoken";
@@ -56,8 +57,8 @@ function verifyAdminToken(token: string): any {
 }
 
 export function setupAdminAuth(app: Express) {
-  // Admin login endpoint
-  app.post("/api/admin/login", async (req, res) => {
+  // Setup admin user endpoint (no auth required for initial setup)
+  app.post("/api/setup/admin-user", async (req, res) => {
     try {
       const { username, password } = req.body;
 
@@ -68,20 +69,62 @@ export function setupAdminAuth(app: Express) {
       // Import storage here to avoid circular dependency
       const { storage } = await import("./storage");
       
+      // Check if admin user already exists
+      const existingAdmin = await storage.getAdminUserByUsername(username);
+      if (existingAdmin) {
+        return res.status(400).json({ message: "Admin user already exists" });
+      }
+
+      // Hash password and create admin user
+      const hashedPassword = await hashPassword(password);
+      const adminUser = await storage.createAdminUser({
+        username,
+        password: hashedPassword,
+        role: "admin",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      res.json({
+        message: "Admin user created successfully",
+        user: {
+          username: adminUser.username,
+          role: adminUser.role
+        }
+      });
+    } catch (error) {
+      console.error("Admin user setup error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Admin login endpoint
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      console.log('Admin login attempt for username:', username);
+
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+
       // Get admin user from database
       const adminUser = await storage.getAdminUserByUsername(username);
+      console.log('Admin user lookup result:', adminUser ? 'Found' : 'Not found');
       if (!adminUser) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // Check password against database hash
       const isPasswordValid = await comparePasswords(password, adminUser.password);
+      console.log('Password validation result:', isPasswordValid);
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // Generate JWT token
       const token = generateAdminToken(username);
+      console.log('Admin login successful for:', username);
 
       res.json({
         message: "Login successful",
@@ -93,6 +136,7 @@ export function setupAdminAuth(app: Express) {
       });
     } catch (error) {
       console.error("Admin login error:", error);
+      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -106,7 +150,17 @@ export function setupAdminAuth(app: Express) {
 
 export const isAdminAuthenticated: RequestHandler = (req, res, next) => {
   try {
-    const token = req.headers["x-admin-token"] as string;
+    // Check both x-admin-token header and Authorization Bearer token
+    let token = req.headers["x-admin-token"] as string;
+    
+    if (!token) {
+      // Check Authorization header for Bearer token
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      }
+    }
+    
     console.log("Admin auth check - token:", token ? `Present (${token.substring(0, 20)}...)` : "Missing");
 
     if (!token) {

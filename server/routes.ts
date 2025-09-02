@@ -6,12 +6,13 @@ import { setupProviderAuth, isProviderAuthenticated } from "./providerAuth";
 import { setupAdminAuth, isAdminAuthenticated, hashPassword, comparePasswords } from "./adminAuth";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { insertServiceProviderSchema, insertServiceRequestSchema, leadOffers } from "@shared/schema";
+import { insertServiceProviderSchema, insertServiceRequestSchema, leadOffers, potentialCustomers, smsMessages } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, desc, sql } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
-import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail } from "./emailService";
+import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail, sendEmail } from "./emailService";
+import { smsService } from "./smsService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware for customers
@@ -40,8 +41,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   });
 
-
-
   // Service categories
   app.get('/api/service-categories', async (req, res) => {
     try {
@@ -49,6 +48,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(categories);
     } catch (error) {
       console.error("Error fetching service categories:", error);
+      res.status(500).json({ message: "Failed to fetch service categories" });
+    }
+  });
+
+  // Admin endpoint to get all service categories (including inactive)
+  app.get('/api/admin/service-categories', async (req, res) => {
+    try {
+      console.log('Admin service categories endpoint called');
+      
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      console.log('Admin token provided:', !!adminToken);
+      
+      if (!adminToken) {
+        console.log('No admin token provided');
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      console.log('Fetching all service categories...');
+      const categories = await storage.getAllServiceCategories();
+      console.log('Found categories:', categories.length);
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching all service categories:", error);
       res.status(500).json({ message: "Failed to fetch service categories" });
     }
   });
@@ -287,8 +310,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload provider documents
-  app.post('/api/service-providers/:id/documents', isProviderAuthenticated, upload.fields([
+  // Upload provider documents during registration (no auth required)
+  app.post('/api/provider/:id/registration-documents', upload.fields([
+    { name: 'license', maxCount: 1 },
+    { name: 'policeCheck', maxCount: 1 },
+    { name: 'insuranceCertificate', maxCount: 1 }
+  ]), async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      // Verify provider exists
+      const provider = await storage.getServiceProvider(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+      
+      const uploadedDocs = [];
+      
+      // Process each document type
+      if (files.license && files.license[0]) {
+        const file = files.license[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'license',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      if (files.policeCheck && files.policeCheck[0]) {
+        const file = files.policeCheck[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'police_check',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      if (files.insuranceCertificate && files.insuranceCertificate[0]) {
+        const file = files.insuranceCertificate[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'insurance',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      // Update provider status
+      await storage.updateServiceProvider(providerId, { documentsUploaded: true });
+      
+      // Send application submitted email after document upload completion
+      try {
+        await sendProviderApplicationSubmittedEmail(provider.email, provider.firstName);
+        console.log(`Application submitted email sent to provider: ${provider.email}`);
+      } catch (emailError) {
+        console.error(`Failed to send application submitted email to ${provider.email}:`, emailError);
+        // Don't fail document upload if email fails
+      }
+      
+      res.json({ 
+        message: "Documents uploaded successfully",
+        documents: uploadedDocs 
+      });
+    } catch (error) {
+      console.error("Error uploading registration documents:", error);
+      res.status(500).json({ message: "Failed to upload documents" });
+    }
+  });
+
+  // Upload provider documents (authenticated) - TEMPORARILY COMMENTED OUT FOR BOTH REGISTRATION AND APP USE
+  app.post('/api/service-providers/:id/documents', /* isProviderAuthenticated, */ upload.fields([
     { name: 'license', maxCount: 1 },
     { name: 'policeCheck', maxCount: 1 },
     { name: 'insuranceCertificate', maxCount: 1 }
@@ -364,6 +467,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading documents:", error);
       res.status(500).json({ message: "Failed to upload documents" });
+    }
+  });
+
+  // NEW: Registration documents upload (NO AUTHENTICATION REQUIRED)
+  app.post('/api/provider/:id/registration-documents', upload.fields([
+    { name: 'license', maxCount: 1 },
+    { name: 'policeCheck', maxCount: 1 },
+    { name: 'insuranceCertificate', maxCount: 1 }
+  ]), async (req: any, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      // Verify provider exists
+      const provider = await storage.getServiceProvider(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+      
+      const uploadedDocs = [];
+      
+      // Process each document type
+      if (files.license && files.license[0]) {
+        const file = files.license[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'license',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      if (files.policeCheck && files.policeCheck[0]) {
+        const file = files.policeCheck[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'police_check',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      if (files.insuranceCertificate && files.insuranceCertificate[0]) {
+        const file = files.insuranceCertificate[0];
+        const doc = await storage.uploadProviderDocument({
+          providerId,
+          documentType: 'insurance',
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+        uploadedDocs.push(doc);
+      }
+      
+      // Update provider status
+      await storage.updateServiceProvider(providerId, { documentsUploaded: true });
+      
+      // Send application submitted email after document upload completion
+      try {
+        await sendProviderApplicationSubmittedEmail(provider.email, provider.firstName);
+        console.log(`Application submitted email sent to provider: ${provider.email}`);
+      } catch (emailError) {
+        console.error(`Failed to send application submitted email to ${provider.email}:`, emailError);
+        // Don't fail document upload if email fails
+      }
+      
+      res.json({ 
+        message: "Registration documents uploaded successfully",
+        documents: uploadedDocs 
+      });
+    } catch (error) {
+      console.error("Error uploading registration documents:", error);
+      res.status(500).json({ message: "Failed to upload registration documents" });
     }
   });
 
@@ -1372,6 +1555,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Setup route to run database migrations
+  app.post('/api/setup/run-migration', async (req, res) => {
+    try {
+      const { sql } = req.body;
+
+      if (!sql) {
+        return res.status(400).json({ message: 'SQL migration is required' });
+      }
+
+      // Execute the migration SQL
+      await storage.executeMigration(sql);
+
+      res.json({ message: 'Migration executed successfully' });
+    } catch (error) {
+      console.error('Error running migration:', error);
+      res.status(500).json({ message: 'Failed to execute migration', error: error.message });
+    }
+  });
+
   // Update Mailgun settings (renamed from mailgun-config)
   app.post('/api/admin/mailgun-settings', isAdminAuthenticated, async (req, res) => {
     try {
@@ -1836,7 +2038,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             eq(leadOffers.requestId, requestId),
             eq(leadOffers.providerId, providerId),
             eq(leadOffers.status, 'pending'),
-            eq(leadOffers.isCurrentOffer, true)
+            or(
+              eq(leadOffers.isCurrentOffer, true),
+              eq(leadOffers.offerType, 'shared')
+            )
           )
         )
         .limit(1);
@@ -1960,6 +2165,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status,
         wasJobBooked: status === 'closed' ? wasJobBooked : undefined,
       });
+
+      // Send customer feedback email if job was completed successfully
+      if (status === 'closed' && wasJobBooked === true) {
+        try {
+          const { sendCustomerFeedbackEmail } = await import('./emailService');
+          
+          // Get lead and provider details for the email
+          const leadDetails = await storage.getServiceRequest(leadId);
+          const providerDetails = await storage.getServiceProvider(providerId);
+          const categoryDetails = await storage.getServiceCategory(leadDetails?.categoryId);
+          
+          if (leadDetails && providerDetails && categoryDetails) {
+            // Get customer details including email
+            const customerDetails = await storage.getUser(leadDetails.customerId);
+            
+            if (customerDetails) {
+              const customerName = `${customerDetails.firstName || ''} ${customerDetails.lastName || ''}`.trim();
+              const providerName = `${providerDetails.firstName || ''} ${providerDetails.lastName || ''}`.trim();
+              
+              // Create secure review token
+              const reviewToken = await storage.createReviewToken(
+                leadDetails.customerId, 
+                providerId, 
+                leadId
+              );
+              
+              await sendCustomerFeedbackEmail(
+                customerDetails.email,
+                customerName,
+                providerName,
+                categoryDetails.name,
+                leadDetails.suburb,
+                reviewToken
+              );
+              
+              console.log(`Feedback email sent to ${customerDetails.email} for completed ${categoryDetails.name} job`);
+            } else {
+              console.error(`Customer not found for customerId: ${leadDetails.customerId}`);
+            }
+          }
+        } catch (emailError) {
+          console.error('Error sending customer feedback email:', emailError);
+          // Don't fail the API request if email fails
+        }
+      }
 
       res.json(updatedStatus);
     } catch (error) {
@@ -2550,6 +2800,1211 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error changing password:', error);
       res.status(500).json({ message: 'Failed to change password' });
+    }
+  });
+
+  // Review System API endpoints
+  
+  // Get review details by token (for review submission page)
+  app.get('/api/review/:token', async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const reviewData = await storage.getReviewToken(token);
+      
+      if (!reviewData) {
+        return res.status(404).json({ message: 'Review token not found or expired' });
+      }
+      
+      // Check if token is already used
+      if (reviewData.isUsed) {
+        return res.status(400).json({ message: 'Review has already been submitted' });
+      }
+      
+      // Check if token is expired
+      const now = new Date();
+      if (new Date(reviewData.expiresAt) < now) {
+        return res.status(400).json({ message: 'Review token has expired' });
+      }
+      
+      res.json(reviewData);
+    } catch (error) {
+      console.error('Error getting review token:', error);
+      res.status(500).json({ message: 'Failed to get review details' });
+    }
+  });
+  
+  // Submit customer review
+  app.post('/api/review/submit', async (req, res) => {
+    try {
+      const reviewData = req.body;
+      
+      // Validate required fields
+      if (!reviewData.token || !reviewData.overallRating || !reviewData.qualityRating || 
+          !reviewData.professionalismRating || !reviewData.timelinessRating || !reviewData.valueRating) {
+        return res.status(400).json({ message: 'All rating fields are required' });
+      }
+      
+      // Validate rating values (1-5)
+      const ratings = [
+        reviewData.overallRating, reviewData.qualityRating, reviewData.professionalismRating,
+        reviewData.timelinessRating, reviewData.valueRating
+      ];
+      
+      for (const rating of ratings) {
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+          return res.status(400).json({ message: 'Ratings must be integers between 1 and 5' });
+        }
+      }
+      
+      // Get token details first
+      const tokenData = await storage.getReviewToken(reviewData.token);
+      if (!tokenData) {
+        return res.status(404).json({ message: 'Invalid review token' });
+      }
+      
+      if (tokenData.isUsed) {
+        return res.status(400).json({ message: 'Review has already been submitted' });
+      }
+      
+      if (new Date(tokenData.expiresAt) < new Date()) {
+        return res.status(400).json({ message: 'Review token has expired' });
+      }
+      
+      // Add token data to review
+      reviewData.customerId = tokenData.customerId;
+      reviewData.providerId = tokenData.providerId;
+      reviewData.requestId = tokenData.requestId;
+      
+      const review = await storage.submitCustomerReview(reviewData);
+      
+      res.json({ 
+        success: true, 
+        message: 'Thank you for your review! Your feedback helps improve our service quality.',
+        review 
+      });
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      res.status(500).json({ 
+        message: error.message.includes('already submitted') ? error.message : 'Failed to submit review' 
+      });
+    }
+  });
+  
+  // Get provider reviews (public endpoint)
+  app.get('/api/provider/:id/reviews', async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const reviews = await storage.getProviderReviews(providerId);
+      res.json(reviews);
+    } catch (error) {
+      console.error('Error getting provider reviews:', error);
+      res.status(500).json({ message: 'Failed to get provider reviews' });
+    }
+  });
+
+  // Get customer reviews (authenticated endpoint)
+  app.get('/api/customer/reviews', isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.user?.id;
+      if (!customerId) {
+        return res.status(401).json({ message: 'Customer authentication required' });
+      }
+
+      const reviews = await storage.getCustomerReviews(customerId);
+      res.json(reviews);
+    } catch (error) {
+      console.error('Error getting customer reviews:', error);
+      res.status(500).json({ message: 'Failed to get customer reviews' });
+    }
+  });
+
+  // Get customer lead settings (authenticated endpoint)
+  app.get('/api/customer/lead-settings', isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.user?.id;
+      if (!customerId) {
+        return res.status(401).json({ message: 'Customer authentication required' });
+      }
+
+      const settings = await storage.getLeadSettings();
+      res.json({
+        providersCanRedeemCredits: settings.providersCanRedeemCredits
+      });
+    } catch (error) {
+      console.error('Error getting customer lead settings:', error);
+      res.status(500).json({ message: 'Failed to get customer lead settings' });
+    }
+  });
+
+  // Customer credit system endpoints
+  app.get('/api/customer/credit-balance', isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.user?.id;
+      if (!customerId) {
+        return res.status(401).json({ message: 'Customer authentication required' });
+      }
+
+      const balance = await storage.getCustomerCreditBalance(customerId);
+      res.json({ balance });
+    } catch (error) {
+      console.error('Error getting customer credit balance:', error);
+      res.status(500).json({ message: 'Failed to get credit balance' });
+    }
+  });
+
+  app.get('/api/customer/credit-transactions', isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.user?.id;
+      if (!customerId) {
+        return res.status(401).json({ message: 'Customer authentication required' });
+      }
+
+      const transactions = await storage.getCustomerCreditTransactions(customerId);
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error getting customer credit transactions:', error);
+      res.status(500).json({ message: 'Failed to get credit transactions' });
+    }
+  });
+
+  app.post('/api/customer/redeem-voucher', isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.user?.id;
+      if (!customerId) {
+        return res.status(401).json({ message: 'Customer authentication required' });
+      }
+
+      const { voucherCode } = req.body;
+      if (!voucherCode) {
+        return res.status(400).json({ message: 'Voucher code is required' });
+      }
+
+      const result = await storage.redeemCustomerVoucher(customerId, voucherCode);
+      res.json(result);
+    } catch (error) {
+      console.error('Error redeeming customer voucher:', error);
+      res.status(500).json({ message: 'Failed to redeem voucher' });
+    }
+  });
+
+  // Customer available vouchers endpoint
+  app.get('/api/customer/available-vouchers', isAuthenticated, async (req, res) => {
+    try {
+      const vouchers = await storage.getAvailableCustomerVouchers();
+      res.json(vouchers);
+    } catch (error) {
+      console.error('Error getting available customer vouchers:', error);
+      res.status(500).json({ message: 'Failed to get available vouchers' });
+    }
+  });
+
+  // Potential Customers endpoints
+  app.get('/api/admin/potential-customers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const customers = await storage.getAllPotentialCustomers();
+      res.json(customers);
+    } catch (error) {
+      console.error('Error getting potential customers:', error);
+      res.status(500).json({ message: 'Failed to get potential customers' });
+    }
+  });
+
+  app.get('/api/admin/potential-customers/import-groups', isAdminAuthenticated, async (req, res) => {
+    try {
+      const groups = await storage.getPotentialCustomerImportGroups();
+      res.json(groups);
+    } catch (error) {
+      console.error('Error getting potential customer import groups:', error);
+      res.status(500).json({ message: 'Failed to get import groups' });
+    }
+  });
+
+  app.post('/api/admin/potential-customers/import', isAdminAuthenticated, async (req, res) => {
+    try {
+      console.log('Import request received:');
+      console.log('req.body:', req.body);
+      console.log('req.files:', req.files ? Object.keys(req.files) : 'No files');
+      
+      // Get importName from FormData fields
+      let importName = null;
+      
+      // With parseNested: true, FormData fields should be available in req.files
+      if (req.files && req.files.importName) {
+        // For text fields in FormData, the data is in the data property
+        if (req.files.importName.data) {
+          importName = req.files.importName.data.toString();
+          console.log('Found importName in req.files.data:', importName);
+        } else {
+          // If it's not a file, it might be directly available
+          importName = req.files.importName.toString();
+          console.log('Found importName in req.files (direct):', importName);
+        }
+      } else if (req.body && req.body.importName) {
+        // Fallback to req.body if not in FormData
+        importName = req.body.importName;
+        console.log('Found importName in req.body:', importName);
+      } else {
+        console.log('No importName found in any location');
+        console.log('Available in req.files:', req.files ? Object.keys(req.files) : 'No files');
+        console.log('Available in req.body:', Object.keys(req.body));
+      }
+      
+      if (!importName) {
+        console.log('Returning error: Import name is required');
+        return res.status(400).json({ message: 'Import name is required' });
+      }
+
+      console.log('Processing import with name:', importName);
+
+      // Check if this is a test import (no file)
+      if (!req.files || !req.files.file) {
+        console.log('No file provided, using sample data');
+        // Use sample data for test imports
+        const result = await storage.importPotentialCustomers(null, importName);
+        res.json(result);
+        return;
+      }
+
+      // Handle file upload
+      const uploadedFile = req.files.file;
+      
+      if (!uploadedFile) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      console.log('Processing file upload:', uploadedFile.name);
+      console.log('File object details:', {
+        name: uploadedFile.name,
+        size: uploadedFile.size,
+        tempFilePath: uploadedFile.tempFilePath,
+        mimetype: uploadedFile.mimetype
+      });
+      
+      const result = await storage.importPotentialCustomers(uploadedFile, importName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error importing potential customers:', error);
+      res.status(500).json({ message: 'Failed to import customers' });
+    }
+  });
+
+  app.post(
+    '/api/admin/potential-customers/send-sms',
+    isAdminAuthenticated,
+    async (req, res) => {
+      try {
+        const { customerIds } = req.body;
+  
+        console.log("📩 Incoming SMS Request - Customer IDs:", customerIds); // 👈 log request body
+  
+        if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
+          console.warn("⚠️ No customer IDs provided in SMS request"); // 👈 log warning
+          return res.status(400).json({ message: 'No customer IDs provided' });
+        }
+  
+        const result = await storage.sendSmsToPotentialCustomers(customerIds);
+        console.log("✅ SMS Sending Result (summary):", { count: result.count });
+        console.table(result.details || []);
+        res.json(result);
+      } catch (error) {
+        console.error("❌ Error sending SMS to potential customers:", error); // 👈 log error
+        res.status(500).json({ message: 'Failed to send SMS' });
+      }
+    }
+  );
+  
+
+  // Admin User Reports endpoint
+  app.post('/api/admin/reports/users', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      // Verify admin token (you can implement proper admin auth here)
+      // For now, we'll assume any token is valid for demo purposes
+      
+      const { fromDate, toDate } = req.body;
+      
+      if (!fromDate || !toDate) {
+        return res.status(400).json({ message: 'Date range is required' });
+      }
+
+      const from = new Date(fromDate);
+      const to = new Date(toDate);
+
+      // Get user reports data for the specified date range
+      const userReports = await storage.getUserReports(from, to);
+      
+      res.json(userReports);
+    } catch (error) {
+      console.error('Error getting user reports:', error);
+      res.status(500).json({ message: 'Failed to get user reports' });
+    }
+  });
+
+  // Terms and Conditions endpoints
+  app.get('/api/admin/terms-conditions', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const terms = await storage.getTermsAndConditions();
+      res.json(terms);
+    } catch (error) {
+      console.error('Error getting terms and conditions:', error);
+      res.status(500).json({ message: 'Failed to get terms and conditions' });
+    }
+  });
+
+  app.put('/api/admin/terms-conditions', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const { providersTerms, customersTerms, websiteTerms } = req.body;
+      
+      const updatedTerms = await storage.updateTermsAndConditions({
+        providersTerms,
+        customersTerms,
+        websiteTerms,
+      });
+      
+      res.json(updatedTerms);
+    } catch (error) {
+      console.error('Error updating terms and conditions:', error);
+      res.status(500).json({ message: 'Failed to update terms and conditions' });
+    }
+  });
+
+  // Provider lead settings endpoint (read-only for providers)
+  app.get('/api/provider/lead-settings', isProviderAuthenticated, async (req, res) => {
+    try {
+      const providerId = (req as any).provider?.id;
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      const settings = await storage.getLeadSettings();
+      // Return settings that providers need to know about
+      res.json({ 
+        freeLeadsEnabled: settings.freeLeadsEnabled,
+        providersCanRedeemCredits: settings.providersCanRedeemCredits
+      });
+    } catch (error) {
+      console.error('Error getting lead settings:', error);
+      res.status(500).json({ message: 'Failed to get lead settings' });
+    }
+  });
+
+
+
+  // Lead Management Settings endpoints
+  app.get('/api/admin/lead-management-settings', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const settings = await storage.getLeadManagementSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error getting lead management settings:', error);
+      res.status(500).json({ message: 'Failed to get lead management settings' });
+    }
+  });
+
+  app.put('/api/admin/lead-management-settings', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const updatedSettings = await storage.updateLeadManagementSettings(req.body);
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error('Error updating lead management settings:', error);
+      res.status(500).json({ message: 'Failed to update lead management settings' });
+    }
+  });
+
+  // Service Categories management endpoints
+  app.post('/api/admin/service-categories', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const newCategory = await storage.createServiceCategory(req.body);
+      res.json(newCategory);
+    } catch (error) {
+      console.error('Error creating service category:', error);
+      res.status(500).json({ message: 'Failed to create service category' });
+    }
+  });
+
+  app.put('/api/admin/service-categories/:id', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const categoryId = parseInt(req.params.id);
+      const updatedCategory = await storage.updateServiceCategory(categoryId, req.body);
+      res.json(updatedCategory);
+    } catch (error) {
+      console.error('Error updating service category:', error);
+      res.status(500).json({ message: 'Failed to update service category' });
+    }
+  });
+
+  app.delete('/api/admin/service-categories/:id', async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminToken = req.headers['x-admin-token'] as string;
+      if (!adminToken) {
+        return res.status(401).json({ message: 'Admin authentication required' });
+      }
+
+      const categoryId = parseInt(req.params.id);
+      const deleted = await storage.deleteServiceCategory(categoryId);
+      
+      if (deleted) {
+        res.json({ message: 'Service category deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'Service category not found' });
+      }
+    } catch (error) {
+      console.error('Error deleting service category:', error);
+      res.status(500).json({ message: error.message || 'Failed to delete service category' });
+    }
+  });
+
+  // Potential Customers endpoints
+  app.get('/api/admin/potential-customers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const customers = await storage.getAllPotentialCustomers();
+      res.json(customers);
+    } catch (error) {
+      console.error('Error getting potential customers:', error);
+      res.status(500).json({ message: 'Failed to get potential customers' });
+    }
+  });
+
+  app.get('/api/admin/potential-customers/import-groups', isAdminAuthenticated, async (req, res) => {
+    try {
+      const groups = await storage.getPotentialCustomerImportGroups();
+      res.json(groups);
+    } catch (error) {
+      console.error('Error getting import groups:', error);
+      res.status(500).json({ message: 'Failed to get import groups' });
+    }
+  });
+
+  app.post('/api/admin/potential-customers/import', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { importName } = req.body;
+      const file = req.files?.file;
+      
+      if (!file || !importName) {
+        return res.status(400).json({ message: 'File and import name are required' });
+      }
+
+      const result = await storage.importPotentialCustomers(file, importName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error importing potential customers:', error);
+      res.status(500).json({ message: error.message || 'Failed to import potential customers' });
+    }
+  });
+
+
+
+  // Send individual SMS to a potential customer
+  app.post('/api/admin/potential-customers/:id/send-sms', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { message, customMessage } = req.body;
+      
+      if (!id) {
+        return res.status(400).json({ message: 'Customer ID is required' });
+      }
+
+      // Get customer details
+      const [customer] = await db
+        .select()
+        .from(potentialCustomers)
+        .where(eq(potentialCustomers.id, parseInt(id)));
+
+      if (!customer) {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+
+      // Determine SMS type based on current status (treat empty as not_sent)
+      let smsType: '1st_sent' | '2nd_sent';
+      if (customer.smsDeliveryStatus === 'not_sent' || !customer.smsDeliveryStatus) {
+        smsType = '1st_sent';
+      } else if (customer.smsDeliveryStatus === '1st_sent') {
+        smsType = '2nd_sent';
+      } else {
+        return res.status(400).json({ message: 'Maximum SMS limit reached for this customer' });
+      }
+
+      // Send SMS
+      let smsSent: boolean;
+      if (customMessage) {
+        // Send custom message
+        smsSent = await smsService.sendSms(customer.phone, customMessage, {
+          customerId: customer.id,
+          smsType,
+        });
+        // record for UI
+        smsService.recordOutbound({
+          recipientType: 'potential_customer',
+          recipientId: customer.id,
+          recipientPhone: customer.phone,
+          recipientName: customer.name,
+          message: customMessage,
+          smsType: 'custom',
+          sentBy: (req as any).admin?.username || 'admin',
+          status: 'sent',
+        });
+      } else {
+        // Send template message (normalize phone same as bulk path)
+        const raw = (customer.phone || '').toString();
+        const digits = raw.replace(/[^0-9+]/g, '');
+        const normalizedPhone = digits.startsWith('+61') ? digits : digits.startsWith('61') ? `+${digits}` : digits.startsWith('0') ? `+61${digits.slice(1)}` : null;
+        if (!normalizedPhone) {
+          return res.status(400).json({ message: 'Invalid phone format for this customer' });
+        }
+        const templateMessage = smsType === '1st_sent'
+          ? `Hi ${customer.name}! 👋 \n\nServicePanda here! We noticed you might be looking for reliable service providers in your area.\n\nWe have pre-screened, verified professionals ready to help with your needs. Would you like to learn more about our services?\n\nReply YES to get started, or visit our website for more info.\n\nBest regards,\nServicePanda Team`
+          : `Hi ${customer.name}! \n\nJust following up on our previous message about ServicePanda's verified service providers.\n\nWe're here to connect you with trusted professionals in your area. No obligation, just quality service connections.\n\nReply YES to learn more, or call us directly.\n\nServicePanda Team`;
+        smsSent = await smsService.sendSms(normalizedPhone, templateMessage, { customerId: customer.id, smsType });
+        smsService.recordOutbound({
+          recipientType: 'potential_customer',
+          recipientId: customer.id,
+          recipientPhone: customer.phone,
+          recipientName: customer.name,
+          message: templateMessage,
+          smsType,
+          sentBy: (req as any).admin?.username || 'admin',
+          status: 'sent',
+        });
+      }
+
+      if (smsSent) {
+        // Update SMS status
+        await storage.updatePotentialCustomerSmsStatus(parseInt(id), smsType);
+        
+        res.json({
+          success: true,
+          message: `SMS ${smsType} sent successfully to ${customer.name}`,
+          smsType,
+          customerId: customer.id,
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'Failed to send SMS',
+        });
+      }
+    } catch (error) {
+      console.error('Error sending individual SMS:', error);
+      res.status(500).json({ message: error.message || 'Failed to send SMS' });
+    }
+  });
+
+  // SMS service status endpoint
+  app.get('/api/admin/sms/status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const status = smsService.getStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('Error getting SMS service status:', error);
+      res.status(500).json({ message: 'Failed to get SMS service status' });
+    }
+  });
+
+  // Get all SMS messages from DB (fallback to logs if DB not available)
+  app.get('/api/admin/sms/messages', isAdminAuthenticated, async (req, res) => {
+    try {
+      // Disable caching so we don't get 304 responses that the frontend treats as errors
+      res.set('Cache-Control', 'no-store');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      // Force a unique ETag every request to bypass conditional GETs (avoids 304)
+      res.set('ETag', `${Date.now()}`);
+
+      // Try DB read; ensure table exists first
+      try {
+        await db.execute(sql`CREATE TABLE IF NOT EXISTS sms_messages (
+          id SERIAL PRIMARY KEY,
+          recipient_type VARCHAR(20) NOT NULL,
+          recipient_id INTEGER,
+          recipient_phone VARCHAR NOT NULL,
+          recipient_name VARCHAR,
+          message TEXT NOT NULL,
+          direction VARCHAR(20) NOT NULL,
+          status VARCHAR(20) DEFAULT 'sent',
+          sms_type VARCHAR(20),
+          sent_by VARCHAR,
+          sent_at TIMESTAMP DEFAULT NOW(),
+          delivered_at TIMESTAMP,
+          read_at TIMESTAMP,
+          api_response TEXT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        );`);
+
+        const rows = await db
+          .select()
+          .from(smsMessages)
+          .orderBy(desc(smsMessages.sentAt));
+
+        // If DB is empty, fall back to in-memory logs so UI shows recent activity
+        if (!rows || rows.length === 0) {
+          const logs = smsService.getLogs();
+          return res.status(200).json(logs);
+        }
+
+        return res.status(200).json(rows);
+      } catch (e) {
+        console.warn('DB fetch for sms_messages failed, falling back to in-memory logs');
+        const logs = smsService.getLogs();
+        return res.status(200).json(logs);
+      }
+    } catch (error) {
+      console.error('Error getting SMS messages:', error);
+      res.status(500).json({ message: 'Failed to get SMS messages' });
+    }
+  });
+
+  // Admin-only: Insert a test SMS row to verify UI wiring quickly
+  app.post('/api/admin/sms/messages/debug-add', isAdminAuthenticated, async (req: any, res) => {
+    try {
+      const { recipientPhone = '+61400000000', recipientName = 'Debug User', message = 'Test SMS from debug endpoint' } = req.body || {};
+
+      // Ensure table exists
+      await db.execute(sql`CREATE TABLE IF NOT EXISTS sms_messages (
+        id SERIAL PRIMARY KEY,
+        recipient_type VARCHAR(20) NOT NULL,
+        recipient_id INTEGER,
+        recipient_phone VARCHAR NOT NULL,
+        recipient_name VARCHAR,
+        message TEXT NOT NULL,
+        direction VARCHAR(20) NOT NULL,
+        status VARCHAR(20) DEFAULT 'sent',
+        sms_type VARCHAR(20),
+        sent_by VARCHAR,
+        sent_at TIMESTAMP DEFAULT NOW(),
+        delivered_at TIMESTAMP,
+        read_at TIMESTAMP,
+        api_response TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );`);
+
+      await db.insert(smsMessages).values({
+        recipientType: 'potential_customer',
+        recipientPhone,
+        recipientName,
+        message,
+        direction: 'outbound',
+        status: 'sent',
+        sentBy: (req as any).admin?.username || 'admin',
+        sentAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('debug-add sms failed:', error);
+      res.status(500).json({ success: false, message: 'Failed to insert debug sms' });
+    }
+  });
+
+  // Potential Providers endpoints
+  app.get('/api/admin/potential-providers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providers = await storage.getAllPotentialProviders();
+      res.json(providers);
+    } catch (error) {
+      console.error('Error getting potential providers:', error);
+      res.status(500).json({ message: 'Failed to get potential providers' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const providerData = req.body;
+      const result = await storage.createPotentialProvider(providerData);
+      res.json(result);
+    } catch (error) {
+      console.error('Error creating potential provider:', error);
+      res.status(500).json({ message: 'Failed to create potential provider' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/import', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { importName, csvData } = req.body;
+      
+      if (!importName) {
+        return res.status(400).json({ message: 'Import name is required' });
+      }
+      
+
+      const result = await storage.importPotentialProviders(csvData, importName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error importing potential providers:', error);
+      res.status(500).json({ message: 'Failed to import potential providers' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/confirm-import', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { importId, providers } = req.body;
+      
+      if (!providers || !Array.isArray(providers)) {
+        return res.status(400).json({ message: 'Providers data is required' });
+      }
+
+      const result = await storage.confirmPotentialProvidersImport(providers);
+      res.json(result);
+    } catch (error) {
+      console.error('Error confirming potential providers import:', error);
+      res.status(500).json({ message: 'Failed to confirm import' });
+    }
+  });
+
+  app.patch('/api/admin/potential-providers/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const result = await storage.updatePotentialProvider(parseInt(id), updateData);
+      res.json(result);
+    } catch (error) {
+      console.error('Error updating potential provider:', error);
+      res.status(500).json({ message: 'Failed to update potential provider' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/tasks', isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskData = req.body;
+      const result = await storage.createPotentialProviderTask(taskData);
+      res.json(result);
+    } catch (error) {
+      console.error('Error creating potential provider task:', error);
+      res.status(500).json({ message: 'Failed to create task' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/email', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { potentialProviderId, subject, content } = req.body;
+      const result = await storage.sendEmailToPotentialProvider(potentialProviderId, subject, content);
+      res.json(result);
+    } catch (error) {
+      console.error('Error sending email to potential provider:', error);
+      res.status(500).json({ message: 'Failed to send email' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/sms', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { potentialProviderId, content } = req.body;
+      const result = await storage.sendSmsToPotentialProvider(potentialProviderId, content);
+      res.json(result);
+    } catch (error) {
+      console.error('Error sending SMS to potential provider:', error);
+      res.status(500).json({ message: 'Failed to send SMS' });
+    }
+  });
+
+  app.post('/api/admin/potential-providers/:id/convert', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await storage.convertPotentialProviderToProvider(parseInt(id));
+      res.json(result);
+    } catch (error) {
+      console.error('Error converting potential provider:', error);
+      res.status(500).json({ message: 'Failed to convert provider' });
+    }
+  });
+
+  // Provider Reports endpoint
+  app.get('/api/admin/reports/providers', isAdminAuthenticated, async (req, res) => {
+    try {
+      const reports = await storage.getProviderReports();
+      res.json(reports);
+    } catch (error) {
+      console.error('Error getting provider reports:', error);
+      res.status(500).json({ message: 'Failed to get provider reports' });
+    }
+  });
+
+  // Email Management Routes
+  app.get('/api/admin/emails', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { tab, user, search, fromDate, toDate } = req.query;
+      
+      // Get emails based on filters
+      const emails = await storage.getEmails({
+        tab: tab as string || 'inbox',
+        userId: user as string || 'all',
+        search: search as string || '',
+        fromDate: fromDate as string || '',
+        toDate: toDate as string || '',
+        isAdmin: true
+      });
+      
+      res.json(emails);
+    } catch (error) {
+      console.error('Error fetching emails:', error);
+      res.status(500).json({ message: 'Failed to fetch emails' });
+    }
+  });
+
+  // Test email service endpoint (no auth required for testing)
+  app.post('/api/test/email', async (req, res) => {
+    try {
+      const { to, subject, body } = req.body;
+      
+      if (!to || !subject || !body) {
+        return res.status(400).json({ message: 'To, subject, and body are required' });
+      }
+
+      // Check Mailgun configuration
+      const mailgunKeys = await storage.getDecryptedMailgunKeys();
+      if (!mailgunKeys) {
+        return res.status(500).json({ 
+          message: 'Email service not configured. Please configure Mailgun settings first.',
+          mailgunConfigured: false
+        });
+      }
+
+      // Test email sending
+      const emailSent = await sendEmail({
+        to,
+        subject,
+        text: body,
+        html: body
+      });
+
+      if (emailSent) {
+        res.json({ 
+          success: true, 
+          message: 'Test email sent successfully',
+          mailgunConfigured: true
+        });
+      } else {
+        res.status(500).json({ 
+          message: 'Test email failed to send',
+          mailgunConfigured: true
+        });
+      }
+    } catch (error) {
+      console.error('Error in test email:', error);
+      res.status(500).json({ 
+        message: 'Test email error: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        mailgunConfigured: false
+      });
+    }
+  });
+
+  // Update email status (archive, trash, spam, etc.)
+  app.patch('/api/admin/emails/:id/status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, folder } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ message: 'Status is required' });
+      }
+
+      // Update email status in database
+      const updatedEmail = await storage.updateEmailStatus(parseInt(id), status);
+
+      res.json({ 
+        message: 'Email status updated successfully', 
+        email: updatedEmail 
+      });
+    } catch (error) {
+      console.error('Error updating email status:', error);
+      res.status(500).json({ message: 'Failed to update email status', error: error.message });
+    }
+  });
+
+  app.post('/api/admin/emails/send', isAdminAuthenticated, async (req, res) => {
+
+    console.log("Hello");
+    try {
+      const { to, cc, bcc, subject, body, template, status } = req.body;
+      
+      if (!to || !subject || !body) {
+        return res.status(400).json({ message: 'To, subject, and body are required' });
+      }
+
+      // Check if this is a draft (don't send via email service)
+      if (status === 'draft') {
+        // Store draft in database
+        const emailData = {
+          from: 'hrms.devdoc@gmail.com',
+          to,
+          cc,
+          bcc,
+          subject,
+          body,
+          bodyHtml: body,
+          status: 'draft',
+          isRead: false,
+          isStarred: false,
+          hasAttachments: false,
+          priority: 'normal',
+          folder: 'draft',
+          // Scope email to the logged-in admin user
+          userId: (req as any).admin?.username || null,
+          userType: 'admin',
+          sentAt: null,
+        };
+
+        await storage.createEmail(emailData);
+        
+        res.json({ 
+          success: true, 
+          message: 'Draft saved successfully' 
+        });
+        return;
+      }
+
+
+      // Send email using existing email service
+      const emailSent = await sendEmail({
+        to,
+        cc,
+        bcc,
+        subject,
+        text: body,
+        html: body
+      });
+
+      if (emailSent) {
+        // Store email in database
+        const emailData = {
+          from: 'hrms.devdoc@gmail.com',
+          to,
+          cc,
+          bcc,
+          subject,
+          body,
+          bodyHtml: body,
+          status: 'sent',
+          isRead: false,
+          isStarred: false,
+          hasAttachments: false,
+          priority: 'normal',
+          folder: 'sent',
+          // Scope email to the logged-in admin user
+          userId: (req as any).admin?.username || null,
+          userType: 'admin',
+          sentAt: new Date(),
+        };
+
+        await storage.createEmail(emailData);
+        
+        res.json({ 
+          success: true, 
+          message: 'Email sent successfully' 
+        });
+      } else {
+        // Ensure the composed message is still visible in Sent even if delivery fails
+        const emailData = {
+          from: 'hrms.devdoc@gmail.com',
+          to,
+          cc,
+          bcc,
+          subject,
+          body,
+          bodyHtml: body,
+          status: 'sent',
+          isRead: false,
+          isStarred: false,
+          hasAttachments: false,
+          priority: 'normal',
+          folder: 'sent',
+          // Scope email to the logged-in admin user
+          userId: (req as any).admin?.username || null,
+          userType: 'admin',
+          sentAt: new Date(),
+        };
+
+        await storage.createEmail(emailData);
+        
+        res.json({ 
+          success: false, 
+          message: 'Email could not be delivered via Mailgun, but has been saved in Sent. dddd' 
+        });
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      
+      // Try to save the email as failed for debugging
+      try {
+        const { to, cc, bcc, subject, body } = req.body;
+        const emailData = {
+          from: 'hrms.devdoc@gmail.com',
+          to,
+          cc,
+          bcc,
+          subject,
+          body,
+          bodyHtml: body,
+          status: 'sent',
+          isRead: false,
+          isStarred: false,
+          hasAttachments: false,
+          priority: 'normal',
+          folder: 'sent',
+          // Scope email to the logged-in admin user
+          userId: (req as any).admin?.username || null,
+          userType: 'admin',
+          sentAt: new Date(),
+        };
+
+        await storage.createEmail(emailData);
+      } catch (saveError) {
+        console.error('Failed to save failed email:', saveError);
+      }
+      
+      res.json({ 
+        success: false,
+        message: 'Email delivery failed, but the message has been saved in Sent.' 
+      });
+    }
+  });
+
+  // Bulk update email status (archive, trash, spam, draft, etc.)
+  app.patch('/api/admin/emails/bulk-status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { ids, status } = req.body as { ids: number[]; status: string };
+      if (!Array.isArray(ids) || ids.length === 0 || !status) {
+        return res.status(400).json({ message: 'ids (number[]) and status are required' });
+      }
+
+      const count = await storage.bulkUpdateEmailStatus(ids, status);
+      // Return updated emails so the UI can refresh without re-fetching all tabs if desired
+      const updated = await Promise.all(ids.map((id) => storage.getEmail(id)));
+      res.json({ message: 'Email statuses updated', count, updated });
+    } catch (error) {
+      console.error('Error in bulk status update:', error);
+      res.status(500).json({ message: 'Failed to update email statuses' });
+    }
+  });
+
+  // Bulk delete emails permanently
+  app.post('/api/admin/emails/bulk-delete', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { ids } = req.body as { ids: number[] };
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: 'ids (number[]) are required' });
+      }
+
+      const count = await storage.deleteEmails(ids);
+      res.json({ message: 'Emails deleted', count });
+    } catch (error) {
+      console.error('Error in bulk delete:', error);
+      res.status(500).json({ message: 'Failed to delete emails' });
+    }
+  });
+
+  app.patch('/api/admin/emails/:id/status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ message: 'Status is required' });
+      }
+
+      const result = await storage.updateEmailStatus(parseInt(id), status);
+      res.json(result);
+    } catch (error) {
+      console.error('Error updating email status:', error);
+      res.status(500).json({ message: 'Failed to update email status' });
+    }
+  });
+
+  app.get('/api/admin/emails/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const email = await storage.getEmail(parseInt(id));
+      
+      if (!email) {
+        return res.status(404).json({ message: 'Email not found' });
+      }
+      
+      res.json(email);
+    } catch (error) {
+      console.error('Error fetching email:', error);
+      res.status(500).json({ message: 'Failed to fetch email' });
+    }
+  });
+
+  // Mark email as read
+  app.patch('/api/admin/emails/:id/read', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const email = await storage.markEmailAsRead(parseInt(id));
+      
+      if (!email) {
+        return res.status(404).json({ message: 'Email not found' });
+      }
+      
+      res.json({ message: 'Email marked as read', email });
+    } catch (error) {
+      console.error('Error marking email as read:', error);
+      res.status(500).json({ message: 'Failed to mark email as read' });
+    }
+  });
+
+  // Set read/unread state (single or bulk)
+  app.patch('/api/admin/emails/read-state', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { ids, read } = req.body as { ids: number[]; read: boolean };
+      if (!Array.isArray(ids) || typeof read !== 'boolean') {
+        return res.status(400).json({ message: 'ids (number[]) and read (boolean) are required' });
+      }
+
+      const updated: any[] = [];
+      for (const id of ids) {
+        const email = await storage.setEmailReadState(id, read);
+        updated.push(email);
+      }
+      res.json({ message: 'Read state updated', count: updated.length });
+    } catch (error) {
+      console.error('Error updating read state:', error);
+      res.status(500).json({ message: 'Failed to update read state' });
     }
   });
 

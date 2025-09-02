@@ -38,10 +38,17 @@ import AdminDailyReports from "@/pages/admin/AdminDailyReports";
 import AdminStripeSettings from "@/pages/admin/AdminStripeSettings";
 import AdminMailgunSettings from "@/pages/admin/AdminMailgunSettings";
 import AdminVoucherManagement from "@/pages/admin/AdminVoucherManagement";
+import AdminPotentialCustomers from "@/pages/admin/AdminPotentialCustomers";
+import AdminPotentialProviders from "@/pages/admin/AdminPotentialProviders";
 import AdminUsers from "@/pages/AdminUsers";
 import AdminDepartments from "@/pages/AdminDepartments";
 import AdminChangePassword from "@/pages/AdminChangePassword";
+import AdminTermsConditions from "@/pages/admin/AdminTermsConditions";
+import AdminLeadManagement from "@/pages/admin/AdminLeadManagement";
+import AdminEmail from "@/pages/AdminEmail";
+import AdminSmsMenu from "@/pages/AdminSmsMenu";
 import RequestService from "@/pages/RequestService";
+import ReviewSubmission from "@/pages/ReviewSubmission";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -93,12 +100,21 @@ function Router() {
       <Route path="/admin-change-password" component={AdminChangePassword} />
       <Route path="/admin/leads" component={AdminLeads} />
       <Route path="/admin/vouchers" component={AdminVoucherManagement} />
+      <Route path="/admin/potential-customers" component={AdminPotentialCustomers} />
+      <Route path="/admin/potential-providers" component={AdminPotentialProviders} />
       <Route path="/admin/lead-settings" component={AdminLeadSettings} />
+              <Route path="/admin/service-type" component={AdminLeadManagement} />
+      <Route path="/admin/email" component={AdminEmail} />
+      <Route path="/admin/sms" component={AdminSmsMenu} />
       <Route path="/admin/reports/users" component={AdminUserReports} />
       <Route path="/admin/reports/providers" component={AdminProviderReports} />
       <Route path="/admin/reports/daily" component={AdminDailyReports} />
       <Route path="/admin/settings/stripe" component={AdminStripeSettings} />
       <Route path="/admin/settings/mailgun" component={AdminMailgunSettings} />
+      <Route path="/admin/terms-conditions" component={AdminTermsConditions} />
+      
+      {/* Review submission route - public access */}
+      <Route path="/review/:token" component={ReviewSubmission} />
       
       {/* Customer routes based on authentication */}
       {!isAuthenticated ? (

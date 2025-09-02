@@ -22,8 +22,9 @@ export default function ProviderLogin() {
     mutationFn: async (credentials: { email: string; password: string }) => {
       // Clear any existing provider session before login
       localStorage.removeItem('providerId');
-      
+   
       const response = await apiRequest("POST", "/api/provider/login", credentials);
+      console.log("provider",credentials);
       return response.json();
     },
     onSuccess: (provider) => {

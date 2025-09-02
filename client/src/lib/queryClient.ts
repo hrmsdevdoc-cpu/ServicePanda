@@ -30,6 +30,10 @@ export async function apiRequest(
     headers['x-provider-id'] = providerId;
   }
 
+  // Add customer authentication header if available
+  // For customer endpoints, we'll use session-based auth instead of localStorage
+  // The customer ID will be extracted from the session on the server side
+
   const res = await fetch(url, {
     method,
     headers,
@@ -89,6 +93,10 @@ export const getQueryFn: <T>(options: {
       headers['x-provider-id'] = providerId;
     }
 
+    // Add customer authentication header if available
+    // For customer endpoints, we'll use session-based auth instead of localStorage
+    // The customer ID will be extracted from the session on the server side
+
     const res = await fetch(url, {
       credentials: "include",
       headers,
@@ -108,8 +116,10 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      staleTime: 5 * 60 * 1000, // 5 minutes instead of Infinity
       retry: false,
+      retryOnMount: false,
+      refetchOnReconnect: false,
     },
     mutations: {
       retry: false,

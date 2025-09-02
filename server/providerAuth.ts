@@ -81,14 +81,22 @@ export function setupProviderAuth(app: Express) {
 
   // Provider login endpoint
   app.post("/api/provider/login", async (req, res) => {
+    console.log("=== PROVIDER LOGIN REQUEST ===");
+    console.log("Request headers:", req.headers);
+    console.log("Request body:", req.body);
+    console.log("Content-Type:", req.get('Content-Type'));
+    console.log("User-Agent:", req.get('User-Agent'));
+    console.log("===============================");
+    
     try {
       const { email, password } = req.body;
-
+  
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
       }
 
       const provider = await storage.getServiceProviderByEmail(email);
+
       if (!provider || !provider.password || !(await comparePasswords(password, provider.password))) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
@@ -98,6 +106,10 @@ export function setupProviderAuth(app: Express) {
         email: provider.email,
         firstName: provider.firstName,
         lastName: provider.lastName,
+        status: provider.status,
+        documentsUploaded: provider.documentsUploaded,
+        termsAccepted: provider.termsAccepted,
+        providerStatus: provider.providerStatus
       });
     } catch (error) {
       console.error("Provider login error:", error);
@@ -228,9 +240,16 @@ export function setupProviderAuth(app: Express) {
         return res.status(404).json({ message: "Provider not found" });
       }
 
-      // Return provider profile without password
+      // Get provider rating data
+      const ratingData = await storage.getProviderRating(providerId);
+
+      // Return provider profile without password but with rating data
       const { password, ...providerProfile } = provider;
-      res.json(providerProfile);
+      res.json({
+        ...providerProfile,
+        rating: ratingData?.rating || '5.0',
+        totalReviews: ratingData?.totalReviews || 0
+      });
     } catch (error) {
       console.error("Error fetching provider profile:", error);
       res.status(500).json({ message: "Failed to fetch provider profile" });

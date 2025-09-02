@@ -5,6 +5,8 @@ interface EmailOptions {
   subject: string;
   text: string;
   html: string;
+  cc?: string;
+  bcc?: string;
 }
 
 /**
@@ -14,6 +16,8 @@ interface EmailOptions {
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
+    console.log('sendEmail called with options:', options);
+    
     // Get Mailgun credentials from database
     const mailgunKeys = await storage.getDecryptedMailgunKeys();
     
@@ -23,23 +27,37 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     }
 
     const { apiKey, domain, domainSendingKey } = mailgunKeys;
+    console.log('Mailgun keys retrieved - domain:', domain, 'apiKey present:', !!apiKey);
     
-    // Prepare form data for Mailgun API
-    const formData = new FormData();
+    // Prepare form data for Mailgun API using URLSearchParams (Node.js compatible)
+    const formData = new URLSearchParams();
     formData.append('from', `ServicePanda <noreply@${domain}>`);
     formData.append('to', options.to);
+    if (options.cc) {
+      formData.append('cc', options.cc);
+    }
+    if (options.bcc) {
+      formData.append('bcc', options.bcc);
+    }
     formData.append('subject', options.subject);
     formData.append('text', options.text);
     formData.append('html', options.html);
+
+    console.log('Form data prepared:', formData.toString());
+    console.log('Making request to Mailgun API...');
 
     // Send email via Mailgun API
     const response = await fetch(`https://api.mailgun.net/v3/${domain}/messages`, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`
+        'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: formData
+      body: formData.toString()
     });
+
+    console.log('Mailgun API response status:', response.status);
+    console.log('Mailgun API response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -64,202 +82,18 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
  * @returns Promise<boolean> indicating success
  */
 export async function sendProviderWelcomeEmail(email: string, firstName: string): Promise<boolean> {
-  const baseUrl = process.env.REPLIT_DOMAINS 
+  const baseUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
     : process.env.FRONTEND_URL || 'http://localhost:3000';
   const loginUrl = `${baseUrl}/provider-login`;
-  
-  const textContent = `
-    Welcome to ServicePanda!
 
-    Hi ${firstName},
-
-    Thank you for joining ServicePanda as a service provider!
-
-    Your account has been created successfully. Here's what happens next:
-
-    1. Complete your application by providing:
-       - Service categories you offer
-       - Service areas you cover
-       - Required documents (license, insurance, police check)
-
-    2. Once your application is complete, we'll review it within 24 hours
-
-    3. After approval, you'll receive your first 3 leads absolutely FREE!
-
-    Login Details:
-    - Website: ${loginUrl}
-    - Email: ${email}
-    - Use the password you created during registration
-
-    Complete your application as soon as possible to start receiving leads from customers in your area.
-
-    If you have any questions, feel free to contact our support team.
-
-    Welcome aboard!
-    ServicePanda Team
-  `;
-
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Welcome to ServicePanda</title>
-      <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          line-height: 1.6;
-          color: #333;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-          background-color: #f7f7f7;
-        }
-        .container {
-          background-color: white;
-          padding: 40px;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header {
-          text-align: center;
-          margin-bottom: 30px;
-          padding-bottom: 20px;
-          border-bottom: 2px solid #e2e8f0;
-        }
-        .logo {
-          font-size: 28px;
-          font-weight: bold;
-          color: #1f2937;
-          margin-bottom: 10px;
-        }
-        .welcome-badge {
-          background-color: #10b981;
-          color: white;
-          padding: 8px 16px;
-          border-radius: 20px;
-          font-size: 14px;
-          font-weight: 500;
-          display: inline-block;
-          margin-bottom: 20px;
-        }
-        .steps {
-          background-color: #f8fafc;
-          border-left: 4px solid #3b82f6;
-          padding: 20px;
-          margin: 20px 0;
-          border-radius: 4px;
-        }
-        .step {
-          margin-bottom: 15px;
-          padding-left: 20px;
-          position: relative;
-        }
-        .step:before {
-          content: counter(step-counter);
-          counter-increment: step-counter;
-          position: absolute;
-          left: 0;
-          top: 0;
-          background-color: #3b82f6;
-          color: white;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          font-size: 12px;
-          font-weight: bold;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .steps {
-          counter-reset: step-counter;
-        }
-        .login-box {
-          background-color: #eff6ff;
-          border: 1px solid #dbeafe;
-          padding: 20px;
-          border-radius: 6px;
-          margin: 20px 0;
-        }
-        .login-button {
-          display: inline-block;
-          padding: 12px 24px;
-          background-color: #3b82f6;
-          color: white;
-          text-decoration: none;
-          border-radius: 6px;
-          font-weight: 500;
-          margin: 15px 0;
-          text-align: center;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #e2e8f0;
-          color: #6b7280;
-          font-size: 14px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="logo">🐼 ServicePanda</div>
-          <p style="margin: 0; color: #6b7280;">Australian Service Marketplace</p>
-          <div class="welcome-badge">Welcome to the Team!</div>
-        </div>
-
-        <h2 style="color: #1f2937; margin-bottom: 10px;">Hi ${firstName}!</h2>
-        
-        <p>Thank you for joining ServicePanda as a service provider! Your account has been created successfully.</p>
-        
-        <div class="steps">
-          <h3 style="margin-top: 0; color: #1f2937;">What happens next:</h3>
-          <div class="step">
-            <strong>Complete your application</strong> by providing your service categories, coverage areas, and required documents
-          </div>
-          <div class="step">
-            <strong>We'll review your application</strong> within 24 hours of submission
-          </div>
-          <div class="step">
-            <strong>Start earning immediately</strong> with your first 3 leads absolutely FREE after approval!
-          </div>
-        </div>
-        
-        <div class="login-box">
-          <h3 style="margin-top: 0; color: #1f2937;">Your Login Details:</h3>
-          <p><strong>Website:</strong> <a href="${loginUrl}" style="color: #3b82f6;">${loginUrl}</a></p>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Password:</strong> Use the password you created during registration</p>
-          
-          <div style="text-align: center;">
-            <a href="${loginUrl}" class="login-button">Complete Your Application</a>
-          </div>
-        </div>
-        
-        <p style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;">
-          <strong>⚡ Pro Tip:</strong> Complete your application as soon as possible to start receiving leads from customers in your area!
-        </p>
-        
-        <div class="footer">
-          <p>Welcome aboard!<br><strong>ServicePanda Team</strong></p>
-          <p style="margin-top: 20px;">
-            Need help? Contact our support team anytime.
-          </p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+  const textContent = `Welcome to ServicePanda!\n\nHi ${firstName},\n\nYour provider account has been created. Visit ${loginUrl} to complete your application.\n\nServicePanda Team`;
+  const htmlContent = `<p>Welcome to ServicePanda!</p><p>Hi ${firstName},</p><p>Your provider account has been created. <a href="${loginUrl}">Complete your application</a>.</p><p>ServicePanda Team</p>`;
 
   return await sendEmail({
     to: email,
-    subject: '🎉 Welcome to ServicePanda - Complete Your Application',
-    text: textContent.trim(),
+    subject: 'Welcome to ServicePanda',
+    text: textContent,
     html: htmlContent
   });
 }
@@ -813,6 +647,39 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
     to: email,
     subject: 'Password Reset - ServicePanda',
     text: textContent.trim(),
+    html: htmlContent
+  });
+}
+
+/**
+ * Send customer feedback request email after job completion
+ * @param customerEmail Customer's email address
+ * @param customerName Customer's name
+ * @param providerName Service provider's name
+ * @param serviceType Type of service completed
+ * @param suburb Location where service was performed
+ * @returns Promise<boolean> indicating success
+ */
+export async function sendCustomerFeedbackEmail(
+  customerEmail: string, 
+  customerName: string, 
+  providerName: string, 
+  serviceType: string, 
+  suburb: string,
+  reviewToken: string
+): Promise<boolean> {
+  const baseUrl = process.env.REPLIT_DOMAINS
+    ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+    : process.env.FRONTEND_URL || 'http://localhost:3000';
+  const reviewUrl = `${baseUrl}/review-submission?token=${reviewToken}`;
+
+  const textContent = `How was your service?\n\nHi ${customerName},\n\nPlease share feedback for ${providerName} (${serviceType}) in ${suburb}.\n${reviewUrl}\n\nThank you,\nServicePanda Team`;
+  const htmlContent = `<p><strong>How was your service?</strong></p><p>Hi ${customerName},</p><p>Please share feedback for <strong>${providerName}</strong> (${serviceType}) in ${suburb}.</p><p><a href="${reviewUrl}">Share your experience</a></p><p>Thank you,<br/>ServicePanda Team</p>`;
+
+  return await sendEmail({
+    to: customerEmail,
+    subject: `How was your ${serviceType} service? - ServicePanda`,
+    text: textContent,
     html: htmlContent
   });
 }

@@ -1,0 +1,22 @@
+
+> rest-express@1.0.0 dev
+> tsx server/index.ts
+
+
+node:internal/modules/run_main:129
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 1 error:
+C:\Users\Saqib\Desktop\ServicePandaTracker\server\emailService.ts:88:0: ERROR: Unexpected "export"
+    at failureErrorWithLog (C:\Users\Saqib\Desktop\ServicePandaTracker\node_modules\tsx\node_modules\esbuild\lib\main.js:1476:15)
+    at C:\Users\Saqib\Desktop\ServicePandaTracker\node_modules\tsx\node_modules\esbuild\lib\main.js:755:50
+    at responseCallbacks.<computed> (C:\Users\Saqib\Desktop\ServicePandaTracker\node_modules\tsx\node_modules\esbuild\lib\main.js:622:9)
+    at handleIncomingPacket (C:\Users\Saqib\Desktop\ServicePandaTracker\node_modules\tsx\node_modules\esbuild\lib\main.js:677:12)
+    at Socket.readFromStdout (C:\Users\Saqib\Desktop\ServicePandaTracker\node_modules\tsx\node_modules\esbuild\lib\main.js:600:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:559:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+    at Readable.push (node:internal/streams/readable:390:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:191:23)
+
+Node.js v20.13.1

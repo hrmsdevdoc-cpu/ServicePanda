@@ -3,13 +3,22 @@ export const adminApiRequest = async (method: string, url: string, data?: any) =
   const token = localStorage.getItem('adminToken');
   console.log("Frontend sending admin token:", token ? `${token.substring(0, 20)}...` : "None");
   
+  // Check if data is FormData
+  const isFormData = data instanceof FormData;
+  
+  const headers: Record<string, string> = {
+    'x-admin-token': token || '',
+  };
+  
+  // Only set Content-Type for JSON data, not for FormData
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
   const response = await fetch(url, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-admin-token': token || '',
-    },
-    body: data ? JSON.stringify(data) : undefined,
+    headers,
+    body: data ? (isFormData ? data : JSON.stringify(data)) : undefined,
   });
   
   // Check for 401 Unauthorized (token expired)
