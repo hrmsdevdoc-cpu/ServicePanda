@@ -4,7 +4,7 @@ const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl, Al
 const { Title, Paragraph, Card, Button, Chip, Searchbar, Badge, ActivityIndicator } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 const { useQuery, useMutation } = require('@tanstack/react-query');
-const { getLeads, getCreditBalance, getProfile } = require('../../services/api');
+const apiService = require('../../services/api');
 
 function NewLeadsScreen({ onNavigate }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,19 +13,19 @@ function NewLeadsScreen({ onNavigate }) {
   // Fetch leads from API
   const { data: leads, isLoading: leadsLoading, error: leadsError, refetch } = useQuery({
     queryKey: ['provider-leads'],
-    queryFn: getLeads,
+    queryFn: () => apiService.getLeads(),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Fetch credit balance and profile for payment method determination
   const { data: creditBalance } = useQuery({
     queryKey: ['/api/provider/credit/balance'],
-    queryFn: getCreditBalance,
+    queryFn: () => apiService.getCreditBalance(),
   });
 
   const { data: profile } = useQuery({
     queryKey: ['/api/provider/profile'],
-    queryFn: getProfile,
+    queryFn: () => apiService.getProfile(),
   });
 
   // Filter for new/pending leads only

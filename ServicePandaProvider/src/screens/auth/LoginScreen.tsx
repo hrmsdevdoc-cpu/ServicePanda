@@ -14,7 +14,8 @@ const { useMutation } = require('@tanstack/react-query');
 const { useAuth } = require('../../contexts/AuthContext');
 const { colors } = require('../../utils/theme');
 
-const LoginScreen = () => {
+const LoginScreen = ({ onNavigate }) => {
+  console.log('🔍 LoginScreen rendered with onNavigate:', !!onNavigate, onNavigate);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -170,8 +171,8 @@ const LoginScreen = () => {
               <Button
                 mode="text"
                 onPress={() => {
-                  // TODO: Navigate to forgot password screen
-                  Alert.alert("Coming Soon", "Forgot password functionality will be added soon.");
+                  console.log('🔍 Forgot password clicked! Navigating to ForgotPassword');
+                  onNavigate('ForgotPassword');
                 }}
                 style={styles.linkButton}
                 textColor={colors.primary}
@@ -185,17 +186,22 @@ const LoginScreen = () => {
                 <Text style={styles.registerText}>
                   Don't have a provider account?{' '}
                 </Text>
-                                                   <Button
-                    mode="text"
-                    onPress={() => {
-                      // TODO: Navigation will be implemented later
-                      Alert.alert("Coming Soon", "Provider registration navigation will be added soon.");
-                    }}
-                    style={styles.linkButton}
-                    textColor={colors.primary}
-                  >
-                    Join us as a Partner
-                  </Button>
+                <Button
+                  mode="text"
+                  onPress={() => {
+                    console.log('🔍 Button clicked! onNavigate exists:', !!onNavigate);
+                    if (onNavigate) {
+                      console.log('🔍 Calling onNavigate with ProviderRegistration');
+                      onNavigate('ProviderRegistration');
+                    } else {
+                      console.log('❌ onNavigate is undefined!');
+                    }
+                  }}
+                  style={styles.linkButton}
+                  textColor={colors.primary}
+                >
+                  Join us as a Partner
+                </Button>
               </View>
             </View>
           </Card.Content>
@@ -333,4 +339,3 @@ const styles = StyleSheet.create({
 });
 
 module.exports = LoginScreen;
-

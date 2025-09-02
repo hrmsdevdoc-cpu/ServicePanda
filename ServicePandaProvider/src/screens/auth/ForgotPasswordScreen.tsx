@@ -1,6 +1,8 @@
 const React = require('react');
-const { View, StyleSheet, TouchableOpacity, Text } = require('react-native');
-const { Title, Paragraph, Card, Button } = require('react-native-paper');
+const { useState } = require('react');
+const { View, StyleSheet, TouchableOpacity, Text, Alert, KeyboardAvoidingView, Platform, ScrollView } = require('react-native');
+const { Title, Paragraph, Card, Button, TextInput } = require('react-native-paper');
+const { useMutation } = require('@tanstack/react-query');
 const { colors } = require('../../utils/theme');
 
 const ForgotPasswordScreen = ({ onNavigate }) => {
