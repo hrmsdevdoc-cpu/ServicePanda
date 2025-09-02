@@ -10,11 +10,8 @@
     "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
-    "start:server": "NODE_ENV=production node server-js/index.js",
     "check": "tsc",
-    "db:push": "drizzle-kit push",
-    "clean": "rimraf dist server-js",
-    "prebuild": "npm run clean"
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -129,7 +126,6 @@
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.25.0",
     "postcss": "^8.4.47",
-    "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",
     "typescript": "5.6.3",

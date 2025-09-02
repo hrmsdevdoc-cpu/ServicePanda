@@ -223,21 +223,6 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-<<<<<<< HEAD
-    marginBottom: 12, // Reduced from 16
-  },
-  title: {
-    fontSize: 18, // Reduced from 20
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 4, // Reduced from 6
-  },
-  subtitle: {
-    fontSize: 12, // Reduced from 14
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 16, // Reduced from 18
-=======
     marginBottom: 24,
   },
   title: {
@@ -251,22 +236,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   form: {
     flex: 1,
   },
   section: {
-<<<<<<< HEAD
-    marginBottom: 12, // Reduced from 16
-  },
-  sectionTitle: {
-    fontSize: 14, // Reduced from 16
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8, // Reduced from 12
-    paddingBottom: 4, // Reduced from 6
-=======
     marginBottom: 24,
   },
   sectionTitle: {
@@ -275,7 +249,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
     paddingBottom: 8,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -284,42 +257,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   inputContainer: {
-<<<<<<< HEAD
-    marginBottom: 8, // Reduced from 12
-=======
     marginBottom: 16,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   halfWidth: {
     width: '48%',
   },
   label: {
-<<<<<<< HEAD
-    fontSize: 12, // Reduced from 14
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4, // Reduced from 6
-=======
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   input: {
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
-<<<<<<< HEAD
-    borderRadius: 4, // Reduced from 6
-    padding: 8, // Reduced from 12
-    fontSize: 13, // Reduced from 14
-    color: colors.text,
-    height: 36, // Reduced from 40
-  },
-  textArea: {
-    height: 50, // Reduced from 60
-=======
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
@@ -327,26 +279,12 @@ const styles = StyleSheet.create({
   },
   textArea: {
     height: 80,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   inputError: {
     borderColor: colors.error,
   },
   errorText: {
     color: colors.error,
-<<<<<<< HEAD
-    fontSize: 11, // Reduced from 12
-    marginTop: 2, // Reduced from 3
-  },
-  submitButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 4, // Reduced from 6
-    padding: 10, // Reduced from 12
-    alignItems: 'center',
-    marginTop: 12, // Reduced from 16
-    marginBottom: 8, // Reduced from 12
-    height: 36, // Reduced from 40
-=======
     fontSize: 14,
     marginTop: 4,
   },
@@ -357,23 +295,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
     marginBottom: 16,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   submitButtonDisabled: {
     backgroundColor: colors.border,
   },
   submitButtonText: {
     color: colors.white,
-<<<<<<< HEAD
-    fontSize: 13, // Reduced from 14
-    fontWeight: '600',
-  },
-  disclaimer: {
-    fontSize: 10, // Reduced from 12
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 14, // Reduced from 16
-=======
     fontSize: 16,
     fontWeight: '600',
   },
@@ -382,7 +309,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
 });
 

@@ -9,26 +9,6 @@ const ProviderRegistrationScreen = require('../screens/auth/ProviderRegistration
 
 const Stack = createStackNavigator();
 
-<<<<<<< HEAD
-const AuthNavigator = ({ onLoginSuccess, onNavigate }) => {
-  return (
-    <Stack.Navigator 
-      initialRouteName="Login"
-      screenOptions={{
-        headerShown: true,
-        headerStyle: {
-          backgroundColor: '#FFFFFF',
-        },
-        headerTintColor: '#111827',
-        headerTitleStyle: {
-          fontWeight: '600',
-        },
-      }}
-    >
-      <Stack.Screen name="Login">
-        {(props) => <LoginScreen {...props} onNavigate={onNavigate} />}
-      </Stack.Screen>
-=======
 const AuthNavigator = ({ onLoginSuccess }) => {
   return (
     <Stack.Navigator 
@@ -38,7 +18,6 @@ const AuthNavigator = ({ onLoginSuccess }) => {
       }}
     >
       <Stack.Screen name="Login" component={LoginScreen} />
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
       <Stack.Screen name="Signup">
         {(props) => <SignupScreen {...props} onLoginSuccess={onLoginSuccess} />}
       </Stack.Screen>

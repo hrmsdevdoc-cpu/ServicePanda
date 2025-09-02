@@ -127,26 +127,6 @@ const SignupScreen = ({ onNavigate, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-<<<<<<< HEAD
-    backgroundColor: '#fafafa',
-  },
-  content: {
-    flex: 1,
-  },
-  header: {
-    alignItems: 'center',
-    paddingTop: 12, // Reduced from 20
-    marginBottom: 16, // Reduced from 20
-  },
-  title: {
-    fontSize: 20, // Reduced from 24
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4, // Reduced from 6
-  },
-  subtitle: {
-    fontSize: 13, // Reduced from 14
-=======
     backgroundColor: '#F5FCFF',
   },
   content: {
@@ -166,24 +146,11 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     color: '#666',
     textAlign: 'center',
   },
   form: {
     flex: 1,
-<<<<<<< HEAD
-    paddingHorizontal: 16, // Reduced from 20
-  },
-  inputContainer: {
-    marginBottom: 12, // Reduced from 16
-  },
-  label: {
-    fontSize: 13, // Reduced from 14
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4, // Reduced from 6
-=======
   },
   inputContainer: {
     marginBottom: 20,
@@ -193,30 +160,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ddd',
-<<<<<<< HEAD
-    borderRadius: 6, // Reduced from 8
-    padding: 10, // Reduced from 12
-    fontSize: 14, // Reduced from 15
-    height: 40, // Add fixed height for consistency
-  },
-  signupButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 6, // Reduced from 8
-    padding: 10, // Reduced from 12
-    alignItems: 'center',
-    marginTop: 12, // Reduced from 16
-    height: 40, // Add fixed height for consistency
-  },
-  signupButtonText: {
-    color: '#fff',
-    fontSize: 14, // Reduced from 15
-=======
     borderRadius: 8,
     padding: 15,
     fontSize: 16,
@@ -231,17 +179,12 @@ const styles = StyleSheet.create({
   signupButtonText: {
     color: '#fff',
     fontSize: 16,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     fontWeight: '600',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-<<<<<<< HEAD
-    marginVertical: 12, // Reduced from 16
-=======
     marginVertical: 20,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   dividerLine: {
     flex: 1,
@@ -249,36 +192,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#ddd',
   },
   dividerText: {
-<<<<<<< HEAD
-    marginHorizontal: 10, // Reduced from 12
-    color: '#666',
-    fontSize: 12, // Reduced from 13
-=======
     marginHorizontal: 15,
     color: '#666',
     fontSize: 14,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     fontWeight: '500',
   },
   providerButton: {
     backgroundColor: '#34C759',
-<<<<<<< HEAD
-    borderRadius: 6, // Reduced from 8
-    padding: 10, // Reduced from 12
-    alignItems: 'center',
-    marginBottom: 12, // Reduced from 16
-    height: 40, // Add fixed height for consistency
-  },
-  providerButtonText: {
-    color: '#fff',
-    fontSize: 14, // Reduced from 15
-    fontWeight: '600',
-    marginBottom: 2, // Reduced from 3
-  },
-  providerButtonSubtext: {
-    color: '#fff',
-    fontSize: 10, // Reduced from 11
-=======
     borderRadius: 8,
     padding: 15,
     alignItems: 'center',
@@ -293,25 +213,12 @@ const styles = StyleSheet.create({
   providerButtonSubtext: {
     color: '#fff',
     fontSize: 12,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     opacity: 0.9,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-<<<<<<< HEAD
-    marginTop: 16, // Reduced from 20
-    marginBottom: 16, // Reduced from 20
-  },
-  footerText: {
-    color: '#666',
-    fontSize: 12, // Reduced from 13
-  },
-  loginLink: {
-    color: '#007AFF',
-    fontSize: 12, // Reduced from 13
-=======
     marginTop: 30,
     marginBottom: 30,
   },
@@ -322,7 +229,6 @@ const styles = StyleSheet.create({
   loginLink: {
     color: '#007AFF',
     fontSize: 14,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     fontWeight: '600',
   },
 });

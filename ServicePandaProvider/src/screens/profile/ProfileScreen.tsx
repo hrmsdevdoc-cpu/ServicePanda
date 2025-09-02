@@ -160,11 +160,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
           
           <Button
             mode="outlined"
-<<<<<<< HEAD
-            onPress={() => onNavigate?.('personalDetails')}
-=======
             onPress={() => {/* Navigate to edit profile */}}
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
             style={styles.actionButton}
             icon="account-edit"
           >

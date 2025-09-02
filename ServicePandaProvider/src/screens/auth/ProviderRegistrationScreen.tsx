@@ -585,19 +585,6 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-<<<<<<< HEAD
-    padding: 16, // Reduced from 20
-    paddingTop: 20, // Reduced from 40
-  },
-  title: {
-    fontSize: 22, // Reduced from 28
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 6, // Reduced from 8
-  },
-  subtitle: {
-    fontSize: 14, // Reduced from 16
-=======
     padding: 20,
     paddingTop: 40,
   },
@@ -609,41 +596,26 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     color: colors.textSecondary,
     textAlign: 'center',
   },
   stepIndicator: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-<<<<<<< HEAD
-    paddingHorizontal: 16, // Reduced from 20
-    marginBottom: 20, // Reduced from 30
-=======
     paddingHorizontal: 20,
     marginBottom: 30,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   stepItem: {
     alignItems: 'center',
     flex: 1,
   },
   stepCircle: {
-<<<<<<< HEAD
-    width: 32, // Reduced from 40
-    height: 32, // Reduced from 40
-    borderRadius: 16, // Reduced from 20
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6, // Reduced from 8
-=======
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   stepPending: {
     backgroundColor: colors.border,
@@ -662,28 +634,16 @@ const styles = StyleSheet.create({
   },
   stepNumber: {
     color: colors.text,
-<<<<<<< HEAD
-    fontSize: 14, // Reduced from 16
-=======
     fontSize: 16,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     fontWeight: 'bold',
   },
   stepCheck: {
     color: colors.white,
-<<<<<<< HEAD
-    fontSize: 16, // Reduced from 18
-    fontWeight: 'bold',
-  },
-  stepLabel: {
-    fontSize: 11, // Reduced from 12
-=======
     fontSize: 18,
     fontWeight: 'bold',
   },
   stepLabel: {
     fontSize: 12,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     color: colors.textSecondary,
     textAlign: 'center',
   },
@@ -692,11 +652,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   stepContainer: {
-<<<<<<< HEAD
-    padding: 16, // Reduced from 20
-=======
     padding: 20,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
   },
   loadingContainer: {
     flex: 1,
@@ -704,26 +660,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-<<<<<<< HEAD
-    marginTop: 12, // Reduced from 16
-    fontSize: 14, // Reduced from 16
-=======
     marginTop: 16,
     fontSize: 16,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     color: colors.textSecondary,
   },
   successContainer: {
     alignItems: 'center',
-<<<<<<< HEAD
-    paddingVertical: 20, // Reduced from 40
-  },
-  successIcon: {
-    width: 60, // Reduced from 80
-    height: 60, // Reduced from 80
-    backgroundColor: colors.success,
-    borderRadius: 30, // Reduced from 40
-=======
     paddingVertical: 40,
   },
   successIcon: {
@@ -731,7 +673,6 @@ const styles = StyleSheet.create({
     height: 80,
     backgroundColor: colors.success,
     borderRadius: 40,
->>>>>>> 085af7f9981a4f4c28bc1fde96eb87c8bbc41059
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
