@@ -11,6 +11,7 @@ const {
   ActivityIndicator,
 } = require('react-native');
 const AsyncStorage = require('@react-native-async-storage/async-storage');
+const { Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 const apiService = require('../../services/api');
 
@@ -480,18 +481,30 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
           <Text style={styles.title}>Join ServicePanda</Text>
           <Text style={styles.subtitle}>Complete your registration in a few simple steps</Text>
           
-
+                {/* Back to Login - Top Left */}
+      <View style={styles.backButtonContainer}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => onNavigate('login')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.backButtonText}>← Back to Login</Text>
+        </TouchableOpacity>
+      </View>
         </View>
 
         {renderStepIndicator()}
 
         <View style={styles.stepContainer}>
           {currentStep === 1 && (
-            <BasicInfoStep
-              formData={formData}
-              onSubmit={handleStep1Submit}
-              isLoading={isLoading}
-            />
+            <>
+              {console.log('🔍 Rendering BasicInfoStep with formData:', formData)}
+              <BasicInfoStep
+                formData={formData}
+                onSubmit={handleStep1Submit}
+                isLoading={isLoading}
+              />
+            </>
           )}
 
           {currentStep === 2 && (
@@ -585,25 +598,45 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 40,
+    padding: 16,
+    paddingTop: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 8,
+    marginTop: 40,
+    marginBottom: 6,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
   },
+      backButtonContainer: {
+      position: 'absolute',
+      top: 10,
+      left: 20,
+      zIndex: 10,
+    },
+    backButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      minHeight: 36,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    backButtonText: {
+      color: colors.primary,
+      fontSize: 13,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
   stepIndicator: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 30,
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
   stepItem: {
     alignItems: 'center',
@@ -634,16 +667,16 @@ const styles = StyleSheet.create({
   },
   stepNumber: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   stepCheck: {
     color: colors.white,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   stepLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textSecondary,
     textAlign: 'center',
   },
@@ -652,7 +685,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   stepContainer: {
-    padding: 20,
+    padding: 16,
   },
   loadingContainer: {
     flex: 1,
@@ -679,21 +712,21 @@ const styles = StyleSheet.create({
   },
   successCheck: {
     color: colors.white,
-    fontSize: 40,
+    fontSize: 32,
     fontWeight: 'bold',
   },
   successTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   successMessage: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
+    marginBottom: 20,
+    lineHeight: 20,
   },
   officeHours: {
     backgroundColor: colors.infoLight,

@@ -14,8 +14,8 @@ const { useMutation } = require('@tanstack/react-query');
 const { useAuth } = require('../../contexts/AuthContext');
 const { colors } = require('../../utils/theme');
 
-const LoginScreen = ({ onNavigate }) => {
-  console.log('🔍 LoginScreen rendered with onNavigate:', !!onNavigate, onNavigate);
+const LoginScreen = ({ onNavigate, navigation }) => {
+  console.log('🔍 LoginScreen - onNavigate:', !!onNavigate, 'navigation:', !!navigation);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -107,7 +107,6 @@ const LoginScreen = ({ onNavigate }) => {
         <Card style={styles.card} contentStyle={styles.cardContentStyle}>
           <Card.Content style={styles.cardContent}>
             <Title style={styles.cardTitle}>Sign in to your account</Title>
-            
             {/* Email Input - matching web design */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Email Address <Text style={styles.required}>*</Text></Text>
@@ -171,8 +170,10 @@ const LoginScreen = ({ onNavigate }) => {
               <Button
                 mode="text"
                 onPress={() => {
-                  console.log('🔍 Forgot password clicked! Navigating to ForgotPassword');
-                  onNavigate('ForgotPassword');
+                  console.log('🔍 Forgot password button pressed!');
+                  console.log('🔍 Calling onNavigate with forgotPassword');
+                  onNavigate('forgotPassword');
+                  console.log('🔍 onNavigate call completed');
                 }}
                 style={styles.linkButton}
                 textColor={colors.primary}
@@ -189,13 +190,8 @@ const LoginScreen = ({ onNavigate }) => {
                 <Button
                   mode="text"
                   onPress={() => {
-                    console.log('🔍 Button clicked! onNavigate exists:', !!onNavigate);
-                    if (onNavigate) {
-                      console.log('🔍 Calling onNavigate with ProviderRegistration');
-                      onNavigate('ProviderRegistration');
-                    } else {
-                      console.log('❌ onNavigate is undefined!');
-                    }
+                    console.log('🔍 Button clicked! Navigating to ProviderRegistration');
+                    onNavigate('providerRegistration');
                   }}
                   style={styles.linkButton}
                   textColor={colors.primary}
@@ -219,42 +215,42 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'flex-start',
-    padding: 20,
-    paddingTop: 20, // Reduced from 40 to move logo/title higher
+    padding: 16,
+    paddingTop: 10,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 5, // Reduced from 10 to move content higher
+    marginBottom: 12,
+    marginTop: 0,
   },
   logoContainer: {
-    marginBottom: 32, // Increased from 20 to push "Partner Login" further down
+    marginBottom: 16,
   },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   logo: {
-    fontSize: 48, // Increased to 48 for better panda emoji display
-    marginRight: 16, // Increased from 12 for better spacing
+    fontSize: 32,
+    marginRight: 12,
   },
   title: {
-    fontSize: 30, // Increased from 28 for better balance with panda
-    fontWeight: 'bold',
-    color: '#111827', // Dark gray matching web
-  },
-  subtitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 4, // Reduced from 6
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 2,
   },
   description: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 24,
-    marginTop: 0, // Reduced from 2
+    lineHeight: 20,
+    marginTop: 0,
   },
   card: {
     elevation: 8,
@@ -263,65 +259,65 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF', // Pure white background matching web
-    borderWidth: 0, // Remove any borders
-    marginTop: 4, // Reduced from 8 for tighter spacing
+    backgroundColor: '#FFFFFF',
+    borderWidth: 0,
+    marginTop: 2,
   },
   cardContent: {
-    backgroundColor: '#FFFFFF', // Ensure pure white background for content
-    padding: 0, // Remove default padding to match web
+    backgroundColor: '#FFFFFF',
+    padding: 0,
   },
   cardContentStyle: {
-    backgroundColor: '#FFFFFF', // Ensure pure white background for content
-    padding: 0, // Remove default padding to match web
+    backgroundColor: '#FFFFFF',
+    padding: 0,
   },
   cardTitle: {
     textAlign: 'center',
-    marginBottom: 24,
-    fontSize: 20,
-    color: '#111827', // Dark gray matching web
+    marginBottom: 16,
+    fontSize: 18,
+    color: '#111827',
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
-    color: '#374151', // Medium gray matching web
-    marginBottom: 8,
+    color: '#374151',
+    marginBottom: 6,
   },
   required: {
-    color: '#EF4444', // Red color matching web
+    color: '#EF4444',
   },
   inputWrapper: {
     position: 'relative',
   },
   input: {
-    backgroundColor: '#FFFFFF', // Pure white input background
+    backgroundColor: '#FFFFFF',
   },
   button: {
-    marginTop: 8,
-    marginBottom: 24,
+    marginTop: 6,
+    marginBottom: 16,
     borderRadius: 6,
-    height: 44,
+    height: 40,
   },
   buttonLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
   },
   links: {
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
   },
   linkButton: {
     marginVertical: 0,
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB', // Light gray matching web
+    backgroundColor: '#E5E7EB',
     width: '100%',
-    marginVertical: 16,
+    marginVertical: 12,
   },
   registerContainer: {
     alignItems: 'center',
@@ -330,8 +326,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   registerText: {
-    color: '#6B7280', // Medium gray matching web
-    fontSize: 14,
+    color: '#6B7280',
+    fontSize: 13,
   },
   backButton: {
     marginTop: 8,

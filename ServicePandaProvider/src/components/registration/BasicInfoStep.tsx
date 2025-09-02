@@ -13,6 +13,7 @@ const {
 const { colors } = require('../../utils/theme');
 
 const BasicInfoStep = ({ formData, onSubmit, isLoading }) => {
+  console.log('🔍 BasicInfoStep rendered with formData:', formData);
   const [localFormData, setLocalFormData] = useState(formData);
   const [errors, setErrors] = useState({});
 
@@ -223,32 +224,32 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 18,
   },
   form: {
     flex: 1,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 16,
-    paddingBottom: 8,
+    marginBottom: 12,
+    paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -257,58 +258,58 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   halfWidth: {
     width: '48%',
   },
   label: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   input: {
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
+    borderRadius: 6,
+    padding: 12,
+    fontSize: 14,
     color: colors.text,
   },
   textArea: {
-    height: 80,
+    height: 60,
   },
   inputError: {
     borderColor: colors.error,
   },
   errorText: {
     color: colors.error,
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: 3,
   },
   submitButton: {
     backgroundColor: colors.primary,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 6,
+    padding: 12,
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
+    marginTop: 16,
+    marginBottom: 12,
   },
   submitButtonDisabled: {
     backgroundColor: colors.border,
   },
   submitButtonText: {
     color: colors.white,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   disclaimer: {
-    fontSize: 14,
+    fontSize: 10,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 14,
   },
 });
 

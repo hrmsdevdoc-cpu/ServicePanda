@@ -1,5 +1,6 @@
 const React = require('react');
 const { View, Text, TouchableOpacity, StyleSheet } = require('react-native');
+const { IconButton } = require('react-native-paper');
 const { colors } = require('../utils/theme');
 
 interface NotificationIconProps {
@@ -10,9 +11,15 @@ interface NotificationIconProps {
 
 function NotificationIcon({ unreadCount, onPress, size = 24 }: NotificationIconProps) {
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
+    <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <Text style={[styles.bellIcon, { fontSize: size }]}>🔔</Text>
+        <IconButton
+          icon="bell"
+          size={size + 8}
+          iconColor={colors.text}
+          onPress={onPress}
+          style={styles.iconButton}
+        />
         {unreadCount > 0 && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>
@@ -21,7 +28,7 @@ function NotificationIcon({ unreadCount, onPress, size = 24 }: NotificationIconP
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -32,8 +39,12 @@ const styles = StyleSheet.create({
   iconContainer: {
     position: 'relative',
   },
-  bellIcon: {
-    color: colors.text,
+  iconButton: {
+    margin: 0,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    width: 40,
+    height: 40,
   },
   badge: {
     position: 'absolute',

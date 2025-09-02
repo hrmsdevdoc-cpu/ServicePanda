@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
 
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     compileSdkVersion rootProject.ext.compileSdkVersion
@@ -68,3 +69,4 @@ dependencies {
     // implementation project(':react-native-image-picker')
     implementation 'androidx.multidex:multidex:2.0.1'
 }
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"

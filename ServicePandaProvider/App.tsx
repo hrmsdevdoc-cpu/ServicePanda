@@ -8,6 +8,7 @@ const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
 const { AuthProvider, useAuth } = require('./src/contexts/AuthContext');
 // Direct registration screen for testing
 const LoginScreen = require('./src/screens/auth/LoginScreen');
+const ForgotPasswordScreen = require('./src/screens/auth/ForgotPasswordScreen');
 const ProviderRegistrationScreen = require('./src/screens/auth/ProviderRegistrationScreen');
 const DashboardScreen = require('./src/screens/dashboard/DashboardScreen');
 const ActiveLeadsScreen = require('./src/screens/leads/ActiveLeadsScreen');
@@ -43,8 +44,11 @@ const AppContent = () => {
 
   // Navigation function to be passed to screens
   const navigateTo = (screen, subScreen = null) => {
+    console.log('🔍 navigateTo called with screen:', screen, 'subScreen:', subScreen);
+    console.log('🔍 Current screen before change:', currentScreen);
     setCurrentScreen(screen);
     setCurrentSubScreen(subScreen);
+    console.log('🔍 Screen change completed');
   };
 
   // Go back to dashboard
@@ -58,8 +62,14 @@ const AppContent = () => {
   }
 
   if (!isAuthenticated) {
-    // Direct registration screen for testing
-    return <LoginScreen />;
+    // Show different screens based on currentScreen for unauthenticated users
+    if (currentScreen === 'forgotPassword') {
+      return <ForgotPasswordScreen onNavigate={navigateTo} />;
+    } else if (currentScreen === 'providerRegistration') {
+      return <ProviderRegistrationScreen onNavigate={navigateTo} />;
+    } else {
+      return <LoginScreen onNavigate={navigateTo} />;
+    }
   }
   // if (!isAuthenticated) {
   //   // Show login or registration based on currentScreen
@@ -71,9 +81,29 @@ const AppContent = () => {
 
   // Render different screens based on currentScreen
   const renderScreen = () => {
+    console.log('🔍 renderScreen called with currentScreen:', currentScreen);
     switch (currentScreen) {
       case 'login':
         return <LoginScreen onNavigate={navigateTo} />;
+      case 'forgotPassword':
+        return (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <Text style={{ fontSize: 18, marginBottom: 20, textAlign: 'center' }}>
+              Forgot Password Feature
+            </Text>
+            <Text style={{ fontSize: 16, marginBottom: 20, textAlign: 'center', color: '#666' }}>
+              This feature will be implemented soon.
+            </Text>
+            <TouchableOpacity 
+              style={{ backgroundColor: colors.primary, padding: 15, borderRadius: 8 }}
+              onPress={() => navigateTo('login')}
+            >
+              <Text style={{ color: 'white', fontSize: 16 }}>Back to Login</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case 'providerRegistration':
+        return <ProviderRegistrationScreen onNavigate={navigateTo} />;
       case 'dashboard':
         return <DashboardScreen onNavigate={navigateTo} />;
       
@@ -194,27 +224,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingBottom: 80, // Add padding to prevent content from being hidden behind footer
+    paddingBottom: 65, // Adjusted padding for slightly larger footer
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 8,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   backButton: {
-    padding: 8,
-    marginRight: 16,
+    padding: 4,
+    marginRight: 12,
   },
   backButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.primary,
     fontWeight: '600',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.text,
   },
@@ -237,8 +267,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 5,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -251,14 +281,14 @@ const styles = StyleSheet.create({
   },
   footerTab: {
     alignItems: 'center',
-    padding: 8,
+    padding: 6,
   },
   footerIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+    fontSize: 22,
+    marginBottom: 3,
   },
   footerLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
   },
   activeFooterTab: {
