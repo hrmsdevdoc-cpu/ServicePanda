@@ -3,18 +3,28 @@ const { useState, useEffect } = require('react');
 const { View, StyleSheet, TouchableOpacity, Text, Alert, ScrollView, ActivityIndicator, Linking } = require('react-native');
 const { Title, Paragraph, Card, Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
-// Import image picker with proper error handling
+// Import image picker with proper error handling and fallback
 let launchImageLibrary = null;
 let launchCamera = null;
+let ImagePicker = null;
 
 try {
-  const ImagePicker = require('react-native-image-picker');
-  launchImageLibrary = ImagePicker.launchImageLibrary;
-  launchCamera = ImagePicker.launchCamera;
-  console.log('Image picker imported successfully');
+  ImagePicker = require('react-native-image-picker');
+  if (ImagePicker && ImagePicker.launchImageLibrary && ImagePicker.launchCamera) {
+    launchImageLibrary = ImagePicker.launchImageLibrary;
+    launchCamera = ImagePicker.launchCamera;
+    console.log('✅ Image picker imported successfully');
+  } else {
+    console.error('❌ Image picker methods not available');
+  }
 } catch (error) {
-  console.error('Failed to import image picker:', error);
+  console.error('❌ Failed to import image picker:', error);
 }
+
+// Function to check if image picker is available
+const isImagePickerAvailable = () => {
+  return launchImageLibrary !== null && launchCamera !== null;
+};
 const ApiService = require('../../services/api');
 
 const { API_BASE_URL } = require('../../config/api');
@@ -227,10 +237,11 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       console.log('🔍 Extracted filename:', filename);
 
       // Construct the document view URL (EXACT SAME as web app)
-      const documentViewUrl = `http://192.168.1.39:4000/api/provider/documents/view/${filename}/${providerId}`;
+      const { API_BASE_URL } = require('../../config/api');
+      const documentViewUrl = `${API_BASE_URL}/api/provider/documents/view/${filename}/${providerId}`;
       
       console.log('🔍 FULL DOCUMENT URL:', documentViewUrl);
-      console.log('🔍 API Base URL:', 'http://192.168.1.39:4000');
+      console.log('🔍 API Base URL:', API_BASE_URL);
       console.log('🔍 Filename:', filename);
       console.log('🔍 Provider ID:', providerId);
 
@@ -258,11 +269,32 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       console.log(`Opening ${source} for ${documentType}...`);
       
       // Check if image picker functions are available
-      if (!launchImageLibrary || !launchCamera) {
+      if (!isImagePickerAvailable()) {
+        console.error('❌ Image picker not available - launchImageLibrary:', !!launchImageLibrary, 'launchCamera:', !!launchCamera);
         Alert.alert(
           'Image Picker Not Available', 
-          'The image picker module is not properly installed. Please restart the app or check the installation.',
-          [{ text: 'OK' }]
+          'The image picker module is not properly installed. Please:\n\n1. Restart the app\n2. Check if react-native-image-picker is installed\n3. Try running: npx react-native run-android',
+          [
+            { text: 'OK' },
+            { 
+              text: 'Retry', 
+              onPress: () => {
+                // Try to re-import the image picker
+                try {
+                  const ImagePicker = require('react-native-image-picker');
+                  if (ImagePicker && ImagePicker.launchImageLibrary && ImagePicker.launchCamera) {
+                    launchImageLibrary = ImagePicker.launchImageLibrary;
+                    launchCamera = ImagePicker.launchCamera;
+                    console.log('✅ Image picker re-imported successfully');
+                    // Retry the document pick
+                    handleDocumentSelect(documentType, source);
+                  }
+                } catch (retryError) {
+                  console.error('❌ Retry failed:', retryError);
+                }
+              }
+            }
+          ]
         );
         return;
       }

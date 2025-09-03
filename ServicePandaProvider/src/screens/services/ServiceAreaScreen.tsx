@@ -74,8 +74,9 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
       setLoading(true);
       setError(null);
       
-      // Use your actual server URL instead of localhost
-      const response = await fetch('http://192.168.1.100:3000/api/service-areas', {
+      // Use API configuration for consistent URL
+      const { API_BASE_URL } = require('../../config/api');
+      const response = await fetch(`${API_BASE_URL}/api/service-areas`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

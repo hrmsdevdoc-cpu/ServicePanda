@@ -10,7 +10,7 @@ const {
   Alert,
   ActivityIndicator,
 } = require('react-native');
-const AsyncStorage = require('@react-native-async-storage/async-storage');
+const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 const { Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 const apiService = require('../../services/api');
@@ -165,7 +165,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
         console.log('🔐 Auto-login after account creation...');
         
         // Save providerId to AsyncStorage FIRST (before login call)
-        if (AsyncStorage && AsyncStorage.setItem) {
+        if (AsyncStorage && AsyncStorage.setItem && typeof AsyncStorage.setItem === 'function') {
           await AsyncStorage.setItem('providerId', response.id.toString());
           console.log('✅ providerId saved to AsyncStorage:', response.id);
           
@@ -178,7 +178,9 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
             // Add small delay to ensure AsyncStorage operation completes
             await new Promise(resolve => setTimeout(resolve, 100));
             
-            savedProviderId = await AsyncStorage.getItem('providerId');
+            if (AsyncStorage && AsyncStorage.getItem && typeof AsyncStorage.getItem === 'function') {
+              savedProviderId = await AsyncStorage.getItem('providerId');
+            }
             retryCount++;
             
             if (!savedProviderId) {
@@ -200,7 +202,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
         });
         
         // Save additional authentication data
-        if (AsyncStorage && AsyncStorage.setItem) {
+        if (AsyncStorage && AsyncStorage.setItem && typeof AsyncStorage.setItem === 'function') {
           await AsyncStorage.setItem('currentProvider', JSON.stringify(loginResponse));
           await AsyncStorage.setItem('providerAuthToken', 'authenticated');
           console.log('✅ Additional auth data saved to AsyncStorage');
@@ -238,11 +240,12 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
       
       // First test if server is reachable
       try {
-        const testResponse = await fetch('http://192.168.1.39:4000/api/health');
+        const { API_BASE_URL } = require('../../config/api');
+        const testResponse = await fetch(`${API_BASE_URL}/api/health`);
         console.log('🌐 Server test response:', testResponse.status);
       } catch (testError) {
         console.error('❌ Server not reachable:', testError);
-        Alert.alert('Connection Error', 'Cannot connect to server. Please check if the backend is running on port 4000.');
+        Alert.alert('Connection Error', 'Cannot connect to server. Please check your internet connection and try again.');
         return;
       }
       
@@ -298,58 +301,48 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
             console.log('🔍 Step 4 Submit - providerId:', providerId);
       console.log('🔍 Step 4 Submit - documentFiles:', documentFiles);
       
-      // COMMENTED OUT: Authentication middleware check since user is already logged in from auto-login
-      // Debug authentication before document upload with retry mechanism
-      console.log('🔐 Checking authentication before document upload...');
-      let storedProviderId = null;
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (!storedProviderId && retryCount < maxRetries) {
-        try {
-          // Add small delay to ensure AsyncStorage is ready
-          if (retryCount > 0) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-          }
-          
-          storedProviderId = await AsyncStorage.getItem('providerId');
-          const currentProvider = await AsyncStorage.getItem('currentProvider');
-          const authToken = await AsyncStorage.getItem('providerAuthToken');
-          
-          console.log(`🔐 Attempt ${retryCount + 1}:`);
-          console.log('🔐 Stored providerId:', storedProviderId);
-          console.log('🔐 Current provider data:', currentProvider ? 'Found' : 'Not found');
-          console.log('🔐 Auth token:', authToken);
-          
-          if (storedProviderId) {
-            console.log('✅ Authentication check passed');
-            break;
-          } else {
-            retryCount++;
-            if (retryCount < maxRetries) {
-              console.log(`⏳ Retry ${retryCount}: providerId not found, retrying...`);
-            }
-          }
-        } catch (authError) {
-          console.error(`❌ Authentication check attempt ${retryCount + 1} failed:`, authError);
-          retryCount++;
-        }
-      }
-      
-      // COMMENTED OUT: Skip authentication error since user is already logged in
-      // if (!storedProviderId) {
-      //   console.error('❌ Authentication failed after all retries');
-      //   Alert.alert('Authentication Error', 'Please log in again to continue.');
-      //   return;
-      // }
-      
-      // Use the providerId from state instead of AsyncStorage check
+      // Skip authentication check since user is already logged in from auto-login
+      // Use the providerId from state directly
       console.log('✅ Using providerId from state:', providerId);
       
       // Create FormData for React Native - WORKING VERSION (same as DocumentsScreen)
       const formData = new FormData();
       
       console.log('Creating FormData with files:', documentFiles);
+      
+      // Debug: Log actual file sizes
+      if (documentFiles.license) {
+        console.log('📄 License file size:', documentFiles.license.size, 'bytes');
+      }
+      if (documentFiles.policeCheck) {
+        console.log('📄 Police check file size:', documentFiles.policeCheck.size, 'bytes');
+      }
+      if (documentFiles.insuranceCertificate) {
+        console.log('📄 Insurance certificate file size:', documentFiles.insuranceCertificate.size, 'bytes');
+      }
+      
+      // Validate file sizes before upload to prevent HTTP 413
+      const maxFileSize = 500 * 1024; // 500KB limit (more conservative)
+      const largeFiles = [];
+      
+      if (documentFiles.license && documentFiles.license.size > maxFileSize) {
+        largeFiles.push('License Document');
+      }
+      if (documentFiles.policeCheck && documentFiles.policeCheck.size > maxFileSize) {
+        largeFiles.push('Police Check');
+      }
+      if (documentFiles.insuranceCertificate && documentFiles.insuranceCertificate.size > maxFileSize) {
+        largeFiles.push('Insurance Certificate');
+      }
+      
+      if (largeFiles.length > 0) {
+        Alert.alert(
+          'File Too Large',
+          `The following files are too large (over 500KB):\n\n${largeFiles.join('\n')}\n\nPlease compress or use smaller files.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
       
       if (documentFiles.license) {
         console.log('Adding license file:', documentFiles.license);
@@ -359,14 +352,9 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
           throw new Error('License file URI is missing');
         }
         
-        // React Native FormData - WORKING STRUCTURE
-        const licenseFile = {
-          uri: documentFiles.license.uri,
-          type: documentFiles.license.type || 'image/jpeg',
-          name: documentFiles.license.name || 'license.jpg',
-        };
-        console.log('License file object:', licenseFile);
-        formData.append('license', licenseFile);
+        // Try simpler approach like web version
+        console.log('License file object:', documentFiles.license);
+        formData.append('license', documentFiles.license);
       }
       
       if (documentFiles.policeCheck) {
@@ -377,13 +365,9 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
           throw new Error('Police check file URI is missing');
         }
         
-        const policeFile = {
-          uri: documentFiles.policeCheck.uri,
-          type: documentFiles.policeCheck.type || 'image/jpeg',
-          name: documentFiles.policeCheck.name || 'police_check.jpg',
-        };
-        console.log('Police file object:', policeFile);
-        formData.append('policeCheck', policeFile);
+        // Try simpler approach like web version
+        console.log('Police file object:', documentFiles.policeCheck);
+        formData.append('policeCheck', documentFiles.policeCheck);
       }
       
       if (documentFiles.insuranceCertificate) {
@@ -394,16 +378,18 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
           throw new Error('Insurance certificate file URI is missing');
         }
         
-        const insuranceFile = {
-          uri: documentFiles.insuranceCertificate.uri,
-          type: documentFiles.insuranceCertificate.type || 'image/jpeg',
-          name: documentFiles.insuranceCertificate.name || 'insurance.jpg',
-        };
-        console.log('Insurance file object:', insuranceFile);
-        formData.append('insuranceCertificate', insuranceFile);
+        // Try simpler approach like web version
+        console.log('Insurance file object:', documentFiles.insuranceCertificate);
+        formData.append('insuranceCertificate', documentFiles.insuranceCertificate);
       }
       
       console.log('FormData created successfully');
+      
+      // Debug: Log FormData contents
+      console.log('🔍 FormData contents:');
+      for (let [key, value] of formData._parts || []) {
+        console.log(`  ${key}:`, typeof value, value);
+      }
 
              // Use the new registration-specific endpoint (no authentication required)
        await apiService.request('POST', `/api/provider/${providerId}/registration-documents`, formData);
@@ -418,7 +404,9 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
             text: 'OK',
             onPress: () => {
               // Clear registration data and redirect to login
-              AsyncStorage.removeItem('providerId');
+              if (AsyncStorage && AsyncStorage.removeItem && typeof AsyncStorage.removeItem === 'function') {
+                AsyncStorage.removeItem('providerId');
+              }
               // You can add navigation to login screen here
               Alert.alert('Registration Complete', 'Please log in with your email and password to access your account.');
             }
@@ -426,7 +414,24 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
         ]
       );
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to upload documents. Please try again.');
+      console.error('❌ Document upload error:', error);
+      
+      // Handle specific HTTP errors
+      if (error.message && error.message.includes('413')) {
+        Alert.alert(
+          'File Too Large',
+          'One or more files are too large for upload. Please:\n\n1. Compress your images\n2. Use smaller file sizes (under 500KB)\n3. Try taking new photos with lower quality\n4. Remove and re-add smaller files',
+          [{ text: 'OK' }]
+        );
+      } else if (error.message && error.message.includes('400')) {
+        Alert.alert(
+          'Invalid File Format',
+          'Please ensure all files are valid images (JPG, PNG) and try again.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Upload Error', error.message || 'Failed to upload documents. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -555,7 +560,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
                                      onPress={async () => {
                      try {
                        // Clear registration data and navigate directly to login
-                       if (AsyncStorage && AsyncStorage.removeItem) {
+                       if (AsyncStorage && AsyncStorage.removeItem && typeof AsyncStorage.removeItem === 'function') {
                          await AsyncStorage.removeItem('providerId');
                          await AsyncStorage.removeItem('currentProvider');
                          await AsyncStorage.removeItem('providerAuthToken');

@@ -45,7 +45,8 @@ android {
         exclude 'META-INF/NOTICE'
         exclude 'META-INF/NOTICE.txt'
     }
-
+    
+    // Fix for react-native-image-picker resource verification issues
     aaptOptions {
         noCompress 'tflite'
         ignoreAssetsPattern "!.svn:!.git:.*:!CVS:!thumbs.db:!picasa.ini:!*.scc:*~"
@@ -65,8 +66,7 @@ dependencies {
     implementation("com.facebook.react:react-native:+")
     implementation("com.facebook.react:hermes-android")
     implementation project(':@react-native-async-storage_async-storage')
-    // Temporarily comment out image picker to test build
-    // implementation project(':react-native-image-picker')
+    // implementation project(':react-native-image-picker') // Temporarily disabled for build
     implementation 'androidx.multidex:multidex:2.0.1'
 }
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"

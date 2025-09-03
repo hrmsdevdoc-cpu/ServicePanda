@@ -3,3 +3,5 @@ include ':app'
 includeBuild("../node_modules/react-native-gradle-plugin")
 include ':@react-native-async-storage_async-storage'
 project(':@react-native-async-storage_async-storage').projectDir = new File(rootProject.projectDir, '../node_modules/@react-native-async-storage/async-storage/android')
+// include ':react-native-image-picker' // Temporarily disabled for build
+// project(':react-native-image-picker').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-image-picker/android')
