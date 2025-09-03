@@ -20,11 +20,28 @@ if (!process.env.NODE_ENV) {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// CORS middleware for development
+// CORS middleware for development and production
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = [
+    'https://staging.servicepanda.com.au',
+    'https://servicepanda.com.au',
+    'http://localhost:4000',
+    'http://localhost:3000',
+    'http://127.0.0.1:4000',
+    'http://127.0.0.1:3000'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (process.env.NODE_ENV === 'development') {
+    // Allow all origins in development
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
+  res.header('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);

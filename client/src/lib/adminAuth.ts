@@ -1,3 +1,5 @@
+import { getApiUrl } from "./apiConfig";
+
 // Admin authentication utility for handling token expiration
 export const adminApiRequest = async (method: string, url: string, data?: any) => {
   const token = localStorage.getItem('adminToken');
@@ -15,7 +17,7 @@ export const adminApiRequest = async (method: string, url: string, data?: any) =
     headers['Content-Type'] = 'application/json';
   }
   
-  const response = await fetch(url, {
+  const response = await fetch(getApiUrl(url), {
     method,
     headers,
     body: data ? (isFormData ? data : JSON.stringify(data)) : undefined,
