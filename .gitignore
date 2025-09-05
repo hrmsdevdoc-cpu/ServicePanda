@@ -1,10 +1,40 @@
-node_modules
-dist
-.DS_Store
-server/public
-vite.config.ts.*
+# Node.js dependencies
+node_modules/
+ServicePandaProvider/node_modules/
+
+# Build and distribution folders
+dist/
+build/
 *.tar.gz
-/ServicePandaProvider/android/.gradle/
-/ServicePandaProvider/android/build/
-/ServicePandaProvider/android/app/build/
-/ServicePandaProvider/node_modules/
+
+# OS files
+.DS_Store
+
+# Vite config files
+vite.config.ts.*
+
+# Server build files
+server/public/
+
+# Android specific
+ServicePandaProvider/android/.gradle/
+ServicePandaProvider/android/build/
+ServicePandaProvider/android/app/build/
+
+# iOS specific
+ServicePandaProvider/ios/Pods/
+ServicePandaProvider/ios/Podfile.lock
+ServicePandaProvider/ios/build/
+ServicePandaProvider/ios/DerivedData/
+ServicePandaProvider/ios/*.xcworkspace
+ServicePandaProvider/ios/*.xcuserdata
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Others
+*.iml
+.idea/
