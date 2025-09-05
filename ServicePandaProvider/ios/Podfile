@@ -1,58 +1,83 @@
+platform :ios, '13.4'
+
 require_relative '../node_modules/react-native/scripts/react_native_pods'
-require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
-
-platform :ios, min_ios_version_supported
-prepare_react_native_project!
-
-# If you are using a `react-native-flipper` your iOS build will fail when `NO_FLIPPER=1` is set.
-# because `react-native-flipper` depends on (FlipperKit,...) that will be excluded
-#
-# To fix this you can also exclude `react-native-flipper` using a `react-native.config.js`
-# ```js
-# module.exports = {
-#   dependencies: {
-#     ...(process.env.NO_FLIPPER ? { 'react-native-flipper': { platforms: { ios: null } } } : {}),
-# ```
-flipper_config = ENV['NO_FLIPPER'] == "1" ? FlipperConfiguration.disabled : FlipperConfiguration.enabled
-
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
 
 target 'ServicePandaProvider' do
   config = use_native_modules!
 
-  # Flags change depending on the env values.
-  flags = get_default_flags()
-
   use_react_native!(
     :path => config[:reactNativePath],
-    # Hermes is now enabled by default. Disable by setting this flag to false.
-    :hermes_enabled => flags[:hermes_enabled],
-    :fabric_enabled => flags[:fabric_enabled],
-    # Enables Flipper.
-    #
-    # Note that if you have use_frameworks! enabled, Flipper will not work and
-    # you should disable the next line.
-    :flipper_configuration => flipper_config,
-    # An absolute path to your application root.
-    :app_path => "#{Pod::Config.instance.installation_root}/.."
+    :fabric_enabled => false,
+    :new_arch_enabled => false,
+    :hermes_enabled => true
   )
 
-  target 'ServicePandaProviderTests' do
-    inherit! :complete
-    # Pods for testing
-  end
+  
+
+  # Add any custom native pods below this line
 
   post_install do |installer|
-    # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
-    react_native_post_install(
-      installer,
-      config[:reactNativePath],
-      :mac_catalyst_enabled => false
-    )
-    __apply_Xcode_12_5_M1_post_install_workaround(installer)
+    # Set environment variables to disable new architecture
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['RCT_NEW_ARCH_ENABLED'] = '0'
+        config.build_settings['RCT_FABRIC_ENABLED'] = '0'
+        config.build_settings['RCT_CODEGEN_ENABLED'] = '0'
+      end
+    end
+    
+    # Fix for RCT-Folly build issues
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        # Fix for RCT-Folly
+        if target.name == 'RCT-Folly'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_MOBILE=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_USE_LIBCPP=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_LIBGFLAGS=0'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_LIBJEMALLOC=0'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_PREADV=0'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_PWRITEV=0'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_TFO=0'
+        end
+        
+        # Disable React-Codegen build but keep the target
+        if target.name == 'React-Codegen'
+          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+          config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+          config.build_settings['CODE_SIGNING_IDENTITY'] = ''
+          # Disable build but don't exclude architectures for archive
+          config.build_settings['SKIP_INSTALL'] = 'YES'
+        end
+        
+        # Remove codegen check scripts that cause build failures
+        if target.name == 'React-Fabric'
+          target.build_phases.each do |phase|
+            if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase) && 
+               phase.name && phase.name.include?('Check rncore')
+              target.build_phases.delete(phase)
+            end
+          end
+        end
+
+        # Remove Hermes replacement script that breaks archive
+        if target.name == 'hermes-engine'
+          target.build_phases.each do |phase|
+            if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase) &&
+               phase.name && phase.name.include?('[Hermes]')
+              target.build_phases.delete(phase)
+            end
+          end
+          
+          # Disable code signing for hermes-engine to prevent signing errors
+          target.build_configurations.each do |config|
+            config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+            config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+            config.build_settings['CODE_SIGNING_IDENTITY'] = ''
+          end
+        end
+      end
+    end
   end
 end

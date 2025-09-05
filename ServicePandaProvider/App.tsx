@@ -25,7 +25,7 @@ const ProfileScreen = require('./src/screens/profile/ProfileScreen');
 const CreditsScreen = require('./src/screens/credits/CreditsScreen');
 const BillingScreen = require('./src/screens/billing/BillingScreen');
 const HelpScreen = require('./src/screens/help/HelpScreen');
-const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } = require('react-native');
+const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar } = require('react-native');
 const { colors } = require('./src/utils/theme');
 
 // Loading component while checking authentication
@@ -43,7 +43,7 @@ const AppContent = () => {
   const [currentSubScreen, setCurrentSubScreen] = useState(null);
 
   // Navigation function to be passed to screens
-  const navigateTo = (screen, subScreen = null) => {
+  const navigateTo = (screen: string, subScreen: string | null = null) => {
     console.log('🔍 navigateTo called with screen:', screen, 'subScreen:', subScreen);
     console.log('🔍 Current screen before change:', currentScreen);
     setCurrentScreen(screen);
@@ -148,6 +148,7 @@ const AppContent = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       {currentScreen !== 'dashboard' && (
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={goToDashboard}>
@@ -229,7 +230,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
+    paddingTop: 50, // Add padding for status bar
+    paddingBottom: 8,
+    paddingHorizontal: 8,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,

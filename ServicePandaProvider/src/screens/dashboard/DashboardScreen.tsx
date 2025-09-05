@@ -9,6 +9,7 @@ const {
   Dimensions,
   BackHandler,
   Alert,
+  StatusBar,
 } = require('react-native');
 const { Card, Title, Paragraph, Button, Chip, ActivityIndicator, IconButton } = require('react-native-paper');
 const { useQuery } = require('@tanstack/react-query');
@@ -217,6 +218,7 @@ function DashboardScreen({ onNavigate }) {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -619,7 +621,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingTop: 50, // Add padding for status bar
+    paddingBottom: 16,
+    paddingHorizontal: 16,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -666,7 +670,7 @@ const styles = StyleSheet.create({
   },
   sidebarHeader: {
     padding: 12,
-    paddingTop: 24,
+    paddingTop: 50, // Add padding for status bar
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -676,7 +680,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 3,
-    minHeight: 60,
+    minHeight: 86, // Increased to accommodate status bar padding
   },
   sidebarHeaderRow: {
     flexDirection: 'row',
