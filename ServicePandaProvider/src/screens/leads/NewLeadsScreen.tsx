@@ -6,9 +6,10 @@ const { colors } = require('../../utils/theme');
 const { useQuery, useMutation } = require('@tanstack/react-query');
 const apiService = require('../../services/api');
 
-function NewLeadsScreen({ onNavigate }) {
+function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: any) => void }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [purchasingLeadId, setPurchasingLeadId] = useState(null);
 
   // Fetch leads from API
   const { data: leads, isLoading: leadsLoading, error: leadsError, refetch } = useQuery({
@@ -29,16 +30,16 @@ function NewLeadsScreen({ onNavigate }) {
   });
 
   // Filter for new/pending leads only
-  const newLeads = leads?.filter(lead => lead.status === 'pending') || [];
+  const newLeads = leads?.filter((lead: any) => lead.status === 'pending') || [];
 
   const filters = [
     { key: 'all', label: 'All Leads', count: newLeads.length },
-    { key: 'high', label: 'High Urgency', count: newLeads.filter(lead => lead.urgency === 'high').length },
-    { key: 'medium', label: 'Medium Urgency', count: newLeads.filter(lead => lead.urgency === 'medium').length },
-    { key: 'low', label: 'Low Urgency', count: newLeads.filter(lead => lead.urgency === 'low').length }
+    { key: 'high', label: 'High Urgency', count: newLeads.filter((lead: any) => lead.urgency === 'high').length },
+    { key: 'medium', label: 'Medium Urgency', count: newLeads.filter((lead: any) => lead.urgency === 'medium').length },
+    { key: 'low', label: 'Low Urgency', count: newLeads.filter((lead: any) => lead.urgency === 'low').length }
   ];
 
-  const filteredLeads = newLeads.filter(lead => {
+  const filteredLeads = newLeads.filter((lead: any) => {
     const matchesSearch = lead.categoryName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          lead.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          lead.suburb?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -48,13 +49,73 @@ function NewLeadsScreen({ onNavigate }) {
     return matchesSearch && matchesFilter;
   });
 
-  const handlePurchaseLead = (leadId) => {
-    // TODO: Implement lead purchase logic
-    console.log('Purchasing lead:', leadId);
-    // Navigate to payment or confirmation screen
+  const handlePurchaseLead = async (leadId: string | number) => {
+    try {
+      console.log('Purchasing lead:', leadId);
+      console.log('Lead ID type:', typeof leadId);
+      console.log('Lead ID value:', leadId);
+      
+      if (!leadId) {
+        Alert.alert('Error', 'Invalid lead ID');
+        return;
+      }
+
+      // Show confirmation dialog
+      Alert.alert(
+        'Purchase Lead',
+        'Are you sure you want to purchase this lead?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Purchase',
+            onPress: async () => {
+              try {
+                setPurchasingLeadId(leadId);
+                // Call the API to purchase the lead
+                const result = await apiService.purchaseLead(leadId);
+                console.log('Lead purchase successful:', result);
+                
+                // Show success message
+                Alert.alert(
+                  'Success!',
+                  'Lead purchased successfully! You can now view the customer details.',
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => {
+                        // Refresh the leads list
+                        refetch();
+                        // Navigate to lead details
+                        onNavigate('leadDetails', { leadId: leadId });
+                      }
+                    }
+                  ]
+                );
+              } catch (error: any) {
+                console.error('Lead purchase failed:', error);
+                Alert.alert(
+                  'Purchase Failed',
+                  error.message || 'Failed to purchase lead. Please try again.',
+                  [{ text: 'OK' }]
+                );
+              } finally {
+                setPurchasingLeadId(null);
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error in handlePurchaseLead:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      setPurchasingLeadId(null);
+    }
   };
 
-  const getUrgencyColor = (urgency) => {
+  const getUrgencyColor = (urgency: string) => {
     switch (urgency?.toLowerCase()) {
       case 'high': return '#EF4444';
       case 'medium': return '#F59E0B';
@@ -63,11 +124,11 @@ function NewLeadsScreen({ onNavigate }) {
     }
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     const now = new Date();
-    const diffTime = Math.abs(now - date);
+    const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays === 1) return '1 day ago';
@@ -148,8 +209,12 @@ function NewLeadsScreen({ onNavigate }) {
 
       {/* Leads List */}
       <View style={styles.leadsContainer}>
-        {filteredLeads.map((lead) => (
-          <Card key={lead.id} style={styles.leadCard}>
+        {filteredLeads.map((lead: any) => {
+          console.log('Lead data:', lead);
+          console.log('Lead ID:', lead.id);
+          console.log('Lead requestId:', lead.requestId);
+          return (
+          <Card key={lead.id || lead.requestId} style={styles.leadCard}>
             <Card.Content>
               <View style={styles.leadHeader}>
                 <View style={styles.leadTitleContainer}>
@@ -212,16 +277,19 @@ function NewLeadsScreen({ onNavigate }) {
                 </Button>
                 <Button
                   mode="contained"
-                  onPress={() => handlePurchaseLead(lead.id)}
+                  onPress={() => handlePurchaseLead(lead.requestId || lead.id)}
                   style={styles.purchaseButton}
                   buttonColor={colors.primary}
+                  disabled={purchasingLeadId === (lead.requestId || lead.id)}
+                  loading={purchasingLeadId === (lead.requestId || lead.id)}
                 >
-                  Purchase Lead
+                  {purchasingLeadId === (lead.requestId || lead.id) ? 'Purchasing...' : 'Purchase Lead'}
                 </Button>
               </View>
             </Card.Content>
           </Card>
-        ))}
+          );
+        })}
 
         {filteredLeads.length === 0 && (
           <View style={styles.emptyState}>
