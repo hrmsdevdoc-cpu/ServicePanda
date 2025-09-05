@@ -10,6 +10,7 @@ const {
   BackHandler,
   Alert,
   StatusBar,
+  Platform,
 } = require('react-native');
 const { Card, Title, Paragraph, Button, Chip, ActivityIndicator, IconButton } = require('react-native-paper');
 const { useQuery } = require('@tanstack/react-query');
@@ -140,12 +141,9 @@ function DashboardScreen({ onNavigate }) {
       // Mark notification as read via service
       await notificationService.markAsRead(notification.id);
       
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => 
-          n.id === notification.id ? { ...n, isRead: true } : n
-        )
-      );
+      // Refresh notifications to get updated read status
+      const updatedNotifications = await notificationService.getNotifications();
+      setNotifications(updatedNotifications);
       
       // Close notification list
       setNotificationsVisible(false);
@@ -163,13 +161,16 @@ function DashboardScreen({ onNavigate }) {
 
   const handleMarkAllAsRead = async () => {
     try {
+      console.log('Marking all notifications as read...');
+      
       // Mark all as read via service
       await notificationService.markAllAsRead();
       
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, isRead: true }))
-      );
+      // Refresh notifications to get updated read status
+      const updatedNotifications = await notificationService.getNotifications();
+      console.log('Updated notifications:', updatedNotifications.map(n => ({ id: n.id, isRead: n.isRead })));
+      
+      setNotifications(updatedNotifications);
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
@@ -177,7 +178,7 @@ function DashboardScreen({ onNavigate }) {
 
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
 
-  // Fetch notifications on component mount
+  // Fetch notifications on component mount and when activities change
   React.useEffect(() => {
     const fetchNotifications = async () => {
       setNotificationsLoading(true);
@@ -192,7 +193,7 @@ function DashboardScreen({ onNavigate }) {
     };
 
     fetchNotifications();
-  }, []);
+  }, [activities]); // Re-fetch notifications when activities change
 
   // Handle Android back button
   React.useEffect(() => {
@@ -238,6 +239,11 @@ function DashboardScreen({ onNavigate }) {
           unreadCount={unreadNotificationsCount}
           onPress={() => setNotificationsVisible(true)}
           size={24}
+          latestNotification={notifications.length > 0 ? {
+            title: notifications[0].title,
+            message: notifications[0].message,
+            timestamp: notifications[0].timestamp
+          } : undefined}
         />
       </View>
 
@@ -621,7 +627,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50, // Add padding for status bar
+    paddingTop: Platform.OS === 'ios' ? 50 : 16, // Only add extra padding for iOS
     paddingBottom: 16,
     paddingHorizontal: 16,
     backgroundColor: colors.surface,
@@ -670,7 +676,7 @@ const styles = StyleSheet.create({
   },
   sidebarHeader: {
     padding: 12,
-    paddingTop: 50, // Add padding for status bar
+    paddingTop: Platform.OS === 'ios' ? 50 : 12, // Only add extra padding for iOS
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -680,7 +686,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 3,
-    minHeight: 86, // Increased to accommodate status bar padding
+    minHeight: Platform.OS === 'ios' ? 86 : 50, // Adjust minHeight based on platform
   },
   sidebarHeaderRow: {
     flexDirection: 'row',

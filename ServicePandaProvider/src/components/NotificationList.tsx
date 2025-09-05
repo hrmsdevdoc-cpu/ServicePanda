@@ -40,6 +40,7 @@ function NotificationList({
 }: NotificationListProps) {
   const [isMarkingAllRead, setIsMarkingAllRead] = React.useState(false);
   const [markingAsReadIds, setMarkingAsReadIds] = React.useState(new Set());
+  const [showReadNotifications, setShowReadNotifications] = React.useState(false);
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const readCount = notifications.filter(n => n.isRead).length;
 
@@ -187,17 +188,30 @@ function NotificationList({
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            {unreadCount > 0 && (
-              <TouchableOpacity 
-                style={[styles.markAllReadButton, isMarkingAllRead && styles.markAllReadButtonDisabled]} 
-                onPress={handleMarkAllAsReadWithLoading}
-                disabled={isMarkingAllRead}
-              >
-                <Text style={[styles.markAllReadText, isMarkingAllRead && styles.markAllReadTextDisabled]}>
-                  {isMarkingAllRead ? 'Marking...' : 'Mark All as Read'}
-                </Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.actionButtonsRow}>
+              {unreadCount > 0 && (
+                <TouchableOpacity 
+                  style={[styles.markAllReadButton, isMarkingAllRead && styles.markAllReadButtonDisabled]} 
+                  onPress={handleMarkAllAsReadWithLoading}
+                  disabled={isMarkingAllRead}
+                >
+                  <Text style={[styles.markAllReadText, isMarkingAllRead && styles.markAllReadTextDisabled]}>
+                    {isMarkingAllRead ? 'Marking...' : 'Mark All as Read'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              
+              {readCount > 0 && (
+                <TouchableOpacity 
+                  style={styles.toggleReadButton} 
+                  onPress={() => setShowReadNotifications(!showReadNotifications)}
+                >
+                  <Text style={styles.toggleReadText}>
+                    {showReadNotifications ? 'Hide Read' : `Show ${readCount} Read`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {/* Notifications List */}
@@ -210,13 +224,21 @@ function NotificationList({
                   You're all caught up! New notifications will appear here.
                 </Text>
               </View>
+            ) : unreadCount === 0 && !showReadNotifications ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateIcon}>✅</Text>
+                <Text style={styles.emptyStateTitle}>All caught up!</Text>
+                <Text style={styles.emptyStateMessage}>
+                  You have no unread notifications. All {readCount} notifications have been read.
+                </Text>
+              </View>
             ) : (
               <>
                 {/* Unread notifications first */}
                 {notifications.filter(n => !n.isRead).map(renderNotification)}
                 
-                {/* Read notifications */}
-                {notifications.filter(n => n.isRead).map(renderNotification)}
+                {/* Read notifications - only show if toggle is on */}
+                {showReadNotifications && notifications.filter(n => n.isRead).map(renderNotification)}
               </>
             )}
           </ScrollView>
@@ -289,8 +311,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   markAllReadButton: {
-    alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: colors.primary,
@@ -307,6 +335,17 @@ const styles = StyleSheet.create({
   },
   markAllReadTextDisabled: {
     color: colors.textSecondary,
+  },
+  toggleReadButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.borderLight,
+    borderRadius: 16,
+  },
+  toggleReadText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500',
   },
   notificationsList: {
     flex: 1,

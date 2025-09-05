@@ -163,7 +163,7 @@ function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: 
       }
     >
       {/* Header */}
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => onNavigate('leads')}
@@ -174,7 +174,7 @@ function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: 
           <Title style={styles.title}>New Leads</Title>
           <Paragraph style={styles.subtitle}>Available leads in your service area</Paragraph>
         </View>
-      </View>
+      </View> */}
 
       {/* Search and Filters */}
       <View style={styles.searchContainer}>
