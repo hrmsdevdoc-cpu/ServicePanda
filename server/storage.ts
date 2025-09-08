@@ -172,6 +172,38 @@ import { db, pool } from "./db";
 import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql, ne, gt, gte, like, lte } from "drizzle-orm";
 import crypto from "crypto";
 
+// Helper function to handle MySQL insert without returning
+async function insertAndReturn<T>(table: any, data: any, idField: string = 'id'): Promise<T> {
+  try {
+    await db.insert(table).values(data);
+    
+    // Get the last inserted record by email if it's a provider, otherwise by id
+    let result;
+    if (data.email && table === serviceProviders) {
+      // For service providers, find by email since it's unique
+      [result] = await db
+        .select()
+        .from(table)
+        .where(eq(table.email, data.email))
+        .limit(1);
+    } else {
+      // For other tables, use the id field
+      [result] = await db
+        .select()
+        .from(table)
+        .orderBy(desc(table[idField]))
+        .limit(1);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error in insertAndReturn:', error);
+    console.error('Table:', table);
+    console.error('Data:', data);
+    throw error;
+  }
+}
+
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
@@ -566,11 +598,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User> {
-    const [user] = await db
+    await db
       .update(users)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(users.id, id))
-      .returning();
+      .where(eq(users.id, id));
+    
+    // Get the updated user
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id));
+    
     return user;
   }
 
@@ -763,11 +801,7 @@ export class DatabaseStorage implements IStorage {
 
   // Service provider operations
   async createServiceProvider(provider: InsertServiceProvider): Promise<ServiceProvider> {
-    const [serviceProvider] = await db
-      .insert(serviceProviders)
-      .values(provider)
-      .returning();
-    return serviceProvider;
+    return await insertAndReturn<ServiceProvider>(serviceProviders, provider);
   }
 
   async getServiceProvider(id: number): Promise<ServiceProvider | undefined> {
@@ -795,11 +829,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateServiceProvider(id: number, updates: Partial<ServiceProvider>): Promise<ServiceProvider> {
-    const [provider] = await db
+    await db
       .update(serviceProviders)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(serviceProviders.id, id))
-      .returning();
+      .where(eq(serviceProviders.id, id));
+    
+    // Get the updated provider
+    const [provider] = await db
+      .select()
+      .from(serviceProviders)
+      .where(eq(serviceProviders.id, id));
+    
     return provider;
   }
 
@@ -914,11 +954,7 @@ export class DatabaseStorage implements IStorage {
     radiusKm: number;
     areaName?: string;
   }): Promise<ProviderServiceArea> {
-    const [result] = await db
-      .insert(providerServiceAreas)
-      .values(serviceAreaData)
-      .returning();
-    return result;
+    return await insertAndReturn<ProviderServiceArea>(providerServiceAreas, serviceAreaData);
   }
 
   async getProviderLocationServiceAreas(providerId: number): Promise<ProviderServiceArea[]> {
@@ -989,11 +1025,7 @@ export class DatabaseStorage implements IStorage {
 
   // Document operations
   async uploadProviderDocument(document: InsertProviderDocument): Promise<ProviderDocument> {
-    const [doc] = await db
-      .insert(providerDocuments)
-      .values(document)
-      .returning();
-    return doc;
+    return await insertAndReturn<ProviderDocument>(providerDocuments, document);
   }
 
   async getProviderDocuments(providerId: number): Promise<ProviderDocument[]> {
@@ -1072,7 +1104,7 @@ export class DatabaseStorage implements IStorage {
       // Get offer metrics for each request
       const requestsWithOffers = await Promise.all(result.rows.map(async (request: any) => {
         // Get offer metrics using direct SQL for maximum compatibility
-        const offerMetricsResult = await pool.query(
+        const offerMetricsResult = await connection.query(
           `SELECT 
             COUNT(DISTINCT provider_id) as professional_count,
             COUNT(*) as total_offers,

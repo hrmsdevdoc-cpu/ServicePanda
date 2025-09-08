@@ -1,6 +1,5 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 import dotenv from 'dotenv';
 import path from 'path';
@@ -8,8 +7,6 @@ import path from 'path';
 // Load environment variables from .env file
 const envPath = path.resolve(process.cwd(), '.env');
 dotenv.config({ path: envPath });
-
-neonConfig.webSocketConstructor = ws;
 
 // Check if DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
@@ -21,8 +18,18 @@ let pool: Pool;
 let db: any;
 
 try {
-  pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  db = drizzle({ client: pool, schema });
+  // Configure SSL based on the database URL
+  const sslConfig = process.env.DATABASE_URL?.includes('neon.tech') 
+    ? { rejectUnauthorized: false } 
+    : process.env.DATABASE_URL?.includes('13.201.64.152')
+    ? { rejectUnauthorized: false }
+    : false;
+    
+  pool = new Pool({ 
+    connectionString: process.env.DATABASE_URL,
+    ssl: sslConfig
+  });
+  db = drizzle(pool, { schema });
   console.log("✅ Database connection established");
 } catch (error) {
   console.warn("⚠️  Database connection failed. Running in development mode without database.");

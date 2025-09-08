@@ -3,6 +3,7 @@ import { storage } from "./storage";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 const scryptAsync = promisify(scrypt);
 
@@ -28,7 +29,12 @@ export async function comparePasswords(supplied: string, stored: string): Promis
       return supplied === stored;
     }
     
-    // Handle hashed password
+    // Check if it's a bcrypt hash (starts with $2a$, $2b$, $2y$, etc.)
+    if (stored.startsWith('$2')) {
+      return await bcrypt.compare(supplied, stored);
+    }
+    
+    // Handle scrypt hashed password
     const [hashed, salt] = stored.split(".");
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
