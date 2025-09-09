@@ -97,19 +97,7 @@ export default function AdminDashboard() {
   const { data: stats } = useQuery({
     queryKey: ['/api/admin/stats'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/stats', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
-      
-      // Check for 401 Unauthorized (token expired)
-      if (response.status === 401) {
-        localStorage.removeItem('adminToken');
-        navigate('/admin-login');
-        throw new Error('Session expired');
-      }
-      
+      const response = await adminApiRequest('GET', '/api/admin/stats');
       return response.json();
     },
     retry: false,
@@ -119,19 +107,7 @@ export default function AdminDashboard() {
   const { data: pendingProviders, isLoading: loadingProviders } = useQuery({
     queryKey: ['/api/admin/providers', 'pending'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/providers?status=pending', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
-      
-      // Check for 401 Unauthorized (token expired)
-      if (response.status === 401) {
-        localStorage.removeItem('adminToken');
-        navigate('/admin-login');
-        throw new Error('Session expired');
-      }
-      
+      const response = await adminApiRequest('GET', '/api/admin/providers?status=pending');
       return response.json();
     },
     retry: false,
@@ -141,19 +117,7 @@ export default function AdminDashboard() {
   const { data: allProviders } = useQuery({
     queryKey: ['/api/admin/providers', 'all'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/providers', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
-      
-      // Check for 401 Unauthorized (token expired)
-      if (response.status === 401) {
-        localStorage.removeItem('adminToken');
-        navigate('/admin-login');
-        throw new Error('Session expired');
-      }
-      
+      const response = await adminApiRequest('GET', '/api/admin/providers');
       return response.json();
     },
     retry: false,

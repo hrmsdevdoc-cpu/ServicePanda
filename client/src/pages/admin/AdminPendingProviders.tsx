@@ -14,30 +14,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
-// Admin API request function with authentication
-const adminApiRequest = async (method: string, url: string, data?: any) => {
-  const token = localStorage.getItem('adminToken');
-  const options: RequestInit = {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-admin-token': token || '',
-    },
-  };
-
-  if (data && method !== 'GET') {
-    options.body = JSON.stringify(data);
-  }
-
-  const response = await fetch(url, options);
-  
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(errorData.message || `HTTP ${response.status}`);
-  }
-  
-  return response;
-};
+// Import the centralized admin API request function
+import { adminApiRequest } from "@/lib/adminAuth";
 import {
   Shield,
   Search,
@@ -358,11 +336,7 @@ export default function AdminPendingProviders() {
   const { data: pendingProviders, isLoading } = useQuery({
     queryKey: ['/api/admin/providers', 'pending'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/providers?status=pending', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
+      const response = await adminApiRequest('GET', '/api/admin/providers?status=pending');
       return response.json();
     },
   });
@@ -372,11 +346,7 @@ export default function AdminPendingProviders() {
     queryKey: ['/api/admin/providers', selectedProvider?.id],
     queryFn: async () => {
       if (!selectedProvider?.id) return null;
-      const response = await fetch(`/api/admin/providers/${selectedProvider.id}/details`, {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
+      const response = await adminApiRequest('GET', `/api/admin/providers/${selectedProvider.id}/details`);
       return response.json();
     },
     enabled: !!selectedProvider?.id,

@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { adminApiRequest } from "@/lib/adminAuth";
 import {
   Search,
   Filter,
@@ -168,7 +169,7 @@ export default function AdminEmail() {
   // Fetch users for filter
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/admin/users', { headers: authHeaders() });
+      const res = await adminApiRequest('GET', '/api/admin/users');
       if (!res.ok) return;
       const list = await res.json();
       const mapped = [{ id: 'all', firstName: 'All', lastName: 'Users' }, ...list.map((u: any) => ({ id: u.id, firstName: u.firstName || u.username || 'User', lastName: u.lastName || '' }))];
@@ -474,21 +475,14 @@ export default function AdminEmail() {
       console.log('Subject:', composeData.subject);
 
       // Send email via API
-      const response = await fetch('/api/admin/emails/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        },
-        body: JSON.stringify({
+      const response = await adminApiRequest('POST', '/api/admin/emails/send', {
           to: composeData.to,
           cc: composeData.cc,
           bcc: composeData.bcc,
           subject: composeData.subject,
           body: composeData.body,
           template: composeData.template
-        })
-      });
+        });
 
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));

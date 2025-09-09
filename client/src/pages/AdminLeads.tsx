@@ -15,35 +15,10 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
-// Admin API request helper
-const adminApiRequest = async (method: string, url: string, data?: any) => {
-  const token = localStorage.getItem('adminToken');
-  
-  const response = await fetch(url, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-admin-token': token || '',
-    },
-    body: data ? JSON.stringify(data) : undefined,
-  });
-  
-  // Check for 401 Unauthorized (token expired)
-  if (response.status === 401) {
-    localStorage.removeItem('adminToken');
-    window.location.href = '/admin-login';
-    throw new Error('Session expired');
-  }
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-  }
-  
-  return response;
-};
+// Import the centralized admin API request function
+import { adminApiRequest } from "@/lib/adminAuth";
 
 interface ServiceRequest {
   id: number;
@@ -199,7 +174,7 @@ export default function AdminLeads() {
   const { data: categories = [] } = useQuery({
     queryKey: ["/api/service-categories"],
     queryFn: async () => {
-      const response = await fetch('/api/service-categories');
+      const response = await apiRequest('GET', '/api/service-categories');
       return response.json();
     },
   });

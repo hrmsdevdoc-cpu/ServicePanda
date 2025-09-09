@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { adminApiRequest } from "@/lib/adminAuth";
+import { apiRequest } from "@/lib/queryClient";
 import {
   Shield,
   Search,
@@ -269,11 +270,7 @@ export default function AdminViewProviders() {
   const { data: allProviders, isLoading } = useQuery({
     queryKey: ['/api/admin/providers', 'all'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/providers', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
+      const response = await adminApiRequest('GET', '/api/admin/providers');
       return response.json();
     },
   });
@@ -282,7 +279,7 @@ export default function AdminViewProviders() {
   const { data: serviceCategories } = useQuery({
     queryKey: ['/api/service-categories'],
     queryFn: async () => {
-      const response = await fetch('/api/service-categories');
+      const response = await apiRequest('GET', '/api/service-categories');
       return response.json();
     },
   });
