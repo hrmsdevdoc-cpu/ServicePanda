@@ -1,8 +1,8 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
+import bcrypt from "bcrypt";
+import { randomBytes } from "crypto";
 import { storage } from "./storage";
 import { ServiceProvider } from "@shared/schema";
 import path from "path";
@@ -14,19 +14,41 @@ declare global {
   }
 }
 
-const scryptAsync = promisify(scrypt);
-
 async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
+  return await bcrypt.hash(password, 10);
 }
 
 async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  // Check if it's a bcrypt hash (starts with $2a$, $2b$, $2y$, etc.)
+  if (stored.startsWith('$2')) {
+    return await bcrypt.compare(supplied, stored);
+  }
+  
+  // Handle old scrypt hashed passwords (format: hash.salt)
+  try {
+    const [hashed, salt] = stored.split(".");
+    if (!hashed || !salt) {
+      return false; // Invalid format
+    }
+    
+    const { scrypt } = await import('crypto');
+    const { promisify } = await import('util');
+    const scryptAsync = promisify(scrypt);
+    
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    
+    // Check buffer lengths before comparison
+    if (hashedBuf.length !== suppliedBuf.length) {
+      return false;
+    }
+    
+    const { timingSafeEqual } = await import('crypto');
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch (error) {
+    console.error('Error comparing scrypt password:', error);
+    return false;
+  }
 }
 
 export function setupProviderAuth(app: Express) {
@@ -157,6 +179,7 @@ export function setupProviderAuth(app: Express) {
         const emailSent = await sendEmail({
           to: email,
           subject: 'ServicePanda Partners - Reset Your Password',
+          text: 'Reset your password',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2>Reset Your Password</h2>
