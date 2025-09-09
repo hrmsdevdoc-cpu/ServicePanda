@@ -5,11 +5,8 @@ const getApiBaseUrl = (): string => {
     return import.meta.env.VITE_API_URL;
   }
   
-  if (import.meta.env.DEV) {
-    return ''; // Use relative URLs in development (proxied by Vite)
-  } else {
-    return 'https://api.servicepanda.com.au'; // Use external API URL in production
-  }
+  // Always use live API URL
+  return 'https://api.servicepanda.com.au';
 };
 
 const API_BASE_URL = getApiBaseUrl();
