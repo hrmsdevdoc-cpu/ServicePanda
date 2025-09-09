@@ -9,6 +9,8 @@ const {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } = require('react-native');
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 const { Button } = require('react-native-paper');
@@ -481,29 +483,63 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Join ServicePanda</Text>
-          <Text style={styles.subtitle}>Complete your registration in a few simple steps</Text>
-          
-                {/* Back to Login - Top Left */}
-      <View style={styles.backButtonContainer}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => onNavigate('login')}
-          activeOpacity={0.7}
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
         >
-          <Text style={styles.backButtonText}>← Back to Login</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.header}>
+            <Text style={styles.title}>Join ServicePanda</Text>
+            <Text style={styles.subtitle}>Complete your registration in a few simple steps</Text>
+            
+                  {/* Back to Login - Top Left */}
+        <View style={styles.backButtonContainer}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => onNavigate('login')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.backButtonText}>← Back to Login</Text>
+          </TouchableOpacity>
         </View>
+          </View>
 
-        {renderStepIndicator()}
+          {renderStepIndicator()}
 
-        <View style={styles.stepContainer}>
+          <View style={styles.stepContainer}>
           {currentStep === 1 && (
             <>
               {console.log('🔍 Rendering BasicInfoStep with formData:', formData)}
+              
+              {/* Test Button for debugging */}
+              {/* <View style={{ padding: 20, backgroundColor: '#f0f0f0', margin: 10, borderRadius: 8 }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>Debug Test</Text>
+                <TouchableOpacity 
+                  style={{ backgroundColor: '#007bff', padding: 10, borderRadius: 5, marginBottom: 10 }}
+                  onPress={testRegistration}
+                >
+                  <Text style={{ color: 'white', textAlign: 'center' }}>Test Registration with Valid Data</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={{ backgroundColor: '#28a745', padding: 10, borderRadius: 5, marginBottom: 10 }}
+                  onPress={() => {
+                    console.log('🔍 Manual form submission test with current formData:', formData);
+                    handleStep1Submit(formData);
+                  }}
+                >
+                  <Text style={{ color: 'white', textAlign: 'center' }}>Test Current Form Data</Text>
+                </TouchableOpacity>
+                <Text style={{ fontSize: 12, color: '#666' }}>
+                  This will test the API with valid data to see if the server is working.
+                </Text>
+              </View> */}
+              
               <BasicInfoStep
                 formData={formData}
                 onSubmit={handleStep1Submit}
@@ -587,8 +623,9 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
                 </TouchableOpacity>
             </View>
           )}
-        </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -598,8 +635,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   header: {
     alignItems: 'center',

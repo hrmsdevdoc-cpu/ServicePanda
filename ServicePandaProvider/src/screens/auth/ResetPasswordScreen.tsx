@@ -1,11 +1,12 @@
 const React = require('react');
-const { View, StyleSheet, TouchableOpacity, Text } = require('react-native');
+const { View, StyleSheet, TouchableOpacity, Text, SafeAreaView } = require('react-native');
 const { Title, Paragraph, Card, Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 
 const ResetPasswordScreen = ({ onNavigate }) => {
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
       <TouchableOpacity 
         style={styles.backButton} 
         onPress={() => onNavigate('login')}
@@ -26,11 +27,16 @@ const ResetPasswordScreen = ({ onNavigate }) => {
           </Button>
         </Card.Content>
       </Card>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,

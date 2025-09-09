@@ -8,6 +8,7 @@ const {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
 } = require('react-native');
 const { TextInput, Button, Card, Title, Paragraph } = require('react-native-paper');
 const { useMutation } = require('@tanstack/react-query');
@@ -85,11 +86,12 @@ const LoginScreen = ({ onNavigate, navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
           {/* Panda Logo with title - matching web design */}
           <View style={styles.logoContainer}>
@@ -202,12 +204,17 @@ const LoginScreen = ({ onNavigate, navigation }) => {
             </View>
           </Card.Content>
         </Card>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F9FAFB', // Exact web background color
+  },
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB', // Exact web background color
@@ -216,7 +223,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'flex-start',
     padding: 16,
-    paddingTop: 10,
+    paddingTop: Platform.OS === 'ios' ? 20 : 5,
   },
   header: {
     alignItems: 'center',
