@@ -12,8 +12,8 @@ const {
   BillingData
 } = require('../types');
 
-// Import API configuration
-const { API_BASE_URL, getCurrentApiConfig } = require('../config/api');
+// Import API configuration dynamically to avoid caching issues
+const getApiConfig = () => require('../config/api');
 
 class ApiService {
   async getHeaders() {
@@ -35,9 +35,11 @@ class ApiService {
   }
 
   async request(method: string, endpoint: string, body?: any) {
+    const { API_BASE_URL } = getApiConfig();
     console.log('🌐 API Request:', { method, endpoint, body });
     console.log('🔗 Full URL:', `${API_BASE_URL}${endpoint}`);
     console.log('🌍 Current API Base URL:', API_BASE_URL);
+    console.log('🔧 API Config Debug:', getApiConfig());
     
     const headers: Record<string, string> = await this.getHeaders();
     console.log('📋 Request Headers:', headers);
@@ -101,7 +103,7 @@ class ApiService {
       // Provide helpful error messages for common issues
       if (error.message.includes('Network request failed') || error.message.includes('fetch')) {
         console.error('🌐 Network Error - Possible causes:');
-        console.error('   - Server not running on port 4000');
+        console.error('   - Server not running on port 3000');
         console.error('   - Wrong IP address in API configuration');
         console.error('   - Network/firewall blocking connection');
         console.error('   - Try updating API_BASE_URL in src/config/api.ts');

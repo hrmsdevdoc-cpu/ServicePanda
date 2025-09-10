@@ -9,7 +9,7 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
 import com.facebook.react.defaults.DefaultReactNativeHost;
 import com.facebook.soloader.SoLoader;
 import com.reactnativecommunity.asyncstorage.AsyncStoragePackage;
-// import com.imagepicker.ImagePickerPackage; // Temporarily disabled for build
+import com.reactnative.ivpusic.imagepicker.PickerPackage;
 import java.util.List;
 import java.util.Arrays;
 
@@ -26,8 +26,8 @@ public class MainApplication extends Application implements ReactApplication {
         protected List<ReactPackage> getPackages() {
           return Arrays.asList(
               new MainReactPackage(),
-              new AsyncStoragePackage()
-              // new ImagePickerPackage() // Temporarily disabled for build
+              new AsyncStoragePackage(),
+              new PickerPackage()
               // Add other packages here
           );
         }

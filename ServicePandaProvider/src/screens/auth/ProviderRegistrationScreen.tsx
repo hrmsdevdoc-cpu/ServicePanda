@@ -272,12 +272,22 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
   const handleStep3Submit = async (serviceAreas) => {
     setIsLoading(true);
     try {
-      // Use the same endpoint as web app
-      await apiService.request('POST', `/api/provider/${providerId}/location-service-areas`, {
-        serviceAreas
-      });
+      // Add each service area individually (same as web app)
+      for (const area of serviceAreas) {
+        // For now, use default coordinates since mobile app doesn't have geocoding
+        // In a real implementation, you'd want to add geocoding here
+        const serviceAreaData = {
+          centerAddress: area.address,
+          centerLat: '-27.4698', // Default Brisbane coordinates - should be geocoded
+          centerLng: '153.0251',
+          radiusKm: area.radius,
+          areaName: area.areaName || null
+        };
+        
+        await apiService.request('POST', `/api/provider/${providerId}/location-service-areas`, serviceAreaData);
+      }
       
-             setCurrentStep(4);
+      setCurrentStep(4);
        
        // Removed success alert - user can see progress in step indicator
     } catch (error) {

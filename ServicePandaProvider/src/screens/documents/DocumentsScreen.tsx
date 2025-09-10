@@ -3,27 +3,19 @@ const { useState, useEffect } = require('react');
 const { View, StyleSheet, TouchableOpacity, Text, Alert, ScrollView, ActivityIndicator, Linking } = require('react-native');
 const { Title, Paragraph, Card, Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
-// Import image picker with proper error handling and fallback
-let launchImageLibrary = null;
-let launchCamera = null;
+// Import image crop picker with proper error handling and fallback
 let ImagePicker = null;
 
 try {
-  ImagePicker = require('react-native-image-picker');
-  if (ImagePicker && ImagePicker.launchImageLibrary && ImagePicker.launchCamera) {
-    launchImageLibrary = ImagePicker.launchImageLibrary;
-    launchCamera = ImagePicker.launchCamera;
-    console.log('✅ Image picker imported successfully');
-  } else {
-    console.error('❌ Image picker methods not available');
-  }
+  ImagePicker = require('react-native-image-crop-picker');
+  console.log('✅ Image crop picker imported successfully');
 } catch (error) {
-  console.error('❌ Failed to import image picker:', error);
+  console.error('❌ Failed to import image crop picker:', error);
 }
 
 // Function to check if image picker is available
 const isImagePickerAvailable = () => {
-  return launchImageLibrary !== null && launchCamera !== null;
+  return ImagePicker !== null;
 };
 const ApiService = require('../../services/api');
 
@@ -270,10 +262,10 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       
       // Check if image picker functions are available
       if (!isImagePickerAvailable()) {
-        console.error('❌ Image picker not available - launchImageLibrary:', !!launchImageLibrary, 'launchCamera:', !!launchCamera);
+        console.error('❌ Image crop picker not available');
         Alert.alert(
           'Image Picker Not Available', 
-          'The image picker module is not properly installed. Please:\n\n1. Restart the app\n2. Check if react-native-image-picker is installed\n3. Try running: npx react-native run-android',
+          'The image picker module is not properly installed. Please:\n\n1. Restart the app\n2. Check if react-native-image-crop-picker is installed\n3. Try running: npx react-native run-android',
           [
             { text: 'OK' },
             { 
@@ -281,14 +273,10 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
               onPress: () => {
                 // Try to re-import the image picker
                 try {
-                  const ImagePicker = require('react-native-image-picker');
-                  if (ImagePicker && ImagePicker.launchImageLibrary && ImagePicker.launchCamera) {
-                    launchImageLibrary = ImagePicker.launchImageLibrary;
-                    launchCamera = ImagePicker.launchCamera;
-                    console.log('✅ Image picker re-imported successfully');
-                    // Retry the document pick
-                    handleDocumentSelect(documentType, source);
-                  }
+                  ImagePicker = require('react-native-image-crop-picker');
+                  console.log('✅ Image crop picker re-imported successfully');
+                  // Retry the document pick
+                  handleDocumentSelect(documentType, source);
                 } catch (retryError) {
                   console.error('❌ Retry failed:', retryError);
                 }
@@ -302,77 +290,47 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       let result;
       
       if (source === 'camera') {
-        result = await launchCamera({
-          mediaType: 'photo',
+        result = await ImagePicker.openCamera({
+          width: 300,
+          height: 400,
+          cropping: true,
           quality: 0.8,
           includeBase64: false,
-          saveToPhotos: false,
         });
       } else {
-        result = await launchImageLibrary({
-          mediaType: 'photo',
+        result = await ImagePicker.openPicker({
+          width: 300,
+          height: 400,
+          cropping: true,
           quality: 0.8,
           includeBase64: false,
-          selectionLimit: 1,
         });
       }
 
       console.log('Image picker result:', result);
 
-      if (result.didCancel) {
-        console.log('User cancelled image selection');
+      if (!result || !result.path) {
+        console.log('User cancelled image selection or no image selected');
         return;
       }
 
-      if (result.errorCode) {
-        console.error('Image picker error:', result.errorCode, result.errorMessage);
-        
-        // Handle specific error codes
-        let errorMessage = 'Failed to select document. ';
-        
-        switch (result.errorCode) {
-          case 'camera_unavailable':
-            errorMessage += 'Camera is not available on this device.';
-            break;
-          case 'permission':
-            errorMessage += 'Permission denied. Please grant camera/photo library access.';
-            break;
-          case 'others':
-            errorMessage += 'Unknown error occurred.';
-            break;
-          default:
-            errorMessage += result.errorMessage || 'Please try again.';
-        }
-        
-        Alert.alert('Selection Error', errorMessage, [{ text: 'OK' }]);
-        return;
-      }
+      // Create a file object compatible with FormData
+      // For react-native-image-crop-picker, result has different structure
+      const fileObj = {
+        uri: result.path,
+        type: result.mime || 'image/jpeg',
+        name: result.filename || `document_${Date.now()}.jpg`,
+        size: result.size || 0,
+      };
 
-      if (result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        console.log('Selected file:', file);
-        
-        // Create a file object compatible with FormData
-        // For React Native, we need to create a proper file object
-        const fileObj = {
-          uri: file.uri,
-          type: file.type || 'image/jpeg',
-          name: file.fileName || `document_${Date.now()}.jpg`,
-          size: file.fileSize || 0,
-        };
+      console.log('Created file object:', fileObj);
 
-        console.log('Created file object:', fileObj);
-
-        setDocumentFiles(prev => ({
-          ...prev,
-          [documentType]: fileObj
-        }));
-        
-        console.log(`Document ${documentType} selected successfully`);
-      } else {
-        console.log('No assets found in result');
-        Alert.alert('No File Selected', 'Please select a file to continue.');
-      }
+      setDocumentFiles(prev => ({
+        ...prev,
+        [documentType]: fileObj
+      }));
+      
+      console.log(`Document ${documentType} selected successfully`);
     } catch (error) {
       console.error('Error selecting document:', error);
       

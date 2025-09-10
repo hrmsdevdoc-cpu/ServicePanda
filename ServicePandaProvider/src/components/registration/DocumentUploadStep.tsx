@@ -60,9 +60,9 @@ const DocumentUploadStep = ({
       
       // Try to use React Native's built-in ImagePicker
       try {
-        const { launchImageLibrary, launchCamera } = require('react-native-image-picker');
+        const ImagePicker = require('react-native-image-crop-picker');
         
-        if (!launchImageLibrary || !launchCamera) {
+        if (!ImagePicker) {
           console.log('⚠️ Image picker not available - using mock document');
           // Use mock document for now
           const mockDocument = {
@@ -82,66 +82,55 @@ const DocumentUploadStep = ({
         let result;
         
         if (source === 'camera') {
-          result = await launchCamera({
-            mediaType: 'photo',
+          result = await ImagePicker.openCamera({
+            width: 300,
+            height: 400,
+            cropping: true,
             quality: 0.3, // Much lower quality to reduce file size
             includeBase64: false,
-            saveToPhotos: false,
-            maxWidth: 800, // Smaller dimensions
-            maxHeight: 800,
           });
         } else {
-          result = await launchImageLibrary({
-            mediaType: 'photo',
+          result = await ImagePicker.openPicker({
+            width: 300,
+            height: 400,
+            cropping: true,
             quality: 0.3, // Much lower quality to reduce file size
             includeBase64: false,
-            selectionLimit: 1,
-            maxWidth: 800, // Smaller dimensions
-            maxHeight: 800,
           });
         }
 
         console.log('🔍 Image picker result:', result);
 
-        if (result.didCancel) {
-          console.log('User cancelled image selection');
+        if (!result || !result.path) {
+          console.log('User cancelled image selection or no image selected');
           return;
         }
 
-        if (result.errorCode) {
-          console.error('ImagePicker error:', result.errorCode, result.errorMessage);
-          Alert.alert('Selection Error', `Failed to select image: ${result.errorMessage || 'Unknown error'}`);
+        console.log('🔍 Selected file:', result);
+        
+        // Check file size (500KB limit for server compatibility)
+        if (result.size && result.size > 500 * 1024) {
+          Alert.alert('Error', 'File size must be less than 500KB. Please choose a smaller file or compress the image.');
           return;
         }
 
-        if (result.assets && result.assets.length > 0) {
-          const file = result.assets[0];
-          console.log('🔍 Selected file:', file);
-          
-          // Check file size (500KB limit for server compatibility)
-          if (file.fileSize && file.fileSize > 500 * 1024) {
-            Alert.alert('Error', 'File size must be less than 500KB. Please choose a smaller file or compress the image.');
-            return;
-          }
+        // Create a file object compatible with FormData
+        const fileObj = {
+          uri: result.path,
+          type: result.mime || 'image/jpeg',
+          name: result.filename || `${documentType}_${Date.now()}.jpg`,
+          size: result.size || 0,
+        };
 
-          // Create a file object compatible with FormData
-          const fileObj = {
-            uri: file.uri,
-            type: file.type || 'image/jpeg',
-            name: file.fileName || `${documentType}_${Date.now()}.jpg`,
-            size: file.fileSize || 0,
-          };
+        console.log('🔍 Created file object:', fileObj);
 
-          console.log('🔍 Created file object:', fileObj);
+        setDocumentFiles(prev => ({
+          ...prev,
+          [documentType]: fileObj,
+        }));
 
-          setDocumentFiles(prev => ({
-            ...prev,
-            [documentType]: fileObj,
-          }));
-
-          Alert.alert('Success', 'Document selected successfully!');
-          return;
-        }
+        Alert.alert('Success', 'Document selected successfully!');
+        return;
         
       } catch (imagePickerError) {
         console.error('❌ Image picker error:', imagePickerError);
