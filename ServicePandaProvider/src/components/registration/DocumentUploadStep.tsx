@@ -85,17 +85,19 @@ const DocumentUploadStep = ({
           result = await ImagePicker.openCamera({
             width: 300,
             height: 400,
-            cropping: true,
+            cropping: false, // Disable cropping initially to avoid crashes
             quality: 0.3, // Much lower quality to reduce file size
             includeBase64: false,
+            mediaType: 'photo',
           });
         } else {
           result = await ImagePicker.openPicker({
             width: 300,
             height: 400,
-            cropping: true,
+            cropping: false, // Disable cropping initially to avoid crashes
             quality: 0.3, // Much lower quality to reduce file size
             includeBase64: false,
+            mediaType: 'photo',
           });
         }
 

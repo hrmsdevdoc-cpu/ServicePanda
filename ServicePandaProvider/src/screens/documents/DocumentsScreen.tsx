@@ -1,6 +1,6 @@
 const React = require('react');
 const { useState, useEffect } = require('react');
-const { View, StyleSheet, TouchableOpacity, Text, Alert, ScrollView, ActivityIndicator, Linking } = require('react-native');
+const { View, StyleSheet, TouchableOpacity, Text, Alert, ScrollView, ActivityIndicator, Linking, Image } = require('react-native');
 const { Title, Paragraph, Card, Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 // Import image crop picker with proper error handling and fallback
@@ -211,13 +211,24 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         return;
       }
 
-      // Extract filename from filePath or use fileName (same logic as web app)
-      let filename = document.fileName;
+      // Use the original filename that was uploaded (not the hashed one)
+      // The admin panel uses original filenames like "1757504052321.jpg"
+      let filename = document.name || document.fileName;
+      
+      // If we have a filePath, try to extract the original filename
       if (document.filePath) {
-        // Extract filename from path (same logic as web app)
-        // Handle both forward slashes and backslashes
         const pathSeparator = document.filePath.includes('\\') ? '\\' : '/';
-        filename = document.filePath.split(pathSeparator).pop();
+        const extractedFilename = document.filePath.split(pathSeparator).pop();
+        
+        // Always prefer the document name over filePath for viewing
+        // The server expects the original filename for the view endpoint
+        if (document.name) {
+          filename = document.name;
+        } else if (document.fileName) {
+          filename = document.fileName;
+        } else {
+          filename = extractedFilename;
+        }
       }
 
       if (!filename) {
@@ -225,8 +236,11 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         return;
       }
 
+      console.log('🔍 Document object:', document);
       console.log('🔍 Original filePath:', document.filePath);
-      console.log('🔍 Extracted filename:', filename);
+      console.log('🔍 Original fileName:', document.fileName);
+      console.log('🔍 Document name:', document.name);
+      console.log('🔍 Final filename to use:', filename);
 
       // Construct the document view URL (EXACT SAME as web app)
       const { API_BASE_URL } = require('../../config/api');
@@ -237,17 +251,31 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       console.log('🔍 Filename:', filename);
       console.log('🔍 Provider ID:', providerId);
 
-      // Open document in external browser/app (same as web app behavior)
-      const supported = await Linking.canOpenURL(documentViewUrl);
-      
-      if (supported) {
-        await Linking.openURL(documentViewUrl);
-        console.log('Document opened successfully in external viewer');
+      // For images, show them inline instead of opening externally
+      if (document.mimeType && document.mimeType.startsWith('image/')) {
+        console.log('📸 Opening image inline:', documentViewUrl);
+        
+        // Show the image in our inline viewer
+        setViewingDocument({
+          title: document.name,
+          fileName: document.name,
+          fileSize: document.fileSize,
+          mimeType: document.mimeType,
+          viewUrl: documentViewUrl
+        });
       } else {
-              // Fallback: show document details with FULL URL
-      Alert.alert('Document Details', 
-        `File: ${document.name}\nSize: ${formatFileSize(document.fileSize)}\nType: ${document.mimeType}\n\nFULL URL: ${documentViewUrl}\n\nDocument will open in external viewer.`
-      );
+        // For non-images, try to open externally
+        const supported = await Linking.canOpenURL(documentViewUrl);
+        
+        if (supported) {
+          await Linking.openURL(documentViewUrl);
+          console.log('Document opened successfully in external viewer');
+        } else {
+          // Fallback: show document details with FULL URL
+          Alert.alert('Document Details', 
+            `File: ${document.name}\nSize: ${formatFileSize(document.fileSize)}\nType: ${document.mimeType}\n\nFULL URL: ${documentViewUrl}\n\nDocument will open in external viewer.`
+          );
+        }
       }
 
     } catch (error) {
@@ -293,17 +321,19 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         result = await ImagePicker.openCamera({
           width: 300,
           height: 400,
-          cropping: true,
+          cropping: false, // Disable cropping initially to avoid crashes
           quality: 0.8,
           includeBase64: false,
+          mediaType: 'photo',
         });
       } else {
         result = await ImagePicker.openPicker({
           width: 300,
           height: 400,
-          cropping: true,
+          cropping: false, // Disable cropping initially to avoid crashes
           quality: 0.8,
           includeBase64: false,
+          mediaType: 'photo',
         });
       }
 
@@ -853,17 +883,24 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   existingDocCard: {
-    elevation: 1,
+    elevation: 3,
     backgroundColor: colors.surface,
-    marginBottom: 8,
-    borderRadius: 8,
+    marginBottom: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   existingDocContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   existingDocInfo: {
     flexDirection: 'row',
@@ -871,37 +908,52 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   existingDocIcon: {
-    fontSize: 20,
-    marginRight: 10,
+    fontSize: 24,
+    marginRight: 12,
+    color: colors.primary,
   },
   existingDocText: {
     flex: 1,
   },
   existingDocTitle: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   existingDocDate: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textSecondary,
+    marginBottom: 2,
   },
   existingDocSize: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 1,
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   viewButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    elevation: 2,
+  },
+  viewButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
   },
   uploadRequiredButton: {
     borderColor: colors.textSecondary,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   updateSectionHeader: {
     flexDirection: 'row',
@@ -1037,42 +1089,44 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   modalContent: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 20,
-    margin: 20,
-    maxWidth: '90%',
-    maxHeight: '80%',
-    elevation: 5,
+    backgroundColor: 'white',
+
+    maxHeight: '40%',
+    marginTop: -800, // smaller top space
+
+
+
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 15,
+    padding: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.text,
     flex: 1,
   },
   closeButton: {
-    padding: 8,
+    padding: 10,
     borderRadius: 20,
-    backgroundColor: colors.error + '20',
+    backgroundColor: colors.error + '15',
   },
   closeButtonText: {
     color: colors.error,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   imageContainer: {
     alignItems: 'center',
-    padding: 20,
+    padding: 8,
+    flex: 1,
+    justifyContent: 'flex-start',
   },
   imageFileName: {
     fontSize: 16,
@@ -1088,21 +1142,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   imageViewContainer: {
-    backgroundColor: colors.background,
-    padding: 20,
-    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 20,
+    // marginBottom: 20,
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 350,
+    justifyContent: 'flex-start',
+
   },
   documentImage: {
-    width: 300,
-    height: 300,
+    width: '100%',
+    height: undefined,
+    aspectRatio: 1,
     borderRadius: 8,
-    backgroundColor: colors.background,
+    backgroundColor: 'white',
+    resizeMode: 'contain',
+    maxHeight: 300,
   },
   modalFooter: {
     marginTop: 20,

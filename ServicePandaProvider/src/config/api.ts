@@ -10,8 +10,8 @@ const API_CONFIG = {
     defaultUrl: 'http://10.0.2.2:3000'  // Use Android emulator IP as default
   },
   production: {
-    urls: ['https://api.yourdomain.com'],   // ✅ Replace with real server URL
-    defaultUrl: 'https://api.yourdomain.com'
+    urls: ['https://api.servicepanda.com.au'],   // ✅ Live production API
+    defaultUrl: 'https://api.servicepanda.com.au'
   }
 };
 
