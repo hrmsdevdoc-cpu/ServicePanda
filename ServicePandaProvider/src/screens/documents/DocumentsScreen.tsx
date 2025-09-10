@@ -361,6 +361,13 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       }));
       
       console.log(`Document ${documentType} selected successfully`);
+      
+      // Show immediate feedback that image was selected
+      Alert.alert(
+        'Image Selected!', 
+        `${documentType.charAt(0).toUpperCase() + documentType.slice(1)} image has been selected successfully. You can now upload it or select another image.`,
+        [{ text: 'OK' }]
+      );
     } catch (error) {
       console.error('Error selecting document:', error);
       
@@ -511,6 +518,28 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         // Try FormData first
         const result = await ApiService.uploadDocuments(providerId, formData);
         console.log('Upload result:', result);
+        
+        // Show success message after upload is complete
+        Alert.alert(
+          'Success!', 
+          'Your documents have been updated successfully.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Reset form and refresh existing documents
+                setDocumentFiles({
+                  license: null,
+                  policeCheck: null,
+                  insuranceCertificate: null,
+                });
+                // Refresh the existing documents list
+                fetchExistingDocuments();
+              }
+            }
+          ]
+        );
+        
         return result;
       } catch (formDataError) {
         console.log('FormData upload failed, trying alternative method:', formDataError);
@@ -565,29 +594,30 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         
         const result = await response.json();
         console.log('Direct fetch upload result:', result);
+        
+        // Show success message after upload is complete
+        Alert.alert(
+          'Success!', 
+          'Your documents have been updated successfully.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Reset form and refresh existing documents
+                setDocumentFiles({
+                  license: null,
+                  policeCheck: null,
+                  insuranceCertificate: null,
+                });
+                // Refresh the existing documents list
+                fetchExistingDocuments();
+              }
+            }
+          ]
+        );
+        
         return result;
       }
-
-      // Show success message
-      Alert.alert(
-        'Success!', 
-        'Your documents have been updated successfully.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Reset form and refresh existing documents
-              setDocumentFiles({
-                license: null,
-                policeCheck: null,
-                insuranceCertificate: null,
-              });
-              // Refresh the existing documents list
-              fetchExistingDocuments();
-            }
-          }
-        ]
-      );
 
     } catch (error) {
       console.error('Upload error:', error);
@@ -629,7 +659,11 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
           <View style={styles.existingDocInfo}>
             <Text style={styles.existingDocIcon}>📄</Text>
             <View style={styles.existingDocText}>
-              <Text style={styles.existingDocTitle}>{document.name}</Text>
+              <View style={styles.documentTitleRow}>
+                <Text style={styles.existingDocTitle}>{title}</Text>
+                <Text style={styles.documentTypeBadge}>{documentType.toUpperCase()}</Text>
+              </View>
+              <Text style={styles.existingDocFileName}>{document.name}</Text>
               <Text style={styles.existingDocDate}>Uploaded: {document.uploadedDate}</Text>
               {document.fileSize && (
                 <Text style={styles.existingDocSize}>{formatFileSize(document.fileSize)}</Text>
@@ -688,10 +722,14 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         ) : (
           <View style={styles.selectedDocument}>
             <View style={styles.documentInfo}>
-              <Text style={styles.documentName}>{document.name}</Text>
+              <View style={styles.documentHeader}>
+                <Text style={styles.selectedIcon}>✅</Text>
+                <Text style={styles.documentName}>{document.name}</Text>
+              </View>
               <Text style={styles.documentSize}>
                 {document.size ? `${(document.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
               </Text>
+              <Text style={styles.selectedStatus}>Ready to upload</Text>
             </View>
             <TouchableOpacity
               onPress={() => removeDocument(documentType)}
@@ -730,17 +768,17 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
             <ExistingDocumentCard
               title="License Document"
               document={existingDocuments.license}
-              documentType="license"
+              documentType="LICENSE"
             />
             <ExistingDocumentCard
               title="Police Check"
               document={existingDocuments.policeCheck}
-              documentType="policeCheck"
+              documentType="POLICE CHECK"
             />
             <ExistingDocumentCard
               title="Insurance Certificate"
               document={existingDocuments.insuranceCertificate}
-              documentType="insuranceCertificate"
+              documentType="INSURANCE"
             />
           </View>
         )}
@@ -915,11 +953,35 @@ const styles = StyleSheet.create({
   existingDocText: {
     flex: 1,
   },
+  documentTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   existingDocTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
+    flex: 1,
+  },
+  documentTypeBadge: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.primary,
+    backgroundColor: colors.primary + '20',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    textAlign: 'center',
+    minWidth: 50,
+    maxWidth: 80,
+  },
+  existingDocFileName: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginBottom: 2,
   },
   existingDocDate: {
     fontSize: 13,
@@ -1046,15 +1108,35 @@ const styles = StyleSheet.create({
   documentInfo: {
     flex: 1,
   },
+  documentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  selectedIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
   documentName: {
     fontSize: 13,
     fontWeight: '500',
     color: colors.text,
-    marginBottom: 2,
+    flex: 1,
   },
   documentSize: {
     fontSize: 11,
     color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  selectedStatus: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: '600',
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
   },
   removeButton: {
     backgroundColor: colors.error,
