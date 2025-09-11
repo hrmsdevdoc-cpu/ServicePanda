@@ -25,7 +25,7 @@ const ProfileScreen = require('./src/screens/profile/ProfileScreen');
 const CreditsScreen = require('./src/screens/credits/CreditsScreen');
 const BillingScreen = require('./src/screens/billing/BillingScreen');
 const HelpScreen = require('./src/screens/help/HelpScreen');
-const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar } = require('react-native');
+const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar, Platform } = require('react-native');
 const { colors } = require('./src/utils/theme');
 
 // Loading component while checking authentication
@@ -225,12 +225,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingBottom: 65, // Adjusted padding for slightly larger footer
+    paddingBottom: Platform.OS === 'ios' ? 75 : 65, // More padding for iOS footer
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 50, // Add padding for status bar
+    paddingTop: Platform.OS === 'ios' ? 60 : 50, // More padding for iOS
     paddingBottom: 8,
     paddingHorizontal: 8,
     backgroundColor: colors.surface,
@@ -270,8 +270,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingVertical: 4,
-    paddingHorizontal: 5,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 4, // More padding for iOS
+    paddingHorizontal: Platform.OS === 'ios' ? 8 : 5, // More horizontal padding for iOS
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -284,14 +284,14 @@ const styles = StyleSheet.create({
   },
   footerTab: {
     alignItems: 'center',
-    padding: 6,
+    padding: Platform.OS === 'ios' ? 8 : 6, // More padding for iOS
   },
   footerIcon: {
-    fontSize: 22,
-    marginBottom: 3,
+    fontSize: Platform.OS === 'ios' ? 26 : 22, // Bigger icons for iOS
+    marginBottom: Platform.OS === 'ios' ? 4 : 3, // More margin for iOS
   },
   footerLabel: {
-    fontSize: 11,
+    fontSize: Platform.OS === 'ios' ? 12 : 11, // Slightly bigger text for iOS
     color: colors.textSecondary,
   },
   activeFooterTab: {

@@ -14,7 +14,7 @@ interface NotificationIconProps {
   };
 }
 
-function NotificationIcon({ unreadCount, onPress, size = 24, latestNotification }: NotificationIconProps) {
+function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification }: NotificationIconProps) {
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -34,7 +34,7 @@ function NotificationIcon({ unreadCount, onPress, size = 24, latestNotification 
       <View style={styles.iconContainer}>
         <IconButton
           icon="bell"
-          size={size + 8}
+          size={size}
           iconColor={colors.text}
           onPress={onPress}
           style={styles.iconButton}

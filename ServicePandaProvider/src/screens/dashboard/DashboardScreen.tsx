@@ -238,7 +238,7 @@ function DashboardScreen({ onNavigate }) {
         <NotificationIcon
           unreadCount={unreadNotificationsCount}
           onPress={() => setNotificationsVisible(true)}
-          size={24}
+          size={20}
           latestNotification={notifications.length > 0 ? {
             title: notifications[0].title,
             message: notifications[0].message,
@@ -627,8 +627,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 50 : 16, // Only add extra padding for iOS
-    paddingBottom: 16,
+    paddingTop: Platform.OS === 'ios' ? 60 : 16, // Increased padding for iOS safe area
+    paddingBottom: Platform.OS === 'ios' ? 20 : 16, // Increased bottom padding for iOS
     paddingHorizontal: 16,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
