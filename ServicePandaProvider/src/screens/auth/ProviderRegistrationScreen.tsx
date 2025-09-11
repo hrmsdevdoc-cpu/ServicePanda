@@ -28,7 +28,7 @@ const ServiceAreasStep = require('../../components/registration/ServiceAreasStep
 const DocumentUploadStep = require('../../components/registration/DocumentUploadStep');
 
 const ProviderRegistrationScreen = ({ onNavigate }) => {
-  const [currentStep, setCurrentStep] = useState(4); // Start from step 1 for complete registration flow
+  const [currentStep, setCurrentStep] = useState(1); // Start from step 1 for complete registration flow
   const [isLoading, setIsLoading] = useState(false);
   const [providerId, setProviderId] = useState(null);
   const [isExistingProvider, setIsExistingProvider] = useState(false);

@@ -1,5 +1,5 @@
 const React = require('react');
-const { useState } = require('react');
+const { useState, useEffect } = require('react');
 const {
   View,
   Text,
@@ -11,11 +11,13 @@ const {
   SafeAreaView,
   Dimensions,
   StatusBar,
+  TouchableOpacity,
 } = require('react-native');
-const { TextInput, Button, Card, Title, Paragraph } = require('react-native-paper');
+const { TextInput, Button, Card, Title, Paragraph, Checkbox } = require('react-native-paper');
 const { useMutation } = require('@tanstack/react-query');
 const { useAuth } = require('../../contexts/AuthContext');
 const { colors } = require('../../utils/theme');
+const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,7 +26,29 @@ const LoginScreen = ({ onNavigate, navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const { login } = useAuth();
+
+  // Load saved credentials on component mount
+  useEffect(() => {
+    loadSavedCredentials();
+  }, []);
+
+  const loadSavedCredentials = async () => {
+    try {
+      const savedEmail = await AsyncStorage.getItem('rememberedEmail');
+      const savedPassword = await AsyncStorage.getItem('rememberedPassword');
+      const rememberMeStatus = await AsyncStorage.getItem('rememberMe');
+      
+      if (savedEmail && rememberMeStatus === 'true') {
+        setEmail(savedEmail);
+        setPassword(savedPassword || '');
+        setRememberMe(true);
+      }
+    } catch (error) {
+      console.error('Error loading saved credentials:', error);
+    }
+  };
 
   const loginMutation = useMutation({
     mutationFn: async (credentials) => {
@@ -33,7 +57,7 @@ const LoginScreen = ({ onNavigate, navigation }) => {
       console.log('🔗 API Endpoint: /api/provider/login');
 
       try {
-        const result = await login(credentials.email, credentials.password);
+        const result = await login(credentials.email, credentials.password, credentials.rememberMe);
         console.log('✅ Login successful:', result);
         return result;
       } catch (error) {
@@ -80,13 +104,33 @@ const LoginScreen = ({ onNavigate, navigation }) => {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert("Missing Information", "Please enter both email and password.");
       return;
     }
 
-    loginMutation.mutate({ email: email.trim(), password });
+    // Save credentials if remember me is checked
+    if (rememberMe) {
+      try {
+        await AsyncStorage.setItem('rememberedEmail', email.trim());
+        await AsyncStorage.setItem('rememberedPassword', password);
+        await AsyncStorage.setItem('rememberMe', 'true');
+      } catch (error) {
+        console.error('Error saving credentials:', error);
+      }
+    } else {
+      // Clear saved credentials if remember me is unchecked
+      try {
+        await AsyncStorage.removeItem('rememberedEmail');
+        await AsyncStorage.removeItem('rememberedPassword');
+        await AsyncStorage.removeItem('rememberMe');
+      } catch (error) {
+        console.error('Error clearing credentials:', error);
+      }
+    }
+
+    loginMutation.mutate({ email: email.trim(), password, rememberMe });
   };
 
   return (
@@ -176,6 +220,23 @@ const LoginScreen = ({ onNavigate, navigation }) => {
                         contentStyle={styles.inputContent}
                       />
                     </View>
+                  </View>
+
+                  {/* Remember Me Checkbox */}
+                  <View style={styles.rememberMeContainer}>
+                    <TouchableOpacity
+                      style={styles.rememberMeRow}
+                      onPress={() => setRememberMe(!rememberMe)}
+                      activeOpacity={0.7}
+                    >
+                      <Checkbox
+                        status={rememberMe ? 'checked' : 'unchecked'}
+                        onPress={() => setRememberMe(!rememberMe)}
+                        color={colors.primary}
+                        uncheckedColor={colors.textTertiary}
+                      />
+                      <Text style={styles.rememberMeText}>Remember me</Text>
+                    </TouchableOpacity>
                   </View>
 
                   {/* Forgot Password Link */}
@@ -388,6 +449,21 @@ const styles = StyleSheet.create({
   inputContent: {
     paddingVertical: 12,
     paddingHorizontal: 16,
+  },
+
+  // Remember Me
+  rememberMeContainer: {
+    marginBottom: 15,
+  },
+  rememberMeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rememberMeText: {
+    fontSize: 14,
+    color: colors.text,
+    marginLeft: 8,
+    fontWeight: '500',
   },
 
   // Forgot Password

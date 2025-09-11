@@ -55,7 +55,7 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (email, password) => {
+  const login = async (email, password, rememberMe = false) => {
     try {
       console.log('🔐 Attempting login...');
       const provider = await apiService.login(email, password);
@@ -63,6 +63,9 @@ const AuthProvider = ({ children }) => {
       // Store authentication data
       await AsyncStorage.setItem('providerId', provider.id.toString());
       await AsyncStorage.setItem('providerData', JSON.stringify(provider));
+      
+      // Store remember me preference
+      await AsyncStorage.setItem('rememberMe', rememberMe.toString());
       
       setProviderData(provider);
       setIsAuthenticated(true);
