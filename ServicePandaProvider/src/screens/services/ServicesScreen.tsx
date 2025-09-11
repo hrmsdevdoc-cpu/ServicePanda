@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { Card, Title, Paragraph, Button } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,33 +17,94 @@ const apiService = require('../../services/api');
 
 const { width } = Dimensions.get('window');
 
-// Service icons mapping - same as web version
+// Service icons mapping - comprehensive service categories
 const serviceIcons = {
+  // Cleaning Services
   'Domestic Cleaning': '✨',
   'Bond Cleaning': '🏢',
   'Carpet Cleaning': '🏠',
-  'Pest Control': '🐛',
-  'Gardening': '🌱',
-  'Removals': '🚚',
+  'Window Cleaning': '🪟',
+  'Pressure Cleaning': '💨',
+  'Gutter Cleaning': '🌧️',
+  
+  // Home Maintenance
   'Handyman': '🔧',
   'Electrical': '⚡',
-  'Air Conditioning': '🔧',
   'Plumbing': '💧',
-  'Appliance Repair': '🏠',
-  'Demo': '🏠',
-  'Gutter Cleaning': '🏠',
+  'Air Conditioning': '❄️',
+  'Appliance Repair': '🔧',
   'Locksmith': '🔒',
-  'Painting': '🏠',
-  'Pool Maintenance': '🏊',
+  'Painting': '🎨',
   'Roofing': '🏠',
-  'Security Systems': '🏠',
-  'Solar Installation': '🏠',
-  'Test Service': '🏠',
+  
+  // Garden & Landscaping
+  'Gardening': '🌱',
   'Tree Services': '🌳',
-  'Window Cleaning': '🏠',
+  'Lawn Mowing': '🌿',
+  'Landscaping': '🌺',
+  'Pruning': '✂️',
+  'Hedge Trimming': '🌳',
+  'Garden Design': '🎨',
+  'Irrigation': '💧',
+  'Mulching': '🍂',
+  'Weed Control': '🌿',
+  
+  // Construction & Renovation
+  'Fencing': '🚧',
+  'Tiling': '🔲',
+  'Carpentry': '🪚',
+  'Flooring': '🏠',
+  'Decking': '🪵',
+  'Pergolas': '🏗️',
+  'Concrete Work': '🏗️',
+  'Retaining Walls': '🧱',
+  'Insulation': '🧱',
+  'Waterproofing': '💦',
+  
+  // Pool Services
+  'Pool Maintenance': '🏊',
+  'Pool Cleaning': '🧽',
+  'Pool Repairs': '🔧',
+  'Pool Equipment': '⚙️',
+  'Pool Heating': '🌡️',
+  'Pool Safety': '🛡️',
+  'Pool Tiles': '🔲',
+  'Pool Resurfacing': '🔄',
+  'Pool Renovation': '🏊',
+  
+  // Security & Safety
+  'Security Systems': '🔐',
+  'Garage Door Repair': '🚪',
+  'Gate Repair': '🚧',
+  
+  // Energy & Technology
+  'Solar Installation': '☀️',
+  'TV Mounting': '📺',
+  'Outdoor Lighting': '💡',
+  
+  // Moving & Transport
+  'Removals': '🚚',
+  'Rubbish Removal': '🗑️',
+  'Furniture Assembly': '🪑',
+  
+  // Specialized Services
+  'Pest Control': '🐛',
+  'Curtains & Blinds': '🪟',
+  'Driveway Repair': '🛣️',
+  'Pathway Installation': '🛤️',
+  'BBQ Installation': '🔥',
+  'Outdoor Kitchens': '🍳',
+  'Fire Pits': '🔥',
+  'Outdoor Furniture': '🪑',
+  'Spa Installation': '🛁',
+  'Pond Installation': '🐠',
+  
+  // Test/Demo
+  'Demo': '🏠',
+  'Test Service': '🏠',
 };
 
-const ServicesScreen = () => {
+const ServicesScreen = ({ onNavigate, onBack }: { onNavigate?: (screen: string) => void; onBack?: () => void }) => {
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const queryClient = useQueryClient();
@@ -140,17 +202,24 @@ const ServicesScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Title style={styles.title}>Services</Title>
-        <Paragraph style={styles.subtitle}>Manage your service offerings.</Paragraph>
-      </View>
+    <View style={styles.container}>
+      {/* Header with Navigation */}
+      {/* <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Services</Text>
+          <Text style={styles.headerSubtitle}>Manage your service offerings</Text>
+        </View>
+      </View> */}
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
 
       {/* Main Services Card */}
       <Card style={styles.mainCard}>
         <Card.Content>
-          <View style={styles.cardHeader}>
+          {/* <View style={styles.cardHeader}>
             <View style={styles.cardTitleContainer}>
               <Text style={styles.cardTitle}>Manage Your Services</Text>
               <Text style={styles.cardSubtitle}>
@@ -166,7 +235,7 @@ const ServicesScreen = () => {
             >
               {updateServicesMutation.isPending ? 'Saving...' : 'Save Services'}
             </Button>
-          </View>
+          </View> */}
 
           {/* Validation message */}
           {hasAttemptedSubmit && selectedServices.length === 0 && (
@@ -247,7 +316,8 @@ const ServicesScreen = () => {
           </View>
         </Card.Content>
       </Card>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -255,6 +325,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 12,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  scrollView: {
+    flex: 1,
     padding: 16,
   },
   loadingContainer: {
@@ -267,21 +372,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: colors.textSecondary,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
   },
   mainCard: {
     elevation: 4,
@@ -431,4 +521,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ServicesScreen;
+module.exports = ServicesScreen;

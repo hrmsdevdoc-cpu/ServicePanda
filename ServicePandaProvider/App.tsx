@@ -123,7 +123,7 @@ const AppContent = () => {
       case 'personalDetails':
         return <PersonalDetailsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
       case 'services':
-        return <ServicesScreen />;
+        return <ServicesScreen onNavigate={navigateTo} onBack={goToDashboard} />;
       case 'serviceArea':
         return <ServiceAreaScreen onNavigate={navigateTo} onBack={goToDashboard} />;
       case 'documents':
