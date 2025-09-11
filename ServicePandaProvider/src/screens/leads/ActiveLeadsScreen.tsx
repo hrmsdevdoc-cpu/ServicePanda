@@ -1,6 +1,6 @@
 const React = require('react');
 const { useState } = require('react');
-const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl } = require('react-native');
+const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl, Animated } = require('react-native');
 const { Title, Paragraph, Card, Button, Chip, ActivityIndicator } = require('react-native-paper');
 const { useQuery } = require('@tanstack/react-query');
 const apiService = require('../../services/api');
@@ -8,6 +8,11 @@ const { colors } = require('../../utils/theme');
 
 function ActiveLeadsScreen({ onNavigate }) {
   const [refreshing, setRefreshing] = useState(false);
+
+  // Animation values
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
 
   // Fetch active leads from API
   const { data: activeLeads = [], isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
@@ -25,158 +30,204 @@ function ActiveLeadsScreen({ onNavigate }) {
   // Filter active leads (status === 'purchased')
   const purchasedLeads = activeLeads.filter(lead => lead.status === 'purchased');
 
+  // Animation effects on mount
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   return (
     <ScrollView 
       style={styles.container}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
+      showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      {/* <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => onNavigate('leads')}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Title style={styles.title}>Active Leads ({purchasedLeads.length})</Title>
-          <Paragraph style={styles.subtitle}>Manage your current projects</Paragraph>
+      <Animated.View
+        style={[
+          styles.animatedContainer,
+          {
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ]
+          }
+        ]}
+      >
+        {/* Modern Header */}
+        <View style={styles.modernHeader}>
+          <View style={styles.headerContent}>
+            <Text style={styles.modernTitle}>Active Leads ({purchasedLeads.length})</Text>
+            <Text style={styles.modernSubtitle}>Manage your current projects</Text>
+          </View>
+          <View style={styles.headerIcon}>
+            <Text style={styles.headerEmoji}>⚡</Text>
+          </View>
         </View>
-      </View> */}
 
-      {/* Loading State */}
-      {leadsLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading active leads...</Text>
-        </View>
-      ) : (
-        <>
-          {/* Summary Stats */}
-          <View style={styles.statsContainer}>
-            <Card style={styles.statCard}>
-              <Card.Content style={styles.statContent}>
-                <Text style={styles.statNumber}>{purchasedLeads.length}</Text>
-                <Text style={styles.statLabel}>Active Projects</Text>
-              </Card.Content>
-            </Card>
+        {/* Loading State */}
+        {leadsLoading ? (
+          <View style={styles.modernLoadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.modernLoadingText}>Loading active leads...</Text>
+          </View>
+        ) : (
+          <>
+            {/* Modern Summary Stats */}
+            <View style={styles.modernStatsContainer}>
+              <View style={styles.statsGrid}>
+                <View style={[styles.modernStatCard, styles.primaryStatCard]}>
+                  <View style={styles.statIconWrapper}>
+                    <Text style={styles.statIcon}>📋</Text>
+                  </View>
+                  <Text style={styles.modernStatNumber}>{purchasedLeads.length}</Text>
+                  <Text style={styles.modernStatLabel}>Active Projects</Text>
+                </View>
 
-            <Card style={styles.statCard}>
-              <Card.Content style={styles.statContent}>
-                <Text style={styles.statNumber}>
-                  ${purchasedLeads.reduce((sum, lead) => {
-                    const budget = lead.budget || 0;
-                    return sum + budget;
-                  }, 0).toLocaleString()}
-                </Text>
-                <Text style={styles.statLabel}>Total Value</Text>
-              </Card.Content>
-            </Card>
+                <View style={[styles.modernStatCard, styles.secondaryStatCard]}>
+                  <View style={styles.statIconWrapper}>
+                    <Text style={styles.statIcon}>💰</Text>
+                  </View>
+                  <Text style={styles.modernStatNumber}>
+                    ${purchasedLeads.reduce((sum, lead) => {
+                      const budget = lead.budget || 0;
+                      return sum + budget;
+                    }, 0).toLocaleString()}
+                  </Text>
+                  <Text style={styles.modernStatLabel}>Total Value</Text>
+                </View>
+              </View>
 
-            <Card style={styles.statCard}>
-              <Card.Content style={styles.statContent}>
-                <Text style={styles.statNumber}>
+              <View style={[styles.modernStatCard, styles.tertiaryStatCard, styles.fullWidthCard]}>
+                <View style={styles.statIconWrapper}>
+                  <Text style={styles.statIcon}>💳</Text>
+                </View>
+                <Text style={styles.modernStatNumber}>
                   ${purchasedLeads.reduce((sum, lead) => {
                     const leadCost = lead.leadCost || 0;
                     return sum + leadCost;
                   }, 0).toLocaleString()}
                 </Text>
-                <Text style={styles.statLabel}>Total Lead Cost</Text>
-              </Card.Content>
-            </Card>
-          </View>
-
-          {/* Active Leads List */}
-          <View style={styles.leadsContainer}>
-            {purchasedLeads.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>📋</Text>
-                <Text style={styles.emptyTitle}>No Active Leads</Text>
-                <Text style={styles.emptyText}>You don't have any active leads yet.</Text>
+                <Text style={styles.modernStatLabel}>Total Lead Cost</Text>
               </View>
-            ) : (
-              purchasedLeads.map((lead) => (
-                <Card key={lead.requestId || lead.id} style={styles.leadCard}>
-                  <Card.Content>
-                    <View style={styles.leadHeader}>
-                      <View style={styles.leadTitleContainer}>
-                        <Title style={styles.leadTitle}>
+            </View>
+
+            {/* Modern Active Leads List */}
+            <View style={styles.modernLeadsContainer}>
+              {purchasedLeads.length === 0 ? (
+                <View style={styles.modernEmptyContainer}>
+                  <View style={styles.emptyIconContainer}>
+                    <Text style={styles.emptyIcon}>📋</Text>
+                  </View>
+                  <Text style={styles.modernEmptyTitle}>No Active Leads</Text>
+                  <Text style={styles.modernEmptyText}>You don't have any active leads yet.</Text>
+                  <TouchableOpacity 
+                    style={styles.exploreButton}
+                    onPress={() => onNavigate('newLeads')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.exploreButtonText}>Browse New Leads</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                purchasedLeads.map((lead) => (
+                  <TouchableOpacity 
+                    key={lead.requestId || lead.id} 
+                    style={styles.modernLeadCard}
+                    activeOpacity={0.9}
+                  >
+                    <View style={styles.leadCardHeader}>
+                      <View style={styles.leadTitleSection}>
+                        <Text style={styles.modernLeadTitle}>
                           {lead.categoryName} - {lead.suburb?.toUpperCase() || 'LOCATION'}
-                        </Title>
-                        <View style={styles.statusContainer}>
-                          <Chip 
-                            mode="outlined" 
-                            style={styles.statusChip}
-                            textStyle={styles.statusChipText}
-                          >
+                        </Text>
+                        <View style={styles.statusBadge}>
+                          <Text style={styles.statusText}>
                             {lead.status === 'purchased' ? 'Active' : lead.status}
-                          </Chip>
+                          </Text>
                         </View>
                       </View>
-                      <View style={styles.leadBudget}>
+                      <View style={styles.leadBudgetSection}>
                         <Text style={styles.budgetLabel}>Budget</Text>
-                        <Text style={styles.budgetAmount}>${lead.budget || 'N/A'}</Text>
+                        <Text style={styles.modernBudgetAmount}>${lead.budget || 'N/A'}</Text>
                       </View>
                     </View>
 
-                    <Paragraph style={styles.leadDescription}>{lead.description}</Paragraph>
+                    <Text style={styles.modernLeadDescription}>{lead.description}</Text>
 
-                    <View style={styles.leadDetails}>
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailIcon}>👤</Text>
-                        <Text style={styles.detailText}>
-                          {lead.customerName || 'Customer Name N/A'}
-                        </Text>
+                    <View style={styles.modernLeadDetails}>
+                      <View style={styles.detailRow}>
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailIcon}>👤</Text>
+                          <Text style={styles.detailText}>
+                            {lead.customerName || 'Customer Name N/A'}
+                          </Text>
+                        </View>
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailIcon}>📍</Text>
+                          <Text style={styles.detailText}>
+                            {lead.suburb}, {lead.postcode}
+                          </Text>
+                        </View>
                       </View>
 
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailIcon}>📍</Text>
-                        <Text style={styles.detailText}>
-                          {lead.suburb}, {lead.postcode}
-                        </Text>
-                      </View>
-
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailIcon}>📅</Text>
-                        <Text style={styles.detailText}>
-                          Created: {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A'}
-                        </Text>
-                      </View>
-
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailIcon}>💰</Text>
-                        <Text style={styles.detailText}>
-                          Lead Cost: ${lead.leadCost || 0}
-                        </Text>
+                      <View style={styles.detailRow}>
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailIcon}>📅</Text>
+                          <Text style={styles.detailText}>
+                            Created: {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A'}
+                          </Text>
+                        </View>
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailIcon}>💰</Text>
+                          <Text style={styles.detailText}>
+                            Lead Cost: ${lead.leadCost || 0}
+                          </Text>
+                        </View>
                       </View>
                     </View>
 
-                    <View style={styles.leadActions}>
-                      <Button
-                        mode="outlined"
+                    <View style={styles.modernLeadActions}>
+                      <TouchableOpacity
+                        style={styles.modernActionButton}
                         onPress={() => onNavigate('leadDetails')}
-                        style={styles.actionButton}
+                        activeOpacity={0.8}
                       >
-                        View Details
-                      </Button>
-                      <Button
-                        mode="contained"
+                        <Text style={styles.actionButtonText}>View Details</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.modernUpdateButton}
                         onPress={() => console.log('Update progress for lead:', lead.requestId || lead.id)}
-                        style={styles.updateButton}
-                        buttonColor={colors.primary}
+                        activeOpacity={0.8}
                       >
-                        Update Progress
-                      </Button>
+                        <Text style={styles.updateButtonText}>Update Progress</Text>
+                      </TouchableOpacity>
                     </View>
-                  </Card.Content>
-                </Card>
-              ))
-            )}
-          </View>
-        </>
-      )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </>
+        )}
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -184,175 +235,296 @@ function ActiveLeadsScreen({ onNavigate }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fafc',
   },
-  header: {
+  animatedContainer: {
+    flex: 1,
+  },
+  // Modern Header
+  modernHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 40,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  backIcon: {
-    fontSize: 24,
-    color: colors.primary,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    backgroundColor: '#ffffff',
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   headerContent: {
     flex: 1,
   },
-  title: {
+  modernTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    padding: 12,
-    gap: 8,
-  },
-  statCard: {
-    flex: 1,
-    elevation: 2,
-  },
-  statContent: {
-    alignItems: 'center',
-    padding: 12,
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  leadsContainer: {
-    padding: 12,
-  },
-  leadCard: {
-    marginBottom: 12,
-    elevation: 2,
-  },
-  leadHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  leadTitleContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  leadTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  statusChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.success + '20',
-    borderColor: colors.success,
-  },
-  statusChipText: {
-    color: colors.success,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  leadBudget: {
-    alignItems: 'center',
-  },
-  budgetLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginBottom: 3,
-  },
-  budgetAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.success,
-  },
-  leadDescription: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  leadDetails: {
-    marginBottom: 12,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  detailIcon: {
+  modernSubtitle: {
     fontSize: 14,
-    marginRight: 6,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
-  detailText: {
-    fontSize: 13,
-    color: colors.text,
-    marginRight: 6,
+  headerIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.success + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  leadActions: {
-    flexDirection: 'row',
-    gap: 12,
+  headerEmoji: {
+    fontSize: 28,
   },
-  actionButton: {
-    flex: 1,
-  },
-  updateButton: {
-    flex: 1,
-  },
-  loadingContainer: {
+  // Modern Loading Container
+  modernLoadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 60,
   },
-  loadingText: {
-    marginTop: 12,
+  modernLoadingText: {
+    marginTop: 16,
     fontSize: 14,
     color: colors.textSecondary,
+    fontWeight: '500',
   },
-  emptyContainer: {
+  // Modern Stats Container
+  modernStatsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    gap: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modernStatCard: {
+    padding: 20,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    alignItems: 'center',
     flex: 1,
+  },
+  fullWidthCard: {
+    flex: 1,
+  },
+  primaryStatCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.primary + '20',
+  },
+  secondaryStatCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.success + '20',
+  },
+  tertiaryStatCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.warning + '20',
+  },
+  statIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
+    marginBottom: 16,
+  },
+  statIcon: {
+    fontSize: 20,
+  },
+  modernStatNumber: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 8,
+    letterSpacing: -1,
+    textAlign: 'center',
+  },
+  modernStatLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  // Modern Leads Container
+  modernLeadsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 32,
+  },
+  modernLeadCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  leadCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  leadTitleSection: {
+    flex: 1,
+    marginRight: 16,
+  },
+  modernLeadTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.success + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  leadBudgetSection: {
+    alignItems: 'center',
+  },
+  budgetLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  modernBudgetAmount: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.success,
+  },
+  modernLeadDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  modernLeadDetails: {
+    marginBottom: 20,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  detailIcon: {
+    fontSize: 14,
+    marginRight: 8,
+  },
+  detailText: {
+    fontSize: 13,
+    color: colors.text,
+    flex: 1,
+  },
+  modernLeadActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modernActionButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  modernUpdateButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  updateButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  // Modern Empty Container
+  modernEmptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.textSecondary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   emptyIcon: {
-    fontSize: 40,
+    fontSize: 32,
+    opacity: 0.6,
+  },
+  modernEmptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
     marginBottom: 12,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  emptyText: {
+  modernEmptyText: {
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  exploreButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  exploreButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });
 

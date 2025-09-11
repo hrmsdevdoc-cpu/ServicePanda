@@ -11,6 +11,8 @@ const {
   Alert,
   StatusBar,
   Platform,
+  Animated,
+  LinearGradient,
 } = require('react-native');
 const { Card, Title, Paragraph, Button, Chip, ActivityIndicator, IconButton } = require('react-native-paper');
 const { useQuery } = require('@tanstack/react-query');
@@ -35,6 +37,16 @@ function DashboardScreen({ onNavigate }) {
   const [notificationsVisible, setNotificationsVisible] = React.useState(false);
   const [notifications, setNotifications] = React.useState([]);
   const [notificationsLoading, setNotificationsLoading] = React.useState(false);
+
+  // Animation values
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
+  
+  // Sidebar animation values
+  const sidebarSlideAnim = React.useRef(new Animated.Value(-width * 0.75)).current;
+  const sidebarFadeAnim = React.useRef(new Animated.Value(0)).current;
+  const overlayFadeAnim = React.useRef(new Animated.Value(0)).current;
 
   const { data: leads = [], isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
     queryKey: ['/api/provider/leads'],
@@ -88,7 +100,48 @@ function DashboardScreen({ onNavigate }) {
 
   // Function to close sidebar
   const closeSidebar = () => {
-    setSidebarOpen(false);
+    Animated.parallel([
+      Animated.timing(sidebarSlideAnim, {
+        toValue: -width * 0.75,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sidebarFadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayFadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setSidebarOpen(false);
+    });
+  };
+
+  // Function to open sidebar
+  const openSidebar = () => {
+    setSidebarOpen(true);
+    Animated.parallel([
+      Animated.spring(sidebarSlideAnim, {
+        toValue: 0,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sidebarFadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   // Function to handle navigation and close sidebar
@@ -195,6 +248,28 @@ function DashboardScreen({ onNavigate }) {
     fetchNotifications();
   }, [activities]); // Re-fetch notifications when activities change
 
+  // Animation effects on mount
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   // Handle Android back button
   React.useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -224,7 +299,7 @@ function DashboardScreen({ onNavigate }) {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.menuButton}
-          onPress={() => setSidebarOpen(!sidebarOpen)}
+          onPress={openSidebar}
         >
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
@@ -251,12 +326,29 @@ function DashboardScreen({ onNavigate }) {
       {sidebarOpen && (
         <>
           {/* Overlay to close sidebar when clicking outside */}
-          <TouchableOpacity 
-            style={styles.overlay}
-            activeOpacity={1}
-            onPress={closeSidebar}
-          />
-          <View style={styles.sidebar}>
+          <Animated.View 
+            style={[
+              styles.overlay,
+              {
+                opacity: overlayFadeAnim,
+              }
+            ]}
+          >
+            <TouchableOpacity 
+              style={styles.overlayTouchable}
+              activeOpacity={1}
+              onPress={closeSidebar}
+            />
+          </Animated.View>
+          <Animated.View 
+            style={[
+              styles.sidebar,
+              {
+                transform: [{ translateX: sidebarSlideAnim }],
+                opacity: sidebarFadeAnim,
+              }
+            ]}
+          >
             {/* Sidebar Header with Close Button */}
             <View style={styles.sidebarHeader}>
               <View style={styles.sidebarHeaderRow}>
@@ -402,25 +494,25 @@ function DashboardScreen({ onNavigate }) {
 
               {/* User Profile */}
               <TouchableOpacity 
-                style={styles.userProfile}
+                style={styles.sidebarItem}
                 onPress={() => handleNavigation('profile')}
               >
-                <Text style={styles.userIcon}>👤</Text>
-                <Text style={styles.userName}>
+                <Text style={styles.sidebarIcon}>👤</Text>
+                <Text style={styles.sidebarText}>
                   {profile?.firstName} {profile?.lastName}
                 </Text>
               </TouchableOpacity>
 
               {/* Logout Button */}
               <TouchableOpacity 
-                style={styles.logoutButton}
+                style={[styles.sidebarItem, styles.logoutItem]}
                 onPress={logout}
               >
-                <Text style={styles.logoutIcon}>🚪</Text>
-                <Text style={styles.logoutText}>Logout</Text>
+                <Text style={styles.sidebarIcon}>🚪</Text>
+                <Text style={[styles.sidebarText, styles.logoutText]}>Logout</Text>
               </TouchableOpacity>
             </ScrollView>
-          </View>
+          </Animated.View>
         </>
       )}
 
@@ -430,180 +522,240 @@ function DashboardScreen({ onNavigate }) {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {/* Dashboard Header */}
-        {/* <View style={styles.dashboardHeader}>
-          <Title style={styles.dashboardTitle}>Dashboard</Title>
-          <Paragraph style={styles.dashboardSubtitle}>
-            Overview of your provider activities
-          </Paragraph>
-        </View> */}
+        <Animated.View
+          style={[
+            styles.animatedContainer,
+            {
+              opacity: fadeAnim,
+              transform: [
+                { translateY: slideAnim },
+                { scale: scaleAnim }
+              ]
+            }
+          ]}
+        >
+          {/* Modern Welcome Section */}
+          <View style={styles.welcomeSection}>
+            <View style={styles.welcomeContent}>
+              <Text style={styles.welcomeGreeting}>Welcome back!</Text>
+              <Text style={styles.welcomeName}>
+                {profile?.firstName || 'Provider'}
+              </Text>
+              <Text style={styles.welcomeSubtext}>
+                Here's what's happening with your business today
+              </Text>
+            </View>
+            <View style={styles.welcomeIcon}>
+              <Text style={styles.welcomeEmoji}>👋</Text>
+            </View>
+          </View>
 
         {/* Status Alert */}
         {profile?.status === 'pending' && (
-          <Card style={[styles.alertCard, { backgroundColor: colors.warning + '20' }]}>
-            <Card.Content style={styles.alertContent}>
+          <View style={styles.modernAlertCard}>
+            <View style={styles.alertIconContainer}>
               <Text style={styles.alertIcon}>⏰</Text>
-              <View style={styles.alertText}>
-                <Title style={styles.alertTitle}>Application Under Review</Title>
-                <Paragraph style={styles.alertDescription}>
-                  Your provider application is currently being reviewed by our team. You'll receive an email once approved.
-                </Paragraph>
-              </View>
-            </Card.Content>
-          </Card>
+            </View>
+            <View style={styles.alertContent}>
+              <Text style={styles.alertTitle}>Application Under Review</Text>
+              <Text style={styles.alertDescription}>
+                Your provider application is currently being reviewed by our team. You'll receive an email once approved.
+              </Text>
+            </View>
+          </View>
         )}
 
-        {/* Key Metrics - 2x2 Grid Layout */}
-        <View style={styles.statsContainer}>
-          {/* Row 1: New Leads & Active Leads */}
+        {/* Modern Metrics Grid */}
+        <View style={styles.modernStatsContainer}>
+          {/* Top Row - Main Metrics */}
           <View style={styles.metricsRow}>
-            <Card style={styles.metricCard}>
-              <Card.Content style={styles.metricContent}>
-                <View style={styles.metricHeader}>
-                  <View style={styles.metricIconContainer}>
-                    <Text style={styles.metricIcon}>🎯</Text>
-                  </View>
-                  <Text style={styles.metricStatus}>New Leads Available</Text>
+            <TouchableOpacity 
+              style={[styles.modernMetricCard, styles.primaryMetricCard]}
+              activeOpacity={0.8}
+              onPress={() => handleNavigation('newLeads')}
+            >
+              <View style={styles.metricCardHeader}>
+                <View style={styles.metricIconWrapper}>
+                  <Text style={styles.metricIcon}>🎯</Text>
                 </View>
-                <Text style={styles.metricNumber}>{newLeadsCount}</Text>
-                <Text style={styles.metricLabel}>New Leads</Text>
-                <View style={styles.metricTrend}>
-                  <Text style={styles.trendText}>📈 +12% this week</Text>
+                <View style={styles.metricBadge}>
+                  <Text style={styles.metricBadgeText}>NEW</Text>
                 </View>
-              </Card.Content>
-            </Card>
+              </View>
+              <Text style={styles.modernMetricNumber}>{newLeadsCount}</Text>
+              <Text style={styles.modernMetricLabel}>New Leads Available</Text>
+              <View style={styles.metricTrendContainer}>
+                <Text style={styles.trendIcon}>📈</Text>
+                <Text style={styles.trendText}>+12% this week</Text>
+              </View>
+            </TouchableOpacity>
 
-            <Card style={styles.metricCard}>
-              <Card.Content style={styles.metricContent}>
-                <View style={styles.metricHeader}>
-                  <View style={styles.metricIconContainer}>
-                    <Text style={styles.metricIcon}>🎯</Text>
-                  </View>
-                  <Text style={styles.metricStatus}>Currently Working</Text>
+            <TouchableOpacity 
+              style={[styles.modernMetricCard, styles.secondaryMetricCard]}
+              activeOpacity={0.8}
+              onPress={() => handleNavigation('activeLeads')}
+            >
+              <View style={styles.metricCardHeader}>
+                <View style={styles.metricIconWrapper}>
+                  <Text style={styles.metricIcon}>⚡</Text>
                 </View>
-                <Text style={styles.metricNumber}>{activeLeadsCount}</Text>
-                <Text style={styles.metricLabel}>Active Leads</Text>
-                <View style={styles.metricTrend}>
-                  <Text style={styles.trendText}>⚡ 3 in progress</Text>
+                <View style={styles.metricBadge}>
+                  <Text style={styles.metricBadgeText}>ACTIVE</Text>
                 </View>
-              </Card.Content>
-            </Card>
+              </View>
+              <Text style={styles.modernMetricNumber}>{activeLeadsCount}</Text>
+              <Text style={styles.modernMetricLabel}>Active Leads</Text>
+              <View style={styles.metricTrendContainer}>
+                <Text style={styles.trendIcon}>🔥</Text>
+                <Text style={styles.trendText}>3 in progress</Text>
+              </View>
+            </TouchableOpacity>
           </View>
 
-          {/* Row 2: Credit Balance & Rating */}
+          {/* Bottom Row - Secondary Metrics */}
           <View style={styles.metricsRow}>
-            <Card style={styles.metricCard}>
-              <Card.Content style={styles.metricContent}>
-                <View style={styles.metricHeader}>
-                  <View style={[styles.metricIconContainer, styles.creditIconContainer]}>
-                    <Text style={styles.metricIcon}>💰</Text>
-                  </View>
-                  <Text style={styles.metricStatus}>Available Credit</Text>
+            <TouchableOpacity 
+              style={[styles.modernMetricCard, styles.tertiaryMetricCard]}
+              activeOpacity={0.8}
+              onPress={() => handleNavigation('credits')}
+            >
+              <View style={styles.metricCardHeader}>
+                <View style={styles.metricIconWrapper}>
+                  <Text style={styles.metricIcon}>💰</Text>
                 </View>
-                <Text style={styles.metricNumber}>
-                  ${creditBalance?.balance || '0.00'}
-                </Text>
-                <Text style={styles.metricLabel}>Credit Balance</Text>
-                <View style={styles.metricAction}>
-                  <TouchableOpacity onPress={() => handleNavigation('credits')}>
-                    <Text style={styles.actionText}>💳 Add Credit</Text>
-                  </TouchableOpacity>
+                <View style={styles.addCreditButton}>
+                  <Text style={styles.addCreditText}>+</Text>
                 </View>
-              </Card.Content>
-            </Card>
+              </View>
+              <Text style={styles.modernMetricNumber}>
+                ${creditBalance?.balance || '0.00'}
+              </Text>
+              <Text style={styles.modernMetricLabel}>Credit Balance</Text>
+              <View style={styles.metricTrendContainer}>
+                <Text style={styles.trendIcon}>💳</Text>
+                <Text style={styles.trendText}>Add credit</Text>
+              </View>
+            </TouchableOpacity>
 
-            <Card style={styles.metricCard}>
-              <Card.Content style={styles.metricContent}>
-                <View style={styles.metricHeader}>
-                  <View style={[styles.metricIconContainer, styles.ratingIconContainer]}>
-                    <Text style={styles.metricIcon}>⭐</Text>
-                  </View>
-                  <Text style={styles.metricStatus}>Customer Rating</Text>
+            <TouchableOpacity 
+              style={[styles.modernMetricCard, styles.quaternaryMetricCard]}
+              activeOpacity={0.8}
+              onPress={() => handleNavigation('profile')}
+            >
+              <View style={styles.metricCardHeader}>
+                <View style={styles.metricIconWrapper}>
+                  <Text style={styles.metricIcon}>⭐</Text>
                 </View>
-                <Text style={styles.metricNumber}>
-                  {profile?.rating || '5.0'}
+                <View style={styles.ratingStars}>
+                  <Text style={styles.starIcon}>⭐</Text>
+                  <Text style={styles.starIcon}>⭐</Text>
+                  <Text style={styles.starIcon}>⭐</Text>
+                  <Text style={styles.starIcon}>⭐</Text>
+                  <Text style={styles.starIcon}>⭐</Text>
+                </View>
+              </View>
+              <Text style={styles.modernMetricNumber}>
+                {profile?.rating || '5.0'}
+              </Text>
+              <Text style={styles.modernMetricLabel}>Customer Rating</Text>
+              <View style={styles.metricTrendContainer}>
+                <Text style={styles.trendIcon}>👥</Text>
+                <Text style={styles.trendText}>
+                  {profile?.totalReviews ? 
+                    `${profile.totalReviews} reviews` : 
+                    'No reviews yet'
+                  }
                 </Text>
-                <Text style={styles.metricLabel}>Average Rating</Text>
-                <View style={styles.metricAction}>
-                  <Text style={styles.actionText}>
-                    {profile?.totalReviews ? 
-                      `👥 ${profile.totalReviews} reviews` : 
-                      '📝 No reviews yet'
-                    }
-                  </Text>
-                </View>
-              </Card.Content>
-            </Card>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Recent Activity */}
-        <View style={styles.activitySection}>
-          <View style={styles.activityHeader}>
-            <Text style={styles.activityIcon}>🔔</Text>
-            <Title style={styles.activityTitle}>Recent Activity</Title>
+        {/* Modern Activity Section */}
+        <View style={styles.modernActivitySection}>
+          <View style={styles.modernActivityHeader}>
+            <View style={styles.activityHeaderLeft}>
+              <View style={styles.activityIconContainer}>
+                <Text style={styles.activityIcon}>🔔</Text>
+              </View>
+              <View>
+                <Text style={styles.modernActivityTitle}>Recent Activity</Text>
+                <Text style={styles.modernActivitySubtitle}>Stay updated with your latest activities</Text>
+              </View>
+            </View>
+            <TouchableOpacity 
+              style={styles.viewAllButton}
+              onPress={() => handleNavigation('leads')}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+              <Text style={styles.viewAllArrow}>→</Text>
+            </TouchableOpacity>
           </View>
             
-            {activitiesLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.loadingText}>Loading recent activity...</Text>
-              </View>
-            ) : activities.length === 0 ? (
-              <View style={styles.emptyContainer}>
+          {activitiesLoading ? (
+            <View style={styles.modernLoadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.modernLoadingText}>Loading recent activity...</Text>
+            </View>
+          ) : activities.length === 0 ? (
+            <View style={styles.modernEmptyContainer}>
+              <View style={styles.emptyIconContainer}>
                 <Text style={styles.emptyIcon}>🔔</Text>
-                <Title style={styles.emptyTitle}>No recent activity</Title>
-                <Paragraph style={styles.emptyDescription}>
-                  Your lead activity and notifications will appear here.
-                </Paragraph>
               </View>
-            ) : (
-              <View style={styles.activitiesContainer}>
-                {activities.slice(0, 10).map((activity, index) => (
-                  <View key={activity.id || index} style={styles.activityItem}>
-                    <View style={styles.activityChipContainer}>
-                      <Chip
-                        mode="outlined"
-                        style={[styles.activityChip, { borderColor: getActivityColor(activity.activityType) }]}
-                        textStyle={[styles.activityChipText, { color: getActivityColor(activity.activityType) }]}
-                      >
-                        {getActivityIcon(activity.activityType)} {activity.activityType.replace('_', ' ').toUpperCase()}
-                      </Chip>
+              <Text style={styles.modernEmptyTitle}>No recent activity</Text>
+              <Text style={styles.modernEmptyDescription}>
+                Your lead activity and notifications will appear here.
+              </Text>
+              <TouchableOpacity 
+                style={styles.exploreButton}
+                onPress={() => handleNavigation('leads')}
+              >
+                <Text style={styles.exploreButtonText}>Explore Leads</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.modernActivitiesContainer}>
+              {activities.slice(0, 5).map((activity, index) => (
+                <View key={activity.id || index} style={styles.modernActivityItem}>
+                  <View style={styles.activityItemLeft}>
+                    <View style={[styles.activityTypeIcon, { backgroundColor: getActivityColor(activity.activityType) + '20' }]}>
+                      <Text style={styles.activityTypeEmoji}>{getActivityIcon(activity.activityType)}</Text>
                     </View>
-                    
-                    <Paragraph style={styles.activityMessage} numberOfLines={3}>
-                      {activity.message}
-                    </Paragraph>
-                    
-                    <View style={styles.descriptionRow}>
+                    <View style={styles.activityContent}>
+                      <Text style={styles.modernActivityMessage} numberOfLines={2}>
+                        {activity.message}
+                      </Text>
                       {activity.description && (
-                        <Paragraph style={styles.activityDescription} numberOfLines={2}>
+                        <Text style={styles.modernActivityDescription} numberOfLines={1}>
                           {activity.description}
-                        </Paragraph>
+                        </Text>
                       )}
-                      
-                      <Text style={styles.activityTime}>
+                      <Text style={styles.modernActivityTime}>
                         {new Date(activity.timestamp).toLocaleDateString()}
                       </Text>
                     </View>
-                    
+                  </View>
+                  
+                  <View style={styles.activityItemRight}>
+                    <View style={[styles.activityTypeBadge, { backgroundColor: getActivityColor(activity.activityType) }]}>
+                      <Text style={styles.activityTypeText}>
+                        {activity.activityType.replace('_', ' ').toUpperCase()}
+                      </Text>
+                    </View>
                     {activity.activityType === 'new_offer' && activity.leadCost && (
-                      <View style={styles.costChipContainer}>
-                        <Chip
-                          mode="outlined"
-                          style={[styles.costChip, { borderColor: colors.success }]}
-                          textStyle={[styles.costChipText, { color: colors.success }]}
-                        >
-                          ${activity.leadCost}
-                        </Chip>
+                      <View style={styles.costBadge}>
+                        <Text style={styles.costText}>${activity.leadCost}</Text>
                       </View>
                     )}
                   </View>
-                ))}
-              </View>
-            )}
-          </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+        </Animated.View>
       </ScrollView>
 
       {/* Notification List Modal */}
@@ -621,28 +773,34 @@ function DashboardScreen({ onNavigate }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fafc',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 16, // Increased padding for iOS safe area
-    paddingBottom: Platform.OS === 'ios' ? 20 : 16, // Increased bottom padding for iOS
-    paddingHorizontal: 16,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingTop: Platform.OS === 'ios' ? 60 : 16,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
     zIndex: 1000,
-    elevation: 5,
   },
   menuButton: {
-    padding: 8,
-    marginRight: 12,
+    padding: 12,
+    marginRight: 8,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
   },
   menuIcon: {
-    fontSize: 24,
-    color: colors.text,
+    fontSize: 20,
+    color: colors.primary,
+    fontWeight: '600',
   },
   headerContent: {
     flexDirection: 'row',
@@ -650,43 +808,62 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   logo: {
-    fontSize: 24,
-    marginRight: 8,
+    fontSize: 28,
+    marginRight: 12,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.primary,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 999,
+  },
+  overlayTouchable: {
+    flex: 1,
   },
   sidebar: {
     position: 'absolute',
     top: 0,
     left: 0,
-    width: width * 0.7,
+    width: width * 0.75,
     height: '100%',
-    backgroundColor: colors.surface,
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
+    backgroundColor: '#ffffff',
+    borderRightWidth: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
     zIndex: 1000,
-    elevation: 5,
   },
   sidebarHeader: {
-    padding: 12,
-    paddingTop: Platform.OS === 'ios' ? 50 : 12, // Only add extra padding for iOS
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: '#FFFFFF',
+    padding: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 24,
+    paddingBottom: 20,
+    backgroundColor: '#ffffff',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-    minHeight: Platform.OS === 'ios' ? 86 : 50, // Adjust minHeight based on platform
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+    minHeight: Platform.OS === 'ios' ? 100 : 80,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   sidebarHeaderRow: {
     flexDirection: 'row',
@@ -695,460 +872,539 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   closeButton: {
-    padding: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   closeButtonText: {
-    fontSize: 20,
-    color: colors.textSecondary,
-    fontWeight: 'bold',
+    fontSize: 18,
+    color: '#000000',
+    fontWeight: '700',
   },
   sidebarLogo: {
-    fontSize: 22,
-    color: '#3B82F6',
+    fontSize: 28,
+    color: '#ffffff',
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   sidebarTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#000000',
     flex: 1,
     textAlign: 'center',
+    letterSpacing: -0.3,
+    marginLeft: 12,
   },
   sidebarContent: {
     flex: 1,
-    paddingTop: 0, // Reduced since we now have a proper header
+    paddingTop: 8,
+    backgroundColor: '#fafbfc',
   },
   sidebarItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    padding: 16,
+    marginHorizontal: 12,
+    marginVertical: 4,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   activeItem: {
-    backgroundColor: colors.primary + '20',
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
+    backgroundColor: colors.primary + '15',
+    borderWidth: 2,
+    borderColor: colors.primary + '30',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
   sidebarIcon: {
-    fontSize: 18,
-    marginRight: 10,
-    width: 20,
-    textAlign: 'center', // Center the emoji icons
+    fontSize: 20,
+    marginRight: 16,
+    width: 24,
+    textAlign: 'center',
   },
   sidebarText: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.text,
     flex: 1,
-    fontWeight: '500', // Slightly bolder for better readability
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   activeText: {
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  logoutItem: {
+    backgroundColor: colors.error + '15',
+    borderWidth: 1,
+    borderColor: colors.error + '30',
   },
   sidebarSection: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-    marginBottom: 4, // Add spacing between sections
+    marginBottom: 8,
   },
-  sidebarSectionHeader: { // Renamed to avoid conflict
+  sidebarSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: colors.background + '50', // Slight background difference
-    borderBottomWidth: 0.5, // Subtle border
-    borderBottomColor: colors.borderLight,
+    padding: 16,
+    marginHorizontal: 12,
+    marginVertical: 4,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   expandIcon: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textSecondary,
-    marginLeft: 'auto', // Push to right side
-    fontWeight: 'bold', // Make arrow more visible
+    marginLeft: 'auto',
+    fontWeight: '700',
   },
   sidebarSubItems: {
-    backgroundColor: colors.background,
-    paddingLeft: 8, // Slight indentation
+    marginTop: 4,
+    marginHorizontal: 12,
   },
   sidebarSubItem: {
-    padding: 10,
-    paddingLeft: 42,
-    borderBottomWidth: 0.5, // Thinner border
-    borderBottomColor: colors.borderLight,
-    backgroundColor: colors.surface + '30', // Very subtle background
+    padding: 14,
+    paddingLeft: 48,
+    marginVertical: 2,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   sidebarSubText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '400',
-  },
-  userProfile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    marginTop: 'auto',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background + '30', // Slight background difference
-  },
-  userIcon: {
-    fontSize: 18,
-    marginRight: 10,
-    textAlign: 'center', // Center the emoji
-  },
-  userName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1, // Take remaining space
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.error + '10', // Light red background
-  },
-  logoutIcon: {
-    fontSize: 18,
-    marginRight: 10,
-    textAlign: 'center',
+    color: colors.textSecondary,
+    fontWeight: '500',
+    letterSpacing: -0.1,
   },
   logoutText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.error, // Red text for logout
+    color: colors.error,
+    fontWeight: '700',
   },
   mainContent: {
     flex: 1,
   },
-  dashboardHeader: {
-    padding: 24,
-    paddingBottom: 16,
+  animatedContainer: {
+    flex: 1,
   },
-  dashboardTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+  // Modern Welcome Section
+  welcomeSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    backgroundColor: '#ffffff',
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  welcomeContent: {
+    flex: 1,
+  },
+  welcomeGreeting: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  welcomeName: {
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  dashboardSubtitle: {
-    fontSize: 16,
+  welcomeSubtext: {
+    fontSize: 14,
     color: colors.textSecondary,
+    lineHeight: 20,
   },
-  loadingContainer: {
-    flex: 1,
+  welcomeIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
   },
-  loadingText: {
+  welcomeEmoji: {
+    fontSize: 28,
+  },
+  // Modern Alert Card
+  modernAlertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    marginHorizontal: 20,
     marginTop: 16,
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  alertCard: {
-    margin: 16,
+    padding: 16,
+    borderRadius: 16,
     borderLeftWidth: 4,
     borderLeftColor: colors.warning,
   },
-  alertContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  alertIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.warning + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   alertIcon: {
-    fontSize: 24,
-    marginRight: 12,
-    marginTop: 4,
+    fontSize: 20,
   },
-  alertText: {
+  alertContent: {
     flex: 1,
   },
   alertTitle: {
     fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
     marginBottom: 4,
   },
   alertDescription: {
     fontSize: 14,
     color: colors.textSecondary,
+    lineHeight: 20,
   },
-  statsContainer: {
-    padding: 16,
+  // Modern Stats Container
+  modernStatsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
     gap: 16,
   },
   metricsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: 16,
   },
-  metricCard: {
+  modernMetricCard: {
     flex: 1,
-    elevation: 3,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
+    padding: 20,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  metricContent: {
-    alignItems: 'center',
-    padding: 16,
-    minHeight: 120,
+  primaryMetricCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.primary + '20',
   },
-  metricHeader: {
+  secondaryMetricCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.success + '20',
+  },
+  tertiaryMetricCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.warning + '20',
+  },
+  quaternaryMetricCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.info + '20',
+  },
+  metricCardHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  metricIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary + '10',
+  metricIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
   },
   metricIcon: {
-    fontSize: 18,
-    color: colors.primary,
+    fontSize: 20,
   },
-  metricStatus: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginLeft: 8,
+  metricBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  metricNumber: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 4,
+  metricBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.5,
   },
-  metricLabel: {
+  modernMetricNumber: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 8,
+    letterSpacing: -1,
+  },
+  modernMetricLabel: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 2,
+    color: colors.textSecondary,
+    marginBottom: 12,
   },
-  metricTrend: {
+  metricTrendContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.success + '10',
-    borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  trendIcon: {
+    fontSize: 12,
+    marginRight: 6,
   },
   trendText: {
-    fontSize: 11,
-    color: colors.success,
-    fontWeight: '500',
-  },
-  metricAction: {
-    backgroundColor: colors.primary + '10',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    marginTop: 12,
-  },
-  actionText: {
     fontSize: 12,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  secondaryMetricsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  secondaryMetricCard: {
-    flex: 1,
-    elevation: 2,
-  },
-  secondaryMetricContent: {
-    alignItems: 'center',
-    padding: 12,
-  },
-  secondaryMetricNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  secondaryMetricLabel: {
-    fontSize: 13,
     fontWeight: '600',
-    marginBottom: 2,
+    color: colors.success,
   },
-  quickActionsRow: {
+  addCreditButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addCreditText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  ratingStars: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  starIcon: {
+    fontSize: 12,
+  },
+  // Modern Activity Section
+  modernActivitySection: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 32,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  modernActivityHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 12,
-  },
-  quickActionCard: {
-    flex: 1,
-    elevation: 2,
-  },
-  quickActionContent: {
     alignItems: 'center',
-    padding: 16,
+    marginBottom: 20,
   },
-  quickActionIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-    color: colors.primary,
-  },
-  quickActionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  quickActionSubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  activitySection: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    elevation: 2,
-  },
-  activityHeader: {
+  activityHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    flex: 1,
+  },
+  activityIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   activityIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: 20,
   },
-  activityTitle: {
+  modernActivityTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: colors.text,
+    marginBottom: 2,
   },
-  activityCard: {
-    margin: 16,
-    elevation: 2,
+  modernActivitySubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
-  sectionTitle: {
-    fontSize: 18,
-    marginBottom: 16,
-  },
-  emptyContainer: {
+  viewAllButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 32,
+    backgroundColor: colors.primary + '10',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  viewAllText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+    marginRight: 4,
+  },
+  viewAllArrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  modernLoadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  modernLoadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  modernEmptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.textSecondary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-    opacity: 0.5,
+    fontSize: 32,
+    opacity: 0.6,
   },
-  emptyTitle: {
+  modernEmptyTitle: {
     fontSize: 18,
-    marginBottom: 8,
+    fontWeight: '700',
     color: colors.text,
+    marginBottom: 8,
   },
-  emptyDescription: {
+  modernEmptyDescription: {
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
   },
-  activitiesContainer: {
-    // gap is now handled by individual item marginBottom
+  exploreButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
-  activityItem: {
-    padding: 20,
+  exploreButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  modernActivitiesContainer: {
+    gap: 12,
+  },
+  modernActivityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-    marginBottom: 8,
   },
-  // activityItemHeader style removed - no longer needed
-  activityChipContainer: {
-    width: '100%',
-    marginBottom: 8,
-    alignItems: 'flex-start',
-  },
-  activityChip: {
-    height: 'auto',
-    minHeight: 32,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    width: '100%',
-    alignSelf: 'stretch',
-  },
-  activityChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-    flexShrink: 0,
-    flexWrap: 'wrap',
-  },
-  activityTime: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'right',
-    alignSelf: 'flex-end',
-    flexShrink: 0,
-  },
-  activityMessage: {
-    fontSize: 14,
-    marginBottom: 4,
-    lineHeight: 20,
-    flexShrink: 1,
-  },
-  descriptionRow: {
+  activityItemLeft: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  activityDescription: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 16,
-    flexShrink: 1,
+    alignItems: 'center',
     flex: 1,
+  },
+  activityTypeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
-  costChipContainer: {
-    alignSelf: 'flex-start',
-    marginTop: 8,
+  activityTypeEmoji: {
+    fontSize: 16,
   },
-  costChip: {
-    height: 'auto',
-    minHeight: 24,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+  activityContent: {
+    flex: 1,
   },
-  costChipText: {
-    fontSize: 11,
+  modernActivityMessage: {
+    fontSize: 14,
     fontWeight: '600',
-    textAlign: 'center',
+    color: colors.text,
+    marginBottom: 4,
+    lineHeight: 20,
   },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: 999,
-  },
-  swipeHint: {
-    fontSize: 11,
+  modernActivityDescription: {
+    fontSize: 12,
     color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-    fontStyle: 'italic',
-    opacity: 0.8,
+    marginBottom: 6,
   },
-  creditIconContainer: {
-    backgroundColor: colors.success + '10',
+  modernActivityTime: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    fontWeight: '500',
   },
-  ratingIconContainer: {
-    backgroundColor: colors.warning + '10',
+  activityItemRight: {
+    alignItems: 'flex-end',
   },
-  successIconContainer: {
-    backgroundColor: colors.success + '10',
+  activityTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  activityTypeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  costBadge: {
+    backgroundColor: colors.success + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  costText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.success,
   },
 });
 
 module.exports = DashboardScreen;
+
 

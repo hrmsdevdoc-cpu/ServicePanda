@@ -229,12 +229,19 @@ const LoginScreen = ({ onNavigate, navigation }) => {
                       onPress={() => setRememberMe(!rememberMe)}
                       activeOpacity={0.7}
                     >
-                      <Checkbox
-                        status={rememberMe ? 'checked' : 'unchecked'}
+                      <TouchableOpacity
+                        style={styles.customCheckbox}
                         onPress={() => setRememberMe(!rememberMe)}
-                        color={colors.primary}
-                        uncheckedColor={colors.textTertiary}
-                      />
+                      >
+                        <View style={[
+                          styles.checkboxSquare,
+                          rememberMe && styles.checkboxChecked
+                        ]}>
+                          {rememberMe && (
+                            <Text style={styles.checkmark}>✓</Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
                       <Text style={styles.rememberMeText}>Remember me</Text>
                     </TouchableOpacity>
                   </View>
@@ -443,26 +450,52 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceVariant,
     fontSize: 16,
   },
   inputContent: {
     paddingVertical: 12,
     paddingHorizontal: 16,
+    backgroundColor: colors.surfaceVariant,
   },
 
   // Remember Me
   rememberMeContainer: {
     marginBottom: 15,
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   rememberMeRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  customCheckbox: {
+    marginRight: 8,
+  },
+  checkboxSquare: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+  },
+  checkmark: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   rememberMeText: {
     fontSize: 14,
     color: colors.text,
-    marginLeft: 8,
+    marginLeft: 0,
     fontWeight: '500',
   },
 

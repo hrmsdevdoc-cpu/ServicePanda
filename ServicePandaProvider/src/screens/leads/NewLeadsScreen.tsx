@@ -1,6 +1,6 @@
 const React = require('react');
 const { useState } = require('react');
-const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl, Alert } = require('react-native');
+const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl, Alert, Animated } = require('react-native');
 const { Title, Paragraph, Card, Button, Chip, Searchbar, Badge, ActivityIndicator } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 const { useQuery, useMutation } = require('@tanstack/react-query');
@@ -10,6 +10,11 @@ function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [purchasingLeadId, setPurchasingLeadId] = useState(null);
+
+  // Animation values
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
 
   // Fetch leads from API
   const { data: leads, isLoading: leadsLoading, error: leadsError, refetch } = useQuery({
@@ -136,6 +141,28 @@ function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: 
     return `${diffDays} days ago`;
   };
 
+  // Animation effects on mount
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   if (leadsLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -161,149 +188,195 @@ function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: 
       refreshControl={
         <RefreshControl refreshing={leadsLoading} onRefresh={refetch} />
       }
+      showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      {/* <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => onNavigate('leads')}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Title style={styles.title}>New Leads</Title>
-          <Paragraph style={styles.subtitle}>Available leads in your service area</Paragraph>
+      <Animated.View
+        style={[
+          styles.animatedContainer,
+          {
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ]
+          }
+        ]}
+      >
+        {/* Modern Header */}
+        <View style={styles.modernHeader}>
+          <View style={styles.headerContent}>
+            <Text style={styles.modernTitle}>New Leads</Text>
+            <Text style={styles.modernSubtitle}>Available leads in your service area</Text>
+          </View>
+          <View style={styles.headerIcon}>
+            <Text style={styles.headerEmoji}>🆕</Text>
+          </View>
         </View>
-      </View> */}
 
-      {/* Search and Filters */}
-      <View style={styles.searchContainer}>
-        <Searchbar
-          placeholder="Search leads..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchBar}
-        />
-        
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersContainer}>
-          {filters.map((filter) => (
-            <TouchableOpacity
-              key={filter.key}
-              onPress={() => setSelectedFilter(filter.key)}
-              style={[
-                styles.filterChip,
-                selectedFilter === filter.key && styles.filterChipActive
-              ]}
-            >
-              <Text style={[
-                styles.filterText,
-                selectedFilter === filter.key && styles.filterTextActive
-              ]}>
-                {filter.label}
-              </Text>
-              <Badge style={styles.filterBadge}>{filter.count}</Badge>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Leads List */}
-      <View style={styles.leadsContainer}>
-        {filteredLeads.map((lead: any) => {
-          console.log('Lead data:', lead);
-          console.log('Lead ID:', lead.id);
-          console.log('Lead requestId:', lead.requestId);
-          return (
-          <Card key={lead.id || lead.requestId} style={styles.leadCard}>
-            <Card.Content>
-              <View style={styles.leadHeader}>
-                <View style={styles.leadTitleContainer}>
-                  <Title style={styles.leadTitle}>{lead.categoryName || 'Service Request'}</Title>
-                  <Chip 
-                    mode="outlined" 
-                    style={[styles.urgencyChip, { borderColor: getUrgencyColor(lead.urgency) }]}
-                    textStyle={{ color: getUrgencyColor(lead.urgency) }}
-                  >
-                    {lead.urgency || 'Normal'} Urgency
-                  </Chip>
+        {/* Modern Search and Filters */}
+        <View style={styles.modernSearchContainer}>
+          <View style={styles.searchWrapper}>
+            <Searchbar
+              placeholder="Search leads..."
+              onChangeText={setSearchQuery}
+              value={searchQuery}
+              style={styles.modernSearchBar}
+            />
+          </View>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={styles.modernFiltersContainer}
+            contentContainerStyle={styles.filtersContent}
+          >
+            {filters.map((filter) => (
+              <TouchableOpacity
+                key={filter.key}
+                onPress={() => setSelectedFilter(filter.key)}
+                style={[
+                  styles.modernFilterChip,
+                  selectedFilter === filter.key && styles.modernFilterChipActive
+                ]}
+                activeOpacity={0.8}
+              >
+                <Text style={[
+                  styles.modernFilterText,
+                  selectedFilter === filter.key && styles.modernFilterTextActive
+                ]}>
+                  {filter.label}
+                </Text>
+                <View style={[
+                  styles.modernFilterBadge,
+                  selectedFilter === filter.key && styles.modernFilterBadgeActive
+                ]}>
+                  <Text style={[
+                    styles.modernFilterBadgeText,
+                    selectedFilter === filter.key && styles.modernFilterBadgeTextActive
+                  ]}>
+                    {filter.count}
+                  </Text>
                 </View>
-                <View style={styles.leadCost}>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Modern Leads List */}
+        <View style={styles.modernLeadsContainer}>
+          {filteredLeads.map((lead: any) => {
+            console.log('Lead data:', lead);
+            console.log('Lead ID:', lead.id);
+            console.log('Lead requestId:', lead.requestId);
+            return (
+            <TouchableOpacity 
+              key={lead.id || lead.requestId} 
+              style={styles.modernLeadCard}
+              activeOpacity={0.9}
+            >
+              <View style={styles.leadCardHeader}>
+                <View style={styles.leadTitleSection}>
+                  <Text style={styles.modernLeadTitle}>{lead.categoryName || 'Service Request'}</Text>
+                  <View style={[styles.urgencyBadge, { backgroundColor: getUrgencyColor(lead.urgency) + '20' }]}>
+                    <Text style={[styles.urgencyText, { color: getUrgencyColor(lead.urgency) }]}>
+                      {lead.urgency || 'Normal'} Urgency
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.leadCostSection}>
                   <Text style={styles.costLabel}>Lead Cost</Text>
-                  <Text style={styles.costAmount}>${lead.leadCost || 0}</Text>
+                  <Text style={styles.modernCostAmount}>${lead.leadCost || 0}</Text>
                 </View>
               </View>
 
-              <Paragraph style={styles.leadDescription}>{lead.description || 'No description provided'}</Paragraph>
+              <Text style={styles.modernLeadDescription}>{lead.description || 'No description provided'}</Text>
 
-              <View style={styles.leadDetails}>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailIcon}>📍</Text>
-                  <Text style={styles.detailText}>{lead.suburb || 'Location not specified'}</Text>
-                  {lead.postcode && (
-                    <Text style={styles.detailSubtext}>({lead.postcode})</Text>
+              <View style={styles.modernLeadDetails}>
+                <View style={styles.detailRow}>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailIcon}>📍</Text>
+                    <Text style={styles.detailText}>{lead.suburb || 'Location not specified'}</Text>
+                    {lead.postcode && (
+                      <Text style={styles.detailSubtext}>({lead.postcode})</Text>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailIcon}>👤</Text>
+                    <Text style={styles.detailText}>{lead.customerName || 'Customer'}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailIcon}>📞</Text>
+                    <Text style={styles.detailText}>{lead.customerPhone || 'Phone not provided'}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailIcon}>📅</Text>
+                    <Text style={styles.detailText}>Preferred: {lead.preferredDate ? formatDate(lead.preferredDate) : 'Flexible'}</Text>
+                  </View>
+                  {lead.postedAt && (
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailIcon}>⏰</Text>
+                      <Text style={styles.detailText}>Posted: {formatDate(lead.postedAt)}</Text>
+                    </View>
                   )}
                 </View>
-
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailIcon}>👤</Text>
-                  <Text style={styles.detailText}>{lead.customerName || 'Customer'}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailIcon}>📞</Text>
-                  <Text style={styles.detailText}>{lead.customerPhone || 'Phone not provided'}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailIcon}>📅</Text>
-                  <Text style={styles.detailText}>Preferred: {lead.preferredDate ? formatDate(lead.preferredDate) : 'Flexible'}</Text>
-                </View>
-
-                {lead.postedAt && (
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailIcon}>⏰</Text>
-                    <Text style={styles.detailText}>Posted: {formatDate(lead.postedAt)}</Text>
-                  </View>
-                )}
               </View>
 
-              <View style={styles.leadActions}>
-                <Button
-                  mode="outlined"
+              <View style={styles.modernLeadActions}>
+                <TouchableOpacity
+                  style={styles.modernActionButton}
                   onPress={() => onNavigate('leadDetails', { leadId: lead.id })}
-                  style={styles.actionButton}
+                  activeOpacity={0.8}
                 >
-                  View Details
-                </Button>
-                <Button
-                  mode="contained"
+                  <Text style={styles.actionButtonText}>View Details</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modernPurchaseButton, { opacity: purchasingLeadId === (lead.requestId || lead.id) ? 0.7 : 1 }]}
                   onPress={() => handlePurchaseLead(lead.requestId || lead.id)}
-                  style={styles.purchaseButton}
-                  buttonColor={colors.primary}
                   disabled={purchasingLeadId === (lead.requestId || lead.id)}
-                  loading={purchasingLeadId === (lead.requestId || lead.id)}
+                  activeOpacity={0.8}
                 >
-                  {purchasingLeadId === (lead.requestId || lead.id) ? 'Purchasing...' : 'Purchase Lead'}
-                </Button>
+                  {purchasingLeadId === (lead.requestId || lead.id) ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={styles.purchaseButtonText}>
+                      Purchase Lead
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
-            </Card.Content>
-          </Card>
-          );
-        })}
+            </TouchableOpacity>
+            );
+          })}
 
-        {filteredLeads.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🔍</Text>
-            <Title style={styles.emptyTitle}>No leads found</Title>
-            <Paragraph style={styles.emptyDescription}>
-              {searchQuery || selectedFilter !== 'all' 
-                ? 'Try adjusting your search or filters to find more leads'
-                : 'No new leads available at the moment. Check back later!'
-              }
-            </Paragraph>
-          </View>
-        )}
-      </View>
+          {filteredLeads.length === 0 && (
+            <View style={styles.modernEmptyState}>
+              <View style={styles.emptyIconContainer}>
+                <Text style={styles.emptyIcon}>🔍</Text>
+              </View>
+              <Text style={styles.modernEmptyTitle}>No leads found</Text>
+              <Text style={styles.modernEmptyDescription}>
+                {searchQuery || selectedFilter !== 'all' 
+                  ? 'Try adjusting your search or filters to find more leads'
+                  : 'No new leads available at the moment. Check back later!'
+                }
+              </Text>
+              <TouchableOpacity 
+                style={styles.exploreButton}
+                onPress={() => onNavigate('leads')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.exploreButtonText}>Back to Leads</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -311,23 +384,27 @@ function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fafc',
+  },
+  animatedContainer: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fafc',
   },
   loadingText: {
     fontSize: 16,
     color: colors.textSecondary,
+    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fafc',
     padding: 20,
   },
   errorText: {
@@ -335,170 +412,290 @@ const styles = StyleSheet.create({
     color: colors.error || '#EF4444',
     marginBottom: 16,
     textAlign: 'center',
+    fontWeight: '500',
   },
   retryButton: {
     backgroundColor: colors.primary,
   },
-  header: {
+  // Modern Header
+  modernHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 40,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  backIcon: {
-    fontSize: 24,
-    color: colors.primary,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    backgroundColor: '#ffffff',
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   headerContent: {
     flex: 1,
   },
-  title: {
+  modernTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: 16,
+  modernSubtitle: {
+    fontSize: 14,
     color: colors.textSecondary,
+    lineHeight: 20,
   },
-  searchContainer: {
-    padding: 16,
-    backgroundColor: colors.surface,
+  headerIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  searchBar: {
+  headerEmoji: {
+    fontSize: 28,
+  },
+  // Modern Search Container
+  modernSearchContainer: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  searchWrapper: {
     marginBottom: 16,
-    elevation: 2,
   },
-  filtersContainer: {
+  modernSearchBar: {
+    elevation: 0,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+  },
+  modernFiltersContainer: {
     flexDirection: 'row',
   },
-  filterChip: {
+  filtersContent: {
+    paddingRight: 20,
+  },
+  modernFilterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     marginRight: 12,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderLight,
   },
-  filterChipActive: {
+  modernFilterChipActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  filterText: {
-    fontSize: 14,
+  modernFilterText: {
+    fontSize: 13,
     color: colors.textSecondary,
     marginRight: 8,
+    fontWeight: '500',
   },
-  filterTextActive: {
-    color: colors.onPrimary,
+  modernFilterTextActive: {
+    color: '#ffffff',
+    fontWeight: '600',
   },
-  filterBadge: {
-    backgroundColor: colors.primary,
+  modernFilterBadge: {
+    backgroundColor: colors.textSecondary + '20',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
-  leadsContainer: {
-    padding: 16,
+  modernFilterBadgeActive: {
+    backgroundColor: '#ffffff' + '30',
   },
-  leadCard: {
+  modernFilterBadgeText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  modernFilterBadgeTextActive: {
+    color: '#ffffff',
+  },
+  // Modern Leads Container
+  modernLeadsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 32,
+  },
+  modernLeadCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 16,
-    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  leadHeader: {
+  leadCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  leadTitleContainer: {
+  leadTitleSection: {
     flex: 1,
     marginRight: 16,
   },
-  leadTitle: {
+  modernLeadTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 8,
+    lineHeight: 24,
   },
-  urgencyChip: {
+  urgencyBadge: {
     alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  leadCost: {
+  urgencyText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  leadCostSection: {
     alignItems: 'center',
   },
   costLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     marginBottom: 4,
+    fontWeight: '500',
   },
-  costAmount: {
+  modernCostAmount: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: colors.primary,
   },
-  leadDescription: {
+  modernLeadDescription: {
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 16,
   },
-  leadDetails: {
-    marginBottom: 16,
+  modernLeadDetails: {
+    marginBottom: 20,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    alignItems: 'center',
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    flex: 1,
   },
   detailIcon: {
-    fontSize: 16,
+    fontSize: 14,
     marginRight: 8,
   },
   detailText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.text,
     marginRight: 8,
+    flex: 1,
   },
   detailSubtext: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
   },
-  leadActions: {
+  modernLeadActions: {
     flexDirection: 'row',
     gap: 12,
   },
-  actionButton: {
+  modernActionButton: {
     flex: 1,
-  },
-  purchaseButton: {
-    flex: 1,
-  },
-  emptyState: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
     alignItems: 'center',
-    padding: 40,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  modernPurchaseButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  purchaseButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  // Modern Empty State
+  modernEmptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.textSecondary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: 32,
+    opacity: 0.6,
   },
-  emptyTitle: {
+  modernEmptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  emptyDescription: {
-    fontSize: 16,
+  modernEmptyDescription: {
+    fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  exploreButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  exploreButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });
 

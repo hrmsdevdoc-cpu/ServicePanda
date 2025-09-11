@@ -267,41 +267,54 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingVertical: Platform.OS === 'ios' ? 8 : 4, // More padding for iOS
-    paddingHorizontal: Platform.OS === 'ios' ? 8 : 5, // More horizontal padding for iOS
+    backgroundColor: '#ffffff',
+    borderTopWidth: 0,
+    paddingVertical: Platform.OS === 'ios' ? 16 : 12,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    elevation: 8,
+    elevation: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
     zIndex: 1000,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   footerTab: {
     alignItems: 'center',
-    padding: Platform.OS === 'ios' ? 8 : 6, // More padding for iOS
+    padding: Platform.OS === 'ios' ? 12 : 10,
+    borderRadius: 16,
+    minWidth: 60,
+    minHeight: Platform.OS === 'ios' ? 70 : 65,
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   footerIcon: {
-    fontSize: Platform.OS === 'ios' ? 26 : 22, // Bigger icons for iOS
-    marginBottom: Platform.OS === 'ios' ? 4 : 3, // More margin for iOS
+    fontSize: Platform.OS === 'ios' ? 24 : 22,
+    marginBottom: Platform.OS === 'ios' ? 6 : 4,
   },
   footerLabel: {
-    fontSize: Platform.OS === 'ios' ? 12 : 11, // Slightly bigger text for iOS
+    fontSize: Platform.OS === 'ios' ? 13 : 12,
     color: colors.textSecondary,
+    fontWeight: '500',
+    letterSpacing: -0.1,
   },
   activeFooterTab: {
-    color: colors.primary,
+    backgroundColor: colors.primary + '15',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   activeFooterIcon: {
     color: colors.primary,
   },
   activeFooterLabel: {
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: colors.primary,
   },
 });
