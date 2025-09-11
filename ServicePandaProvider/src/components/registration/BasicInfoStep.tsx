@@ -130,7 +130,7 @@ const BasicInfoStep = ({ formData, onSubmit, isLoading }) => {
       <View style={styles.form}>
         {/* Personal Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          {/* <Text style={styles.sectionTitle}>Personal Information</Text> */}
           
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>

@@ -306,6 +306,7 @@ const styles = StyleSheet.create({
   },
 });
 
+
 module.exports = App;
 
 

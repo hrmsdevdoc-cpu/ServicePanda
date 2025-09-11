@@ -12,11 +12,12 @@ const {
 } = require('react-native');
 const { colors } = require('../../utils/theme');
 
-const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading }) => {
+const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading, formData }) => {
   const [serviceAreas, setServiceAreas] = useState([]);
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState(formData?.address || '');
   const [radius, setRadius] = useState('25');
   const [areaName, setAreaName] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const radiusOptions = [
     { value: '5', label: '5 km radius' },
@@ -25,8 +26,14 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading }) => {
     { value: '20', label: '20 km radius' },
     { value: '25', label: '25 km radius' },
     { value: '30', label: '30 km radius' },
+    { value: '35', label: '35 km radius' },
     { value: '40', label: '40 km radius' },
+    { value: '45', label: '45 km radius' },
     { value: '50', label: '50 km radius' },
+    { value: '55', label: '55 km radius' },
+    { value: '60', label: '60 km radius' },
+    { value: '65', label: '65 km radius' },
+    { value: '70', label: '70 km radius' },
   ];
 
   const addServiceArea = () => {
@@ -114,32 +121,47 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading }) => {
         {/* Service Radius */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Service Radius *</Text>
-          <View style={styles.dropdownContainer}>
-            <Text style={styles.dropdownText}>
+          <TouchableOpacity 
+            style={styles.simpleDropdown}
+            onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+          >
+            <Text style={styles.simpleDropdownText}>
               {radiusOptions.find(opt => opt.value === radius)?.label || 'Select radius'}
             </Text>
-            <Text style={styles.dropdownArrow}>▼</Text>
-          </View>
-          {/* Simple dropdown simulation - in real app you'd use a proper dropdown */}
-          <ScrollView style={styles.dropdownOptions} nestedScrollEnabled>
-            {radiusOptions.map(option => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.dropdownOption,
-                  radius === option.value && styles.dropdownOptionSelected
-                ]}
-                onPress={() => setRadius(option.value)}
+            <Text style={styles.simpleDropdownArrow}>▼</Text>
+          </TouchableOpacity>
+          
+          {/* Simple Dropdown Options */}
+          {isDropdownOpen && (
+            <View style={styles.simpleDropdownOptions}>
+              <ScrollView 
+                style={styles.dropdownScrollView}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
               >
-                <Text style={[
-                  styles.dropdownOptionText,
-                  radius === option.value && styles.dropdownOptionTextSelected
-                ]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+                {radiusOptions.map(option => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.simpleDropdownOption,
+                      radius === option.value && styles.simpleDropdownOptionSelected
+                    ]}
+                    onPress={() => {
+                      setRadius(option.value);
+                      setIsDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.simpleDropdownOptionText,
+                      radius === option.value && styles.simpleDropdownOptionTextSelected
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         {/* Area Name */}
@@ -236,11 +258,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    padding: 20,
-    paddingBottom: 10,
+    alignItems: 'center',
+    marginBottom: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
@@ -248,6 +270,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: colors.textSecondary,
+    textAlign: 'center',
     lineHeight: 22,
   },
   addCard: {
@@ -316,7 +339,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 16,
   },
-  dropdownContainer: {
+  // Simple dropdown styles
+  simpleDropdown: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -325,38 +349,43 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     backgroundColor: colors.white,
+    minHeight: 48,
   },
-  dropdownText: {
+  simpleDropdownText: {
     fontSize: 16,
     color: colors.text,
+    flex: 1,
   },
-  dropdownArrow: {
-    fontSize: 12,
+  simpleDropdownArrow: {
+    fontSize: 14,
     color: colors.textSecondary,
   },
-  dropdownOptions: {
-    maxHeight: 150,
-    marginTop: 5,
+  simpleDropdownOptions: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     backgroundColor: colors.white,
+    marginTop: 4,
+    maxHeight: 200,
   },
-  dropdownOption: {
+  dropdownScrollView: {
+    maxHeight: 200,
+  },
+  simpleDropdownOption: {
     padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.borderLight,
   },
-  dropdownOptionSelected: {
-    backgroundColor: colors.primaryLight,
+  simpleDropdownOptionSelected: {
+    backgroundColor: colors.primary + '10',
   },
-  dropdownOptionText: {
+  simpleDropdownOptionText: {
     fontSize: 16,
     color: colors.text,
   },
-  dropdownOptionTextSelected: {
+  simpleDropdownOptionTextSelected: {
     color: colors.primary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   textInput: {
     borderWidth: 1,

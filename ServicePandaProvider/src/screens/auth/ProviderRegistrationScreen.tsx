@@ -11,7 +11,11 @@ const {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
+  StatusBar,
 } = require('react-native');
+
+const { width, height } = Dimensions.get('window');
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 const { Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
@@ -334,7 +338,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
       }
       
       // Validate file sizes before upload to prevent HTTP 413
-      const maxFileSize = 500 * 1024; // 500KB limit (more conservative)
+      const maxFileSize = 4 * 1024 * 1024; // 4MB limit
       const largeFiles = [];
       
       if (documentFiles.license && documentFiles.license.size > maxFileSize) {
@@ -350,7 +354,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
       if (largeFiles.length > 0) {
         Alert.alert(
           'File Too Large',
-          `The following files are too large (over 500KB):\n\n${largeFiles.join('\n')}\n\nPlease compress or use smaller files.`,
+          `The following files are too large (over 4MB):\n\n${largeFiles.join('\n')}\n\nPlease compress or use smaller files.`,
           [{ text: 'OK' }]
         );
         return;
@@ -451,30 +455,32 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
 
   const renderStepIndicator = () => {
     const steps = ['Basic Info', 'Services', 'Service Areas', 'Documents'];
+    const progressPercentage = (currentStep / steps.length) * 100;
+    
     return (
       <View style={styles.stepIndicator}>
-        {steps.map((step, index) => (
-          <View key={index} style={styles.stepItem}>
-            <View style={[
-              styles.stepCircle,
-              currentStep > index + 1 ? styles.stepCompleted :
-              currentStep === index + 1 ? styles.stepCurrent :
-              styles.stepPending
-            ]}>
-              {currentStep > index + 1 ? (
-                <Text style={styles.stepCheck}>✓</Text>
-              ) : (
-                <Text style={styles.stepNumber}>{index + 1}</Text>
-              )}
-            </View>
-            <Text style={[
-              styles.stepLabel,
-              currentStep === index + 1 && styles.stepLabelCurrent
-            ]}>
-              {step}
-            </Text>
+        {/* Progress Bar */}
+        <View style={styles.progressBarContainer}>
+          <View style={styles.progressBarBackground}>
+            <View style={[styles.progressBarFill, { width: `${progressPercentage}%` }]} />
           </View>
-        ))}
+        </View>
+        
+        {/* Step Labels */}
+        <View style={styles.stepLabelsContainer}>
+          {steps.map((step, index) => (
+            <View key={index} style={styles.stepLabelItem}>
+              <Text style={[
+                styles.stepLabel,
+                currentStep > index + 1 ? styles.stepLabelCompleted :
+                currentStep === index + 1 ? styles.stepLabelCurrent :
+                styles.stepLabelPending
+              ]}>
+                {step}
+              </Text>
+            </View>
+          ))}
+        </View>
       </View>
     );
   };
@@ -492,37 +498,54 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
   // }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoidingView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
-        <ScrollView 
-          style={styles.scrollView} 
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      
+      {/* Gradient Background */}
+      <View style={styles.gradientBackground} />
+      
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView 
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <View style={styles.header}>
-            <Text style={styles.title}>Join ServicePanda</Text>
-            <Text style={styles.subtitle}>Complete your registration in a few simple steps</Text>
-            
-                  {/* Back to Login - Top Left */}
-        <View style={styles.backButtonContainer}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => onNavigate('login')}
-            activeOpacity={0.7}
+          <ScrollView 
+            style={styles.scrollView} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
           >
-            <Text style={styles.backButtonText}>← Back to Login</Text>
-          </TouchableOpacity>
-        </View>
-          </View>
+            {/* Header Section */}
+            <View style={styles.header}>
+              {/* Back to Login - Top Left */}
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => onNavigate('login')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.backButtonText}>← Back</Text>
+              </TouchableOpacity>
+              
+              {/* Logo and Title */}
+              <View style={styles.logoContainer}>
+                <View style={styles.logoCircle}>
+                  <Text style={styles.logo}>🐼</Text>
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.title}>ServicePanda</Text>
+                  <Text style={styles.tagline}>Partner Portal</Text>
+                </View>
+              </View>
+              
+              <Text style={styles.subtitle}>Complete your registration in a few simple steps</Text>
+            </View>
 
           {renderStepIndicator()}
 
-          <View style={styles.stepContainer}>
+          {/* Form Content Card */}
+          <View style={styles.formCard}>
+            <View style={styles.stepContainer}>
           {currentStep === 1 && (
             <>
               {console.log('🔍 Rendering BasicInfoStep with formData:', formData)}
@@ -573,6 +596,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
               onSubmit={handleStep3Submit}
               onBack={() => setCurrentStep(2)}
               isLoading={isLoading}
+              formData={formData}
             />
           )}
 
@@ -633,17 +657,30 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
                 </TouchableOpacity>
             </View>
           )}
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary,
+  },
+  gradientBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.primary,
+  },
+  safeArea: {
+    flex: 1,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -659,88 +696,120 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     paddingTop: 20,
+    position: 'relative',
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  textContainer: {
+    marginLeft: 16,
+    alignItems: 'flex-start',
+  },
+  logoCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  logo: {
+    fontSize: 28,
+    textAlign: 'center',
+    lineHeight: 28,
   },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: colors.text,
-    marginTop: 40,
-    marginBottom: 6,
+    color: '#FFFFFF',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  tagline: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
+    marginTop: 10,
   },
-      backButtonContainer: {
-      position: 'absolute',
-      top: 10,
-      left: 20,
-      zIndex: 10,
-    },
-    backButton: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      minHeight: 36,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    backButtonText: {
-      color: colors.primary,
-      fontSize: 13,
-      fontWeight: '600',
-      textAlign: 'center',
-    },
+  backButton: {
+    position: 'absolute',
+    left: 10,
+    top: 30, // Align with center of logo circle
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    zIndex: 1,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    marginHorizontal: 20,
+    marginVertical: 10,
+  },
   stepIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     marginBottom: 20,
   },
-  stepItem: {
-    alignItems: 'center',
+  progressBarContainer: {
+    marginBottom: 12,
+  },
+  progressBarBackground: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+  },
+  stepLabelsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  stepLabelItem: {
     flex: 1,
-  },
-  stepCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  stepPending: {
-    backgroundColor: colors.border,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  stepCurrent: {
-    backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  stepCompleted: {
-    backgroundColor: colors.success,
-    borderWidth: 2,
-    borderColor: colors.success,
-  },
-  stepNumber: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  stepCheck: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   stepLabel: {
-    fontSize: 10,
-    color: colors.textSecondary,
+    fontSize: 11,
     textAlign: 'center',
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  stepLabelPending: {
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   stepLabelCurrent: {
-    color: colors.primary,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  stepLabelCompleted: {
+    color: '#000000',
     fontWeight: '600',
   },
   stepContainer: {

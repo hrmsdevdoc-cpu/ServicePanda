@@ -110,9 +110,9 @@ const DocumentUploadStep = ({
 
         console.log('🔍 Selected file:', result);
         
-        // Check file size (500KB limit for server compatibility)
-        if (result.size && result.size > 500 * 1024) {
-          Alert.alert('Error', 'File size must be less than 500KB. Please choose a smaller file or compress the image.');
+        // Check file size (4MB limit for server compatibility)
+        if (result.size && result.size > 4 * 1024 * 1024) {
+          Alert.alert('Error', 'File size must be less than 4MB. Please choose a smaller file or compress the image.');
           return;
         }
 
@@ -361,11 +361,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    padding: 20,
-    paddingBottom: 10,
+    alignItems: 'center',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
@@ -373,6 +373,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: colors.textSecondary,
+    textAlign: 'center',
     lineHeight: 22,
   },
   documentsContainer: {

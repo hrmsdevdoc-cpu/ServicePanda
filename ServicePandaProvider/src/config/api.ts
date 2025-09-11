@@ -3,14 +3,15 @@ const API_CONFIG = {
   development: {
     // Try these URLs in order - the first one that works will be used
     urls: [
-      'http://10.0.2.2:3000',   // Android emulator (this should be first!)
-      'http://127.0.0.1:3000',  // Localhost alternative
-      'http://localhost:3000',  // Local dev server
+      'https://api.servicepanda.com.au',  // Live production API
+      'http://localhost:4000',            // Local development fallback
+      'http://10.0.2.2:4000',            // Android emulator
+      'http://127.0.0.1:4000',           // Localhost alternative
     ],
-    defaultUrl: 'http://10.0.2.2:3000'  // Use Android emulator IP as default
+    defaultUrl: 'https://api.servicepanda.com.au'  // Use live API
   },
   production: {
-    urls: ['https://api.servicepanda.com.au'],   // ✅ Live production API
+    urls: ['https://api.servicepanda.com.au'],
     defaultUrl: 'https://api.servicepanda.com.au'
   }
 };
