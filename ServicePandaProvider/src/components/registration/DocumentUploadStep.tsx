@@ -13,7 +13,7 @@ const {
 } = require('react-native');
 const { colors } = require('../../utils/theme');
 
-// Temporary solution: Mock document picker until native modules are fixed
+// Document upload component for registration
 
 const documentTypes = [
   {
@@ -58,112 +58,69 @@ const DocumentUploadStep = ({
       
       console.log('🔍 Starting REAL document pick for:', documentType);
       
-      // Try to use React Native's built-in ImagePicker
-      try {
-        const ImagePicker = require('react-native-image-crop-picker');
-        
-        if (!ImagePicker) {
-          console.log('⚠️ Image picker not available - using mock document');
-          // Use mock document for now
-          const mockDocument = {
-            uri: 'mock://document',
-            type: 'image/jpeg',
-            name: `${documentType}_document.jpg`,
-            size: 1024 * 1024, // 1MB mock size
-          };
-          
-          onDocumentSelect(documentType, mockDocument);
-          Alert.alert('Mock Document', 'Using mock document for testing. Image picker will be available after build fix.');
-          return;
-        }
-        
-        console.log('✅ Image picker functions available');
-        
-        let result;
-        
-        if (source === 'camera') {
-          result = await ImagePicker.openCamera({
-            width: 300,
-            height: 400,
-            cropping: false, // Disable cropping initially to avoid crashes
-            quality: 0.3, // Much lower quality to reduce file size
-            includeBase64: false,
-            mediaType: 'photo',
-          });
-        } else {
-          result = await ImagePicker.openPicker({
-            width: 300,
-            height: 400,
-            cropping: false, // Disable cropping initially to avoid crashes
-            quality: 0.3, // Much lower quality to reduce file size
-            includeBase64: false,
-            mediaType: 'photo',
-          });
-        }
-
-        console.log('🔍 Image picker result:', result);
-
-        if (!result || !result.path) {
-          console.log('User cancelled image selection or no image selected');
-          return;
-        }
-
-        console.log('🔍 Selected file:', result);
-        
-        // Check file size (4MB limit for server compatibility)
-        if (result.size && result.size > 4 * 1024 * 1024) {
-          Alert.alert('Error', 'File size must be less than 4MB. Please choose a smaller file or compress the image.');
-          return;
-        }
-
-        // Create a file object compatible with FormData
-        const fileObj = {
-          uri: result.path,
-          type: result.mime || 'image/jpeg',
-          name: result.filename || `${documentType}_${Date.now()}.jpg`,
-          size: result.size || 0,
-        };
-
-        console.log('🔍 Created file object:', fileObj);
-
-        setDocumentFiles(prev => ({
-          ...prev,
-          [documentType]: fileObj,
-        }));
-
-        Alert.alert('Success', 'Document selected successfully!');
-        return;
-        
-      } catch (imagePickerError) {
-        console.error('❌ Image picker error:', imagePickerError);
-        
-        // Fallback to mock solution if image picker fails
-        console.log('🔄 Falling back to mock solution');
-        
-        const mockFile = {
-          uri: `file://mock_${documentType}_${Date.now()}.jpg`,
-          type: 'image/jpeg',
-          name: `${documentType}_document.jpg`,
-          size: 1024 * 1024, // 1MB mock size
-        };
-
-        console.log('🔍 Created mock file object:', mockFile);
-
-        setDocumentFiles(prev => ({
-          ...prev,
-          [documentType]: mockFile,
-        }));
-
-        Alert.alert(
-          'Document Added (Mock)', 
-          `Mock document added for ${documentType}. Image picker not available, but you can proceed with registration.`,
-          [{ text: 'OK' }]
-        );
-      }
+      // Use React Native's ImagePicker
+      const ImagePicker = require('react-native-image-crop-picker');
       
-    } catch (error) {
-      console.error('❌ Document pick error:', error);
-      Alert.alert('Error', `Failed to add document: ${error.message || 'Unknown error'}. Please try again.`);
+      console.log('✅ Image picker functions available');
+      
+      let result;
+      
+      if (source === 'camera') {
+        result = await ImagePicker.openCamera({
+          width: 300,
+          height: 400,
+          cropping: false, // Disable cropping initially to avoid crashes
+          quality: 0.3, // Much lower quality to reduce file size
+          includeBase64: false,
+          mediaType: 'photo',
+        });
+      } else {
+        result = await ImagePicker.openPicker({
+          width: 300,
+          height: 400,
+          cropping: false, // Disable cropping initially to avoid crashes
+          quality: 0.3, // Much lower quality to reduce file size
+          includeBase64: false,
+          mediaType: 'photo',
+        });
+      }
+
+      console.log('🔍 Image picker result:', result);
+
+      if (!result || !result.path) {
+        console.log('User cancelled image selection or no image selected');
+        return;
+      }
+
+      console.log('🔍 Selected file:', result);
+      
+      // Check file size (4MB limit for server compatibility)
+      if (result.size && result.size > 4 * 1024 * 1024) {
+        Alert.alert('Error', 'File size must be less than 4MB. Please choose a smaller file or compress the image.');
+        return;
+      }
+
+      // Create a file object compatible with FormData
+      const fileObj = {
+        uri: result.path,
+        type: result.mime || 'image/jpeg',
+        name: result.filename || `${documentType}_${Date.now()}.jpg`,
+        size: result.size || 0,
+      };
+
+      console.log('🔍 Created file object:', fileObj);
+
+      setDocumentFiles(prev => ({
+        ...prev,
+        [documentType]: fileObj,
+      }));
+
+      Alert.alert('Success', 'Document selected successfully!');
+      return;
+        
+    } catch (imagePickerError) {
+      console.error('❌ Image picker error:', imagePickerError);
+      Alert.alert('Error', 'Failed to select document. Please try again.');
     } finally {
       setUploadingDocument(null);
     }
@@ -234,7 +191,7 @@ const DocumentUploadStep = ({
                 console.log('🔧 Debug: Current status...');
                 Alert.alert(
                   'Debug Info',
-                  `Current Status:\n\nUsing temporary mock solution\nNative modules not linked\nUser can proceed with registration`,
+                  `Current Status:\n\nImage picker is working\nDocument upload is functional`,
                   [{ text: 'OK' }]
                 );
               }}
@@ -302,7 +259,7 @@ const DocumentUploadStep = ({
               ) : (
                 <View style={styles.uploadedFile}>
                   <View style={styles.fileInfo}>
-                    {file && file.uri && !file.uri.includes('mock_') ? (
+                    {file && file.uri ? (
                       <Image 
                         source={{ uri: file.uri }} 
                         style={styles.filePreview}
