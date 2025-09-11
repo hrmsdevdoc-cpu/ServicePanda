@@ -11,7 +11,7 @@ const ResetPasswordScreen = ({ onNavigate }) => {
         style={styles.backButton} 
         onPress={() => onNavigate('login')}
       >
-        <Text style={styles.backButtonText}>← Back to Login</Text>
+        <Text style={styles.backButtonText}>← Back</Text>
       </TouchableOpacity>
       
       <Card style={styles.card}>
@@ -23,7 +23,7 @@ const ResetPasswordScreen = ({ onNavigate }) => {
             onPress={() => onNavigate('login')}
             style={styles.backToLoginButton}
           >
-            Back to Login
+            Back
           </Button>
         </Card.Content>
       </Card>

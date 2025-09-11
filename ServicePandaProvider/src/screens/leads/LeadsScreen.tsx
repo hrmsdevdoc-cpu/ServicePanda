@@ -86,54 +86,58 @@ function LeadsScreen({ onNavigate, onBack }) {
           </View>
         </View>
 
-        {/* Modern Stats Grid */}
+        {/* Modern Stats Grid - 2+1 Layout */}
         <View style={styles.modernStatsContainer}>
-          <TouchableOpacity 
-            style={[styles.modernStatCard, styles.primaryStatCard]}
-            activeOpacity={0.8}
-            onPress={() => onNavigate('newLeads')}
-          >
-            <View style={styles.statCardHeader}>
-              <View style={styles.statIconWrapper}>
-                <Text style={styles.statIcon}>🆕</Text>
+          {/* First Row - 2 Cards */}
+          <View style={styles.statsRow}>
+            <TouchableOpacity 
+              style={[styles.modernStatCard, styles.primaryStatCard, styles.halfWidthCard]}
+              activeOpacity={0.8}
+              onPress={() => onNavigate('newLeads')}
+            >
+              <View style={styles.statCardHeader}>
+                <View style={styles.statIconWrapper}>
+                  <Text style={styles.statIcon}>🆕</Text>
+                </View>
+                <View style={styles.statBadge}>
+                  <Text style={styles.statBadgeText}>NEW</Text>
+                </View>
               </View>
-              <View style={styles.statBadge}>
-                <Text style={styles.statBadgeText}>NEW</Text>
-              </View>
-            </View>
-            {isLoading ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Text style={styles.modernStatNumber}>{newLeadsCount}</Text>
-            )}
-            <Text style={styles.modernStatLabel}>New Leads</Text>
-            <Text style={styles.modernStatStatus}>Available to purchase</Text>
-          </TouchableOpacity>
+              {isLoading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.modernStatNumber}>{newLeadsCount}</Text>
+              )}
+              <Text style={styles.modernStatLabel}>New Leads</Text>
+              <Text style={styles.modernStatStatus}>Available to purchase</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.modernStatCard, styles.secondaryStatCard]}
-            activeOpacity={0.8}
-            onPress={() => onNavigate('activeLeads')}
-          >
-            <View style={styles.statCardHeader}>
-              <View style={styles.statIconWrapper}>
-                <Text style={styles.statIcon}>⚡</Text>
+            <TouchableOpacity 
+              style={[styles.modernStatCard, styles.secondaryStatCard, styles.halfWidthCard]}
+              activeOpacity={0.8}
+              onPress={() => onNavigate('activeLeads')}
+            >
+              <View style={styles.statCardHeader}>
+                <View style={styles.statIconWrapper}>
+                  <Text style={styles.statIcon}>⚡</Text>
+                </View>
+                <View style={styles.statBadge}>
+                  <Text style={styles.statBadgeText}>ACTIVE</Text>
+                </View>
               </View>
-              <View style={styles.statBadge}>
-                <Text style={styles.statBadgeText}>ACTIVE</Text>
-              </View>
-            </View>
-            {isLoading ? (
-              <ActivityIndicator size="small" color={colors.success} />
-            ) : (
-              <Text style={styles.modernStatNumber}>{activeLeadsCount}</Text>
-            )}
-            <Text style={styles.modernStatLabel}>Active Leads</Text>
-            <Text style={styles.modernStatStatus}>Currently working on</Text>
-          </TouchableOpacity>
+              {isLoading ? (
+                <ActivityIndicator size="small" color={colors.success} />
+              ) : (
+                <Text style={styles.modernStatNumber}>{activeLeadsCount}</Text>
+              )}
+              <Text style={styles.modernStatLabel}>Active Leads</Text>
+              <Text style={styles.modernStatStatus}>Currently working on</Text>
+            </TouchableOpacity>
+          </View>
 
+          {/* Second Row - 1 Card */}
           <TouchableOpacity 
-            style={[styles.modernStatCard, styles.tertiaryStatCard]}
+            style={[styles.modernStatCard, styles.tertiaryStatCard, styles.fullWidthCard]}
             activeOpacity={0.8}
             onPress={() => onNavigate('closedLeads')}
           >
@@ -323,8 +327,18 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     gap: 16,
   },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  halfWidthCard: {
+    flex: 1,
+  },
+  fullWidthCard: {
+    width: '100%',
+  },
   modernStatCard: {
-    padding: 20,
+    padding: 16, // Reduced padding for better fit in grid
     borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -352,7 +366,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12, // Reduced margin for better fit in grid
     width: '100%',
   },
   statIconWrapper: {
@@ -379,10 +393,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   modernStatNumber: {
-    fontSize: 28,
+    fontSize: 24, // Slightly smaller for better fit in grid
     fontWeight: '800',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 6, // Reduced margin
     letterSpacing: -1,
     textAlign: 'center',
   },

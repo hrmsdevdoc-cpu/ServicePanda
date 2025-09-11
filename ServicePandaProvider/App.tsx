@@ -3,7 +3,7 @@
 // enableScreens();
 
 const React = require('react');
-const { useState } = require('react');
+const { useState, useRef, useEffect } = require('react');
 const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
 const { AuthProvider, useAuth } = require('./src/contexts/AuthContext');
 // Direct registration screen for testing
@@ -25,22 +25,147 @@ const ProfileScreen = require('./src/screens/profile/ProfileScreen');
 const CreditsScreen = require('./src/screens/credits/CreditsScreen');
 const BillingScreen = require('./src/screens/billing/BillingScreen');
 const HelpScreen = require('./src/screens/help/HelpScreen');
-const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar, Platform } = require('react-native');
+const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar, Platform, Animated, Dimensions } = require('react-native');
 const { colors } = require('./src/utils/theme');
 
-// Loading component while checking authentication
-const LoadingScreen = () => (
-  <View style={styles.loadingContainer}>
-    <ActivityIndicator size="large" color={colors.primary} />
-    <Text style={styles.loadingText}>Loading...</Text>
-  </View>
-);
+// Modern Loading component while checking authentication
+const LoadingScreen = () => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Start animations on mount
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        })
+      ),
+    ]).start();
+  }, []);
+
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  return (
+    <View style={styles.loadingContainer}>
+      <Animated.View
+        style={[
+          styles.loadingContent,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        {/* App Logo */}
+        <View style={styles.logoContainer}>
+          <Animated.View
+            style={[
+              styles.logoCircle,
+              { transform: [{ rotate: spin }] },
+            ]}
+          >
+            <Text style={styles.logoEmoji}>🐼</Text>
+          </Animated.View>
+        </View>
+
+        {/* App Name */}
+        <Text style={styles.appName}>ServicePanda</Text>
+        <Text style={styles.appSubtitle}>Partners</Text>
+
+        {/* Loading Indicator */}
+        <View style={styles.loadingIndicatorContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading your dashboard...</Text>
+        </View>
+
+        {/* Loading Dots Animation */}
+        <View style={styles.dotsContainer}>
+          <Animated.View style={[styles.dot, { opacity: fadeAnim }]} />
+          <Animated.View style={[styles.dot, { opacity: fadeAnim }]} />
+          <Animated.View style={[styles.dot, { opacity: fadeAnim }]} />
+        </View>
+      </Animated.View>
+    </View>
+  );
+};
 
 // Main app component that handles authentication flow and navigation
 const AppContent = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState('dashboard');
   const [currentSubScreen, setCurrentSubScreen] = useState(null);
+  
+  // Footer animation state
+  const footerTranslateY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+  const scrollDirection = useRef('down');
+  const isFooterVisible = useRef(true);
+
+  // Footer animation functions
+  const hideFooter = () => {
+    if (isFooterVisible.current) {
+      isFooterVisible.current = false;
+      Animated.timing(footerTranslateY, {
+        toValue: 100,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  const showFooter = () => {
+    if (!isFooterVisible.current) {
+      isFooterVisible.current = true;
+      Animated.timing(footerTranslateY, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  // Handle scroll events for footer visibility
+  const handleScroll = (event: any) => {
+    const currentScrollY = event.nativeEvent.contentOffset.y;
+    const scrollDelta = currentScrollY - lastScrollY.current;
+    
+    // Only trigger if scroll delta is significant (more than 10 pixels)
+    if (Math.abs(scrollDelta) > 10) {
+      if (scrollDelta > 0 && scrollDirection.current !== 'down') {
+        // Scrolling down - hide footer
+        scrollDirection.current = 'down';
+        hideFooter();
+      } else if (scrollDelta < 0 && scrollDirection.current !== 'up') {
+        // Scrolling up - show footer
+        scrollDirection.current = 'up';
+        showFooter();
+      }
+      lastScrollY.current = currentScrollY;
+    }
+  };
+
+  // Reset footer visibility when screen changes
+  useEffect(() => {
+    showFooter();
+  }, [currentScreen]);
 
   // Navigation function to be passed to screens
   const navigateTo = (screen: string, subScreen: string | null = null) => {
@@ -98,7 +223,7 @@ const AppContent = () => {
               style={{ backgroundColor: colors.primary, padding: 15, borderRadius: 8 }}
               onPress={() => navigateTo('login')}
             >
-              <Text style={{ color: 'white', fontSize: 16 }}>Back to Login</Text>
+              <Text style={{ color: 'white', fontSize: 16 }}>← Back</Text>
             </TouchableOpacity>
           </View>
         );
@@ -152,7 +277,7 @@ const AppContent = () => {
       {currentScreen !== 'dashboard' && (
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={goToDashboard}>
-            <Text style={styles.backButtonText}>← Back to Dashboard</Text>
+            <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
             {currentScreen.charAt(0).toUpperCase() + currentScreen.slice(1)}
@@ -255,12 +380,64 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fafc',
+  },
+  loadingContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoContainer: {
+    marginBottom: 24,
+  },
+  logoCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  logoEmoji: {
+    fontSize: 48,
+  },
+  appName: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 4,
+    letterSpacing: -1,
+  },
+  appSubtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 40,
+    letterSpacing: 0.5,
+  },
+  loadingIndicatorContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
     color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
   },
   footer: {
     position: 'absolute',

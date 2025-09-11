@@ -1,11 +1,13 @@
 const React = require('react');
 const { useState, useEffect } = require('react');
-const { View, Text, StyleSheet, ScrollView, Alert, TextInput } = require('react-native');
+const { View, Text, StyleSheet, ScrollView, Alert, TextInput, Animated, Dimensions, TouchableOpacity } = require('react-native');
 const { Card, Title, Paragraph, Button, TextInput: PaperTextInput, HelperText } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 const { useQuery, useMutation, useQueryClient } = require('@tanstack/react-query');
 const { getProfile, updateProfile } = require('../../services/api');
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+
+const { width } = Dimensions.get('window');
 
 const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -20,7 +22,34 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
   });
   const [errors, setErrors] = useState({});
 
+  // Animation values
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(30)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.95)).current;
+
   const queryClient = useQueryClient();
+
+  // Animation on mount
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   // Debug: Check AsyncStorage on component mount
   useEffect(() => {
@@ -161,159 +190,230 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.content}>
-        {/* Header */}
-        {/* <View style={styles.header}>
-          <Button 
-            mode="text" 
-            onPress={onBack}
-            style={styles.backButton}
-          >
-            ← Back
-          </Button>
-          <Title style={styles.headerTitle}>Personal Details</Title>
-        </View> */}
+      <Animated.View
+        style={[
+          styles.animatedContainer,
+          {
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ]
+          }
+        ]}
+      >
+        {/* Modern Header */}
+        <View style={styles.modernHeader}>
+          <View style={styles.modernHeaderContent}>
+            <Text style={styles.modernHeaderTitle}>Personal Details</Text>
+            <Text style={styles.modernHeaderSubtitle}>
+              Manage your personal and business information
+            </Text>
+          </View>
+          <View style={styles.modernHeaderIcon}>
+            <Text style={styles.modernHeaderEmoji}>👤</Text>
+          </View>
+        </View>
 
-        <Card style={styles.card}>
-          <Card.Content>
-            {/* Personal Information Section */}
-            <View style={styles.section}>
-              <Title style={styles.sectionTitle}>Personal Information</Title>
-              
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>First Name *</Text>
+        {/* Modern Personal Information Section */}
+        <View style={styles.modernCard}>
+          <View style={styles.modernCardHeader}>
+            <View style={styles.modernCardIcon}>
+              <Text style={styles.modernCardEmoji}>👤</Text>
+            </View>
+            <View style={styles.modernCardInfo}>
+              <Text style={styles.modernCardTitle}>Personal Information</Text>
+              <Text style={styles.modernCardSubtitle}>
+                Your personal details and contact information
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.modernFormFields}>
+            <View style={styles.modernInputGroup}>
+              <Text style={styles.modernLabel}>First Name *</Text>
+              <View style={styles.modernInputContainer}>
+                <Text style={styles.modernInputIcon}>👤</Text>
                 <PaperTextInput
                   mode="outlined"
                   value={formData.firstName}
                   onChangeText={(value) => handleInputChange('firstName', value)}
                   disabled={!isEditing}
-                  style={styles.input}
+                  style={styles.modernInput}
                   error={!!errors.firstName}
+                  placeholder="Enter your first name"
+                  placeholderTextColor={colors.textSecondary}
                 />
-                {errors.firstName && <HelperText type="error">{errors.firstName}</HelperText>}
               </View>
+              {errors.firstName && <Text style={styles.modernErrorText}>{errors.firstName}</Text>}
+            </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Last Name *</Text>
+            <View style={styles.modernInputGroup}>
+              <Text style={styles.modernLabel}>Last Name *</Text>
+              <View style={styles.modernInputContainer}>
+                <Text style={styles.modernInputIcon}>👤</Text>
                 <PaperTextInput
                   mode="outlined"
                   value={formData.lastName}
                   onChangeText={(value) => handleInputChange('lastName', value)}
                   disabled={!isEditing}
-                  style={styles.input}
+                  style={styles.modernInput}
                   error={!!errors.lastName}
+                  placeholder="Enter your last name"
+                  placeholderTextColor={colors.textSecondary}
                 />
-                {errors.lastName && <HelperText type="error">{errors.lastName}</HelperText>}
               </View>
+              {errors.lastName && <Text style={styles.modernErrorText}>{errors.lastName}</Text>}
+            </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email Address</Text>
+            <View style={styles.modernInputGroup}>
+              <Text style={styles.modernLabel}>Email Address</Text>
+              <View style={styles.modernInputContainer}>
+                <Text style={styles.modernInputIcon}>📧</Text>
                 <PaperTextInput
                   mode="outlined"
                   value={formData.email}
                   disabled={true}
-                  style={[styles.input, styles.disabledInput]}
+                  style={[styles.modernInput, styles.modernDisabledInput]}
+                  placeholder="Your email address"
+                  placeholderTextColor={colors.textSecondary}
                 />
-                <HelperText type="info" style={styles.infoText}>
-                  Email cannot be changed. Please contact support if you need to update your email.
-                </HelperText>
               </View>
+              <Text style={styles.modernInfoText}>
+                Email cannot be changed. Please contact support if you need to update your email.
+              </Text>
+            </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Mobile Number *</Text>
+            <View style={styles.modernInputGroup}>
+              <Text style={styles.modernLabel}>Mobile Number *</Text>
+              <View style={styles.modernInputContainer}>
+                <Text style={styles.modernInputIcon}>📱</Text>
                 <PaperTextInput
                   mode="outlined"
                   value={formData.mobileNumber}
                   onChangeText={(value) => handleInputChange('mobileNumber', value)}
                   disabled={!isEditing}
-                  style={styles.input}
+                  style={styles.modernInput}
                   error={!!errors.mobileNumber}
                   keyboardType="phone-pad"
+                  placeholder="Enter your mobile number"
+                  placeholderTextColor={colors.textSecondary}
                 />
-                {errors.mobileNumber && <HelperText type="error">{errors.mobileNumber}</HelperText>}
               </View>
+              {errors.mobileNumber && <Text style={styles.modernErrorText}>{errors.mobileNumber}</Text>}
+            </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Business Address **</Text>
+            <View style={styles.modernInputGroup}>
+              <Text style={styles.modernLabel}>Business Address *</Text>
+              <View style={styles.modernInputContainer}>
+                <Text style={styles.modernInputIcon}>📍</Text>
                 <PaperTextInput
                   mode="outlined"
                   value={formData.address}
                   onChangeText={(value) => handleInputChange('address', value)}
                   disabled={!isEditing}
-                  style={[styles.input, errors.address && styles.errorInput]}
+                  style={[styles.modernInput, errors.address && styles.modernErrorInput]}
                   error={!!errors.address}
                   multiline
                   numberOfLines={2}
+                  placeholder="Enter your business address"
+                  placeholderTextColor={colors.textSecondary}
                 />
-                {errors.address && <HelperText type="error">{errors.address}</HelperText>}
-                <HelperText type="info" style={styles.warningText}>
-                  ⚠️ Please select from suggestions to verify address
-                </HelperText>
               </View>
+              {errors.address && <Text style={styles.modernErrorText}>{errors.address}</Text>}
+              <Text style={styles.modernWarningText}>
+                ⚠️ Please select from suggestions to verify address
+              </Text>
             </View>
+          </View>
+        </View>
 
-            {/* Business Details Section */}
-            <View style={styles.section}>
-              <Title style={styles.sectionTitle}>Business Details</Title>
-              
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Business Name</Text>
+        {/* Modern Business Details Section */}
+        <View style={styles.modernCard}>
+          <View style={styles.modernCardHeader}>
+            <View style={styles.modernCardIcon}>
+              <Text style={styles.modernCardEmoji}>🏢</Text>
+            </View>
+            <View style={styles.modernCardInfo}>
+              <Text style={styles.modernCardTitle}>Business Details</Text>
+              <Text style={styles.modernCardSubtitle}>
+                Your business information and registration details
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.modernFormFields}>
+            <View style={styles.modernInputGroup}>
+              <Text style={styles.modernLabel}>Business Name</Text>
+              <View style={styles.modernInputContainer}>
+                <Text style={styles.modernInputIcon}>🏪</Text>
                 <PaperTextInput
                   mode="outlined"
                   value={formData.businessName}
                   onChangeText={(value) => handleInputChange('businessName', value)}
                   disabled={!isEditing}
-                  style={styles.input}
+                  style={styles.modernInput}
+                  placeholder="Enter your business name"
+                  placeholderTextColor={colors.textSecondary}
                 />
               </View>
+            </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Business ABN/ACN</Text>
+            <View style={styles.modernInputGroup}>
+              <Text style={styles.modernLabel}>Business ABN/ACN</Text>
+              <View style={styles.modernInputContainer}>
+                <Text style={styles.modernInputIcon}>🆔</Text>
                 <PaperTextInput
                   mode="outlined"
                   value={formData.businessAbn}
                   onChangeText={(value) => handleInputChange('businessAbn', value)}
                   disabled={!isEditing}
-                  style={styles.input}
+                  style={styles.modernInput}
                   placeholder="Enter your ABN or ACN (optional)"
+                  placeholderTextColor={colors.textSecondary}
                 />
               </View>
             </View>
+          </View>
+        </View>
 
-            {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
-              {isEditing ? (
-                <>
-                  <Button 
-                    mode="outlined" 
-                    onPress={handleCancel}
-                    style={styles.cancelButton}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    mode="contained" 
-                    onPress={handleSave}
-                    style={styles.saveButton}
-                    loading={updateProfileMutation.isPending}
-                    disabled={updateProfileMutation.isPending}
-                  >
-                    Save Changes
-                  </Button>
-                </>
-              ) : (
-                <Button 
-                  mode="contained" 
-                  onPress={() => setIsEditing(true)}
-                  style={styles.editButton}
-                >
-                  Edit Details
-                </Button>
-              )}
+        {/* Modern Action Buttons */}
+        <View style={styles.modernButtonContainer}>
+          {isEditing ? (
+            <View style={styles.modernButtonRow}>
+              <TouchableOpacity 
+                style={styles.modernCancelButton}
+                onPress={handleCancel}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modernCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[
+                  styles.modernSaveButton,
+                  updateProfileMutation.isPending && styles.modernSaveButtonDisabled
+                ]}
+                onPress={handleSave}
+                activeOpacity={0.8}
+                disabled={updateProfileMutation.isPending}
+              >
+                <Text style={styles.modernSaveButtonText}>
+                  {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Text>
+              </TouchableOpacity>
             </View>
-          </Card.Content>
-        </Card>
-      </View>
+          ) : (
+            <TouchableOpacity 
+              style={styles.modernEditButton}
+              onPress={() => setIsEditing(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modernEditButtonText}>Edit Details</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </Animated.View>
     </ScrollView>
   );
 };
@@ -321,39 +421,274 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 120, // Increased padding to ensure buttons are visible above footer
+  },
+  animatedContainer: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fafc',
   },
   loadingText: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textSecondary,
+    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    padding: 16,
+    backgroundColor: '#f8fafc',
+    padding: 24,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: 18,
     color: colors.error || '#EF4444',
-    marginBottom: 6,
+    marginBottom: 8,
     textAlign: 'center',
+    fontWeight: '600',
   },
   errorSubtext: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 12,
+    marginBottom: 20,
     textAlign: 'center',
+    fontWeight: '500',
   },
   retryButton: {
     backgroundColor: colors.primary,
+  },
+  // Modern Header
+  modernHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20, // Reduced margin to save space
+    paddingHorizontal: 4,
+  },
+  modernHeaderContent: {
+    flex: 1,
+  },
+  modernHeaderTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  modernHeaderSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    fontWeight: '500',
+  },
+  modernHeaderIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 16,
+  },
+  modernHeaderEmoji: {
+    fontSize: 24,
+  },
+  // Modern Card
+  modernCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20, // Reduced padding to save space
+    marginBottom: 16, // Reduced margin to save space
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    width: '100%', // Ensure full width
+    maxWidth: '100%', // Prevent overflow
+  },
+  modernCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16, // Reduced margin to save space
+  },
+  modernCardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  modernCardEmoji: {
+    fontSize: 24,
+  },
+  modernCardInfo: {
+    flex: 1,
+  },
+  modernCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  modernCardSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  // Modern Form Fields
+  modernFormFields: {
+    gap: 16, // Reduced gap to save space
+  },
+  modernInputGroup: {
+    gap: 8,
+  },
+  modernLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    letterSpacing: -0.1,
+  },
+  modernInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    minHeight: 50, // Ensure consistent height
+    maxWidth: '100%', // Prevent overflow
+  },
+  modernInputIcon: {
+    fontSize: 20,
+    marginRight: 12,
+    color: colors.textSecondary,
+  },
+  modernInput: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    fontSize: 16,
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  modernDisabledInput: {
+    backgroundColor: '#f1f5f9',
+    color: colors.textSecondary,
+  },
+  modernErrorInput: {
+    borderColor: colors.error,
+    backgroundColor: colors.error + '10',
+  },
+  modernErrorText: {
+    fontSize: 14,
+    color: colors.error,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  modernInfoText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  modernWarningText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '500',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  // Modern Buttons
+  modernButtonContainer: {
+    marginTop: 30,
+    marginBottom: 30, // Increased margin to ensure buttons are visible
+    paddingHorizontal: 4, // Small padding to prevent edge cutoff
+  },
+  modernButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    maxWidth: '100%',
+  },
+  modernEditButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14, // Reduced padding
+    paddingHorizontal: 20, // Reduced padding
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modernEditButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  modernCancelButton: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    paddingVertical: 14, // Reduced padding
+    paddingHorizontal: 12, // Reduced padding to prevent overflow
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    minWidth: 0, // Allow flex to work properly
+  },
+  modernCancelButtonText: {
+    fontSize: 14, // Slightly smaller to fit better
+    fontWeight: '600',
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  modernSaveButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 16, // Reduced padding to prevent overflow
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+    minWidth: 0, // Allow flex to work properly
+  },
+  modernSaveButtonDisabled: {
+    backgroundColor: colors.textSecondary,
+    shadowOpacity: 0.05,
+  },
+  modernSaveButtonText: {
+    fontSize: 14, // Slightly smaller to fit better
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
   content: {
     padding: 12,

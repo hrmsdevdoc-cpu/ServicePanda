@@ -371,7 +371,7 @@ function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: 
                 onPress={() => onNavigate('leads')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.exploreButtonText}>Back to Leads</Text>
+                <Text style={styles.exploreButtonText}>← Back</Text>
               </TouchableOpacity>
             </View>
           )}

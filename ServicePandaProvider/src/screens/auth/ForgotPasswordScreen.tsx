@@ -148,7 +148,7 @@ const ForgotPasswordScreen = ({ onNavigate }) => {
                       style={styles.registerButton}
                       labelStyle={styles.registerButtonLabel}
                     >
-                      Back to Sign In
+                      Back
                     </Button>
                   </View>
                 </Card.Content>
