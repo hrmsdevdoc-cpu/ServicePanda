@@ -111,8 +111,10 @@ const LoginScreen = ({ onNavigate, navigation }) => {
                 <View style={styles.logoCircle}>
                   <Text style={styles.logo}>🐼</Text>
                 </View>
-                <Text style={styles.title}>ServicePanda</Text>
-                <Text style={styles.tagline}>Partner Portal</Text>
+                <View style={styles.textContainer}>
+                  <Text style={styles.title}>ServicePanda</Text>
+                  <Text style={styles.tagline}>Partner Portal</Text>
+                </View>
               </View>
             </View>
 
@@ -271,29 +273,34 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'flex-start',
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: Platform.OS === 'ios' ? 20 : 40,
     paddingBottom: 20,
-    minHeight: height,
+    minHeight: height * 0.8, // Reduced page height
   },
   
   // Header Styles
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20, // Reduced margin
     paddingTop: 0,
   },
   logoContainer: {
+    flexDirection: 'row', // Horizontal layout
     alignItems: 'center',
     marginBottom: 0,
   },
+  textContainer: {
+    marginLeft: 16, // Space between icon and text
+    alignItems: 'flex-start',
+  },
   logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60, // Reduced size
+    height: 60, // Reduced size
+    borderRadius: 30, // Reduced size
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 0, // No bottom margin since it's horizontal
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -301,12 +308,12 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   logo: {
-    fontSize: 36,
+    fontSize: 28, // Reduced size
     textAlign: 'center',
-    lineHeight: 36,
+    lineHeight: 28,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24, // Reduced size
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 4,
@@ -315,7 +322,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 14, // Reduced size
     color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '500',
   },
@@ -324,7 +331,7 @@ const styles = StyleSheet.create({
   formContainer: {
     flex: 1,
     justifyContent: 'flex-start',
-    marginTop: 20,
+    marginTop: 10, // Reduced margin
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -335,16 +342,16 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
     marginHorizontal: 0,
-    marginVertical: 10,
+    marginVertical: 5, // Reduced margin
   },
   cardContent: {
-    padding: 30,
+    padding: 20, // Reduced padding
   },
 
   // Form Header
   formHeader: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20, // Reduced margin
   },
   formTitle: {
     fontSize: 24,
@@ -360,7 +367,7 @@ const styles = StyleSheet.create({
 
   // Input Styles
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 15, // Reduced margin
   },
   inputLabel: {
     fontSize: 14,
