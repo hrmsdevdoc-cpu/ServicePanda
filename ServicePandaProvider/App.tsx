@@ -28,84 +28,13 @@ const HelpScreen = require('./src/screens/help/HelpScreen');
 const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar, Platform, Animated, Dimensions } = require('react-native');
 const { colors } = require('./src/utils/theme');
 
-// Modern Loading component while checking authentication
-const LoadingScreen = () => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    // Start animations on mount
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 100,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        })
-      ),
-    ]).start();
-  }, []);
-
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  return (
-    <View style={styles.loadingContainer}>
-      <Animated.View
-        style={[
-          styles.loadingContent,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}
-      >
-        {/* App Logo */}
-        <View style={styles.logoContainer}>
-          <Animated.View
-            style={[
-              styles.logoCircle,
-              { transform: [{ rotate: spin }] },
-            ]}
-          >
-            <Text style={styles.logoEmoji}>🐼</Text>
-          </Animated.View>
-        </View>
-
-        {/* App Name */}
-        <Text style={styles.appName}>ServicePanda</Text>
-        <Text style={styles.appSubtitle}>Partners</Text>
-
-        {/* Loading Indicator */}
-        <View style={styles.loadingIndicatorContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading your dashboard...</Text>
-        </View>
-
-        {/* Loading Dots Animation */}
-        <View style={styles.dotsContainer}>
-          <Animated.View style={[styles.dot, { opacity: fadeAnim }]} />
-          <Animated.View style={[styles.dot, { opacity: fadeAnim }]} />
-          <Animated.View style={[styles.dot, { opacity: fadeAnim }]} />
-        </View>
-      </Animated.View>
-    </View>
-  );
-};
+// Loading component while checking authentication
+const LoadingScreen = () => (
+  <View style={styles.loadingContainer}>
+    <ActivityIndicator size="large" color={colors.primary} />
+    <Text style={styles.loadingText}>Loading...</Text>
+  </View>
+);
 
 // Main app component that handles authentication flow and navigation
 const AppContent = () => {
@@ -380,64 +309,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-  },
-  loadingContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoContainer: {
-    marginBottom: 24,
-  },
-  logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  logoEmoji: {
-    fontSize: 48,
-  },
-  appName: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 4,
-    letterSpacing: -1,
-  },
-  appSubtitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 40,
-    letterSpacing: 0.5,
-  },
-  loadingIndicatorContainer: {
-    alignItems: 'center',
-    marginBottom: 32,
+    backgroundColor: colors.background,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
     color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  dotsContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
   },
   footer: {
     position: 'absolute',

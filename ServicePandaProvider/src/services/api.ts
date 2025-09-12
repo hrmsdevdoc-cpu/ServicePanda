@@ -1,11 +1,11 @@
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-const { 
-  Provider, 
-  Lead, 
-  Service, 
-  ServiceArea, 
-  Document, 
-  CreditTransaction, 
+const {
+  Provider,
+  Lead,
+  Service,
+  ServiceArea,
+  Document,
+  CreditTransaction,
   Activity,
   ServiceCategory,
   PaymentMethod,
@@ -36,14 +36,11 @@ class ApiService {
 
   async request(method: string, endpoint: string, body?: any) {
     const { API_BASE_URL } = getApiConfig();
-    console.log('🌐 API Request:', { method, endpoint, body });
-    console.log('🔗 Full URL:', `${API_BASE_URL}${endpoint}`);
-    console.log('🌍 Current API Base URL:', API_BASE_URL);
-    console.log('🔧 API Config Debug:', getApiConfig());
-    
+
+
     const headers: Record<string, string> = await this.getHeaders();
     console.log('📋 Request Headers:', headers);
-    
+
     const config: RequestInit = {
       method,
       headers,
@@ -64,25 +61,25 @@ class ApiService {
 
     console.log('📤 Sending request with config:', config);
     console.log('📤 Request body stringified:', config.body);
-    
+
     try {
       // Test network connectivity first
       console.log('🔍 Testing network connectivity...');
-      const testResponse = await fetch(`${API_BASE_URL}/api/health`, { 
+      const testResponse = await fetch(`${API_BASE_URL}/api/health`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       }).catch(() => null);
-      
+
       if (testResponse) {
         console.log('✅ Network connectivity test passed');
       } else {
         console.log('⚠️ Network connectivity test failed - trying main request anyway');
       }
-      
+
       const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
       console.log('📥 Response status:', response.status);
       console.log('📥 Response headers:', response.headers);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ API Error Response:', errorData);
@@ -99,7 +96,7 @@ class ApiService {
         stack: error.stack,
         name: error.name
       });
-      
+
       // Provide helpful error messages for common issues
       if (error.message.includes('Network request failed') || error.message.includes('fetch')) {
         console.error('🌐 Network Error - Possible causes:');
@@ -108,15 +105,15 @@ class ApiService {
         console.error('   - Network/firewall blocking connection');
         console.error('   - Try updating API_BASE_URL in src/config/api.ts');
       }
-      
+
       throw error;
     }
   }
 
-           // Auth endpoints
-         async login(email: string, password: string) {
-           return this.request('POST', '/api/provider/login', { email, password });
-         }
+  // Auth endpoints
+  async login(email: string, password: string) {
+    return this.request('POST', '/api/provider/login', { email, password });
+  }
 
   async logout() {
     return this.request('POST', '/api/provider/logout');
@@ -166,22 +163,22 @@ class ApiService {
   }
 
   async updateLeadStatus(
-    leadId: string | number, 
-    status: string, 
+    leadId: string | number,
+    status: string,
     wasJobBooked: boolean
   ) {
-    return this.request('POST', `/api/provider/leads/${leadId}/status`, { 
-      status, 
-      wasJobBooked 
+    return this.request('POST', `/api/provider/leads/${leadId}/status`, {
+      status,
+      wasJobBooked
     });
   }
 
   async trackInteraction(
-    leadId, 
+    leadId,
     interactionType
   ) {
-    return this.request('POST', `/api/provider/leads/${leadId}/interaction`, { 
-      interactionType 
+    return this.request('POST', `/api/provider/leads/${leadId}/interaction`, {
+      interactionType
     });
   }
 
@@ -243,10 +240,16 @@ class ApiService {
     return this.request('GET', `/api/provider/${providerId}/payment-methods`);
   }
 
-  async addPaymentMethod(providerId, paymentMethodId) {
-    return this.request('POST', `/api/provider/${providerId}/stripe-payment-methods`, { 
-      paymentMethodId 
-    });
+  async addPaymentMethod(providerId, paymentMethodData) {
+    // If it's a Stripe payment method ID (string), use the old endpoint
+    if (typeof paymentMethodData === 'string') {
+      return this.request('POST', `/api/provider/${providerId}/stripe-payment-methods`, {
+        paymentMethodId: paymentMethodData
+      });
+    }
+
+    // If it's payment method data object, use the new endpoint
+    return this.request('POST', `/api/provider/${providerId}/payment-methods`, paymentMethodData);
   }
 
   async deletePaymentMethod(providerId, paymentMethodId) {

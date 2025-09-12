@@ -631,55 +631,64 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
   const ExistingDocumentCard = ({ title, document, documentType }) => {
     if (!document || !document.hasDocument) {
       return (
-        <Card style={styles.existingDocCard}>
-          <Card.Content style={styles.existingDocContent}>
-            <View style={styles.existingDocInfo}>
-              <Text style={styles.existingDocIcon}>📄</Text>
-              <View style={styles.existingDocText}>
-                <Text style={styles.existingDocTitle}>{title}</Text>
-                <Text style={styles.existingDocDate}>No document uploaded yet</Text>
+        <View style={styles.modernDocCard}>
+          <View style={styles.modernDocContent}>
+            <View style={styles.modernDocInfo}>
+              <View style={styles.modernDocIcon}>
+                <Text style={styles.docIcon}>📄</Text>
+              </View>
+              <View style={styles.modernDocText}>
+                <Text style={styles.modernDocTitle}>{title}</Text>
+                <Text style={styles.modernDocStatus}>No document uploaded</Text>
+                <Text style={styles.modernDocHint}>Tap to upload a new document</Text>
               </View>
             </View>
-            <Button
-              mode="outlined"
-              onPress={() => Alert.alert('Upload Required', `Please upload a ${title} document.`)}
-              style={styles.uploadRequiredButton}
-              disabled={true}
-            >
-              Upload Required
-            </Button>
-          </Card.Content>
-        </Card>
+            <View style={styles.modernDocActions}>
+              <TouchableOpacity
+                style={styles.uploadRequiredButton}
+                onPress={() => Alert.alert('Upload Required', `Please upload a ${title} document.`)}
+              >
+                <Text style={styles.uploadRequiredText}>Upload Required</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       );
     }
 
     return (
-      <Card style={styles.existingDocCard}>
-        <Card.Content style={styles.existingDocContent}>
-          <View style={styles.existingDocInfo}>
-            <Text style={styles.existingDocIcon}>📄</Text>
-            <View style={styles.existingDocText}>
-              <View style={styles.documentTitleRow}>
-                <Text style={styles.existingDocTitle}>{title}</Text>
-                <Text style={styles.documentTypeBadge}>{documentType.toUpperCase()}</Text>
+      <View style={styles.modernDocCard}>
+        <View style={styles.modernDocContent}>
+          <View style={styles.modernDocInfo}>
+            <View style={styles.modernDocIcon}>
+              <Text style={styles.docIcon}>📄</Text>
+            </View>
+            <View style={styles.modernDocText}>
+              <View style={styles.modernDocHeader}>
+                <Text style={styles.modernDocTitle}>{title}</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusText}>UPLOADED</Text>
+                </View>
               </View>
-              <Text style={styles.existingDocFileName}>{document.name}</Text>
-              <Text style={styles.existingDocDate}>Uploaded: {document.uploadedDate}</Text>
-              {document.fileSize && (
-                <Text style={styles.existingDocSize}>{formatFileSize(document.fileSize)}</Text>
-              )}
+              <Text style={styles.modernDocFileName}>{document.name}</Text>
+              <View style={styles.modernDocMeta}>
+                <Text style={styles.modernDocDate}>Uploaded: {document.uploadedDate}</Text>
+                {document.fileSize && (
+                  <Text style={styles.modernDocSize}>• {formatFileSize(document.fileSize)}</Text>
+                )}
+              </View>
             </View>
           </View>
-          <Button
-            mode="contained"
-            onPress={() => handleViewDocument(document, title)}
-            style={styles.viewButton}
-            icon="eye"
-          >
-            View
-          </Button>
-        </Card.Content>
-      </Card>
+          <View style={styles.modernDocActions}>
+            <TouchableOpacity
+              style={styles.viewButton}
+              onPress={() => handleViewDocument(document, title)}
+            >
+              <Text style={styles.viewButtonText}>View</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
     );
   };
 
@@ -687,56 +696,65 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
     const document = documentFiles[documentType];
     
     return (
-      <View style={styles.updateDocSection}>
-        <Text style={styles.updateDocTitle}>{title}</Text>
-        <Text style={styles.updateDocSubtitle}>Choose File</Text>
+      <View style={styles.modernUpdateSection}>
+        <View style={styles.modernUpdateHeader}>
+          <Text style={styles.modernUpdateTitle}>{title}</Text>
+          <Text style={styles.modernUpdateSubtitle}>Choose File</Text>
+        </View>
         
         {!document ? (
-          <View style={styles.uploadArea}>
-            <Text style={styles.uploadIcon}>☁️</Text>
-            <Text style={styles.uploadText}>PDF, JPG, PNG (10MB max)</Text>
-            <Text style={styles.uploadFormats}>Supported formats: PDF, JPG, JPEG, PNG (Max 10MB)</Text>
-            <View style={styles.buttonContainer}>
-              <Button
-                mode="contained"
-                onPress={() => handleDocumentSelect(documentType, 'library')}
-                style={[styles.chooseFilesButton, styles.halfWidth]}
-                disabled={isUploading}
-              >
-                📁 Gallery
-              </Button>
-              <Button
-                mode="outlined"
-                onPress={() => handleDocumentSelect(documentType, 'camera')}
-                style={[styles.cameraButton, styles.halfWidth]}
-                disabled={isUploading}
-              >
-                📷 Camera
-              </Button>
-            </View>
-            <Text style={styles.buttonHint}>
-              Tap Gallery to select from photos, or Camera to take a new photo
-            </Text>
-
-          </View>
-        ) : (
-          <View style={styles.selectedDocument}>
-            <View style={styles.documentInfo}>
-              <View style={styles.documentHeader}>
-                <Text style={styles.selectedIcon}>✅</Text>
-                <Text style={styles.documentName}>{document.name}</Text>
+          <TouchableOpacity
+            style={styles.modernUploadArea}
+            onPress={() => {
+              Alert.alert(
+                'Select Document',
+                'Choose how you want to add your document:',
+                [
+                  { text: 'Gallery', onPress: () => handleDocumentSelect(documentType, 'library') },
+                  { text: 'Camera', onPress: () => handleDocumentSelect(documentType, 'camera') },
+                  { text: 'Cancel', style: 'cancel' }
+                ]
+              );
+            }}
+            disabled={isUploading}
+          >
+            <View style={styles.modernUploadContent}>
+              <Text style={styles.modernUploadIcon}>📁</Text>
+              <Text style={styles.modernUploadTitle}>Upload Document</Text>
+              <Text style={styles.modernUploadSubtitle}>Tap to select from gallery or camera</Text>
+              <View style={styles.modernUploadOptions}>
+                <View style={styles.modernOption}>
+                  <Text style={styles.modernOptionIcon}>📷</Text>
+                  <Text style={styles.modernOptionText}>Camera</Text>
+                </View>
+                <View style={styles.modernOption}>
+                  <Text style={styles.modernOptionIcon}>🖼️</Text>
+                  <Text style={styles.modernOptionText}>Gallery</Text>
+                </View>
               </View>
-              <Text style={styles.documentSize}>
-                {document.size ? `${(document.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
-              </Text>
-              <Text style={styles.selectedStatus}>Ready to upload</Text>
+              <Text style={styles.modernUploadHint}>PDF, JPG, PNG (Max 10MB)</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.modernSelectedDocument}>
+            <View style={styles.modernSelectedInfo}>
+              <View style={styles.modernSelectedIcon}>
+                <Text style={styles.selectedIconText}>✅</Text>
+              </View>
+              <View style={styles.modernSelectedDetails}>
+                <Text style={styles.modernSelectedName}>{document.name}</Text>
+                <Text style={styles.modernSelectedSize}>
+                  {document.size ? `${(document.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
+                </Text>
+                <Text style={styles.modernSelectedStatus}>Ready to upload</Text>
+              </View>
             </View>
             <TouchableOpacity
               onPress={() => removeDocument(documentType)}
-              style={styles.removeButton}
+              style={styles.modernRemoveButton}
               disabled={isUploading}
             >
-              <Text style={styles.removeButtonText}>Remove</Text>
+              <Text style={styles.modernRemoveText}>Remove</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -745,17 +763,47 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Modern Header */}
+      <View style={styles.modernHeader}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Documents</Text>
+          <Text style={styles.headerSubtitle}>Manage your verification documents</Text>
+        </View>
+        <TouchableOpacity onPress={fetchExistingDocuments} style={styles.refreshButton}>
+          <Text style={styles.refreshIcon}>🔄</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Overview Card */}
+      <View style={styles.overviewCard}>
+        <View style={styles.overviewContent}>
+          <Text style={styles.overviewTitle}>Document Status</Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>
+                {Object.values(existingDocuments).filter(doc => doc && doc.hasDocument).length}
+              </Text>
+              <Text style={styles.statLabel}>Uploaded</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>
+                {Object.values(existingDocuments).filter(doc => !doc || !doc.hasDocument).length}
+              </Text>
+              <Text style={styles.statLabel}>Pending</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
       {/* Existing Documents Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleRow}>
             <Text style={styles.sectionIcon}>📄</Text>
-            <Title style={styles.sectionTitle}>Existing Documents</Title>
+            <Text style={styles.sectionTitle}>Current Documents</Text>
           </View>
-          <TouchableOpacity onPress={fetchExistingDocuments} style={styles.refreshButton}>
-            <Text style={styles.refreshButtonText}>🔄</Text>
-          </TouchableOpacity>
         </View>
         
         {isLoadingDocuments ? (
@@ -788,11 +836,11 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       <View style={styles.section}>
         <View style={styles.updateSectionHeader}>
           <Text style={styles.sectionIcon}>📤</Text>
-          <Title style={styles.sectionTitle}>Update Documents</Title>
+          <Text style={styles.sectionTitle}>Update Documents</Text>
         </View>
-        <Paragraph style={styles.updateSectionDescription}>
+        <Text style={styles.updateSectionDescription}>
           Upload new versions of your documents. You can update individual documents as needed.
-        </Paragraph>
+        </Text>
         
         <View style={styles.updateDocsContainer}>
           <UpdateDocumentSection
@@ -811,16 +859,24 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       </View>
 
       {/* Upload Button */}
-      <View style={styles.uploadSection}>
-        <Button
-          mode="contained"
+      <View style={styles.modernUploadSection}>
+        <TouchableOpacity
+          style={[
+            styles.modernUploadButton,
+            (!Object.values(documentFiles).some(doc => doc !== null) || isUploading) && styles.modernUploadButtonDisabled
+          ]}
           onPress={uploadDocuments}
           disabled={isUploading || !Object.values(documentFiles).some(doc => doc !== null)}
-          style={styles.uploadAllButton}
-          loading={isUploading}
         >
-          {isUploading ? 'Updating...' : 'Update Documents'}
-        </Button>
+          {isUploading ? (
+            <View style={styles.uploadingContent}>
+              <ActivityIndicator size="small" color="#ffffff" />
+              <Text style={styles.modernUploadButtonText}>Updating Documents...</Text>
+            </View>
+          ) : (
+            <Text style={styles.modernUploadButtonText}>Update Documents</Text>
+          )}
+        </TouchableOpacity>
       </View>
       {/* Simple Image Viewer Modal */}
       {viewingDocument && (
@@ -871,6 +927,363 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  // Modern Header Styles
+  modernHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  refreshIcon: {
+    fontSize: 18,
+    color: colors.primary,
+  },
+  // Overview Card Styles
+  overviewCard: {
+    margin: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  overviewContent: {
+    alignItems: 'center',
+  },
+  overviewTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.borderLight,
+    marginHorizontal: 20,
+  },
+  // Modern Document Card Styles
+  modernDocCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  modernDocContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modernDocInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  modernDocIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  docIcon: {
+    fontSize: 20,
+  },
+  modernDocText: {
+    flex: 1,
+  },
+  modernDocHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  modernDocTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
+  statusBadge: {
+    backgroundColor: colors.success + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: colors.success,
+  },
+  modernDocFileName: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  modernDocMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modernDocDate: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  modernDocSize: {
+    fontSize: 11,
+    color: colors.primary,
+    marginLeft: 4,
+  },
+  modernDocStatus: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  modernDocHint: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    fontStyle: 'italic',
+  },
+  modernDocActions: {
+    marginLeft: 12,
+  },
+  uploadRequiredButton: {
+    backgroundColor: colors.error + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  uploadRequiredText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.error,
+  },
+  viewButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  viewButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // Modern Update Section Styles
+  modernUpdateSection: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  modernUpdateHeader: {
+    marginBottom: 12,
+  },
+  modernUpdateTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  modernUpdateSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  modernUploadArea: {
+    borderWidth: 2,
+    borderColor: colors.borderLight,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 20,
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  modernUploadContent: {
+    alignItems: 'center',
+  },
+  modernUploadIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  modernUploadTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  modernUploadSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modernUploadOptions: {
+    flexDirection: 'row',
+    gap: 20,
+    marginBottom: 12,
+  },
+  modernOption: {
+    alignItems: 'center',
+  },
+  modernOptionIcon: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  modernOptionText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  modernUploadHint: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    textAlign: 'center',
+  },
+  modernSelectedDocument: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '10',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  modernSelectedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  modernSelectedIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.success + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  selectedIconText: {
+    fontSize: 16,
+  },
+  modernSelectedDetails: {
+    flex: 1,
+  },
+  modernSelectedName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  modernSelectedSize: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  modernSelectedStatus: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  modernRemoveButton: {
+    backgroundColor: colors.error + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  modernRemoveText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.error,
+  },
+  // Modern Upload Section Styles
+  modernUploadSection: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  modernUploadButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  modernUploadButtonDisabled: {
+    backgroundColor: colors.borderLight,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  modernUploadButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  uploadingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   section: {
     marginBottom: 20,

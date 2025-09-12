@@ -164,85 +164,97 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onNavigate, onBack }) => 
   }, []);
 
   return (
-    <ScrollView 
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-      showsVerticalScrollIndicator={false}
-    >
-      <Animated.View
-        style={[
-          styles.animatedContainer,
-          {
-            opacity: fadeAnim,
-            transform: [
-              { translateY: slideAnim },
-              { scale: scaleAnim }
-            ]
-          }
-        ]}
+    <View style={styles.container}>
+      {/* Header with Back Button and Title */}
+      {/* <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Payment</Text>
+        <TouchableOpacity 
+          style={styles.addMethodButton}
+          onPress={handleAddPaymentMethod}
+        >
+          <Text style={styles.addMethodButtonText}>+ Add Method</Text>
+        </TouchableOpacity>
+      </View> */}
+
+      <ScrollView 
+        style={styles.scrollContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
       >
-        {/* Modern Header */}
-        <View style={styles.modernHeader}>
-          <View style={styles.headerContent}>
-            <View style={styles.headerIcon}>
-              <Text style={styles.headerEmoji}>💳</Text>
-            </View>
-            <View style={styles.headerText}>
-              <Text style={styles.modernTitle}>Payment Methods</Text>
-              <Text style={styles.modernSubtitle}>
-                Manage your payment methods for receiving leads
-              </Text>
+        <Animated.View
+          style={[
+            styles.animatedContainer,
+            {
+              opacity: fadeAnim,
+              transform: [
+                { translateY: slideAnim },
+                { scale: scaleAnim }
+              ]
+            }
+          ]}
+        >
+          {/* Payment Methods Overview Card */}
+          <View style={styles.overviewCard}>
+            <View style={styles.overviewHeader}>
+              <View style={styles.overviewIcon}>
+                <Text style={styles.overviewIconText}>💳</Text>
+              </View>
+              <View style={styles.overviewText}>
+                <Text style={styles.overviewTitle}>Payment Methods</Text>
+                <Text style={styles.overviewSubtitle}>Manage your payment methods for receiving leads</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Modern Status Cards */}
-        <View style={styles.modernStatsContainer}>
+          {/* Stats Grid */}
           <View style={styles.statsGrid}>
-            <TouchableOpacity style={[styles.modernStatCard, styles.primaryStatCard]}>
-              <View style={styles.statCardHeader}>
-                <View style={styles.statIconWrapper}>
-                  <Text style={styles.statIcon}>💳</Text>
+            <View style={styles.statCard}>
+              <View style={styles.statHeader}>
+                <View style={styles.statIcon}>
+                  <Text style={styles.statIconText}>💳</Text>
                 </View>
                 <View style={styles.statBadge}>
                   <Text style={styles.statBadgeText}>PAYMENT</Text>
                 </View>
               </View>
-              <Text style={styles.modernStatNumber}>{paymentMethods.length}</Text>
-              <Text style={styles.modernStatLabel}>Payment Methods</Text>
-            </TouchableOpacity>
+              <Text style={styles.statNumber}>{paymentMethods.length}</Text>
+              <Text style={styles.statLabel}>Payment Methods</Text>
+            </View>
 
-            <TouchableOpacity style={[styles.modernStatCard, styles.secondaryStatCard]}>
-              <View style={styles.statCardHeader}>
-                <View style={styles.statIconWrapper}>
-                  <Text style={styles.statIcon}>✅</Text>
+            <View style={styles.statCard}>
+              <View style={styles.statHeader}>
+                <View style={styles.statIcon}>
+                  <Text style={styles.statIconText}>✅</Text>
                 </View>
                 <View style={styles.statBadge}>
                   <Text style={styles.statBadgeText}>STATUS</Text>
                 </View>
               </View>
-              <Text style={[styles.modernStatNumber, { color: paymentMethods.length > 0 ? colors.success : colors.warning }]}>
+              <Text style={[styles.statNumber, { color: paymentMethods.length > 0 ? colors.success : colors.warning }]}>
                 {paymentMethods.length > 0 ? 'Ready' : 'Setup'}
               </Text>
-              <Text style={styles.modernStatLabel}>Payment Status</Text>
-            </TouchableOpacity>
+              <Text style={styles.statLabel}>Payment Status</Text>
+            </View>
           </View>
 
-          <TouchableOpacity style={[styles.modernStatCard, styles.tertiaryStatCard, styles.fullWidthCard]}>
-            <View style={styles.statCardHeader}>
-              <View style={styles.statIconWrapper}>
-                <Text style={styles.statIcon}>🎁</Text>
+          {/* Free Leads Card */}
+          <View style={styles.freeLeadsCard}>
+            <View style={styles.freeLeadsHeader}>
+              <View style={styles.freeLeadsIcon}>
+                <Text style={styles.freeLeadsIconText}>🎁</Text>
               </View>
-              <View style={styles.statBadge}>
-                <Text style={styles.statBadgeText}>FREE</Text>
+              <View style={styles.freeLeadsBadge}>
+                <Text style={styles.freeLeadsBadgeText}>FREE</Text>
               </View>
             </View>
-            <Text style={styles.modernStatNumber}>3</Text>
-            <Text style={styles.modernStatLabel}>Free Leads Remaining</Text>
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.freeLeadsNumber}>3</Text>
+            <Text style={styles.freeLeadsLabel}>Free Leads Remaining</Text>
+          </View>
 
         {/* Modern Payment Methods Section */}
         <View style={styles.modernPaymentMethodsContainer}>
@@ -320,55 +332,64 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onNavigate, onBack }) => 
           )}
         </View>
 
-       {/* Add Payment Method Form */}
-       {showAddPaymentForm && (
-         <Card style={styles.paymentFormCard}>
-           <Card.Content>
-             <SimplePaymentForm
-               onSuccess={handleAddPaymentSuccess}
-               onCancel={handleAddPaymentCancel}
-             />
-           </Card.Content>
-         </Card>
-       )}
+          {/* Add New Payment Method Section */}
+          {showAddPaymentForm && (
+            <View style={styles.addPaymentCard}>
+              <View style={styles.addPaymentHeader}>
+                <View style={styles.addPaymentIcon}>
+                  <Text style={styles.addPaymentIconText}>💳</Text>
+                </View>
+                <View style={styles.addPaymentText}>
+                  <Text style={styles.addPaymentTitle}>Add New Payment Method</Text>
+                  <Text style={styles.addPaymentSubtitle}>
+                    Enter your card details to add a new payment method
+                  </Text>
+                </View>
+              </View>
+              
+              <SimplePaymentForm
+                onSuccess={handleAddPaymentSuccess}
+                onCancel={handleAddPaymentCancel}
+              />
+            </View>
+          )}
 
-        {/* Modern Information Section */}
-        <View style={styles.modernInfoContainer}>
-          <View style={styles.modernInfoHeader}>
-            <Text style={styles.modernInfoTitle}>Payment Information</Text>
-            <Text style={styles.modernInfoSubtitle}>How billing and security work</Text>
-          </View>
-          
-          <View style={styles.modernInfoGrid}>
-            <View style={styles.modernInfoCard}>
-              <View style={styles.modernInfoCardHeader}>
-                <Text style={styles.modernInfoCardIcon}>💰</Text>
-                <Text style={styles.modernInfoCardTitle}>How Billing Works</Text>
-              </View>
-              <View style={styles.modernInfoList}>
-                <Text style={styles.modernInfoListItem}>• Your first 3 leads are completely FREE</Text>
-                <Text style={styles.modernInfoListItem}>• After that, you're charged only when you accept a lead</Text>
-                <Text style={styles.modernInfoListItem}>• Pricing varies by service category and location</Text>
-                <Text style={styles.modernInfoListItem}>• Charges are processed using your primary payment method</Text>
-              </View>
-            </View>
-            
-            <View style={styles.modernInfoCard}>
-              <View style={styles.modernInfoCardHeader}>
-                <Text style={styles.modernInfoCardIcon}>🔒</Text>
-                <Text style={styles.modernInfoCardTitle}>Security & Privacy</Text>
-              </View>
-              <View style={styles.modernInfoList}>
-                <Text style={styles.modernInfoListItem}>• All payments processed securely by Stripe</Text>
-                <Text style={styles.modernInfoListItem}>• Your card details are never stored on our servers</Text>
-                <Text style={styles.modernInfoListItem}>• Industry-standard encryption protects your data</Text>
-                <Text style={styles.modernInfoListItem}>• PCI DSS compliant payment processing</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Animated.View>
-    </ScrollView>
+          <View style={styles.modernInfoContainer}>
+  <View style={styles.modernInfoHeader}>
+    <Text style={styles.modernInfoTitle}>Payment Information</Text>
+    <Text style={styles.modernInfoSubtitle}>How billing and security work</Text>
+  </View>
+  <View style={styles.modernInfoGrid}>
+    <View style={styles.modernInfoCard}>
+      <View style={styles.modernInfoCardHeader}>
+        <Text style={styles.modernInfoCardIcon}>💰</Text>
+        <Text style={styles.modernInfoCardTitle}>How Billing Works</Text>
+      </View>
+      <View style={styles.modernInfoList}>
+        <Text style={styles.modernInfoListItem}>• Your first 3 leads are completely FREE</Text>
+        <Text style={styles.modernInfoListItem}>• After that, you're charged only when you accept a lead</Text>
+        <Text style={styles.modernInfoListItem}>• Pricing varies by service category and location</Text>
+        <Text style={styles.modernInfoListItem}>• Charges are processed using your primary payment method</Text>
+      </View>
+    </View>
+    <View style={styles.modernInfoCard}>
+      <View style={styles.modernInfoCardHeader}>
+        <Text style={styles.modernInfoCardIcon}>🔒</Text>
+        <Text style={styles.modernInfoCardTitle}>Security & Privacy</Text>
+      </View>
+      <View style={styles.modernInfoList}>
+        <Text style={styles.modernInfoListItem}>• All payments processed securely by Stripe</Text>
+        <Text style={styles.modernInfoListItem}>• Your card details are never stored on our servers</Text>
+        <Text style={styles.modernInfoListItem}>• Industry-standard encryption protects your data</Text>
+        <Text style={styles.modernInfoListItem}>• PCI DSS compliant payment processing</Text>
+      </View>
+    </View>
+  </View>
+</View>
+
+        </Animated.View>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -376,369 +397,417 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
-    padding: 16,
   },
   header: {
-    marginBottom: 12,
-  },
-  pageTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  pageSubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 16,
-  },
-  statusCardsContainer: {
-    marginBottom: 12,
-  },
-  statusCardsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
-  statusCard: {
-    flex: 1,
-    marginHorizontal: 3,
-    elevation: 1,
-  },
-  statusCardContent: {
-    padding: 10,
-  },
-  statusCardHeader: {
+  backButton: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  statusIcon: {
+  backButtonText: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  addMethodButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addMethodButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  animatedContainer: {
+    padding: 20,
+  },
+  // Overview Card
+  overviewCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  overviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  overviewIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fef3c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  overviewIconText: {
+    fontSize: 20,
+  },
+  overviewText: {
+    flex: 1,
+  },
+  overviewTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  overviewSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  // Stats Grid
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  statHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 12,
+  },
+  statIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
+    backgroundColor: colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
   },
-  iconText: {
-    fontSize: 18,
-  },
-  statusCardText: {
-    flex: 1,
-  },
-  statusCardLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  statusCardValue: {
+  statIconText: {
     fontSize: 16,
+  },
+  statBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
     fontWeight: 'bold',
   },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  // Free Leads Card
+  freeLeadsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  freeLeadsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 12,
+  },
+  freeLeadsIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fef3c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  freeLeadsIconText: {
+    fontSize: 16,
+  },
+  freeLeadsBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  freeLeadsBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  freeLeadsNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  freeLeadsLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  // Payment Methods Card
   paymentMethodsCard: {
-    marginBottom: 8,
-    elevation: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   paymentMethodsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 20,
   },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  addButton: {
-    marginLeft: 4,
-  },
-  buttonLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  loadingContainer: {
+  paymentMethodsTitleContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 10,
   },
-  loadingText: {
-    marginTop: 4,
-    color: colors.textSecondary,
-    fontSize: 11,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    padding: 10,
-  },
-  emptyIcon: {
-    fontSize: 28,
+  paymentMethodsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
     marginBottom: 4,
   },
-  emptyTitle: {
+  paymentMethodsSubtitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  emptyText: {
-    fontSize: 10,
     color: colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: 8,
-    lineHeight: 14,
   },
-  paymentMethodsList: {
-    gap: 8,
-  },
-  paymentMethodItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  addMethodButtonSmall: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderRadius: 8,
   },
-  paymentMethodInfo: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    flex: 1,
-    marginRight: 8,
+  addMethodButtonSmallText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  paymentMethodIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  cardImageContainer: {
+    marginBottom: 16,
+  },
+  cardImage: {
+    width: 60,
+    height: 40,
+    backgroundColor: '#fbbf24',
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.primary + '10',
-    marginRight: 8,
-    marginTop: 2,
+    borderWidth: 1,
+    borderColor: '#000',
+  },
+  cardImageText: {
+    fontSize: 20,
+    color: '#000',
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  paymentMethodsList: {
+    gap: 12,
+  },
+  paymentMethodItem: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  paymentMethodHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  paymentMethodIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   paymentMethodIconText: {
-    fontSize: 14,
+    fontSize: 16,
   },
-  paymentMethodDetails: {
+  paymentMethodInfo: {
     flex: 1,
   },
   paymentMethodTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    lineHeight: 14,
-  },
-  paymentMethodSubtitle: {
-    fontSize: 9,
-    color: colors.textSecondary,
-    marginTop: 1,
-    lineHeight: 12,
-  },
-  primaryBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  primaryBadgeText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  paymentMethodRight: {
-    alignItems: 'flex-end',
-    gap: 4,
-    minWidth: 120,
-  },
-  paymentMethodActions: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  actionButton: {
-    marginBottom: 4,
-    height: 40,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    minWidth: 110,
-  },
-  deleteButton: {
-    borderRadius: 6,
-    height: 40,
-    paddingHorizontal: 16,
-    minWidth: 110,
-  },
-  infoCard: {
-    marginTop: 12,
-    elevation: 1,
-  },
-  infoGrid: {
-    flexDirection: 'column',
-    marginTop: 8,
-  },
-  infoSection: {
-    marginBottom: 16,
-  },
-  infoSectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 8,
+    color: colors.text,
+    marginBottom: 4,
   },
-  infoList: {
-    gap: 4,
-  },
-  infoListItem: {
-    fontSize: 11,
+  paymentMethodSubtitle: {
+    fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 3,
-    lineHeight: 14,
   },
-  paymentFormCard: {
-    marginBottom: 12,
-    elevation: 1,
+  primaryBadge: {
+    backgroundColor: colors.success + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  // Modern Styles
-  animatedContainer: {
-    flex: 1,
+  primaryBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: colors.success,
   },
-  // Modern Header
-  modernHeader: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    paddingTop: Platform.OS === 'ios' ? 60 : 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  headerContent: {
+  paymentMethodActions: {
     flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
     alignItems: 'center',
   },
-  headerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary + '15',
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  deleteButton: {
+    borderColor: colors.error + '50',
+    backgroundColor: colors.error + '10',
+  },
+  deleteButtonText: {
+    color: colors.error,
+  },
+  // Add Payment Card
+  addPaymentCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  addPaymentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  addPaymentIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fef3c7',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
-  headerEmoji: {
-    fontSize: 24,
-  },
-  headerText: {
-    flex: 1,
-  },
-  modernTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  modernSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  // Modern Stats Container
-  modernStatsContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    gap: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modernStatCard: {
-    padding: 20,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    alignItems: 'center',
-    flex: 1,
-  },
-  fullWidthCard: {
-    flex: 1,
-  },
-  primaryStatCard: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: colors.primary + '20',
-  },
-  secondaryStatCard: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: colors.success + '20',
-  },
-  tertiaryStatCard: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: colors.warning + '20',
-  },
-  statCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    width: '100%',
-  },
-  statIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statIcon: {
+  addPaymentIconText: {
     fontSize: 20,
   },
-  statBadge: {
-    backgroundColor: colors.primary + '20',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+  addPaymentText: {
+    flex: 1,
   },
-  statBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: 0.5,
-  },
-  modernStatNumber: {
-    fontSize: 28,
-    fontWeight: '800',
+  addPaymentTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 8,
-    letterSpacing: -1,
-    textAlign: 'center',
+    marginBottom: 4,
   },
-  modernStatLabel: {
+  addPaymentSubtitle: {
     fontSize: 14,
-    fontWeight: '600',
     color: colors.textSecondary,
-    textAlign: 'center',
+    lineHeight: 20,
   },
-  // Modern Payment Methods Container
+  // Modern Payment Methods Styles
   modernPaymentMethodsContainer: {
-    marginHorizontal: 20,
-    marginTop: 24,
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   modernSectionHeader: {
     flexDirection: 'row',
@@ -750,51 +819,42 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modernSectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 18,
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
-    letterSpacing: -0.3,
   },
   modernSectionSubtitle: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: '500',
   },
   modernAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   addButtonIcon: {
-    fontSize: 18,
-    fontWeight: '700',
     color: '#ffffff',
-    marginRight: 8,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 4,
   },
   addButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
     color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  // Modern Loading and Empty States
   modernLoadingContainer: {
     alignItems: 'center',
     paddingVertical: 40,
   },
   modernLoadingText: {
-    fontSize: 16,
+    marginTop: 12,
+    fontSize: 14,
     color: colors.textSecondary,
-    marginTop: 16,
-    fontWeight: '500',
   },
   modernEmptyContainer: {
     alignItems: 'center',
@@ -805,8 +865,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modernEmptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
   },
@@ -816,16 +876,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  // Modern Payment Methods List
   modernPaymentMethodsList: {
     gap: 12,
   },
   modernPaymentMethodCard: {
     backgroundColor: '#f8fafc',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: '#e5e7eb',
   },
   modernPaymentMethodHeader: {
     flexDirection: 'row',
@@ -833,41 +892,39 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   modernPaymentMethodIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   modernPaymentMethodIconText: {
-    fontSize: 18,
+    fontSize: 16,
   },
   modernPaymentMethodInfo: {
     flex: 1,
   },
   modernPaymentMethodTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
-    letterSpacing: -0.2,
   },
   modernPaymentMethodSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: '500',
   },
   modernPrimaryBadge: {
     backgroundColor: colors.success + '20',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   modernPrimaryBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: 'bold',
     color: colors.success,
   },
   modernPaymentMethodActions: {
@@ -876,43 +933,29 @@ const styles = StyleSheet.create({
   },
   modernActionButton: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#e5e7eb',
     alignItems: 'center',
   },
   modernActionButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.text,
   },
   modernDeleteButton: {
-    borderColor: colors.error + '30',
-    backgroundColor: colors.error + '05',
+    borderColor: colors.error + '50',
+    backgroundColor: colors.error + '10',
   },
   modernDeleteButtonText: {
     color: colors.error,
   },
-  // Modern Payment Form Container
-  modernPaymentFormContainer: {
-    marginHorizontal: 20,
-    marginTop: 24,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  // Modern Info Container
+  // Modern Info Section Styles
   modernInfoContainer: {
-    marginHorizontal: 20,
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 32,
   },
   modernInfoHeader: {
@@ -920,10 +963,9 @@ const styles = StyleSheet.create({
   },
   modernInfoTitle: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
-    letterSpacing: -0.3,
   },
   modernInfoSubtitle: {
     fontSize: 14,
@@ -954,9 +996,8 @@ const styles = StyleSheet.create({
   },
   modernInfoCardTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text,
-    letterSpacing: -0.2,
   },
   modernInfoList: {
     gap: 8,
@@ -970,14 +1011,3 @@ const styles = StyleSheet.create({
 });
 
 module.exports = PaymentScreen;
-
-
-
-
-
-
-
-
-
-
-

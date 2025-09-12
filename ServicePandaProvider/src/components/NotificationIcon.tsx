@@ -1,5 +1,5 @@
 const React = require('react');
-const { View, Text, TouchableOpacity, StyleSheet } = require('react-native');
+const { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } = require('react-native');
 const { IconButton } = require('react-native-paper');
 const { colors } = require('../utils/theme');
 
@@ -15,6 +15,50 @@ interface NotificationIconProps {
 }
 
 function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification }: NotificationIconProps) {
+  const [showPreview, setShowPreview] = React.useState(false);
+  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  const badgeScale = React.useRef(new Animated.Value(0)).current;
+
+  // Pulse animation for unread notifications
+  React.useEffect(() => {
+    if (unreadCount > 0) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+    }
+  }, [unreadCount]);
+
+  // Badge animation
+  React.useEffect(() => {
+    if (unreadCount > 0) {
+      Animated.spring(badgeScale, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(badgeScale, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [unreadCount]);
+
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -29,24 +73,60 @@ function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification 
     }
   };
 
+  const handlePress = () => {
+    // Scale animation on press
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.9,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    
+    onPress();
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.iconContainer}>
-        <IconButton
-          icon="bell"
-          size={size}
-          iconColor={colors.text}
-          onPress={onPress}
+      <Animated.View 
+        style={[
+          styles.iconContainer,
+          {
+            transform: [
+              { scale: scaleAnim },
+              { scale: pulseAnim },
+            ],
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={handlePress}
           style={styles.iconButton}
-        />
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.bellIcon, { fontSize: size }]}>🔔</Text>
+        </TouchableOpacity>
+        
         {unreadCount > 0 && (
-          <View style={styles.badge}>
+          <Animated.View 
+            style={[
+              styles.badge,
+              {
+                transform: [{ scale: badgeScale }],
+              },
+            ]}
+          >
             <Text style={styles.badgeText}>
               {unreadCount > 99 ? '99+' : unreadCount}
             </Text>
-          </View>
+          </Animated.View>
         )}
-      </View>
+      </Animated.View>
       
       {/* Latest notification preview */}
       {latestNotification && unreadCount > 0 && (
@@ -79,6 +159,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     width: 40,
     height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bellIcon: {
+    color: colors.text,
   },
   badge: {
     position: 'absolute',

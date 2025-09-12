@@ -395,6 +395,7 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                       onPress={() => handleDeleteServiceArea(area.id)}
                     />
                   </View>
+
                 </View>
                 {index < serviceAreas.length - 1 && <Divider style={styles.itemDivider} />}
               </View>
@@ -632,3 +633,4 @@ const styles = StyleSheet.create({
 });
 
 module.exports = ServiceAreaScreen;
+

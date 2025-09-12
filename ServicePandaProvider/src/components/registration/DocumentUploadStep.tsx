@@ -10,8 +10,12 @@ const {
   Alert,
   Platform,
   Image,
+  Animated,
+  Dimensions,
 } = require('react-native');
 const { colors } = require('../../utils/theme');
+
+const { width } = Dimensions.get('window');
 
 // Document upload component for registration
 

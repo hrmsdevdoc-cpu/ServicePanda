@@ -18,7 +18,12 @@ const { colors } = require('../utils/theme');
 
 const { width } = Dimensions.get('window');
 
-const SimplePaymentForm = ({ onSuccess, onCancel }) => {
+interface SimplePaymentFormProps {
+  onSuccess: () => void;
+  onCancel: () => void;
+}
+
+const SimplePaymentForm: React.FC<SimplePaymentFormProps> = ({ onSuccess, onCancel }) => {
   const { providerData } = useAuth();
   const queryClient = useQueryClient();
   
@@ -37,33 +42,63 @@ const SimplePaymentForm = ({ onSuccess, onCancel }) => {
   const slideAnim = React.useRef(new Animated.Value(30)).current;
 
   const addPaymentMethodMutation = useMutation({
-    mutationFn: async (paymentData) => {
-      // For now, just simulate adding a payment method
-      // Later you can integrate with your actual payment API
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({ success: true, id: Date.now() });
-        }, 1000);
-      });
+    mutationFn: async (paymentData: any) => {
+      try {
+        console.log('🔍 Creating payment method with data:', paymentData);
+        console.log('🔍 Provider ID:', providerData?.id);
+        
+        // Create payment method data for API
+        const paymentMethodData = {
+          cardholderName: paymentData.cardholderName,
+          cardNumber: paymentData.cardNumber.replace(/\s/g, ''),
+          expiryMonth: paymentData.expiryMonth,
+          expiryYear: paymentData.expiryYear,
+          cvv: paymentData.cvv,
+          cardLastFour: paymentData.cardNumber.slice(-4),
+          cardBrand: getCardBrand(paymentData.cardNumber),
+        };
+
+        console.log('🔍 Calling API with payment method data:', paymentMethodData);
+        
+        // Call the API service to add payment method
+        const result = await apiService.addPaymentMethod(providerData?.id, paymentMethodData);
+        console.log('✅ API response:', result);
+        
+        return result;
+      } catch (error) {
+        console.error('❌ Payment method creation failed:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/provider/payment-methods'] });
       Alert.alert('Success', 'Payment method added successfully!');
       onSuccess();
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('❌ Payment method addition error:', error);
       Alert.alert('Error', error.message || 'Failed to add payment method.');
     },
   });
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
+  // Helper function to detect card brand
+  const getCardBrand = (cardNumber: string) => {
+    const cleaned = cardNumber.replace(/\s/g, '');
+    if (cleaned.startsWith('4')) return 'Visa';
+    if (cleaned.startsWith('5') || cleaned.startsWith('2')) return 'Mastercard';
+    if (cleaned.startsWith('3')) return 'American Express';
+    if (cleaned.startsWith('6')) return 'Discover';
+    return 'Unknown';
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev: any) => ({
       ...prev,
       [field]: value
     }));
   };
 
-  const formatCardNumber = (text) => {
+  const formatCardNumber = (text: string) => {
     // Remove all non-digits
     const cleaned = text.replace(/\D/g, '');
     // Add spaces every 4 digits
@@ -71,7 +106,7 @@ const SimplePaymentForm = ({ onSuccess, onCancel }) => {
     return formatted;
   };
 
-  const formatExpiry = (text) => {
+  const formatExpiry = (text: string) => {
     // Remove all non-digits
     const cleaned = text.replace(/\D/g, '');
     // Add slash after 2 digits
@@ -107,17 +142,26 @@ const SimplePaymentForm = ({ onSuccess, onCancel }) => {
     setIsProcessing(true);
     
     try {
-      // Create a mock payment method object
+      console.log('🔍 Starting payment method submission...');
+      console.log('🔍 Form data:', formData);
+      console.log('🔍 Provider data:', providerData);
+      
+      // Create payment method object with all required data
       const paymentMethod = {
         cardholderName: formData.cardholderName,
+        cardNumber: formData.cardNumber.replace(/\s/g, ''),
+        expiryMonth: formData.expiryMonth,
+        expiryYear: formData.expiryYear,
+        cvv: formData.cvv,
         cardLastFour: formData.cardNumber.slice(-4),
-        cardBrand: 'Visa', // You can detect this based on card number
-        cardExpMonth: formData.expiryMonth,
-        cardExpYear: formData.expiryYear,
+        cardBrand: getCardBrand(formData.cardNumber),
       };
+      
+      console.log('🔍 Payment method object:', paymentMethod);
       
       await addPaymentMethodMutation.mutateAsync(paymentMethod);
     } catch (error) {
+      console.error('❌ Submit error:', error);
       Alert.alert('Error', 'Failed to add payment method');
     } finally {
       setIsProcessing(false);
@@ -150,126 +194,100 @@ const SimplePaymentForm = ({ onSuccess, onCancel }) => {
         }
       ]}
     >
-       <View style={styles.modernFormContent}>
-         <View style={styles.modernFormHeader}>
-           <View style={styles.headerIcon}>
-             <Text style={styles.headerEmoji}>💳</Text>
-           </View>
-           <View style={styles.headerText}>
-             <Text style={styles.modernTitle}>Add New Payment Method</Text>
-             <Text style={styles.modernSubtitle}>
-               Enter your card details to add a new payment method
-             </Text>
-           </View>
-         </View>
-        {/* Cardholder Name */}
-        <View style={styles.modernInputContainer}>
-          <Text style={styles.modernLabel}>Cardholder Name *</Text>
-          <TextInput
-            style={styles.modernTextInput}
-            placeholder="John Smith"
-            placeholderTextColor={colors.textTertiary}
-            value={formData.cardholderName}
-            onChangeText={(value) => handleInputChange('cardholderName', value)}
-            autoCapitalize="words"
-            autoCorrect={false}
-          />
-        </View>
+      {/* Cardholder Name */}
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Cardholder Name *</Text>
+        <TextInput
+          style={styles.textInput}
+          placeholder="John Smith"
+          placeholderTextColor="#9ca3af"
+          value={formData.cardholderName}
+          onChangeText={(value: string) => handleInputChange('cardholderName', value)}
+          autoCapitalize="words"
+          autoCorrect={false}
+        />
+      </View>
 
-        {/* Card Number */}
-        <View style={styles.modernInputContainer}>
-          <Text style={styles.modernLabel}>Card Number *</Text>
+      {/* Card Number */}
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Card Number *</Text>
+        <TextInput
+          style={styles.textInput}
+          placeholder="1234 5678 9012 3456"
+          placeholderTextColor="#9ca3af"
+          value={formData.cardNumber}
+          onChangeText={(value: string) => handleInputChange('cardNumber', formatCardNumber(value))}
+          keyboardType="numeric"
+          maxLength={19} // 16 digits + 3 spaces
+        />
+      </View>
+
+      {/* Expiry and CVV Row */}
+      <View style={styles.row}>
+        {/* Expiry Month */}
+        <View style={[styles.inputContainer, styles.halfWidth]}>
+          <Text style={styles.label}>Expiry Month *</Text>
           <TextInput
-            style={styles.modernTextInput}
-            placeholder="1234 5678 9012 3456"
-            placeholderTextColor={colors.textTertiary}
-            value={formData.cardNumber}
-            onChangeText={(value) => handleInputChange('cardNumber', formatCardNumber(value))}
+            style={styles.textInput}
+            placeholder="MM"
+            placeholderTextColor="#9ca3af"
+            value={formData.expiryMonth}
+            onChangeText={(value: string) => handleInputChange('expiryMonth', value.replace(/\D/g, '').slice(0, 2))}
             keyboardType="numeric"
-            maxLength={19} // 16 digits + 3 spaces
+            maxLength={2}
           />
         </View>
 
-        {/* Expiry and CVV Row */}
-        <View style={styles.modernRow}>
-          {/* Expiry Month */}
-          <View style={[styles.modernInputContainer, styles.modernHalfWidth]}>
-            <Text style={styles.modernLabel}>Expiry Month *</Text>
-            <TextInput
-              style={styles.modernTextInput}
-              placeholder="MM"
-              placeholderTextColor={colors.textTertiary}
-              value={formData.expiryMonth}
-              onChangeText={(value) => handleInputChange('expiryMonth', value.replace(/\D/g, '').slice(0, 2))}
-              keyboardType="numeric"
-              maxLength={2}
-            />
-          </View>
-
-          {/* Expiry Year */}
-          <View style={[styles.modernInputContainer, styles.modernHalfWidth]}>
-            <Text style={styles.modernLabel}>Expiry Year *</Text>
-            <TextInput
-              style={styles.modernTextInput}
-              placeholder="YY"
-              placeholderTextColor={colors.textTertiary}
-              value={formData.expiryYear}
-              onChangeText={(value) => handleInputChange('expiryYear', value.replace(/\D/g, '').slice(0, 2))}
-              keyboardType="numeric"
-              maxLength={2}
-            />
-          </View>
-
-          {/* CVV */}
-          <View style={[styles.modernInputContainer, styles.modernHalfWidth]}>
-            <Text style={styles.modernLabel}>CVV *</Text>
-            <TextInput
-              style={styles.modernTextInput}
-              placeholder="123"
-              placeholderTextColor={colors.textTertiary}
-              value={formData.cvv}
-              onChangeText={(value) => handleInputChange('cvv', value.replace(/\D/g, '').slice(0, 4))}
-              keyboardType="numeric"
-              maxLength={4}
-              secureTextEntry={true}
-            />
-          </View>
+        {/* Expiry Year */}
+        <View style={[styles.inputContainer, styles.halfWidth]}>
+          <Text style={styles.label}>Expiry Year *</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="YY"
+            placeholderTextColor="#9ca3af"
+            value={formData.expiryYear}
+            onChangeText={(value: string) => handleInputChange('expiryYear', value.replace(/\D/g, '').slice(0, 2))}
+            keyboardType="numeric"
+            maxLength={2}
+          />
         </View>
 
-        {/* Modern Information */}
-        <View style={styles.modernInfoContainer}>
-          <View style={styles.modernInfoCard}>
-            <View style={styles.modernInfoHeader}>
-              <Text style={styles.modernInfoIcon}>🔒</Text>
-              <Text style={styles.modernInfoTitle}>Secure Payment</Text>
-            </View>
-            <View style={styles.modernInfoList}>
-              <Text style={styles.modernInfoItem}>• Your card information is securely processed</Text>
-              <Text style={styles.modernInfoItem}>• You will be charged only when you accept a lead</Text>
-              <Text style={styles.modernInfoItem}>• Your first 3 leads are completely FREE</Text>
-            </View>
-          </View>
+        {/* CVV */}
+        <View style={[styles.inputContainer, styles.halfWidth]}>
+          <Text style={styles.label}>CVV *</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="123"
+            placeholderTextColor="#9ca3af"
+            value={formData.cvv}
+            onChangeText={(value: string) => handleInputChange('cvv', value.replace(/\D/g, '').slice(0, 4))}
+            keyboardType="numeric"
+            maxLength={4}
+            secureTextEntry={true}
+          />
         </View>
+      </View>
 
-        {/* Modern Action Buttons */}
-        <View style={styles.modernButtonContainer}>
-          <TouchableOpacity
-            style={styles.modernCancelButton}
-            onPress={onCancel}
-            disabled={isProcessing}
-          >
-            <Text style={styles.modernCancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modernSubmitButton, isProcessing && styles.modernSubmitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={isProcessing}
-          >
-            <Text style={styles.modernSubmitButtonText}>
-              {isProcessing ? 'Adding...' : 'Add Payment Method'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+
+
+      {/* Action Buttons */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={onCancel}
+          disabled={isProcessing}
+        >
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.submitButton, isProcessing && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={isProcessing}
+        >
+          <Text style={styles.submitButtonText}>
+            {isProcessing ? 'Adding...' : 'Add Payment Method'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </Animated.View>
   );
@@ -280,166 +298,102 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     padding: 0,
   },
-  // Modern Form Header
-  modernFormHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+  inputContainer: {
+    marginBottom: 16,
   },
-  headerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  headerEmoji: {
-    fontSize: 24,
-  },
-  headerText: {
-    flex: 1,
-  },
-  modernTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  modernSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  // Modern Form Content
-  modernFormContent: {
-    gap: 20,
-    backgroundColor: 'transparent',
-    padding: 0,
-  },
-  modernInputContainer: {
-    marginBottom: 0,
-  },
-  modernHalfWidth: {
+  halfWidth: {
     flex: 1,
     marginRight: 12,
   },
-  modernRow: {
+  row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
   },
-  modernLabel: {
-    fontSize: 16,
-    fontWeight: '700',
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
     marginBottom: 8,
     color: colors.text,
-    letterSpacing: -0.2,
   },
-  modernTextInput: {
-    borderWidth: 2,
-    borderColor: colors.borderLight,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    backgroundColor: '#f8fafc',
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 14,
+    backgroundColor: '#ffffff',
     color: colors.text,
-    fontWeight: '500',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
   },
-  // Modern Information
-  modernInfoContainer: {
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
     marginTop: 8,
-    marginBottom: 24,
   },
-  modernInfoCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    padding: 20,
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  submitButton: {
+    flex: 2,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#9ca3af',
+  },
+  submitButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  // Debug styles
+  debugSection: {
+    backgroundColor: colors.background,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
-  modernInfoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  modernInfoIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  modernInfoTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+  debugTitle: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.text,
-    letterSpacing: -0.2,
+    marginBottom: 8,
   },
-  modernInfoList: {
-    gap: 8,
-  },
-  modernInfoItem: {
-    fontSize: 14,
+  debugText: {
+    fontSize: 10,
     color: colors.textSecondary,
-    lineHeight: 20,
-    fontWeight: '500',
+    marginBottom: 4,
   },
-  // Modern Buttons
-  modernButtonContainer: {
-    flexDirection: 'row',
-    gap: 12,
+  debugButton: {
+    backgroundColor: colors.primary + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginTop: 8,
   },
-  modernCancelButton: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: colors.primary,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  modernCancelButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+  debugButtonText: {
+    fontSize: 10,
     color: colors.primary,
-  },
-  modernSubmitButton: {
-    flex: 2,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  modernSubmitButtonDisabled: {
-    backgroundColor: colors.textTertiary,
-    shadowOpacity: 0.1,
-  },
-  modernSubmitButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ffffff',
+    fontWeight: '600',
   },
 });
 
