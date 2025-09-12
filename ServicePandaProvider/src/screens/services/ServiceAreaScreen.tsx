@@ -19,6 +19,15 @@ import {
 } from 'react-native-paper';
 import CustomAddressAutocomplete from '../../components/CustomAddressAutocomplete';
 import SimpleAddressInput from '../../components/SimpleAddressInput';
+import ServiceAreaMapFallback from '../../components/ServiceAreaMapFallback';
+
+// Try to import react-native-maps, fallback to null if not available
+let ServiceAreaMap: any = null;
+try {
+  ServiceAreaMap = require('../../components/ServiceAreaMap').default;
+} catch (error) {
+  console.log('react-native-maps not available, using fallback map');
+}
 const { colors } = require('../../utils/theme');
 
 interface ServiceArea {
@@ -43,6 +52,7 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
   const [areaName, setAreaName] = useState('');
   const [showRadiusDropdown, setShowRadiusDropdown] = useState(false);
   const [useSimpleInput, setUseSimpleInput] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([
     {
       id: '1',
@@ -145,6 +155,7 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
     setAddressDetails(null);
     setAreaName('');
     setRadius('25 km radius');
+    setSelectedLocation(null);
   };
 
   const handleDeleteServiceArea = (id: string) => {
@@ -168,9 +179,17 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
     if (addressDetails && addressDetails.geometry) {
       const lat = addressDetails.geometry.location.lat;
       const lng = addressDetails.geometry.location.lng;
+      
+      // Update the selected location for map preview
+      setSelectedLocation({
+        lat: lat,
+        lng: lng,
+        address: address
+      });
+      
       Alert.alert(
         'Location Found', 
-        `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}\nAddress: ${address}`,
+        `Address located on map!\n\nCoordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}\nAddress: ${address}`,
         [{ text: 'OK' }]
       );
     } else {
@@ -247,12 +266,12 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                 <View style={styles.addressInputContainer}>
                   {useSimpleInput ? (
                     <SimpleAddressInput
-                      value={address}
+                  value={address}
                       onChange={setAddress}
-                      placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                  placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
                       label="Service Location Address"
                       required={true}
-                      style={styles.addressInput}
+                  style={styles.addressInput}
                     />
                   ) : (
                     <CustomAddressAutocomplete
@@ -260,6 +279,10 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                       onChange={(newAddress, details) => {
                         setAddress(newAddress);
                         setAddressDetails(details);
+                        // Clear selected location when typing new address
+                        if (newAddress !== address) {
+                          setSelectedLocation(null);
+                        }
                         // If there's an error, switch to simple input
                         if (details === null && newAddress && newAddress.length > 3) {
                           setUseSimpleInput(true);
@@ -384,12 +407,43 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
             <Text variant="bodyMedium" style={styles.sectionDescription}>
               The green zone shows your service coverage area
             </Text>
+            {selectedLocation ? (
+              <View style={styles.mapContainer}>
+                {ServiceAreaMap ? (
+                  <ServiceAreaMap
+                    latitude={selectedLocation.lat}
+                    longitude={selectedLocation.lng}
+                    radius={parseInt(radius.split(' ')[0])} // Extract number from "25 km radius"
+                    address={selectedLocation.address}
+                  />
+                ) : (
+                  <ServiceAreaMapFallback
+                    latitude={selectedLocation.lat}
+                    longitude={selectedLocation.lng}
+                    radius={parseInt(radius.split(' ')[0])} // Extract number from "25 km radius"
+                    address={selectedLocation.address}
+                  />
+                )}
+                <View style={styles.mapInfo}>
+                  <Text variant="bodySmall" style={styles.mapAddress}>
+                    📍 {selectedLocation.address}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.mapCoords}>
+                    {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.mapRadius}>
+                    Service radius: {radius}
+                  </Text>
+                </View>
+              </View>
+            ) : (
             <View style={styles.previewContainer}>
               <IconButton icon="map-marker" size={48} iconColor={colors.textTertiary} />
               <Text variant="bodyMedium" style={styles.previewText}>
                 Select an address to preview service area
               </Text>
             </View>
+            )}
           </Card.Content>
         </Card>
 
@@ -648,6 +702,31 @@ const styles = StyleSheet.create({
     minHeight: 120,
     borderWidth: 1,
     borderColor: colors.borderLight,
+  },
+  mapContainer: {
+    marginTop: 16,
+  },
+  mapInfo: {
+    backgroundColor: colors.surface,
+    padding: 12,
+    marginTop: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mapAddress: {
+    color: colors.text,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  mapCoords: {
+    color: colors.textSecondary,
+    fontFamily: 'monospace',
+    marginBottom: 4,
+  },
+  mapRadius: {
+    color: colors.primary,
+    fontWeight: '500',
   },
   previewText: {
     color: colors.textSecondary,

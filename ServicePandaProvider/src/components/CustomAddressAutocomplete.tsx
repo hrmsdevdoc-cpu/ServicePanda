@@ -195,6 +195,7 @@ const CustomAddressAutocomplete: React.FC<CustomAddressAutocompleteProps> = ({
           styles.textInputContainer,
           error && styles.textInputError,
           verified && styles.textInputVerified,
+          style,
         ]}>
           <Text style={styles.mapIcon}>📍</Text>
           <RNTextInput
