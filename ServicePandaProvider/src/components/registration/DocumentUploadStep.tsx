@@ -98,9 +98,9 @@ const DocumentUploadStep = ({
 
       console.log('🔍 Selected file:', result);
       
-      // Check file size (4MB limit for server compatibility)
-      if (result.size && result.size > 4 * 1024 * 1024) {
-        Alert.alert('Error', 'File size must be less than 4MB. Please choose a smaller file or compress the image.');
+      // Check file size (10MB limit for server compatibility)
+      if (result.size && result.size > 10 * 1024 * 1024) {
+        Alert.alert('Error', 'File size must be less than 10MB. Please choose a smaller file or compress the image.');
         return;
       }
 
