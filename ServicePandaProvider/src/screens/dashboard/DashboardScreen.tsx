@@ -685,13 +685,13 @@ function DashboardScreen({ onNavigate }) {
                 <Text style={styles.modernActivitySubtitle}>Stay updated with your latest activities</Text>
               </View>
             </View>
-            <TouchableOpacity 
+            {/* <TouchableOpacity 
               style={styles.viewAllButton}
               onPress={() => handleNavigation('leads')}
             >
               <Text style={styles.viewAllText}>View All</Text>
               <Text style={styles.viewAllArrow}>→</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
             
           {activitiesLoading ? (

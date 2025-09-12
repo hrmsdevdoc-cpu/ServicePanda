@@ -17,6 +17,8 @@ import {
   Divider,
   Surface,
 } from 'react-native-paper';
+import CustomAddressAutocomplete from '../../components/CustomAddressAutocomplete';
+import SimpleAddressInput from '../../components/SimpleAddressInput';
 const { colors } = require('../../utils/theme');
 
 interface ServiceArea {
@@ -36,9 +38,11 @@ interface ServiceAreaScreenProps {
 
 const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreenProps) => {
   const [address, setAddress] = useState('');
+  const [addressDetails, setAddressDetails] = useState<any>(null);
   const [radius, setRadius] = useState('25 km radius');
   const [areaName, setAreaName] = useState('');
   const [showRadiusDropdown, setShowRadiusDropdown] = useState(false);
+  const [useSimpleInput, setUseSimpleInput] = useState(false);
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([
     {
       id: '1',
@@ -138,6 +142,7 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
 
     setServiceAreas([...serviceAreas, newServiceArea]);
     setAddress('');
+    setAddressDetails(null);
     setAreaName('');
     setRadius('25 km radius');
   };
@@ -160,7 +165,17 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
   };
 
   const handleLocate = () => {
-    Alert.alert('Location', 'Location feature would be implemented here');
+    if (addressDetails && addressDetails.geometry) {
+      const lat = addressDetails.geometry.location.lat;
+      const lng = addressDetails.geometry.location.lng;
+      Alert.alert(
+        'Location Found', 
+        `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}\nAddress: ${address}`,
+        [{ text: 'OK' }]
+      );
+    } else {
+      Alert.alert('Location', 'Please select an address from the suggestions first');
+    }
   };
 
   const handleEditServiceArea = (id: string) => {
@@ -199,7 +214,7 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
         </View> */}
 
         <Text variant="titleMedium" style={styles.subtitle}>
-          {/* Configure your service coverage */}
+          Configure your service coverage
         </Text>
 
         {/* Configure Service Area Section */}
@@ -229,20 +244,34 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
 
               {/* Service Location Address */}
               <View style={styles.inputRow}>
-                <TextInput
-                  label="Service Location Address *"
-                  value={address}
-                  onChangeText={setAddress}
-                  placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
-                  mode="outlined"
-                  style={styles.addressInput}
-                  right={
-                    <TextInput.Icon
-                      icon="map-marker"
-                      onPress={handleLocate}
+                <View style={styles.addressInputContainer}>
+                  {useSimpleInput ? (
+                    <SimpleAddressInput
+                      value={address}
+                      onChange={setAddress}
+                      placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                      label="Service Location Address"
+                      required={true}
+                      style={styles.addressInput}
                     />
-                  }
-                />
+                  ) : (
+                    <CustomAddressAutocomplete
+                      value={address}
+                      onChange={(newAddress, details) => {
+                        setAddress(newAddress);
+                        setAddressDetails(details);
+                        // If there's an error, switch to simple input
+                        if (details === null && newAddress && newAddress.length > 3) {
+                          setUseSimpleInput(true);
+                        }
+                      }}
+                      placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                      label="Service Location Address"
+                      required={true}
+                      style={styles.addressInput}
+                    />
+                  )}
+                </View>
                 <Button
                   mode="outlined"
                   onPress={handleLocate}
@@ -252,8 +281,20 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                 </Button>
               </View>
               <Text variant="bodySmall" style={styles.helperText}>
-                Start typing an Australian address to see suggestions, or use "Locate" to find manually entered addresses
+                {useSimpleInput 
+                  ? "Enter the full address manually. Tap 'Switch to Autocomplete' if available."
+                  : "Start typing an Australian address to see suggestions, or use 'Locate' to find manually entered addresses"
+                }
               </Text>
+              
+              <TouchableOpacity
+                style={styles.switchButton}
+                onPress={() => setUseSimpleInput(!useSimpleInput)}
+              >
+                <Text style={styles.switchButtonText}>
+                  {useSimpleInput ? 'Switch to Autocomplete' : 'Switch to Manual Entry'}
+                </Text>
+              </TouchableOpacity>
 
               {/* Service Radius */}
               <View style={styles.radiusContainer}>
@@ -324,10 +365,10 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                 Add Service Area
               </Button>
 
-              {/* Warning Message */}
-              <Surface style={styles.warningSurface}>
-                <Text variant="bodySmall" style={styles.warningText}>
-                  ⚠️ Maps unavailable: You can still add service areas by typing the full address manually (e.g., "123 Main Street, Brisbane QLD 4000")
+              {/* Info Message */}
+              <Surface style={styles.infoSurface}>
+                <Text variant="bodySmall" style={styles.infoText}>
+                  💡 Start typing an address to see suggestions. Select from the dropdown to verify the location.
                 </Text>
               </Surface>
             </View>
@@ -476,8 +517,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 12,
   },
-  addressInput: {
+  addressInputContainer: {
     flex: 1,
+    zIndex: 1,
+  },
+  addressInput: {
     backgroundColor: colors.surface,
   },
   locateButton: {
@@ -544,9 +588,22 @@ const styles = StyleSheet.create({
   helperText: {
     color: colors.textSecondary,
     marginTop: 4,
-    marginBottom: 16,
+    marginBottom: 8,
     fontSize: 12,
     lineHeight: 16,
+  },
+  switchButton: {
+    backgroundColor: colors.primaryContainer,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 4,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+  switchButtonText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '500',
   },
   addButton: {
     marginTop: 8,
@@ -565,6 +622,19 @@ const styles = StyleSheet.create({
   },
   warningText: {
     color: '#92400e',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  infoSurface: {
+    backgroundColor: '#e0f2fe',
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#0ea5e9',
+  },
+  infoText: {
+    color: '#0c4a6e',
     fontSize: 12,
     lineHeight: 16,
   },

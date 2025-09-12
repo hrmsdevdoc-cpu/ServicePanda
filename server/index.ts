@@ -30,7 +30,7 @@ app.use((req, res, next) => {
     'http://127.0.0.1:4000',
     'http://127.0.0.1:3000'
   ];
-  
+
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
@@ -38,11 +38,11 @@ app.use((req, res, next) => {
     // Allow all origins in development
     res.header('Access-Control-Allow-Origin', '*');
   }
-  
+
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
   res.header('Access-Control-Allow-Credentials', 'true');
-  
+
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
   } else {
@@ -52,8 +52,8 @@ app.use((req, res, next) => {
 
 // Health check endpoint for mobile app connectivity testing - must be before Vite setup
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     message: 'ServicePanda API is running'
   });
@@ -94,7 +94,7 @@ app.use((req, res, next) => {
 (async () => {
   // Import storage for the expiration checker
   const { storage } = await import("./storage");
-  
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -118,7 +118,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '3000', 10);
-  
+
   // Start expired lead and offer checker - runs every 5 minutes instead of every minute
   setInterval(async () => {
     try {
@@ -136,7 +136,7 @@ app.use((req, res, next) => {
       // Don't let errors crash the interval
     }
   }, 300000); // Check every 5 minutes instead of every minute
-  
+
   server.listen({
     port,
     host: "0.0.0.0",
