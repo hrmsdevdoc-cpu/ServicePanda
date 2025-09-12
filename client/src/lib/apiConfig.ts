@@ -5,7 +5,6 @@ export const getApiUrl = (endpoint: string): string => {
   // Remove leading slash if present to avoid double slashes
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
   
-  // Always use the static live API URL
   return `${API_BASE_URL}/${cleanEndpoint}`;
 };
 

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { adminApiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import {
@@ -37,11 +37,7 @@ export default function AdminStripeSettings() {
   const { data: stripeSettings, isLoading } = useQuery({
     queryKey: ['/api/admin/stripe-settings'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/stripe-settings', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
+      const response = await adminApiRequest('GET', '/api/admin/stripe-settings');
       return response.json();
     },
   });
@@ -59,7 +55,7 @@ export default function AdminStripeSettings() {
   // Save Stripe settings mutation
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiRequest('POST', '/api/setup/stripe-settings', data);
+      const response = await adminApiRequest('POST', '/api/admin/stripe-settings', data);
       return response.json();
     },
     onSuccess: () => {
