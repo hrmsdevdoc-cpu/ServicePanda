@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MapPin, Check, AlertCircle, Loader2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 interface AddressSuggestion {
   description: string;
@@ -119,11 +120,9 @@ export function AddressInput({
     setLoading(true);
     try {
       // Using Google Places API with Australian bias
-      const response = await fetch(`/api/address/autocomplete?input=${encodeURIComponent(input)}&types=address&components=country:AU`);
-      if (response.ok) {
-        const data = await response.json();
-        setSuggestions(data.predictions || []);
-      }
+      const response = await apiRequest('GET', `api/address/autocomplete?input=${encodeURIComponent(input)}&types=address&components=country:AU`);
+      const data = await response.json();
+      setSuggestions(data.predictions || []);
     } catch (error) {
       console.error('Error fetching address suggestions:', error);
       setSuggestions([]);
