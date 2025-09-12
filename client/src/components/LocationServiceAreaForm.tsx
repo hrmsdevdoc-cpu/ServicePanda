@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, MapPin, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { AddressInput } from "@/components/AddressInput";
 
 interface ServiceArea {
   id?: number;
@@ -426,66 +427,53 @@ export function LocationServiceAreaForm({
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="address">Service Location Address *</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="address"
-                  ref={addressInputRef}
-                  placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
-                  value={currentArea.centerAddress || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setCurrentArea(prev => ({ 
-                      ...prev, 
-                      centerAddress: value,
-                      // Clear coordinates when manually typing to allow manual geocoding
-                      centerLat: undefined,
-                      centerLng: undefined
-                    }));
-                  }}
-                  onFocus={() => {
-                    if (!mapLoaded && window.google && window.google.maps) {
-                      initializeGoogleMaps();
-                      setMapLoaded(true);
+              <AddressInput
+                value={currentArea.centerAddress || ""}
+                onChange={(value) => {
+                  setCurrentArea(prev => ({ 
+                    ...prev, 
+                    centerAddress: value,
+                    // Clear coordinates when manually typing to allow manual geocoding
+                    centerLat: undefined,
+                    centerLng: undefined
+                  }));
+                }}
+                placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                label="Service Location Address"
+                required={true}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={async () => {
+                  if (currentArea.centerAddress && window.google) {
+                    const coords = await geocodeAddress(currentArea.centerAddress);
+                    if (coords) {
+                      setCurrentArea(prev => ({
+                        ...prev,
+                        centerLat: coords.lat.toString(),
+                        centerLng: coords.lng.toString(),
+                      }));
+                      toast({
+                        title: "Address Found",
+                        description: "Address located successfully on map",
+                      });
+                    } else {
+                      toast({
+                        title: "Address Not Found",
+                        description: "Please check the address and try again",
+                        variant: "destructive",
+                      });
                     }
-                  }}
-                  className="flex-1"
-                  autoComplete="off"
-                  style={{ zIndex: 1000 }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={async () => {
-                    if (currentArea.centerAddress && window.google) {
-                      const coords = await geocodeAddress(currentArea.centerAddress);
-                      if (coords) {
-                        setCurrentArea(prev => ({
-                          ...prev,
-                          centerLat: coords.lat.toString(),
-                          centerLng: coords.lng.toString(),
-                        }));
-                        toast({
-                          title: "Address Found",
-                          description: "Address located successfully on map",
-                        });
-                      } else {
-                        toast({
-                          title: "Address Not Found",
-                          description: "Please check the address and try again",
-                          variant: "destructive",
-                        });
-                      }
-                    }
-                  }}
-                  disabled={!currentArea.centerAddress}
-                >
-                  Locate
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Start typing an Australian address to see suggestions, or use "Locate" to find manually entered addresses
-              </p>
+                  }
+                }}
+                disabled={!currentArea.centerAddress}
+                className="w-full"
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                Locate on Map
+              </Button>
             </div>
             
             <div className="space-y-2">
