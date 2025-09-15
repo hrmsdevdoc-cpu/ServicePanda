@@ -338,7 +338,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
       }
       
       // Validate file sizes before upload to prevent HTTP 413
-      const maxFileSize = 4 * 1024 * 1024; // 4MB limit
+      const maxFileSize = 10 * 1024 * 1024; // 10MB limit
       const largeFiles = [];
       
       if (documentFiles.license && documentFiles.license.size > maxFileSize) {
@@ -354,7 +354,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
       if (largeFiles.length > 0) {
         Alert.alert(
           'File Too Large',
-          `The following files are too large (over 4MB):\n\n${largeFiles.join('\n')}\n\nPlease compress or use smaller files.`,
+          `The following files are too large (over 10MB):\n\n${largeFiles.join('\n')}\n\nPlease compress or use smaller files.`,
           [{ text: 'OK' }]
         );
         return;
@@ -436,7 +436,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
       if (error.message && error.message.includes('413')) {
         Alert.alert(
           'File Too Large',
-          'One or more files are too large for upload. Please:\n\n1. Compress your images\n2. Use smaller file sizes (under 500KB)\n3. Try taking new photos with lower quality\n4. Remove and re-add smaller files',
+          'One or more files are too large for upload. Please:\n\n1. Compress your images\n2. Use smaller file sizes (under 10MB)\n3. Try taking new photos with lower quality\n4. Remove and re-add smaller files',
           [{ text: 'OK' }]
         );
       } else if (error.message && error.message.includes('400')) {
