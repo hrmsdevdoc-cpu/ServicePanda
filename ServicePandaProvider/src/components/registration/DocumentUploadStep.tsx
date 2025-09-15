@@ -169,11 +169,19 @@ const DocumentUploadStep = ({
   };
 
   const handleSubmit = () => {
+    console.log('🔍 DocumentUploadStep - handleSubmit called');
+    console.log('🔍 skipDocuments:', skipDocuments);
+    console.log('🔍 isAllDocumentsUploaded():', isAllDocumentsUploaded());
+    console.log('🔍 documentFiles:', documentFiles);
+    
     if (!skipDocuments && !isAllDocumentsUploaded()) {
+      console.log('❌ Validation failed - documents required but not uploaded');
       Alert.alert('Error', 'Please upload all three required documents before proceeding.');
       return;
     }
-    onSubmit();
+    
+    console.log('✅ Validation passed - proceeding with submit');
+    onSubmit(skipDocuments);
   };
 
   return (
@@ -188,7 +196,12 @@ const DocumentUploadStep = ({
         <View style={styles.skipOption}>
           <TouchableOpacity
             style={styles.skipToggle}
-            onPress={() => setSkipDocuments(!skipDocuments)}
+            onPress={() => {
+              console.log('🔍 Skip documents checkbox clicked');
+              console.log('🔍 Current skipDocuments state:', skipDocuments);
+              setSkipDocuments(!skipDocuments);
+              console.log('🔍 New skipDocuments state will be:', !skipDocuments);
+            }}
           >
             <View style={[styles.checkbox, skipDocuments && styles.checkboxChecked]}>
               {skipDocuments && <Text style={styles.checkmark}>✓</Text>}

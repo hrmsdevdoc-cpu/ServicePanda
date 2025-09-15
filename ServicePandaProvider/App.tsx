@@ -6,6 +6,8 @@ const React = require('react');
 const { useState, useRef, useEffect } = require('react');
 const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
 const { AuthProvider, useAuth } = require('./src/contexts/AuthContext');
+// Onboarding screens
+const OnboardingFlow = require('./src/screens/onboarding/OnboardingFlow');
 // Direct registration screen for testing
 const LoginScreen = require('./src/screens/auth/LoginScreen');
 const ForgotPasswordScreen = require('./src/screens/auth/ForgotPasswordScreen');
@@ -26,6 +28,12 @@ const CreditsScreen = require('./src/screens/credits/CreditsScreen');
 const BillingScreen = require('./src/screens/billing/BillingScreen');
 const HelpScreen = require('./src/screens/help/HelpScreen');
 const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar, Platform, Animated, Dimensions } = require('react-native');
+
+// Disable font scaling for Android to prevent zooming
+if (Platform.OS === 'android') {
+  Text.defaultProps = Text.defaultProps || {};
+  Text.defaultProps.allowFontScaling = false;
+}
 const { colors } = require('./src/utils/theme');
 
 // Loading component while checking authentication
@@ -41,6 +49,7 @@ const AppContent = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState('dashboard');
   const [currentSubScreen, setCurrentSubScreen] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(true);
   
   // Footer animation state
   const footerTranslateY = useRef(new Animated.Value(0)).current;
@@ -111,8 +120,18 @@ const AppContent = () => {
     setCurrentSubScreen(null);
   };
 
+  // Handle onboarding completion
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
+
   if (isLoading) {
     return <LoadingScreen />;
+  }
+
+  // Show onboarding flow first
+  if (showOnboarding) {
+    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
   }
 
   if (!isAuthenticated) {
@@ -336,6 +355,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    minHeight: Platform.OS === 'ios' ? 75 : 65,
   },
   footerTab: {
     alignItems: 'center',

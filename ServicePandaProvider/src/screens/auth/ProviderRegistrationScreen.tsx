@@ -28,7 +28,7 @@ const ServiceAreasStep = require('../../components/registration/ServiceAreasStep
 const DocumentUploadStep = require('../../components/registration/DocumentUploadStep');
 
 const ProviderRegistrationScreen = ({ onNavigate }) => {
-  const [currentStep, setCurrentStep] = useState(4); // Start from step 1 for complete registration flow
+  const [currentStep, setCurrentStep] = useState(3); // Start from step 1 for complete registration flow
   const [isLoading, setIsLoading] = useState(false);
   const [providerId, setProviderId] = useState(null);
   const [isExistingProvider, setIsExistingProvider] = useState(false);
@@ -301,25 +301,51 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
     }
   };
 
-  const handleStep4Submit = async () => {
+  const handleStep4Submit = async (skipDocuments = false) => {
+    console.log('🔍 handleStep4Submit called with skipDocuments:', skipDocuments);
+    
     if (!providerId) {
       Alert.alert('Error', 'Provider ID not found. Please complete step 1 first.');
       return;
     }
     
-    if (!documentFiles.license || !documentFiles.policeCheck || !documentFiles.insuranceCertificate) {
+    if (!skipDocuments && (!documentFiles.license || !documentFiles.policeCheck || !documentFiles.insuranceCertificate)) {
       Alert.alert('Error', 'Please upload all three required documents.');
       return;
     }
 
     setIsLoading(true);
     try {
-            console.log('🔍 Step 4 Submit - providerId:', providerId);
+      console.log('🔍 Step 4 Submit - providerId:', providerId);
       console.log('🔍 Step 4 Submit - documentFiles:', documentFiles);
+      console.log('🔍 Step 4 Submit - skipDocuments:', skipDocuments);
       
       // Skip authentication check since user is already logged in from auto-login
       // Use the providerId from state directly
       console.log('✅ Using providerId from state:', providerId);
+      
+      if (skipDocuments) {
+        console.log('⏭️ Skipping document upload - proceeding to success step');
+        setCurrentStep(5);
+        
+        Alert.alert(
+          'Registration Complete!',
+          'Thank you for joining ServicePanda. You can upload your documents later from your profile settings.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Clear registration data and redirect to login
+                if (AsyncStorage && AsyncStorage.removeItem && typeof AsyncStorage.removeItem === 'function') {
+                  AsyncStorage.removeItem('providerId');
+                }
+                Alert.alert('Registration Complete', 'Please log in with your email and password to access your account.');
+              }
+            }
+          ]
+        );
+        return;
+      }
       
       // Create FormData for React Native - WORKING VERSION (same as DocumentsScreen)
       const formData = new FormData();
