@@ -49,6 +49,7 @@ const DocumentUploadStep = ({
 }) => {
   const [uploadingDocument, setUploadingDocument] = useState(null);
   const [imagePickerAvailable, setImagePickerAvailable] = useState(true);
+  const [skipDocuments, setSkipDocuments] = useState(false);
 
   // Always show the interface - we'll handle errors in the pickDocument function
   React.useEffect(() => {
@@ -168,7 +169,7 @@ const DocumentUploadStep = ({
   };
 
   const handleSubmit = () => {
-    if (!isAllDocumentsUploaded()) {
+    if (!skipDocuments && !isAllDocumentsUploaded()) {
       Alert.alert('Error', 'Please upload all three required documents before proceeding.');
       return;
     }
@@ -180,8 +181,26 @@ const DocumentUploadStep = ({
       <View style={styles.header}>
         <Text style={styles.title}>Upload Documents</Text>
         <Text style={styles.subtitle}>
-          Upload all three required documents for verification (all mandatory)
+          Upload documents for verification or skip if not available
         </Text>
+        
+        {/* Skip Documents Option */}
+        <View style={styles.skipOption}>
+          <TouchableOpacity
+            style={styles.skipToggle}
+            onPress={() => setSkipDocuments(!skipDocuments)}
+          >
+            <View style={[styles.checkbox, skipDocuments && styles.checkboxChecked]}>
+              {skipDocuments && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.skipText}>Skip document upload for now</Text>
+          </TouchableOpacity>
+          {skipDocuments && (
+            <Text style={styles.skipNote}>
+              You can upload documents later from your profile settings
+            </Text>
+          )}
+        </View>
         
         {!imagePickerAvailable && (
           <View style={styles.warningBanner}>
@@ -301,14 +320,16 @@ const DocumentUploadStep = ({
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.nextButton, !isAllDocumentsUploaded() && styles.nextButtonDisabled]}
+          style={[styles.nextButton, !skipDocuments && !isAllDocumentsUploaded() && styles.nextButtonDisabled]}
           onPress={handleSubmit}
-          disabled={!isAllDocumentsUploaded() || isLoading}
+          disabled={(!skipDocuments && !isAllDocumentsUploaded()) || isLoading}
         >
           {isLoading ? (
             <ActivityIndicator size="small" color={colors.white} />
           ) : (
-            <Text style={styles.nextButtonText}>Submit Application</Text>
+            <Text style={styles.nextButtonText}>
+              {skipDocuments ? 'Submit Without Documents' : 'Submit Application'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -508,6 +529,49 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 12,
     fontWeight: '600',
+  },
+  skipOption: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  skipToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 4,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  checkmark: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  skipText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  skipNote: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });
 

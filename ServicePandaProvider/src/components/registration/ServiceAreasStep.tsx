@@ -264,7 +264,7 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading, formData })
       </View>
 
       {/* Service Area Preview */}
-      <View style={styles.previewCard}>
+      <View style={styles.addCard}>
         <Text style={styles.previewTitle}>Service Area Preview</Text>
         <Text style={styles.previewDescription}>
           The green zone shows your service coverage area
@@ -372,9 +372,11 @@ const styles = StyleSheet.create({
   },
   addCard: {
     backgroundColor: colors.white,
-    margin: 20,
+    margin: 5,
     marginTop: 0,
-    padding: 20,
+    marginBottom: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 20,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -570,7 +572,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     margin: 20,
     marginTop: 0,
-    padding: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 20,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
