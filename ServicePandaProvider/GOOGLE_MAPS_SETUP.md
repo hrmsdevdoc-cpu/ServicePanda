@@ -48,8 +48,33 @@ For security, restrict your API key:
 
 ## Step 5: Configure the App
 
+### For Android:
+
+1. Open `android/app/src/main/AndroidManifest.xml`
+2. Replace `AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg` with your actual API key:
+
+```xml
+<meta-data
+    android:name="com.google.android.geo.API_KEY"
+    android:value="your-actual-api-key-here" />
+```
+
+### For iOS:
+
+1. Open `ios/ServicePandaProvider/AppDelegate.mm`
+2. Add the following import and configuration:
+
+```objc
+#import <GoogleMaps/GoogleMaps.h>
+
+// In didFinishLaunchingWithOptions method:
+[GMSServices provideAPIKey:@"your-actual-api-key-here"];
+```
+
+### For Web (if applicable):
+
 1. Open `/src/config/googleMaps.ts`
-2. Replace `YOUR_GOOGLE_MAPS_API_KEY_HERE` with your actual API key:
+2. Replace `AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg` with your actual API key:
 
 ```typescript
 export const GOOGLE_MAPS_CONFIG = {
