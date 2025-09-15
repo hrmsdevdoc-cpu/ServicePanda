@@ -1,5 +1,7 @@
 package com.servicepandaprovider;
 
+import android.content.Context;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
@@ -17,6 +19,15 @@ public class MainActivity extends ReactActivity {
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+  }
+
+  @Override
+  protected void attachBaseContext(Context newBase) {
+    // Prevent font scaling issues
+    Configuration configuration = newBase.getResources().getConfiguration();
+    configuration.fontScale = 1.0f; // Force font scale to 1.0
+    Context context = newBase.createConfigurationContext(configuration);
+    super.attachBaseContext(context);
   }
 
   @Override

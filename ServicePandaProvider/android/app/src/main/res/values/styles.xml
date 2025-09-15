@@ -4,5 +4,16 @@
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+        
+        <!-- Prevent font scaling and density issues -->
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowContentOverlay">@null</item>
+        
+        <!-- Density and scaling configuration -->
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:configChanges">orientation|keyboardHidden|screenSize</item>
     </style>
 </resources>

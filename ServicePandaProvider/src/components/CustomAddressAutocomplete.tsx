@@ -209,7 +209,7 @@ const CustomAddressAutocomplete: React.FC<CustomAddressAutocompleteProps> = ({
               }
             }}
             onBlur={() => {
-              setTimeout(() => setShowSuggestions(false), 200);
+              setTimeout(() => setShowSuggestions(false), 300);
             }}
             placeholder={placeholder}
             placeholderTextColor={colors.textSecondary}
@@ -233,8 +233,9 @@ const CustomAddressAutocomplete: React.FC<CustomAddressAutocompleteProps> = ({
           <View style={styles.suggestionsContainer}>
             <ScrollView 
               style={styles.suggestionsList}
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="always"
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
             >
               {suggestions.map((suggestion, index) => {
                 const mainText = suggestion.structured_formatting?.main_text || suggestion.description?.split(', ')[0] || '';
@@ -246,6 +247,8 @@ const CustomAddressAutocomplete: React.FC<CustomAddressAutocompleteProps> = ({
                     key={suggestion.place_id || index}
                     style={styles.suggestionItem}
                     onPress={() => handleSuggestionSelect(suggestion)}
+                    activeOpacity={0.7}
+                    delayPressIn={0}
                   >
                     <Text style={styles.mapIconSmall}>📍</Text>
                     <View style={styles.suggestionTextContainer}>
@@ -368,9 +371,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
+    minHeight: 50,
   },
   mapIconSmall: {
     fontSize: 14,
