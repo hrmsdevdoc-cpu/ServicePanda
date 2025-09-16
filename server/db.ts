@@ -11,7 +11,8 @@ dotenv.config({ path: envPath });
 // Check if DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
   console.warn("⚠️  DATABASE_URL not set. Using fallback configuration for development.");
-  process.env.DATABASE_URL='postgresql://neondb_owner:npg_VriYIgl69eLd@ep-divine-paper-afbqojt6.c-2.us-west-2.aws.neon.tech/neondb?sslmode=require'
+  // Using the working database URL provided by user
+  process.env.DATABASE_URL='postgresql://servicepanda:servicepanda@8954@13.201.64.152:5432/servicepanda'
 }
 
 let pool: Pool;
@@ -23,6 +24,8 @@ try {
     ? { rejectUnauthorized: false } 
     : process.env.DATABASE_URL?.includes('13.201.64.152')
     ? { rejectUnauthorized: false }
+    : process.env.DATABASE_URL?.includes('localhost')
+    ? false
     : false;
     
   pool = new Pool({ 
