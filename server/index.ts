@@ -25,18 +25,27 @@ app.use((req, res, next) => {
   const allowedOrigins = [
     'https://staging.servicepanda.com.au',
     'https://servicepanda.com.au',
+    'https://www.servicepanda.com.au',
     'http://localhost:4000',
     'http://localhost:3000',
     'http://127.0.0.1:4000',
-    'http://127.0.0.1:3000'
+    'http://127.0.0.1:3000',
+    'http://localhost:5173', // Vite dev server
+    'http://127.0.0.1:5173'
   ];
 
   const origin = req.headers.origin;
+  console.log('CORS request from origin:', origin);
+  
   if (allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
-  } else if (process.env.NODE_ENV === 'development') {
-    // Allow all origins in development
-    res.header('Access-Control-Allow-Origin', '*');
+    console.log('CORS: Allowed origin:', origin);
+  } else if (process.env.NODE_ENV === 'development' || origin?.includes('servicepanda.com.au')) {
+    // Allow all origins in development OR any servicepanda.com.au subdomain
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    console.log('CORS: Allowed servicepanda domain or development mode:', origin);
+  } else {
+    console.log('CORS: Blocked origin:', origin);
   }
 
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
@@ -44,6 +53,7 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
+    console.log('CORS: Handling preflight request');
     res.sendStatus(200);
   } else {
     next();
