@@ -131,6 +131,10 @@ class ApiService {
     return this.request('POST', '/api/provider/reset-password', { token, password });
   }
 
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request('POST', '/api/provider/change-password', { currentPassword, newPassword });
+  }
+
   // Authentication endpoints
   async login(email: string, password: string) {
     return this.request('POST', '/api/provider/login', { email, password });

@@ -19,6 +19,7 @@ const LeadDetailsScreen = require('./src/screens/leads/LeadDetailsScreen');
 const NewLeadsScreen = require('./src/screens/leads/NewLeadsScreen');
 const LeadsScreen = require('./src/screens/leads/LeadsScreen');
 const PersonalDetailsScreen = require('./src/screens/profile/PersonalDetailsScreen');
+const ChangePasswordScreen = require('./src/screens/profile/ChangePasswordScreen');
 const ServicesScreen = require('./src/screens/services/ServicesScreen');
 const ServiceAreaScreen = require('./src/screens/services/ServiceAreaScreen');
 const DocumentsScreen = require('./src/screens/documents/DocumentsScreen');
@@ -195,6 +196,8 @@ const AppContent = () => {
       // Profile and settings screens
       case 'personalDetails':
         return <PersonalDetailsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+      case 'changePassword':
+        return <ChangePasswordScreen onNavigate={navigateTo} onBack={goToDashboard} />;
       case 'services':
         return <ServicesScreen onNavigate={navigateTo} onBack={goToDashboard} />;
       case 'serviceArea':

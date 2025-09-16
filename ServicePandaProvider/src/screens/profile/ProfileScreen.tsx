@@ -303,7 +303,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
           <View style={styles.modernActionsList}>
             <TouchableOpacity 
               style={styles.modernActionButton}
-            onPress={() => {/* Navigate to edit profile */}}
+              onPress={() => onNavigate?.('personalDetails')}
               activeOpacity={0.7}
             >
               <View style={styles.modernActionIcon}>
@@ -320,7 +320,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
             
             <TouchableOpacity 
               style={styles.modernActionButton}
-            onPress={() => {/* Navigate to change password */}}
+              onPress={() => onNavigate?.('changePassword')}
               activeOpacity={0.7}
             >
               <View style={styles.modernActionIcon}>

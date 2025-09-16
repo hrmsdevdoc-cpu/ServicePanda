@@ -2803,6 +2803,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Provider change password endpoint
+  app.post('/api/provider/change-password', isProviderAuthenticated, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const providerId = (req as any).provider?.id;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current password and new password are required' });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+      }
+
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      // Get current provider
+      const provider = await storage.getProviderById(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: 'Provider not found' });
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await comparePasswords(currentPassword, provider.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await hashPassword(newPassword);
+
+      // Update password
+      await storage.updateProvider(providerId, { password: hashedNewPassword });
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('Error changing provider password:', error);
+      res.status(500).json({ message: 'Failed to change password' });
+    }
+  });
+
   // Review System API endpoints
   
   // Get review details by token (for review submission page)
