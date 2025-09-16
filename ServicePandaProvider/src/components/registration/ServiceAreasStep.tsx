@@ -9,19 +9,16 @@ const {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
 } = require('react-native');
 const { colors } = require('../../utils/theme');
 const CustomAddressAutocomplete = require('../CustomAddressAutocomplete').default;
 const SimpleAddressInput = require('../SimpleAddressInput').default;
 const ServiceAreaMapFallback = require('../ServiceAreaMapFallback').default;
 
-// Try to import react-native-maps, fallback to null if not available
+// Maps removed to fix build issues - using fallback only
 let ServiceAreaMap = null;
-try {
-  ServiceAreaMap = require('../ServiceAreaMap').default;
-} catch (error) {
-  console.log('react-native-maps not available, using fallback map');
-}
 
 const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading, formData }) => {
   const [serviceAreas, setServiceAreas] = useState([]);
@@ -126,7 +123,18 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading, formData })
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <TouchableWithoutFeedback 
+      onPress={() => {
+        Keyboard.dismiss();
+        setIsDropdownOpen(false);
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <ScrollView 
+          style={styles.container} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
       <View style={styles.header}>
         <Text style={styles.title}>Service Areas</Text>
         <Text style={styles.subtitle}>Define your service locations with coverage radius</Text>
@@ -187,11 +195,17 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading, formData })
         </View>
 
         {/* Service Radius */}
-        <View style={styles.inputGroup}>
+        <View style={[styles.inputGroup, { zIndex: isDropdownOpen ? 1000 : 1 }]}>
           <Text style={styles.label}>Service Radius *</Text>
           <TouchableOpacity 
             style={styles.simpleDropdown}
-            onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+            onPress={() => {
+              // Dismiss keyboard first
+              Keyboard.dismiss();
+              setTimeout(() => {
+                setIsDropdownOpen(!isDropdownOpen);
+              }, 100);
+            }}
           >
             <Text style={styles.simpleDropdownText}>
               {radiusOptions.find(opt => opt.value === radius)?.label || 'Select radius'}
@@ -206,6 +220,8 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading, formData })
                 style={styles.dropdownScrollView}
                 showsVerticalScrollIndicator={true}
                 nestedScrollEnabled={true}
+                keyboardShouldPersistTaps="handled"
+                scrollEnabled={true}
               >
                 {radiusOptions.map(option => (
                   <TouchableOpacity
@@ -218,6 +234,7 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading, formData })
                       setRadius(option.value);
                       setIsDropdownOpen(false);
                     }}
+                    activeOpacity={0.7}
                   >
                     <Text style={[
                       styles.simpleDropdownOptionText,
@@ -272,21 +289,12 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading, formData })
 
         {selectedLocation ? (
           <View style={styles.mapContainer}>
-            {ServiceAreaMap ? (
-              <ServiceAreaMap
-                latitude={selectedLocation.lat}
-                longitude={selectedLocation.lng}
-                radius={parseInt(radius)}
-                address={selectedLocation.address}
-              />
-            ) : (
-              <ServiceAreaMapFallback
-                latitude={selectedLocation.lat}
-                longitude={selectedLocation.lng}
-                radius={parseInt(radius)}
-                address={selectedLocation.address}
-              />
-            )}
+            <ServiceAreaMapFallback
+              latitude={selectedLocation.lat}
+              longitude={selectedLocation.lng}
+              radius={parseInt(radius)}
+              address={selectedLocation.address}
+            />
             <View style={styles.mapInfo}>
               <Text style={styles.mapAddress}>
                 📍 {selectedLocation.address}
@@ -345,7 +353,9 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading, formData })
           )}
         </TouchableOpacity>
       </View>
-    </ScrollView>
+        </ScrollView>
+      </View>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -398,6 +408,7 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 20,
+    position: 'relative',
   },
   label: {
     fontSize: 14,
@@ -481,12 +492,22 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   simpleDropdownOptions: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     backgroundColor: colors.white,
     marginTop: 4,
     maxHeight: 200,
+    zIndex: 1000,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   dropdownScrollView: {
     maxHeight: 200,

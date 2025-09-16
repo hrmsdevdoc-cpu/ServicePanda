@@ -12,17 +12,37 @@ target 'ServicePandaProvider' do
     :hermes_enabled => true
   )
 
+  # Maps dependency removed to fix build issues
+
   
 
   # Add any custom native pods below this line
 
   post_install do |installer|
+    # React Native common post install setup
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false
+    )
+    
     # Set environment variables to disable new architecture
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['RCT_NEW_ARCH_ENABLED'] = '0'
         config.build_settings['RCT_FABRIC_ENABLED'] = '0'
-        config.build_settings['RCT_CODEGEN_ENABLED'] = '0'
+        
+        # Fix compilation issues - React Native 0.74+ requires C++20
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+        
+        # Fix archive issues
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+        
+        # Fix virtual filesystem overlay issues
+        config.build_settings['ENABLE_BITCODE'] = 'NO'
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = ['-DFOLLY_NO_CONFIG', '-DFOLLY_MOBILE=1', '-DFOLLY_USE_LIBCPP=1']
       end
     end
     
@@ -42,39 +62,48 @@ target 'ServicePandaProvider' do
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_TFO=0'
         end
         
+        # Fix ReactCommon compilation issues
+        if target.name == 'ReactCommon'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_MOBILE=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_USE_LIBCPP=1'
+        end
+        
+        
         # Disable React-Codegen build but keep the target
         if target.name == 'React-Codegen'
           config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
           config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
           config.build_settings['CODE_SIGNING_IDENTITY'] = ''
-          # Disable build but don't exclude architectures for archive
           config.build_settings['SKIP_INSTALL'] = 'YES'
         end
         
-        # Remove codegen check scripts that cause build failures
-        if target.name == 'React-Fabric'
-          target.build_phases.each do |phase|
-            if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase) && 
-               phase.name && phase.name.include?('Check rncore')
-              target.build_phases.delete(phase)
-            end
+        # Disable code signing for hermes-engine to prevent signing errors
+        if target.name == 'hermes-engine'
+          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+          config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+          config.build_settings['CODE_SIGNING_IDENTITY'] = ''
+        end
+      end
+    end
+    
+    # Remove problematic build phases
+    installer.pods_project.targets.each do |target|
+      if target.name == 'React-Fabric'
+        target.build_phases.each do |phase|
+          if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase) && 
+             phase.name && phase.name.include?('Check rncore')
+            target.build_phases.delete(phase)
           end
         end
+      end
 
-        # Remove Hermes replacement script that breaks archive
-        if target.name == 'hermes-engine'
-          target.build_phases.each do |phase|
-            if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase) &&
-               phase.name && phase.name.include?('[Hermes]')
-              target.build_phases.delete(phase)
-            end
-          end
-          
-          # Disable code signing for hermes-engine to prevent signing errors
-          target.build_configurations.each do |config|
-            config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
-            config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
-            config.build_settings['CODE_SIGNING_IDENTITY'] = ''
+      if target.name == 'hermes-engine'
+        target.build_phases.each do |phase|
+          if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase) &&
+             phase.name && phase.name.include?('[Hermes]')
+            target.build_phases.delete(phase)
           end
         end
       end

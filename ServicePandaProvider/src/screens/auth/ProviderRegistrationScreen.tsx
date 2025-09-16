@@ -28,7 +28,7 @@ const ServiceAreasStep = require('../../components/registration/ServiceAreasStep
 const DocumentUploadStep = require('../../components/registration/DocumentUploadStep');
 
 const ProviderRegistrationScreen = ({ onNavigate }) => {
-  const [currentStep, setCurrentStep] = useState(3); // Start from step 1 for complete registration flow
+  const [currentStep, setCurrentStep] = useState(1); // Start from step 1 for complete registration flow
   const [isLoading, setIsLoading] = useState(false);
   const [providerId, setProviderId] = useState(null);
   const [isExistingProvider, setIsExistingProvider] = useState(false);
@@ -302,13 +302,12 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
   };
 
   const handleStep4Submit = async (skipDocuments = false) => {
-    console.log('🔍 handleStep4Submit called with skipDocuments:', skipDocuments);
-    
     if (!providerId) {
       Alert.alert('Error', 'Provider ID not found. Please complete step 1 first.');
       return;
     }
     
+    // Only validate documents if not skipping
     if (!skipDocuments && (!documentFiles.license || !documentFiles.policeCheck || !documentFiles.insuranceCertificate)) {
       Alert.alert('Error', 'Please upload all three required documents.');
       return;
@@ -324,117 +323,99 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
       // Use the providerId from state directly
       console.log('✅ Using providerId from state:', providerId);
       
-      if (skipDocuments) {
-        console.log('⏭️ Skipping document upload - proceeding to success step');
-        setCurrentStep(5);
+      // Only upload documents if not skipping
+      if (!skipDocuments) {
+        // Create FormData for React Native - WORKING VERSION (same as DocumentsScreen)
+        const formData = new FormData();
         
-        Alert.alert(
-          'Registration Complete!',
-          'Thank you for joining ServicePanda. You can upload your documents later from your profile settings.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Clear registration data and redirect to login
-                if (AsyncStorage && AsyncStorage.removeItem && typeof AsyncStorage.removeItem === 'function') {
-                  AsyncStorage.removeItem('providerId');
-                }
-                Alert.alert('Registration Complete', 'Please log in with your email and password to access your account.');
-              }
-            }
-          ]
-        );
-        return;
-      }
-      
-      // Create FormData for React Native - WORKING VERSION (same as DocumentsScreen)
-      const formData = new FormData();
-      
-      console.log('Creating FormData with files:', documentFiles);
-      
-      // Debug: Log actual file sizes
-      if (documentFiles.license) {
-        console.log('📄 License file size:', documentFiles.license.size, 'bytes');
-      }
-      if (documentFiles.policeCheck) {
-        console.log('📄 Police check file size:', documentFiles.policeCheck.size, 'bytes');
-      }
-      if (documentFiles.insuranceCertificate) {
-        console.log('📄 Insurance certificate file size:', documentFiles.insuranceCertificate.size, 'bytes');
-      }
-      
-      // Validate file sizes before upload to prevent HTTP 413
-      const maxFileSize = 10 * 1024 * 1024; // 10MB limit
-      const largeFiles = [];
-      
-      if (documentFiles.license && documentFiles.license.size > maxFileSize) {
-        largeFiles.push('License Document');
-      }
-      if (documentFiles.policeCheck && documentFiles.policeCheck.size > maxFileSize) {
-        largeFiles.push('Police Check');
-      }
-      if (documentFiles.insuranceCertificate && documentFiles.insuranceCertificate.size > maxFileSize) {
-        largeFiles.push('Insurance Certificate');
-      }
-      
-      if (largeFiles.length > 0) {
-        Alert.alert(
-          'File Too Large',
-          `The following files are too large (over 10MB):\n\n${largeFiles.join('\n')}\n\nPlease compress or use smaller files.`,
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-      
-      if (documentFiles.license) {
-        console.log('Adding license file:', documentFiles.license);
+        console.log('Creating FormData with files:', documentFiles);
         
-        // Validate file URI
-        if (!documentFiles.license.uri) {
-          throw new Error('License file URI is missing');
+        // Debug: Log actual file sizes
+        if (documentFiles.license) {
+          console.log('📄 License file size:', documentFiles.license.size, 'bytes');
+        }
+        if (documentFiles.policeCheck) {
+          console.log('📄 Police check file size:', documentFiles.policeCheck.size, 'bytes');
+        }
+        if (documentFiles.insuranceCertificate) {
+          console.log('📄 Insurance certificate file size:', documentFiles.insuranceCertificate.size, 'bytes');
         }
         
-        // Try simpler approach like web version
-        console.log('License file object:', documentFiles.license);
-        formData.append('license', documentFiles.license);
-      }
-      
-      if (documentFiles.policeCheck) {
-        console.log('Adding policeCheck file:', documentFiles.policeCheck);
+        // Validate file sizes before upload to prevent HTTP 413
+        const maxFileSize = 10 * 1024 * 1024; // 10MB limit
+        const largeFiles = [];
         
-        // Validate file URI
-        if (!documentFiles.policeCheck.uri) {
-          throw new Error('Police check file URI is missing');
+        if (documentFiles.license && documentFiles.license.size > maxFileSize) {
+          largeFiles.push('License Document');
+        }
+        if (documentFiles.policeCheck && documentFiles.policeCheck.size > maxFileSize) {
+          largeFiles.push('Police Check');
+        }
+        if (documentFiles.insuranceCertificate && documentFiles.insuranceCertificate.size > maxFileSize) {
+          largeFiles.push('Insurance Certificate');
         }
         
-        // Try simpler approach like web version
-        console.log('Police file object:', documentFiles.policeCheck);
-        formData.append('policeCheck', documentFiles.policeCheck);
-      }
-      
-      if (documentFiles.insuranceCertificate) {
-        console.log('Adding insurance file:', documentFiles.insuranceCertificate);
-        
-        // Validate file URI
-        if (!documentFiles.insuranceCertificate.uri) {
-          throw new Error('Insurance certificate file URI is missing');
+        if (largeFiles.length > 0) {
+          Alert.alert(
+            'File Too Large',
+            `The following files are too large (over 10MB):\n\n${largeFiles.join('\n')}\n\nPlease compress or use smaller files.`,
+            [{ text: 'OK' }]
+          );
+          return;
         }
         
-        // Try simpler approach like web version
-        console.log('Insurance file object:', documentFiles.insuranceCertificate);
-        formData.append('insuranceCertificate', documentFiles.insuranceCertificate);
-      }
-      
-      console.log('FormData created successfully');
-      
-      // Debug: Log FormData contents
-      console.log('🔍 FormData contents:');
-      for (let [key, value] of formData._parts || []) {
-        console.log(`  ${key}:`, typeof value, value);
-      }
+        if (documentFiles.license) {
+          console.log('Adding license file:', documentFiles.license);
+          
+          // Validate file URI
+          if (!documentFiles.license.uri) {
+            throw new Error('License file URI is missing');
+          }
+          
+          // Try simpler approach like web version
+          console.log('License file object:', documentFiles.license);
+          formData.append('license', documentFiles.license);
+        }
+        
+        if (documentFiles.policeCheck) {
+          console.log('Adding policeCheck file:', documentFiles.policeCheck);
+          
+          // Validate file URI
+          if (!documentFiles.policeCheck.uri) {
+            throw new Error('Police check file URI is missing');
+          }
+          
+          // Try simpler approach like web version
+          console.log('Police file object:', documentFiles.policeCheck);
+          formData.append('policeCheck', documentFiles.policeCheck);
+        }
+        
+        if (documentFiles.insuranceCertificate) {
+          console.log('Adding insurance file:', documentFiles.insuranceCertificate);
+          
+          // Validate file URI
+          if (!documentFiles.insuranceCertificate.uri) {
+            throw new Error('Insurance certificate file URI is missing');
+          }
+          
+          // Try simpler approach like web version
+          console.log('Insurance file object:', documentFiles.insuranceCertificate);
+          formData.append('insuranceCertificate', documentFiles.insuranceCertificate);
+        }
+        
+        console.log('FormData created successfully');
+        
+        // Debug: Log FormData contents
+        console.log('🔍 FormData contents:');
+        for (let [key, value] of formData._parts || []) {
+          console.log(`  ${key}:`, typeof value, value);
+        }
 
-             // Use the new registration-specific endpoint (no authentication required)
-       await apiService.request('POST', `/api/provider/${providerId}/registration-documents`, formData);
+        // Use the new registration-specific endpoint (no authentication required)
+        await apiService.request('POST', `/api/provider/${providerId}/registration-documents`, formData);
+      } else {
+        console.log('Skipping document upload as requested by user');
+      }
       
       setCurrentStep(5);
       
