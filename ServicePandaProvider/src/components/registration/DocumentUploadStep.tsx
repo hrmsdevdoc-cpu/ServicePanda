@@ -12,8 +12,10 @@ const {
   Image,
   Animated,
   Dimensions,
+  Linking,
 } = require('react-native');
 const { colors } = require('../../utils/theme');
+const { PermissionsAndroid, Permission } = require('react-native');
 
 const { width } = Dimensions.get('window');
 
@@ -57,11 +59,51 @@ const DocumentUploadStep = ({
     console.log('🔍 Document upload interface enabled');
   }, []);
 
+  const requestPermissions = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
+        ]);
+        
+        const cameraGranted = granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
+        const storageGranted = granted[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED;
+        const mediaGranted = granted[PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES] === PermissionsAndroid.RESULTS.GRANTED;
+        
+        if (!cameraGranted || (!storageGranted && !mediaGranted)) {
+          Alert.alert(
+            'Permissions Required',
+            'This app needs camera and photo library access to upload documents. Please grant permissions in Settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() }
+            ]
+          );
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.warn('Permission request error:', err);
+        return false;
+      }
+    }
+    return true; // iOS handles permissions automatically
+  };
+
   const pickDocument = async (documentType, source = 'library') => {
     try {
       setUploadingDocument(documentType);
       
       console.log('🔍 Starting REAL document pick for:', documentType);
+      
+      // Request permissions first
+      const hasPermissions = await requestPermissions();
+      if (!hasPermissions) {
+        setUploadingDocument(null);
+        return;
+      }
       
       // Use React Native's ImagePicker
       const ImagePicker = require('react-native-image-crop-picker');
@@ -125,7 +167,26 @@ const DocumentUploadStep = ({
         
     } catch (imagePickerError) {
       console.error('❌ Image picker error:', imagePickerError);
-      Alert.alert('Error', 'Failed to select document. Please try again.');
+      
+      // Handle specific permission errors
+      if (imagePickerError.message && imagePickerError.message.includes('permission')) {
+        Alert.alert(
+          'Permission Required',
+          'This app needs access to your photos to upload documents. Please grant permission in Settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() }
+          ]
+        );
+      } else if (imagePickerError.message && imagePickerError.message.includes('simulator')) {
+        Alert.alert(
+          'Camera Not Available',
+          'Camera is not available on simulator. Please use "Photo Library" option instead.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to select document. Please try again.');
+      }
     } finally {
       setUploadingDocument(null);
     }
@@ -169,19 +230,19 @@ const DocumentUploadStep = ({
   };
 
   const handleSubmit = () => {
-    console.log('🔍 DocumentUploadStep - handleSubmit called');
-    console.log('🔍 skipDocuments:', skipDocuments);
-    console.log('🔍 isAllDocumentsUploaded():', isAllDocumentsUploaded());
-    console.log('🔍 documentFiles:', documentFiles);
-    
-    if (!skipDocuments && !isAllDocumentsUploaded()) {
-      console.log('❌ Validation failed - documents required but not uploaded');
-      Alert.alert('Error', 'Please upload all three required documents before proceeding.');
+    if (skipDocuments) {
+      // If skipping documents, proceed directly with skipDocuments flag
+      onSubmit(true);
       return;
     }
     
-    console.log('✅ Validation passed - proceeding with submit');
-    onSubmit(skipDocuments);
+    if (!isAllDocumentsUploaded()) {
+      Alert.alert('Error', 'Please upload all three required documents or check "Skip document upload for now" to proceed.');
+      return;
+    }
+    
+    // If not skipping, proceed without skipDocuments flag
+    onSubmit(false);
   };
 
   return (
@@ -333,7 +394,7 @@ const DocumentUploadStep = ({
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.nextButton, !skipDocuments && !isAllDocumentsUploaded() && styles.nextButtonDisabled]}
+          style={[styles.nextButton, (!skipDocuments && !isAllDocumentsUploaded()) && styles.nextButtonDisabled]}
           onPress={handleSubmit}
           disabled={(!skipDocuments && !isAllDocumentsUploaded()) || isLoading}
         >
@@ -341,7 +402,7 @@ const DocumentUploadStep = ({
             <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <Text style={styles.nextButtonText}>
-              {skipDocuments ? 'Submit Without Documents' : 'Submit Application'}
+              Complete
             </Text>
           )}
         </TouchableOpacity>
