@@ -1104,7 +1104,7 @@ export class DatabaseStorage implements IStorage {
       // Get offer metrics for each request
       const requestsWithOffers = await Promise.all(result.rows.map(async (request: any) => {
         // Get offer metrics using direct SQL for maximum compatibility
-        const offerMetricsResult = await connection.query(
+        const offerMetricsResult = await pool.query(
           `SELECT 
             COUNT(DISTINCT provider_id) as professional_count,
             COUNT(*) as total_offers,
