@@ -31,25 +31,30 @@ async function comparePasswords(supplied: string, stored: string) {
   }
   
   // Handle old scrypt hashed passwords (format: hash.salt)
-  try {
-    const [hashed, salt] = stored.split(".");
-    if (!hashed || !salt) {
-      return false; // Invalid format
-    }
-    
-    const hashedBuf = Buffer.from(hashed, "hex");
-    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-    
-    // Check buffer lengths before comparison
-    if (hashedBuf.length !== suppliedBuf.length) {
+  if (stored.includes('.')) {
+    try {
+      const [hashed, salt] = stored.split(".");
+      if (!hashed || !salt) {
+        return false; // Invalid format
+      }
+      
+      const hashedBuf = Buffer.from(hashed, "hex");
+      const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+      
+      // Check buffer lengths before comparison
+      if (hashedBuf.length !== suppliedBuf.length) {
+        return false;
+      }
+      
+      return timingSafeEqual(hashedBuf, suppliedBuf);
+    } catch (error) {
+      console.error('Error comparing scrypt password:', error);
       return false;
     }
-    
-    return timingSafeEqual(hashedBuf, suppliedBuf);
-  } catch (error) {
-    console.error('Error comparing scrypt password:', error);
-    return false;
   }
+  
+  // If neither bcrypt nor scrypt format, return false
+  return false;
 }
 
 export function setupAuth(app: Express) {
