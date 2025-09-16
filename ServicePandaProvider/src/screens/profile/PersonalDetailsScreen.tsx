@@ -9,7 +9,12 @@ const AsyncStorage = require('@react-native-async-storage/async-storage').defaul
 
 const { width } = Dimensions.get('window');
 
-const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
+interface PersonalDetailsScreenProps {
+  onNavigate?: (screen: string) => void;
+  onBack?: () => void;
+}
+
+const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -86,13 +91,13 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
-    mutationFn: (data) => updateProfile(profile?.id, data),
+    mutationFn: (data: any) => updateProfile(profile?.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries(['provider-profile']);
       setIsEditing(false);
       Alert.alert('Success', 'Profile updated successfully!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       Alert.alert('Error', error?.message || 'Failed to update profile');
     }
   });
@@ -112,16 +117,16 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
     }
   }, [profile]);
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors((prev: any) => ({ ...prev, [field]: '' }));
     }
   };
 
   const validateForm = () => {
-    const newErrors = {};
+    const newErrors: any = {};
     
     if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
@@ -170,7 +175,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Please log in to view your profile</Text>
           <Text style={styles.errorSubtext}>You need to be logged in to access your personal details</Text>
-          <Button mode="contained" onPress={() => onNavigate('login')} style={styles.retryButton}>
+          <Button mode="contained" onPress={() => onNavigate?.('login')} style={styles.retryButton}>
             Go to Login
           </Button>
         </View>
@@ -202,6 +207,17 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
           }
         ]}
       >
+        {/* Back Button Header */}
+        <View style={styles.backHeader}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => onBack?.()}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.backButtonText}>← Back</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Modern Header */}
         <View style={styles.modernHeader}>
           <View style={styles.modernHeaderContent}>
@@ -237,7 +253,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
                 <PaperTextInput
                   mode="outlined"
                   value={formData.firstName}
-                  onChangeText={(value) => handleInputChange('firstName', value)}
+                  onChangeText={(value: string) => handleInputChange('firstName', value)}
                   disabled={!isEditing}
                   style={styles.modernInput}
                   error={!!errors.firstName}
@@ -255,7 +271,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
                 <PaperTextInput
                   mode="outlined"
                   value={formData.lastName}
-                  onChangeText={(value) => handleInputChange('lastName', value)}
+                  onChangeText={(value: string) => handleInputChange('lastName', value)}
                   disabled={!isEditing}
                   style={styles.modernInput}
                   error={!!errors.lastName}
@@ -291,7 +307,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
                 <PaperTextInput
                   mode="outlined"
                   value={formData.mobileNumber}
-                  onChangeText={(value) => handleInputChange('mobileNumber', value)}
+                  onChangeText={(value: string) => handleInputChange('mobileNumber', value)}
                   disabled={!isEditing}
                   style={styles.modernInput}
                   error={!!errors.mobileNumber}
@@ -310,7 +326,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
                 <PaperTextInput
                   mode="outlined"
                   value={formData.address}
-                  onChangeText={(value) => handleInputChange('address', value)}
+                  onChangeText={(value: string) => handleInputChange('address', value)}
                   disabled={!isEditing}
                   style={[styles.modernInput, errors.address && styles.modernErrorInput]}
                   error={!!errors.address}
@@ -350,7 +366,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
                 <PaperTextInput
                   mode="outlined"
                   value={formData.businessName}
-                  onChangeText={(value) => handleInputChange('businessName', value)}
+                  onChangeText={(value: string) => handleInputChange('businessName', value)}
                   disabled={!isEditing}
                   style={styles.modernInput}
                   placeholder="Enter your business name"
@@ -366,7 +382,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }) => {
                 <PaperTextInput
                   mode="outlined"
                   value={formData.businessAbn}
-                  onChangeText={(value) => handleInputChange('businessAbn', value)}
+                  onChangeText={(value: string) => handleInputChange('businessAbn', value)}
                   disabled={!isEditing}
                   style={styles.modernInput}
                   placeholder="Enter your ABN or ACN (optional)"
@@ -463,6 +479,29 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     backgroundColor: colors.primary,
+  },
+  // Back Header
+  backHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginLeft: 4,
   },
   // Modern Header
   modernHeader: {
@@ -697,9 +736,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
-  },
-  backButton: {
-    marginRight: 12,
   },
   headerTitle: {
     fontSize: 20,
