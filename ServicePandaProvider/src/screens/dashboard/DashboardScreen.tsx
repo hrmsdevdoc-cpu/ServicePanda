@@ -334,8 +334,17 @@ function DashboardScreen({ onNavigate }) {
 
   if (profileLoading || leadsLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.dashboardLoadingContainer}>
+        <View style={styles.pandaContainer}>
+          <View style={styles.pandaFace}>
+            <Text style={styles.pandaEmoji}>🐼</Text>
+          </View>
+          <View style={styles.loadingDots}>
+            <View style={[styles.dot, styles.dot1]} />
+            <View style={[styles.dot, styles.dot2]} />
+            <View style={[styles.dot, styles.dot3]} />
+          </View>
+        </View>
         <Text style={styles.loadingText}>Loading your dashboard...</Text>
       </View>
     );
@@ -1736,6 +1745,60 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '500',
+  },
+  dashboardLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 40,
+  },
+  pandaContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  pandaFace: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  pandaEmoji: {
+    fontSize: 50,
+  },
+  loadingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    marginHorizontal: 3,
+  },
+  dot1: {
+    animationDelay: '0s',
+  },
+  dot2: {
+    animationDelay: '0.2s',
+  },
+  dot3: {
+    animationDelay: '0.4s',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   modernEmptyContainer: {
     alignItems: 'center',
