@@ -51,6 +51,7 @@ const AppContent = () => {
   const [currentScreen, setCurrentScreen] = useState('login');
   const [currentSubScreen, setCurrentSubScreen] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(true);
+  const [navigationHistory, setNavigationHistory] = useState(['login']);
   
   // Footer animation state
   const footerTranslateY = useRef(new Animated.Value(0)).current;
@@ -112,9 +113,11 @@ const AppContent = () => {
     if (isAuthenticated) {
       console.log('🔍 User authenticated, navigating to dashboard');
       setCurrentScreen('dashboard');
+      setNavigationHistory(['dashboard']);
     } else {
       console.log('🔍 User not authenticated, resetting to login screen');
       setCurrentScreen('login');
+      setNavigationHistory(['login']);
     }
   }, [isAuthenticated]);
 
@@ -122,15 +125,48 @@ const AppContent = () => {
   const navigateTo = (screen: string, subScreen: string | null = null) => {
     console.log('🔍 navigateTo called with screen:', screen, 'subScreen:', subScreen);
     console.log('🔍 Current screen before change:', currentScreen);
+    
+    // Add current screen to history if it's not already the last item
+    if (currentScreen !== screen) {
+      setNavigationHistory((prev: string[]) => {
+        const newHistory = [...prev];
+        if (newHistory[newHistory.length - 1] !== currentScreen) {
+          newHistory.push(currentScreen);
+        }
+        return newHistory;
+      });
+    }
+    
     setCurrentScreen(screen);
     setCurrentSubScreen(subScreen);
     console.log('🔍 Screen change completed');
+  };
+
+  // Go back to previous screen
+  const goBack = () => {
+    console.log('🔍 goBack called, navigation history:', navigationHistory);
+    
+    if (navigationHistory.length > 1) {
+      const previousScreen = navigationHistory[navigationHistory.length - 1];
+      console.log('🔍 Going back to:', previousScreen);
+      
+      // Remove the last item from history (current screen)
+      setNavigationHistory((prev: string[]) => prev.slice(0, -1));
+      setCurrentScreen(previousScreen);
+      setCurrentSubScreen(null);
+    } else {
+      // If no history, go to dashboard as fallback
+      console.log('🔍 No history, going to dashboard');
+      goToDashboard();
+    }
   };
 
   // Go back to dashboard
   const goToDashboard = () => {
     setCurrentScreen('dashboard');
     setCurrentSubScreen(null);
+    // Reset navigation history to just dashboard
+    setNavigationHistory(['dashboard']);
   };
 
   // Handle onboarding completion
@@ -195,39 +231,39 @@ const AppContent = () => {
       
       // Lead screens
       case 'leads':
-        return <LeadsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <LeadsScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'newLeads':
-        return <NewLeadsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <NewLeadsScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'activeLeads':
-        return <ActiveLeadsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <ActiveLeadsScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'closedLeads':
-        return <ClosedLeadsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <ClosedLeadsScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'leadDetails':
-        return <LeadDetailsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <LeadDetailsScreen onNavigate={navigateTo} onBack={goBack} />;
       
       // Profile and settings screens
       case 'personalDetails':
-        return <PersonalDetailsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <PersonalDetailsScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'changePassword':
-        return <ChangePasswordScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <ChangePasswordScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'services':
-        return <ServicesScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <ServicesScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'serviceArea':
-        return <ServiceAreaScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <ServiceAreaScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'documents':
-        return <DocumentsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <DocumentsScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'profile':
-        return <ProfileScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <ProfileScreen onNavigate={navigateTo} onBack={goBack} />;
       
       // Payment and other screens
       case 'payment':
-        return <PaymentScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <PaymentScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'credits':
-        return <CreditsScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <CreditsScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'billing':
-        return <BillingScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <BillingScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'help':
-        return <HelpScreen onNavigate={navigateTo} onBack={goToDashboard} />;
+        return <HelpScreen onNavigate={navigateTo} onBack={goBack} />;
       
       default:
         return <DashboardScreen onNavigate={navigateTo} />;
@@ -239,8 +275,9 @@ const AppContent = () => {
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       {currentScreen !== 'dashboard' && (
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={goToDashboard}>
-            <Text style={styles.backButtonText}>← Back</Text>
+          <TouchableOpacity style={styles.backButton} onPress={goBack}>
+            <Text style={styles.backArrow}>←</Text>
+            <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
             {currentScreen.charAt(0).toUpperCase() + currentScreen.slice(1)}
@@ -326,8 +363,30 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   backButton: {
-    padding: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     marginRight: 12,
+    backgroundColor: colors.primary + '15',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+    minHeight: 36,
+    shadowColor: colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  backArrow: {
+    fontSize: 18,
+    color: colors.primary,
+    fontWeight: 'bold',
+    marginRight: 2,
   },
   backButtonText: {
     fontSize: 14,
@@ -335,9 +394,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.text,
+    flex: 1,
+    textAlign: 'center',
+    marginRight: 60, // Compensate for back button width to center the title
   },
   loadingContainer: {
     flex: 1,

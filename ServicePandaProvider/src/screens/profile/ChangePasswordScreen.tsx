@@ -137,16 +137,6 @@ const ChangePasswordScreen = ({ onNavigate, onBack }: ChangePasswordScreenProps)
           }
         ]}
       >
-        {/* Back Button Header */}
-        <View style={styles.backHeader}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => onBack?.()}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Modern Header */}
         <View style={styles.modernHeader}>
@@ -303,29 +293,6 @@ const styles = StyleSheet.create({
   },
   animatedContainer: {
     flex: 1,
-  },
-  // Back Header
-  backHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 4,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginLeft: 4,
   },
   // Modern Header
   modernHeader: {
