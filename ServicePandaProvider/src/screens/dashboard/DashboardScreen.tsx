@@ -12,8 +12,21 @@ const {
   StatusBar,
   Platform,
   Animated,
-  LinearGradient,
 } = require('react-native');
+// Fallback LinearGradient component that doesn't require native linking
+const LinearGradient = ({ colors, start, end, style, children, ...props }) => {
+  // Create a simple gradient effect using multiple Views
+  const gradientStyle = {
+    backgroundColor: colors[0],
+    ...style,
+  };
+  
+  return (
+    <View style={gradientStyle} {...props}>
+      {children}
+    </View>
+  );
+};
 const { Card, Title, Paragraph, Button, Chip, ActivityIndicator, IconButton } = require('react-native-paper');
 const { useQuery } = require('@tanstack/react-query');
 const { useAuth } = require('../../contexts/AuthContext');
@@ -331,31 +344,45 @@ function DashboardScreen({ onNavigate }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
-      {/* Header */}
+      {/* Enhanced Header with Gradient */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.menuButton}
-          onPress={openSidebar}
+        <LinearGradient
+          colors={['#667eea', '#764ba2']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
         >
-          <Text style={styles.menuIcon}>☰</Text>
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.logo}>💼</Text>
-          <View>
-            <Text style={styles.title}>ServicePanda</Text>
-            <Text style={styles.subtitle}>Partners</Text>
+          <View style={styles.headerContent}>
+            <TouchableOpacity 
+              style={styles.menuButton}
+              onPress={openSidebar}
+            >
+              <Text style={styles.menuIcon}>☰</Text>
+            </TouchableOpacity>
+            <View style={styles.headerMainContent}>
+              <View style={styles.logoContainer}>
+                <Text style={styles.logo}>💼</Text>
+                <View style={styles.logoGlow} />
+              </View>
+              <View style={styles.titleContainer}>
+                <Text style={styles.title}>ServicePanda</Text>
+                <Text style={styles.subtitle}>Partners</Text>
+              </View>
+            </View>
+            <View style={styles.notificationContainer}>
+              <NotificationIcon
+                unreadCount={unreadNotificationsCount}
+                onPress={() => setNotificationsVisible(true)}
+                size={20}
+                latestNotification={notifications.length > 0 ? {
+                  title: notifications[0].title,
+                  message: notifications[0].message,
+                  timestamp: notifications[0].timestamp
+                } : undefined}
+              />
+            </View>
           </View>
-        </View>
-        <NotificationIcon
-          unreadCount={unreadNotificationsCount}
-          onPress={() => setNotificationsVisible(true)}
-          size={20}
-          latestNotification={notifications.length > 0 ? {
-            title: notifications[0].title,
-            message: notifications[0].message,
-            timestamp: notifications[0].timestamp
-          } : undefined}
-        />
+        </LinearGradient>
       </View>
 
       {/* Sidebar */}
@@ -387,6 +414,10 @@ function DashboardScreen({ onNavigate }) {
           >
             {/* Sidebar Header with Close Button */}
             <View style={styles.sidebarHeader}>
+              {/* Background Patterns */}
+              <View style={styles.sidebarHeaderPattern} />
+              <View style={styles.sidebarHeaderPattern2} />
+              
               <View style={styles.sidebarHeaderRow}>
                 <Text style={styles.sidebarLogo}>🐼</Text>
                 <Text style={styles.sidebarTitle}>ServicePanda</Text>
@@ -400,13 +431,35 @@ function DashboardScreen({ onNavigate }) {
             </View>
             
             <ScrollView style={styles.sidebarContent}>
+              {/* User Profile Section */}
+              <View style={styles.userProfileSection}>
+                <View style={styles.userAvatarContainer}>
+                  <View style={styles.userAvatar}>
+                    <Text style={styles.userAvatarText}>
+                      {profile?.firstName?.charAt(0) || 'P'}
+                    </Text>
+                  </View>
+                  <View style={styles.userStatusIndicator} />
+                </View>
+                <View style={styles.userInfo}>
+                  <Text style={styles.userName}>
+                    {profile?.firstName || 'Provider'}
+                  </Text>
+                  <Text style={styles.userRole}>Service Provider</Text>
+                </View>
+              </View>
+
               {/* Dashboard */}
               <TouchableOpacity 
                 style={[styles.sidebarItem, styles.activeItem]}
                 onPress={() => handleNavigation('dashboard')}
+                activeOpacity={0.7}
               >
                 <Text style={styles.sidebarIcon}>📊</Text>
                 <Text style={[styles.sidebarText, styles.activeText]}>Dashboard</Text>
+                {/* <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>3</Text>
+                </View> */}
               </TouchableOpacity>
 
               {/* Leads Section */}
@@ -428,25 +481,29 @@ function DashboardScreen({ onNavigate }) {
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('leads')}
                     >
-                      <Text style={styles.sidebarSubText}>📊 All Leads</Text>
+                      <Text style={styles.sidebarSubIcon}>📊</Text>
+                      <Text style={styles.sidebarSubText}>All Leads</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('newLeads')}
                     >
-                      <Text style={styles.sidebarSubText}>🆕 New Leads</Text>
+                      <Text style={styles.sidebarSubIcon}>🆕</Text>
+                      <Text style={styles.sidebarSubText}>New Leads</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('activeLeads')}
                     >
-                      <Text style={styles.sidebarSubText}>⚡ Active Leads</Text>
+                      <Text style={styles.sidebarSubIcon}>⚡</Text>
+                      <Text style={styles.sidebarSubText}>Active Leads</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('closedLeads')}
                     >
-                      <Text style={styles.sidebarSubText}>✅ Closed Leads</Text>
+                      <Text style={styles.sidebarSubIcon}>✅</Text>
+                      <Text style={styles.sidebarSubText}>Closed Leads</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -471,24 +528,28 @@ function DashboardScreen({ onNavigate }) {
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('personalDetails')}
                     >
+                      <Text style={styles.sidebarSubIcon}>👤</Text>
                       <Text style={styles.sidebarSubText}>Personal Details</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('services')}
                     >
+                      <Text style={styles.sidebarSubIcon}>🔧</Text>
                       <Text style={styles.sidebarSubText}>Services</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('serviceArea')}
                     >
-                      <Text style={styles.sidebarSubText}>Services Area</Text>
+                      <Text style={styles.sidebarSubIcon}>📍</Text>
+                      <Text style={styles.sidebarSubText}>Service Area</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('documents')}
                     >
+                      <Text style={styles.sidebarSubIcon}>📄</Text>
                       <Text style={styles.sidebarSubText}>Documents</Text>
                     </TouchableOpacity>
                   </View>
@@ -496,57 +557,79 @@ function DashboardScreen({ onNavigate }) {
               </View>
 
               {/* Other Menu Items */}
-              <TouchableOpacity 
-                style={styles.sidebarItem}
-                onPress={() => handleNavigation('payment')}
-              >
-                <Text style={styles.sidebarIcon}>💳</Text>
-                <Text style={styles.sidebarText}>Payment</Text>
-              </TouchableOpacity>
+              <View style={styles.sidebarSection}>
+                <TouchableOpacity 
+                  style={styles.sidebarItem}
+                  onPress={() => handleNavigation('payment')}
+                >
+                  <Text style={styles.sidebarIcon}>💳</Text>
+                  <Text style={styles.sidebarText}>Payment</Text>
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity 
-                style={styles.sidebarItem}
-                onPress={() => handleNavigation('credits')}
-              >
-                <Text style={styles.sidebarIcon}>🎁</Text>
-                <Text style={styles.sidebarText}>Credits</Text>
-              </TouchableOpacity>
+              <View style={styles.sidebarSection}>
+                <TouchableOpacity 
+                  style={styles.sidebarItem}
+                  onPress={() => handleNavigation('credits')}
+                >
+                  <Text style={styles.sidebarIcon}>🎁</Text>
+                  <Text style={styles.sidebarText}>Credits</Text>
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity 
-                style={styles.sidebarItem}
-                onPress={() => handleNavigation('billing')}
-              >
-                <Text style={styles.sidebarIcon}>💰</Text>
-                <Text style={styles.sidebarText}>Billing</Text>
-              </TouchableOpacity>
+              <View style={styles.sidebarSection}>
+                <TouchableOpacity 
+                  style={styles.sidebarItem}
+                  onPress={() => handleNavigation('billing')}
+                >
+                  <Text style={styles.sidebarIcon}>💰</Text>
+                  <Text style={styles.sidebarText}>Billing</Text>
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity 
-                style={styles.sidebarItem}
-                onPress={() => handleNavigation('help')}
-              >
-                <Text style={styles.sidebarIcon}>❓</Text>
-                <Text style={styles.sidebarText}>Help</Text>
-              </TouchableOpacity>
+              <View style={styles.sidebarSection}>
+                <TouchableOpacity 
+                  style={styles.sidebarItem}
+                  onPress={() => handleNavigation('help')}
+                >
+                  <Text style={styles.sidebarIcon}>❓</Text>
+                  <Text style={styles.sidebarText}>Help</Text>
+                </TouchableOpacity>
+              </View>
 
               {/* User Profile */}
-              <TouchableOpacity 
-                style={styles.sidebarItem}
-                onPress={() => handleNavigation('profile')}
-              >
-                <Text style={styles.sidebarIcon}>👤</Text>
-                <Text style={styles.sidebarText}>
-                  {profile?.firstName} {profile?.lastName}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.sidebarSection}>
+                <TouchableOpacity 
+                  style={styles.sidebarItem}
+                  onPress={() => handleNavigation('profile')}
+                >
+                  <Text style={styles.sidebarIcon}>👤</Text>
+                  <Text style={styles.sidebarText}>
+                    {profile?.firstName} {profile?.lastName}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               {/* Logout Button */}
-              <TouchableOpacity 
-                style={[styles.sidebarItem, styles.logoutItem]}
-                onPress={logout}
-              >
-                <Text style={styles.sidebarIcon}>🚪</Text>
-                <Text style={[styles.sidebarText, styles.logoutText]}>Logout</Text>
-              </TouchableOpacity>
+              <View style={styles.sidebarSection}>
+                <TouchableOpacity 
+                  style={[styles.sidebarItem, styles.logoutItem]}
+                  onPress={logout}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.sidebarIcon}>🚪</Text>
+                  <Text style={[styles.sidebarText, styles.logoutText]}>Logout</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Sidebar Footer */}
+              <View style={styles.sidebarFooter}>
+                <View style={styles.footerDivider} />
+                <View style={styles.footerContent}>
+                  <Text style={styles.footerText}>ServicePanda v2.0</Text>
+                  <Text style={styles.footerSubtext}>Made with ❤️</Text>
+                </View>
+              </View>
             </ScrollView>
           </Animated.View>
         </>
@@ -572,20 +655,28 @@ function DashboardScreen({ onNavigate }) {
             }
           ]}
         >
-          {/* Modern Welcome Section */}
+          {/* Enhanced Welcome Section with Glassmorphism */}
           <View style={styles.welcomeSection}>
-            <View style={styles.welcomeContent}>
-              <Text style={styles.welcomeGreeting}>Welcome back!</Text>
-              <Text style={styles.welcomeName}>
-                {profile?.firstName || 'Provider'}
-              </Text>
-              <Text style={styles.welcomeSubtext}>
-                Here's what's happening with your business today
-              </Text>
-            </View>
-            <View style={styles.welcomeIcon}>
-              <Text style={styles.welcomeEmoji}>👋</Text>
-            </View>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+              style={styles.welcomeGradient}
+            >
+              <View style={styles.welcomeContent}>
+                <View style={styles.welcomeTextContainer}>
+                  <Text style={styles.welcomeGreeting}>Welcome back!</Text>
+                  <Text style={styles.welcomeName}>
+                    {profile?.firstName || 'Provider'}
+                  </Text>
+                  <Text style={styles.welcomeSubtext}>
+                    Here's what's happening with your business today
+                  </Text>
+                </View>
+                <View style={styles.welcomeIconContainer}>
+                  <View style={styles.welcomeIconGlow} />
+                  <Text style={styles.welcomeEmoji}>👋</Text>
+                </View>
+              </View>
+            </LinearGradient>
           </View>
 
         {/* Status Alert */}
@@ -603,7 +694,7 @@ function DashboardScreen({ onNavigate }) {
           </View>
         )}
 
-        {/* Modern Metrics Grid */}
+        {/* Enhanced Metrics Grid with Glassmorphism */}
         <View style={styles.modernStatsContainer}>
           {/* Top Row - Main Metrics */}
           <View style={styles.metricsRow}>
@@ -612,20 +703,27 @@ function DashboardScreen({ onNavigate }) {
               activeOpacity={0.8}
               onPress={() => handleNavigation('newLeads')}
             >
-              <View style={styles.metricCardHeader}>
-                <View style={styles.metricIconWrapper}>
-                  <Text style={styles.metricIcon}>🎯</Text>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+                style={styles.metricCardGradient}
+              >
+                <View style={styles.metricCardHeader}>
+                  <View style={styles.metricIconWrapper}>
+                    <Text style={styles.metricIcon}>🎯</Text>
+                    <View style={styles.metricIconGlow} />
+                  </View>
+                  <View style={styles.metricBadge}>
+                    <Text style={styles.metricBadgeText}>NEW</Text>
+                  </View>
                 </View>
-                <View style={styles.metricBadge}>
-                  <Text style={styles.metricBadgeText}>NEW</Text>
+                <Text style={styles.modernMetricNumber}>{newLeadsCount}</Text>
+                <Text style={styles.modernMetricLabel}>New Leads Available</Text>
+                <View style={styles.metricTrendContainer}>
+                  <Text style={styles.trendIcon}>📈</Text>
+                  <Text style={styles.trendText}>+12% this week</Text>
                 </View>
-              </View>
-              <Text style={styles.modernMetricNumber}>{newLeadsCount}</Text>
-              <Text style={styles.modernMetricLabel}>New Leads Available</Text>
-              <View style={styles.metricTrendContainer}>
-                <Text style={styles.trendIcon}>📈</Text>
-                <Text style={styles.trendText}>+12% this week</Text>
-              </View>
+                <View style={styles.metricCardPattern} />
+              </LinearGradient>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -633,20 +731,27 @@ function DashboardScreen({ onNavigate }) {
               activeOpacity={0.8}
               onPress={() => handleNavigation('activeLeads')}
             >
-              <View style={styles.metricCardHeader}>
-                <View style={styles.metricIconWrapper}>
-                  <Text style={styles.metricIcon}>⚡</Text>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+                style={styles.metricCardGradient}
+              >
+                <View style={styles.metricCardHeader}>
+                  <View style={styles.metricIconWrapper}>
+                    <Text style={styles.metricIcon}>⚡</Text>
+                    <View style={styles.metricIconGlow} />
+                  </View>
+                  <View style={styles.metricBadge}>
+                    <Text style={styles.metricBadgeText}>ACTIVE</Text>
+                  </View>
                 </View>
-                <View style={styles.metricBadge}>
-                  <Text style={styles.metricBadgeText}>ACTIVE</Text>
+                <Text style={styles.modernMetricNumber}>{activeLeadsCount}</Text>
+                <Text style={styles.modernMetricLabel}>Active Leads</Text>
+                <View style={styles.metricTrendContainer}>
+                  <Text style={styles.trendIcon}>🔥</Text>
+                  <Text style={styles.trendText}>3 in progress</Text>
                 </View>
-              </View>
-              <Text style={styles.modernMetricNumber}>{activeLeadsCount}</Text>
-              <Text style={styles.modernMetricLabel}>Active Leads</Text>
-              <View style={styles.metricTrendContainer}>
-                <Text style={styles.trendIcon}>🔥</Text>
-                <Text style={styles.trendText}>3 in progress</Text>
-              </View>
+                <View style={styles.metricCardPattern} />
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
@@ -657,22 +762,29 @@ function DashboardScreen({ onNavigate }) {
               activeOpacity={0.8}
               onPress={() => handleNavigation('credits')}
             >
-              <View style={styles.metricCardHeader}>
-                <View style={styles.metricIconWrapper}>
-                  <Text style={styles.metricIcon}>💰</Text>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+                style={styles.metricCardGradient}
+              >
+                <View style={styles.metricCardHeader}>
+                  <View style={styles.metricIconWrapper}>
+                    <Text style={styles.metricIcon}>💰</Text>
+                    <View style={styles.metricIconGlow} />
+                  </View>
+                  <View style={styles.addCreditButton}>
+                    <Text style={styles.addCreditText}>+</Text>
+                  </View>
                 </View>
-                <View style={styles.addCreditButton}>
-                  <Text style={styles.addCreditText}>+</Text>
+                <Text style={styles.modernMetricNumber}>
+                  ${creditBalance?.balance || '0.00'}
+                </Text>
+                <Text style={styles.modernMetricLabel}>Credit Balance</Text>
+                <View style={styles.metricTrendContainer}>
+                  <Text style={styles.trendIcon}>💳</Text>
+                  <Text style={styles.trendText}>Add credit</Text>
                 </View>
-              </View>
-              <Text style={styles.modernMetricNumber}>
-                ${creditBalance?.balance || '0.00'}
-              </Text>
-              <Text style={styles.modernMetricLabel}>Credit Balance</Text>
-              <View style={styles.metricTrendContainer}>
-                <Text style={styles.trendIcon}>💳</Text>
-                <Text style={styles.trendText}>Add credit</Text>
-              </View>
+                <View style={styles.metricCardPattern} />
+              </LinearGradient>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -680,31 +792,38 @@ function DashboardScreen({ onNavigate }) {
               activeOpacity={0.8}
               onPress={() => handleNavigation('profile')}
             >
-              <View style={styles.metricCardHeader}>
-                <View style={styles.metricIconWrapper}>
-                  <Text style={styles.metricIcon}>⭐</Text>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+                style={styles.metricCardGradient}
+              >
+                <View style={styles.metricCardHeader}>
+                  <View style={styles.metricIconWrapper}>
+                    <Text style={styles.metricIcon}>⭐</Text>
+                    <View style={styles.metricIconGlow} />
+                  </View>
+                  <View style={styles.ratingStars}>
+                    <Text style={styles.starIcon}>⭐</Text>
+                    <Text style={styles.starIcon}>⭐</Text>
+                    <Text style={styles.starIcon}>⭐</Text>
+                    <Text style={styles.starIcon}>⭐</Text>
+                    <Text style={styles.starIcon}>⭐</Text>
+                  </View>
                 </View>
-                <View style={styles.ratingStars}>
-                  <Text style={styles.starIcon}>⭐</Text>
-                  <Text style={styles.starIcon}>⭐</Text>
-                  <Text style={styles.starIcon}>⭐</Text>
-                  <Text style={styles.starIcon}>⭐</Text>
-                  <Text style={styles.starIcon}>⭐</Text>
-                </View>
-              </View>
-              <Text style={styles.modernMetricNumber}>
-                {profile?.rating || '5.0'}
-              </Text>
-              <Text style={styles.modernMetricLabel}>Customer Rating</Text>
-              <View style={styles.metricTrendContainer}>
-                <Text style={styles.trendIcon}>👥</Text>
-                <Text style={styles.trendText}>
-                  {profile?.totalReviews ? 
-                    `${profile.totalReviews} reviews` : 
-                    'No reviews yet'
-                  }
+                <Text style={styles.modernMetricNumber}>
+                  {profile?.rating || '5.0'}
                 </Text>
-              </View>
+                <Text style={styles.modernMetricLabel}>Customer Rating</Text>
+                <View style={styles.metricTrendContainer}>
+                  <Text style={styles.trendIcon}>👥</Text>
+                  <Text style={styles.trendText}>
+                    {profile?.totalReviews ? 
+                      `${profile.totalReviews} reviews` : 
+                      'No reviews yet'
+                    }
+                  </Text>
+                </View>
+                <View style={styles.metricCardPattern} />
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
@@ -794,6 +913,7 @@ function DashboardScreen({ onNavigate }) {
         </Animated.View>
       </ScrollView>
 
+
       {/* Notification List Modal */}
       <NotificationList
         visible={notificationsVisible}
@@ -812,50 +932,76 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingTop: Platform.OS === 'ios' ? 60 : 16,
     paddingBottom: Platform.OS === 'ios' ? 20 : 16,
-    paddingHorizontal: 20,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     elevation: 8,
     zIndex: 1000,
   },
-  menuButton: {
-    padding: 12,
-    marginRight: 8,
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
-  },
-  menuIcon: {
-    fontSize: 20,
-    color: colors.primary,
-    fontWeight: '600',
+  headerGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 0,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerMainContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
+    marginLeft: 12,
+  },
+  logoContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  logoGlow: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    zIndex: -1,
+  },
+  titleContainer: {
+    flex: 1,
+  },
+  notificationContainer: {
+    marginLeft: 12,
+  },
+  menuButton: {
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  menuIcon: {
+    fontSize: 20,
+    color: '#ffffff',
+    fontWeight: '600',
   },
   logo: {
     fontSize: 28,
-    marginRight: 12,
+    color: '#ffffff',
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.primary,
+    color: '#ffffff',
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: 'rgba(255,255,255,0.8)',
     fontWeight: '500',
   },
   overlay: {
@@ -876,30 +1022,181 @@ const styles = StyleSheet.create({
     left: 0,
     width: width * 0.75,
     height: '100%',
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(15px)',
     borderRightWidth: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOffset: { width: 8, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 25,
+    elevation: 15,
     zIndex: 1000,
   },
   sidebarHeader: {
-    padding: 24,
-    paddingTop: Platform.OS === 'ios' ? 60 : 24,
-    paddingBottom: 20,
-    backgroundColor: '#ffffff',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backdropFilter: 'blur(10px)',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-    minHeight: Platform.OS === 'ios' ? 100 : 80,
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    elevation: 8,
+    minHeight: Platform.OS === 'ios' ? 90 : 70,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  sidebarHeaderPattern: {
+    position: 'absolute',
+    top: -30,
+    right: -30,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    zIndex: 1,
+  },
+  sidebarHeaderPattern2: {
+    position: 'absolute',
+    bottom: -20,
+    left: -20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    zIndex: 1,
+  },
+  // User Profile Section
+  userProfileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    marginHorizontal: 12,
+    marginVertical: 8,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backdropFilter: 'blur(8px)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  userAvatarContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  userAvatarText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ffffff',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
+  },
+  userStatusIndicator: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.success,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 1,
+    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
+  },
+  userRole: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    letterSpacing: -0.1,
+  },
+  // Notification Badge
+  notificationBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: colors.error,
+    borderRadius: 8,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.error,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  notificationBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+    textAlign: 'center',
+  },
+  // Sidebar Footer
+  sidebarFooter: {
+    padding: 16,
+    marginTop: 12,
+  },
+  footerDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    marginBottom: 12,
+  },
+  footerContent: {
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 2,
+    letterSpacing: -0.1,
+  },
+  footerSubtext: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    opacity: 0.7,
   },
   sidebarHeaderRow: {
     flexDirection: 'row',
@@ -908,19 +1205,25 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   closeButton: {
-    padding: 12,
+    padding: 10,
     borderRadius: 12,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: 'rgba(248, 250, 252, 0.8)',
+    backdropFilter: 'blur(8px)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   closeButtonText: {
-    fontSize: 18,
-    color: '#000000',
-    fontWeight: '700',
+    fontSize: 16,
+    color: '#1e293b',
+    fontWeight: '800',
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   sidebarLogo: {
     fontSize: 28,
@@ -929,110 +1232,175 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   sidebarTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#000000',
+    color: '#1e293b',
     flex: 1,
     textAlign: 'center',
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
     marginLeft: 12,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   sidebarContent: {
     flex: 1,
     paddingTop: 8,
-    backgroundColor: '#fafbfc',
+    backgroundColor: 'rgba(248, 250, 252, 0.5)',
+    backdropFilter: 'blur(8px)',
   },
   sidebarItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 14,
     marginHorizontal: 12,
-    marginVertical: 4,
+    marginVertical: 3,
     borderRadius: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backdropFilter: 'blur(8px)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    transform: [{ scale: 1 }],
   },
   activeItem: {
     backgroundColor: colors.primary + '15',
     borderWidth: 2,
-    borderColor: colors.primary + '30',
+    borderColor: colors.primary + '40',
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 12,
-    elevation: 4,
+    elevation: 6,
+    transform: [{ scale: 1.02 }],
   },
   sidebarIcon: {
-    fontSize: 20,
-    marginRight: 16,
-    width: 24,
+    fontSize: 18,
+    marginRight: 14,
+    width: 20,
     textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   sidebarText: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.text,
     flex: 1,
     fontWeight: '600',
     letterSpacing: -0.2,
+    textShadowColor: 'rgba(0,0,0,0.05)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   activeText: {
     color: colors.primary,
-    fontWeight: '700',
+    fontWeight: '800',
+    textShadowColor: colors.primary + '30',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   logoutItem: {
-    backgroundColor: colors.error + '15',
-    borderWidth: 1,
-    borderColor: colors.error + '30',
+    backgroundColor: colors.error + '20',
+    borderWidth: 2,
+    borderColor: colors.error + '40',
+    shadowColor: colors.error,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
   },
   sidebarSection: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   sidebarSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 14,
     marginHorizontal: 12,
     marginVertical: 4,
     borderRadius: 16,
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'rgba(248, 250, 252, 0.8)',
+    backdropFilter: 'blur(8px)',
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   expandIcon: {
     fontSize: 14,
     color: colors.textSecondary,
     marginLeft: 'auto',
     fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   sidebarSubItems: {
     marginTop: 4,
     marginHorizontal: 12,
   },
   sidebarSubItem: {
-    padding: 14,
-    paddingLeft: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
     marginVertical: 2,
+    marginLeft: 20,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(248, 250, 252, 0.8)',
+    backdropFilter: 'blur(4px)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   sidebarSubText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
     fontWeight: '500',
     letterSpacing: -0.1,
+    flex: 1,
+    marginLeft: 12,
+  },
+  // Submenu icon styling
+  sidebarSubIcon: {
+    fontSize: 14,
+    marginRight: 12,
+    width: 16,
+    textAlign: 'center',
+    opacity: 0.7,
+  },
+  // Active submenu item
+  activeSubItem: {
+    backgroundColor: colors.primary + '12',
+    borderWidth: 1.5,
+    borderColor: colors.primary + '30',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  activeSubText: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   logoutText: {
     color: colors.error,
-    fontWeight: '700',
+    fontWeight: '800',
+    textShadowColor: colors.error + '30',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   mainContent: {
     flex: 1,
@@ -1040,24 +1408,31 @@ const styles = StyleSheet.create({
   animatedContainer: {
     flex: 1,
   },
-  // Modern Welcome Section
+  // Enhanced Welcome Section
   welcomeSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 20,
+    marginHorizontal: 16,
+    marginTop: 12,
     borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
+    overflow: 'hidden',
+  },
+  welcomeGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   welcomeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  welcomeTextContainer: {
     flex: 1,
   },
   welcomeGreeting: {
@@ -1067,27 +1442,38 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   welcomeName: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: colors.text,
     marginBottom: 8,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   welcomeSubtext: {
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
   },
-  welcomeIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  welcomeIconContainer: {
+    position: 'relative',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  welcomeIconGlow: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: 39,
+    backgroundColor: colors.primary + '20',
+    zIndex: -1,
+  },
   welcomeEmoji: {
-    fontSize: 28,
+    fontSize: 32,
   },
   // Modern Alert Card
   modernAlertCard: {
@@ -1129,23 +1515,40 @@ const styles = StyleSheet.create({
   },
   // Modern Stats Container
   modernStatsContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 12,
   },
   metricsRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
   },
   modernMetricCard: {
     flex: 1,
-    padding: 20,
-    borderRadius: 20,
+    borderRadius: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  metricCardGradient: {
+    padding: 18,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    position: 'relative',
+  },
+  metricCardPattern: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    zIndex: -1,
   },
   primaryMetricCard: {
     backgroundColor: '#ffffff',
@@ -1174,15 +1577,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   metricIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    position: 'relative',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  metricIconGlow: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: 28,
+    backgroundColor: colors.primary + '20',
+    zIndex: -1,
+  },
   metricIcon: {
-    fontSize: 20,
+    fontSize: 24,
   },
   metricBadge: {
     backgroundColor: colors.primary,
@@ -1248,12 +1662,12 @@ const styles = StyleSheet.create({
   },
   // Modern Activity Section
   modernActivitySection: {
-    marginHorizontal: 20,
-    marginTop: 24,
-    marginBottom: 32,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 20,
     backgroundColor: '#ffffff',
     borderRadius: 20,
-    padding: 20,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -1264,7 +1678,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   activityHeaderLeft: {
     flexDirection: 'row',
