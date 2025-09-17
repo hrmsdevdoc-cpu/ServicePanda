@@ -1,13 +1,18 @@
 const React = require('react');
 const { useState } = require('react');
-const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl, Animated } = require('react-native');
+const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl, Animated, Linking, Alert } = require('react-native');
 const { Title, Paragraph, Card, Button, Chip, ActivityIndicator } = require('react-native-paper');
 const { useQuery } = require('@tanstack/react-query');
 const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
+const LeadDetailsModal = require('../../components/LeadDetailsModal');
+const CloseLeadModal = require('../../components/CloseLeadModal');
 
-function ActiveLeadsScreen({ onNavigate }) {
+function ActiveLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: any) => void }) {
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [showLeadDetails, setShowLeadDetails] = useState(false);
+  const [showCloseLead, setShowCloseLead] = useState(false);
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -27,8 +32,80 @@ function ActiveLeadsScreen({ onNavigate }) {
     setRefreshing(false);
   }, [refetchLeads]);
 
-  // Filter active leads (status === 'purchased')
-  const purchasedLeads = activeLeads.filter(lead => lead.status === 'purchased');
+  // Modal handlers
+  const handleLeadDetails = (lead: any) => {
+    setSelectedLead(lead);
+    setShowLeadDetails(true);
+  };
+
+  const handleCloseLead = (lead: any) => {
+    setSelectedLead(lead);
+    setShowCloseLead(true);
+  };
+
+  const handleCloseLeadConfirm = async (isJobBooked: boolean) => {
+    try {
+      console.log('Closing lead:', selectedLead?.requestId || selectedLead?.id, 'Job booked:', isJobBooked);
+      await apiService.closeLead(selectedLead?.requestId || selectedLead?.id, isJobBooked);
+      await refetchLeads(); // Refresh the leads list
+      Alert.alert('Success', 'Lead closed successfully!');
+    } catch (error) {
+      console.error('Error closing lead:', error);
+      Alert.alert('Error', 'Failed to close lead. Please try again.');
+    }
+  };
+
+  // Contact action handlers
+  const handleCallCustomer = (phone: string) => {
+    Linking.openURL(`tel:${phone}`);
+  };
+
+  const handleSendSMS = (phone: string) => {
+    Linking.openURL(`sms:${phone}`);
+  };
+
+  const handleSendEmail = (email: string) => {
+    Linking.openURL(`mailto:${email}`);
+  };
+
+  // Fetch lead statuses for accurate filtering
+  const [leadStatuses, setLeadStatuses] = React.useState<{[leadId: number]: string}>({});
+  
+  // Fetch lead statuses when leads change
+  React.useEffect(() => {
+    const fetchLeadStatuses = async () => {
+      if (activeLeads.length > 0) {
+        const statusPromises = activeLeads
+          .filter((l: any) => l.status === 'purchased')
+          .map(async (lead: any) => {
+            try {
+              const response = await apiService.request('GET', `/api/provider/leads/${lead.requestId}/status`);
+              return { leadId: lead.requestId, status: response.status || 'new' };
+            } catch (error) {
+              console.error(`Failed to fetch status for lead ${lead.requestId}:`, error);
+              return { leadId: lead.requestId, status: 'new' };
+            }
+          });
+        
+        const statusResults = await Promise.all(statusPromises);
+        const statusMap = statusResults.reduce((acc, { leadId, status }) => {
+          acc[leadId] = status;
+          return acc;
+        }, {} as {[leadId: number]: string});
+        
+        setLeadStatuses(statusMap);
+      }
+    };
+
+    fetchLeadStatuses();
+  }, [activeLeads]);
+
+  const getLeadStatus = (leadId: number) => {
+    return leadStatuses[leadId] || 'new';
+  };
+
+  // Filter active leads (status === 'purchased' AND not closed by provider)
+  const purchasedLeads = activeLeads.filter((lead: any) => lead.status === 'purchased' && getLeadStatus(lead.requestId) !== 'closed');
 
   // Animation effects on mount
   React.useEffect(() => {
@@ -107,7 +184,7 @@ function ActiveLeadsScreen({ onNavigate }) {
                     <Text style={styles.statIcon}>💰</Text>
                   </View>
                   <Text style={styles.modernStatNumber}>
-                    ${purchasedLeads.reduce((sum, lead) => {
+                    ${purchasedLeads.reduce((sum: number, lead: any) => {
                       const budget = lead.budget || 0;
                       return sum + budget;
                     }, 0).toLocaleString()}
@@ -121,7 +198,7 @@ function ActiveLeadsScreen({ onNavigate }) {
                   <Text style={styles.statIcon}>💳</Text>
                 </View>
                 <Text style={styles.modernStatNumber}>
-                  ${purchasedLeads.reduce((sum, lead) => {
+                  ${purchasedLeads.reduce((sum: number, lead: any) => {
                     const leadCost = lead.leadCost || 0;
                     return sum + leadCost;
                   }, 0).toLocaleString()}
@@ -148,86 +225,101 @@ function ActiveLeadsScreen({ onNavigate }) {
                   </TouchableOpacity>
                 </View>
               ) : (
-                purchasedLeads.map((lead) => (
-                  <TouchableOpacity 
-                    key={lead.requestId || lead.id} 
-                    style={styles.modernLeadCard}
-                    activeOpacity={0.9}
-                  >
+                purchasedLeads.map((lead: any) => (
+                  <View key={lead.requestId || lead.id} style={styles.modernLeadCard}>
+                    {/* Lead Header */}
                     <View style={styles.leadCardHeader}>
                       <View style={styles.leadTitleSection}>
                         <Text style={styles.modernLeadTitle}>
                           {lead.categoryName} - {lead.suburb?.toUpperCase() || 'LOCATION'}
                         </Text>
-                        <View style={styles.statusBadge}>
-                          <Text style={styles.statusText}>
-                            {lead.status === 'purchased' ? 'Active' : lead.status}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.leadBudgetSection}>
-                        <Text style={styles.budgetLabel}>Budget</Text>
-                        <Text style={styles.modernBudgetAmount}>${lead.budget || 'N/A'}</Text>
+                        {/* New badge for recently purchased leads */}
+                        {lead.createdAt && new Date(lead.createdAt) > new Date(Date.now() - 24 * 60 * 60 * 1000) && (
+                          <View style={styles.newBadge}>
+                            <Text style={styles.newBadgeText}>New</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
 
-                    <Text style={styles.modernLeadDescription}>{lead.description}</Text>
-
-                    <View style={styles.modernLeadDetails}>
-                      <View style={styles.detailRow}>
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailIcon}>👤</Text>
-                          <Text style={styles.detailText}>
-                            {lead.customerName || 'Customer Name N/A'}
-                          </Text>
-                        </View>
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailIcon}>📍</Text>
-                          <Text style={styles.detailText}>
-                            {lead.suburb}, {lead.postcode}
-                          </Text>
-                        </View>
+                    {/* Customer Info with Details Button */}
+                    <View style={styles.customerInfoRow}>
+                      <View style={styles.customerInfo}>
+                        <Text style={styles.customerName}>
+                          {lead.customerName || 'Customer Name N/A'} - {lead.customerPhone || 'N/A'}
+                        </Text>
                       </View>
-
-                      <View style={styles.detailRow}>
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailIcon}>📅</Text>
-                          <Text style={styles.detailText}>
-                            Created: {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A'}
-                          </Text>
-                        </View>
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailIcon}>💰</Text>
-                          <Text style={styles.detailText}>
-                            Lead Cost: ${lead.leadCost || 0}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View style={styles.modernLeadActions}>
                       <TouchableOpacity
-                        style={styles.modernActionButton}
-                        onPress={() => onNavigate('leadDetails')}
+                        style={styles.detailsButton}
+                        onPress={() => handleLeadDetails(lead)}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.actionButtonText}>View Details</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.modernUpdateButton}
-                        onPress={() => console.log('Update progress for lead:', lead.requestId || lead.id)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.updateButtonText}>Update Progress</Text>
+                        <Text style={styles.detailsButtonIcon}>📄</Text>
+                        <Text style={styles.detailsButtonText}>Details</Text>
                       </TouchableOpacity>
                     </View>
-                  </TouchableOpacity>
+
+                    {/* Action Buttons Row */}
+                    <View style={styles.actionRow}>
+                      <TouchableOpacity
+                        style={styles.closeLeadButton}
+                        onPress={() => handleCloseLead(lead)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.closeLeadIcon}>✕</Text>
+                        <Text style={styles.closeLeadText}>Close Lead</Text>
+                      </TouchableOpacity>
+
+                      {/* Contact Icons */}
+                      <View style={styles.contactIcons}>
+                        <TouchableOpacity
+                          style={styles.contactIcon}
+                          onPress={() => handleCallCustomer(lead.customerPhone)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.contactIconText}>📞</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.contactIcon}
+                          onPress={() => handleSendSMS(lead.customerPhone)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.contactIconText}>💬</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.contactIcon}
+                          onPress={() => handleSendEmail(lead.customerEmail)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.contactIconText}>✉️</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
                 ))
               )}
             </View>
           </>
         )}
       </Animated.View>
+
+      {/* Lead Details Modal */}
+      <LeadDetailsModal
+        visible={showLeadDetails}
+        lead={selectedLead}
+        onClose={() => setShowLeadDetails(false)}
+        onCallCustomer={handleCallCustomer}
+        onSendSMS={handleSendSMS}
+        onSendEmail={handleSendEmail}
+      />
+
+      {/* Close Lead Modal */}
+      <CloseLeadModal
+        visible={showCloseLead}
+        lead={selectedLead}
+        onClose={() => setShowCloseLead(false)}
+        onConfirm={handleCloseLeadConfirm}
+      />
     </ScrollView>
   );
 }
@@ -369,117 +461,114 @@ const styles = StyleSheet.create({
   },
   modernLeadCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: '#e5e7eb',
   },
   leadCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   leadTitleSection: {
-    flex: 1,
-    marginRight: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   modernLeadTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
-    lineHeight: 22,
+    flex: 1,
   },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.success + '20',
+  newBadge: {
+    backgroundColor: '#3B82F6',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 12,
+    marginLeft: 8,
   },
-  statusText: {
-    fontSize: 11,
+  newBadgeText: {
+    fontSize: 10,
     fontWeight: '600',
-    color: colors.success,
+    color: '#ffffff',
   },
-  leadBudgetSection: {
-    alignItems: 'center',
-  },
-  budgetLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  modernBudgetAmount: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.success,
-  },
-  modernLeadDescription: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  modernLeadDetails: {
-    marginBottom: 20,
-  },
-  detailRow: {
+  customerInfoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
     alignItems: 'center',
+    marginBottom: 12,
   },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  customerInfo: {
     flex: 1,
   },
-  detailIcon: {
+  customerName: {
     fontSize: 14,
-    marginRight: 8,
-  },
-  detailText: {
-    fontSize: 13,
     color: colors.text,
-    flex: 1,
+    fontWeight: '500',
   },
-  modernLeadActions: {
+  actionRow: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  modernActionButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+  closeLeadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.error + '10',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.primary,
-    alignItems: 'center',
+    borderColor: colors.error + '30',
   },
-  actionButtonText: {
+  closeLeadIcon: {
     fontSize: 14,
+    color: colors.error,
+    marginRight: 6,
+  },
+  closeLeadText: {
+    fontSize: 12,
     fontWeight: '600',
-    color: colors.primary,
+    color: colors.error,
   },
-  modernUpdateButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
+  contactIcons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  contactIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  updateButtonText: {
+  contactIconText: {
+    fontSize: 16,
+  },
+  detailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.success,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  detailsButtonIcon: {
     fontSize: 14,
+    color: '#ffffff',
+    marginRight: 6,
+  },
+  detailsButtonText: {
+    fontSize: 12,
     fontWeight: '600',
     color: '#ffffff',
   },

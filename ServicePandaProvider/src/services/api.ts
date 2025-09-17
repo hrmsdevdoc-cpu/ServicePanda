@@ -171,10 +171,14 @@ class ApiService {
     status: string,
     wasJobBooked: boolean
   ) {
-    return this.request('POST', `/api/provider/leads/${leadId}/status`, {
+    return this.request('PUT', `/api/provider/leads/${leadId}/status`, {
       status,
       wasJobBooked
     });
+  }
+
+  async closeLead(leadId: string | number, wasJobBooked: boolean) {
+    return this.updateLeadStatus(leadId, 'closed', wasJobBooked);
   }
 
   async trackInteraction(
