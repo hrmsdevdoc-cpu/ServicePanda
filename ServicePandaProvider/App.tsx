@@ -48,7 +48,7 @@ const LoadingScreen = () => (
 // Main app component that handles authentication flow and navigation
 const AppContent = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
-  const [currentScreen, setCurrentScreen] = useState('dashboard');
+  const [currentScreen, setCurrentScreen] = useState('login');
   const [currentSubScreen, setCurrentSubScreen] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(true);
   
@@ -106,6 +106,18 @@ const AppContent = () => {
     showFooter();
   }, [currentScreen]);
 
+  // Auto-navigate to dashboard when user becomes authenticated
+  useEffect(() => {
+    console.log('🔍 Auth state changed - isAuthenticated:', isAuthenticated, 'currentScreen:', currentScreen);
+    if (isAuthenticated) {
+      console.log('🔍 User authenticated, navigating to dashboard');
+      setCurrentScreen('dashboard');
+    } else {
+      console.log('🔍 User not authenticated, resetting to login screen');
+      setCurrentScreen('login');
+    }
+  }, [isAuthenticated]);
+
   // Navigation function to be passed to screens
   const navigateTo = (screen: string, subScreen: string | null = null) => {
     console.log('🔍 navigateTo called with screen:', screen, 'subScreen:', subScreen);
@@ -155,7 +167,7 @@ const AppContent = () => {
 
   // Render different screens based on currentScreen
   const renderScreen = () => {
-    console.log('🔍 renderScreen called with currentScreen:', currentScreen);
+    console.log('🔍 renderScreen called with currentScreen:', currentScreen, 'isAuthenticated:', isAuthenticated);
     switch (currentScreen) {
       case 'login':
         return <LoginScreen onNavigate={navigateTo} />;

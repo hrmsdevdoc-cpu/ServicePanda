@@ -1,6 +1,6 @@
 const React = require('react');
 const { useState, useEffect } = require('react');
-const { View, Text, StyleSheet, ScrollView, Alert, TextInput, Animated, Dimensions, TouchableOpacity } = require('react-native');
+const { View, Text, StyleSheet, ScrollView, Alert, TextInput, Animated, Dimensions, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard } = require('react-native');
 const { Card, Title, Paragraph, Button, TextInput: PaperTextInput, HelperText } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 const { useQuery, useMutation, useQueryClient } = require('@tanstack/react-query');
@@ -31,6 +31,9 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(30)).current;
   const scaleAnim = React.useRef(new Animated.Value(0.95)).current;
+  
+  // ScrollView ref for keyboard handling
+  const scrollViewRef = React.useRef(null);
 
   const queryClient = useQueryClient();
 
@@ -55,6 +58,43 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
       }),
     ]).start();
   }, []);
+
+  // Keyboard handling
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      // Scroll to bottom when keyboard appears to show buttons
+      setTimeout(() => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollToEnd({ animated: true });
+        }
+      }, 100);
+    });
+
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      // Optional: scroll back to top when keyboard hides
+      setTimeout(() => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        }
+      }, 100);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
+
+  // Handle input focus - scroll to show the input field
+  const handleInputFocus = (fieldName) => {
+    console.log('🔍 Input focused:', fieldName);
+    setTimeout(() => {
+      if (scrollViewRef.current) {
+        // Scroll to show the focused input field
+        scrollViewRef.current.scrollToEnd({ animated: true });
+      }
+    }, 300); // Small delay to allow keyboard to appear
+  };
 
   // Debug: Check AsyncStorage on component mount
   useEffect(() => {
@@ -194,8 +234,19 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Animated.View
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Animated.View
         style={[
           styles.animatedContainer,
           {
@@ -254,6 +305,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
                   mode="outlined"
                   value={formData.firstName}
                   onChangeText={(value: string) => handleInputChange('firstName', value)}
+                  onFocus={() => handleInputFocus('firstName')}
                   disabled={!isEditing}
                   style={styles.modernInput}
                   error={!!errors.firstName}
@@ -272,6 +324,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
                   mode="outlined"
                   value={formData.lastName}
                   onChangeText={(value: string) => handleInputChange('lastName', value)}
+                  onFocus={() => handleInputFocus('lastName')}
                   disabled={!isEditing}
                   style={styles.modernInput}
                   error={!!errors.lastName}
@@ -308,6 +361,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
                   mode="outlined"
                   value={formData.mobileNumber}
                   onChangeText={(value: string) => handleInputChange('mobileNumber', value)}
+                  onFocus={() => handleInputFocus('mobileNumber')}
                   disabled={!isEditing}
                   style={styles.modernInput}
                   error={!!errors.mobileNumber}
@@ -327,6 +381,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
                   mode="outlined"
                   value={formData.address}
                   onChangeText={(value: string) => handleInputChange('address', value)}
+                  onFocus={() => handleInputFocus('address')}
                   disabled={!isEditing}
                   style={[styles.modernInput, errors.address && styles.modernErrorInput]}
                   error={!!errors.address}
@@ -367,6 +422,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
                   mode="outlined"
                   value={formData.businessName}
                   onChangeText={(value: string) => handleInputChange('businessName', value)}
+                  onFocus={() => handleInputFocus('businessName')}
                   disabled={!isEditing}
                   style={styles.modernInput}
                   placeholder="Enter your business name"
@@ -383,6 +439,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
                   mode="outlined"
                   value={formData.businessAbn}
                   onChangeText={(value: string) => handleInputChange('businessAbn', value)}
+                  onFocus={() => handleInputFocus('businessAbn')}
                   disabled={!isEditing}
                   style={styles.modernInput}
                   placeholder="Enter your ABN or ACN (optional)"
@@ -429,8 +486,9 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
             </TouchableOpacity>
           )}
         </View>
-      </Animated.View>
-    </ScrollView>
+        </Animated.View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -438,6 +496,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 120, // Increased padding to ensure buttons are visible above footer

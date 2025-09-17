@@ -70,7 +70,8 @@ const AuthProvider = ({ children }) => {
       setProviderData(provider);
       setIsAuthenticated(true);
       
-      console.log('✅ Login successful');
+      console.log('✅ Login successful - isAuthenticated set to true');
+      console.log('✅ Provider data set:', provider);
       return provider;
     } catch (error) {
       console.error('❌ Login failed:', error);
