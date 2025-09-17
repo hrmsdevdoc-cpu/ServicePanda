@@ -25,9 +25,45 @@ function LeadsScreen({ onNavigate, onBack }) {
     retry: false,
   });
 
-  // Calculate dynamic counts
+  // Fetch lead statuses for accurate filtering
+  const [leadStatuses, setLeadStatuses] = React.useState<{[leadId: number]: string}>({});
+  
+  // Fetch lead statuses when leads change
+  React.useEffect(() => {
+    const fetchLeadStatuses = async () => {
+      if (allLeads.length > 0) {
+        const statusPromises = allLeads
+          .filter((l: any) => l.status === 'purchased')
+          .map(async (lead: any) => {
+            try {
+              const response = await apiService.request('GET', `/api/provider/leads/${lead.requestId}/status`);
+              return { leadId: lead.requestId, status: response.status || 'new' };
+            } catch (error) {
+              console.error(`Failed to fetch status for lead ${lead.requestId}:`, error);
+              return { leadId: lead.requestId, status: 'new' };
+            }
+          });
+        
+        const statusResults = await Promise.all(statusPromises);
+        const statusMap = statusResults.reduce((acc, { leadId, status }) => {
+          acc[leadId] = status;
+          return acc;
+        }, {} as {[leadId: number]: string});
+        
+        setLeadStatuses(statusMap);
+      }
+    };
+
+    fetchLeadStatuses();
+  }, [allLeads]);
+
+  const getLeadStatus = (leadId: number) => {
+    return leadStatuses[leadId] || 'new';
+  };
+
+  // Calculate dynamic counts with proper filtering
   const newLeadsCount = allLeads.filter(lead => lead.status === 'pending').length;
-  const activeLeadsCount = allLeads.filter(lead => lead.status === 'purchased').length;
+  const activeLeadsCount = allLeads.filter(lead => lead.status === 'purchased' && getLeadStatus(lead.requestId) !== 'closed').length;
   const completedLeadsCount = closedLeads.length;
 
   // Loading state

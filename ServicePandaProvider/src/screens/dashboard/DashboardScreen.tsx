@@ -88,8 +88,44 @@ function DashboardScreen({ onNavigate }) {
     setRefreshing(false);
   }, [refetchLeads]);
 
+  // Fetch lead statuses for accurate filtering
+  const [leadStatuses, setLeadStatuses] = React.useState<{[leadId: number]: string}>({});
+  
+  // Fetch lead statuses when leads change
+  React.useEffect(() => {
+    const fetchLeadStatuses = async () => {
+      if (leads.length > 0) {
+        const statusPromises = leads
+          .filter((l: any) => l.status === 'purchased')
+          .map(async (lead: any) => {
+            try {
+              const response = await apiService.request('GET', `/api/provider/leads/${lead.requestId}/status`);
+              return { leadId: lead.requestId, status: response.status || 'new' };
+            } catch (error) {
+              console.error(`Failed to fetch status for lead ${lead.requestId}:`, error);
+              return { leadId: lead.requestId, status: 'new' };
+            }
+          });
+        
+        const statusResults = await Promise.all(statusPromises);
+        const statusMap = statusResults.reduce((acc, { leadId, status }) => {
+          acc[leadId] = status;
+          return acc;
+        }, {} as {[leadId: number]: string});
+        
+        setLeadStatuses(statusMap);
+      }
+    };
+
+    fetchLeadStatuses();
+  }, [leads]);
+
+  const getLeadStatus = (leadId: number) => {
+    return leadStatuses[leadId] || 'new';
+  };
+
   const newLeadsCount = leads.filter(l => l.status === 'pending').length;
-  const activeLeadsCount = leads.filter(l => l.status === 'purchased').length;
+  const activeLeadsCount = leads.filter(l => l.status === 'purchased' && getLeadStatus(l.requestId) !== 'closed').length;
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
