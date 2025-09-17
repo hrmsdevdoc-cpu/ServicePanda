@@ -16,35 +16,87 @@ const {
 const { TextInput, Button, Card, Title, Paragraph } = require('react-native-paper');
 const { useMutation } = require('@tanstack/react-query');
 const { colors } = require('../../utils/theme');
+const { API_BASE_URL } = require('../../config/api');
 
 const { width, height } = Dimensions.get('window');
 
-const ForgotPasswordScreen = ({ onNavigate }) => {
+const ForgotPasswordScreen = ({ onNavigate }: { onNavigate: (screen: string) => void }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = () => {
+  // Debug: Log the API configuration on component mount
+  React.useEffect(() => {
+    console.log('🔧 ForgotPasswordScreen mounted');
+    console.log('🔧 API_BASE_URL:', API_BASE_URL);
+    console.log('🔧 Full forgot password URL:', `${API_BASE_URL}/api/provider/forgot-password`);
+  }, []);
+
+  const handleSubmit = async () => {
     if (!email.trim()) {
       Alert.alert("Missing Information", "Please enter your email address.");
       return;
     }
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert("Invalid Email", "Please enter a valid email address.");
+      return;
+    }
+
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      // Make real API call to provider forgot password endpoint
+      console.log('🔗 API Base URL:', API_BASE_URL);
+      console.log('🔗 Full URL:', `${API_BASE_URL}/api/provider/forgot-password`);
+      const response = await fetch(`${API_BASE_URL}/api/provider/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert(
+          "Reset Link Sent",
+          "If an account with this email exists, you will receive a password reset link shortly.",
+          [
+            {
+              text: "OK",
+              onPress: () => onNavigate('login')
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          data.message || "Failed to send reset link. Please try again.",
+          [
+            {
+              text: "OK"
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
       Alert.alert(
-        "Reset Link Sent",
-        "If an account with this email exists, you will receive a password reset link shortly.",
+        "Network Error",
+        "Unable to connect to the server. Please check your internet connection and try again.",
         [
           {
-            text: "OK",
-            onPress: () => onNavigate('login')
+            text: "OK"
           }
         ]
       );
-    }, 2000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
