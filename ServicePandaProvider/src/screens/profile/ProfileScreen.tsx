@@ -4,18 +4,20 @@ const { Card, Title, Paragraph, Button, Avatar, List, Divider } = require('react
 const { useQuery, useQueryClient } = require('@tanstack/react-query');
 // const { useNavigation } = require('@react-navigation/native'); // Temporarily commented out
 const apiService = require('../../services/api');
+const { useAuth } = require('../../contexts/AuthContext');
 const { colors } = require('../../utils/theme');
 
 const { width } = Dimensions.get('window');
 
 interface ProfileScreenProps {
   onNavigate?: (screen: string) => void;
-  onLogout?: () => void;
+  onLogout?: () => void; // Deprecated - now using useAuth hook directly
 }
 
 function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
   // const navigation = useNavigation(); // Temporarily commented out
   const queryClient = useQueryClient();
+  const { logout } = useAuth();
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -50,6 +52,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
   }, []);
 
   const handleLogout = () => {
+    console.log('🔍 Profile screen logout button pressed');
     Alert.alert(
       'Confirm Logout',
       'Are you sure you want to log out?',
@@ -58,9 +61,15 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
         { 
           text: 'Logout', 
           style: 'destructive',
-          onPress: () => {
-            queryClient.clear();
-            onLogout?.();
+          onPress: async () => {
+            try {
+              console.log('🔍 Profile screen logout confirmed, starting logout process...');
+              queryClient.clear();
+              await logout();
+              console.log('✅ Profile screen logout successful');
+            } catch (error) {
+              console.error('❌ Profile screen logout failed:', error);
+            }
           }
         },
       ]
@@ -316,7 +325,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
               <Text style={styles.modernActionArrow}>›</Text>
             </TouchableOpacity>
             
-            <View style={styles.modernActionDivider} />
+            {/* <View style={styles.modernActionDivider} />
             
             <TouchableOpacity 
               style={styles.modernActionButton}
@@ -333,7 +342,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
               <Text style={styles.modernActionArrow}>›</Text>
             </TouchableOpacity>
             
-            <View style={styles.modernActionDivider} />
+            <View style={styles.modernActionDivider} /> */}
             
             <TouchableOpacity 
               style={styles.modernActionButton}
