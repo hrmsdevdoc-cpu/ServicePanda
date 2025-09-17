@@ -169,11 +169,10 @@ export function setupProviderAuth(app: Express) {
           expiresAt,
         });
 
-        // Send password reset email with correct domain
-        const host = req.get('host');
-        const baseUrl = host?.includes('localhost') 
-          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-          : `${req.protocol}://${host}`;
+        // Send password reset email with correct frontend domain
+        const baseUrl = process.env.REPLIT_DOMAINS 
+          ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+          : process.env.FRONTEND_URL || 'https://staging.servicepanda.com.au';
         const resetUrl = `${baseUrl}/provider-reset-password?token=${token}`;
         
         const emailSent = await sendEmail({

@@ -16,12 +16,12 @@ const API_CONFIG = {
   }
 };
 
-// Detect environment
-const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
+// Force production API for live deployment
+// const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
 
-// Export current configuration
+// Export current configuration - always use production for live app
 const getCurrentApiConfig = () => {
-  return isDevelopment ? API_CONFIG.development : API_CONFIG.production;
+  return API_CONFIG.production; // Always use production API
 };
 
 // Export the base URL for use in API service
