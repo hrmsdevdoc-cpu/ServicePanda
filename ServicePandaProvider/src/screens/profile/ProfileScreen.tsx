@@ -470,12 +470,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modernStatusLabel: {
     fontSize: 14,
     color: colors.primary,
     fontWeight: '600',
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
   // Modern Info Card
   modernInfoCard: {

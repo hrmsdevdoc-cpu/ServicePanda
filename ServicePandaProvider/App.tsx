@@ -279,9 +279,12 @@ const AppContent = () => {
             <Text style={styles.backArrow}>←</Text>
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {currentScreen.charAt(0).toUpperCase() + currentScreen.slice(1)}
-          </Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>
+              {currentScreen.charAt(0).toUpperCase() + currentScreen.slice(1)}
+            </Text>
+          </View>
+          <View style={styles.headerSpacer} />
         </View>
       )}
       
@@ -355,6 +358,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: Platform.OS === 'ios' ? 60 : 50, // More padding for iOS
     paddingBottom: 8,
     paddingHorizontal: 8,
@@ -393,13 +397,19 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    flex: 1,
     textAlign: 'center',
-    marginRight: 60, // Compensate for back button width to center the title
+  },
+  headerSpacer: {
+    width: 100, // Same width as back button to balance the layout
   },
   loadingContainer: {
     flex: 1,

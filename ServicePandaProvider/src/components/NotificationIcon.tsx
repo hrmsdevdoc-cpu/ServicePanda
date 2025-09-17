@@ -19,6 +19,8 @@ function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification 
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
   const badgeScale = React.useRef(new Animated.Value(0)).current;
+  const previewOpacity = React.useRef(new Animated.Value(0)).current;
+  const previewTimer = React.useRef(null);
 
   // Pulse animation for unread notifications
   React.useEffect(() => {
@@ -59,6 +61,50 @@ function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification 
     }
   }, [unreadCount]);
 
+  // Auto-hide notification preview
+  React.useEffect(() => {
+    if (latestNotification && unreadCount > 0) {
+      // Show preview with fade in animation
+      setShowPreview(true);
+      Animated.timing(previewOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+
+      // Clear any existing timer
+      if (previewTimer.current) {
+        clearTimeout(previewTimer.current);
+      }
+
+      // Set timer to hide preview after 4 seconds
+      previewTimer.current = setTimeout(() => {
+        Animated.timing(previewOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => {
+          setShowPreview(false);
+        });
+      }, 4000);
+    } else {
+      // Hide preview immediately if no notification
+      setShowPreview(false);
+      Animated.timing(previewOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+
+    // Cleanup timer on unmount
+    return () => {
+      if (previewTimer.current) {
+        clearTimeout(previewTimer.current);
+      }
+    };
+  }, [latestNotification, unreadCount]);
+
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -88,6 +134,24 @@ function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification 
       }),
     ]).start();
     
+    onPress();
+  };
+
+  const handlePreviewPress = () => {
+    // Hide preview immediately when tapped
+    if (previewTimer.current) {
+      clearTimeout(previewTimer.current);
+    }
+    
+    Animated.timing(previewOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowPreview(false);
+    });
+    
+    // Also trigger the main notification press
     onPress();
   };
 
@@ -129,18 +193,30 @@ function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification 
       </Animated.View>
       
       {/* Latest notification preview */}
-      {latestNotification && unreadCount > 0 && (
-        <View style={styles.previewContainer}>
-          <Text style={styles.previewTitle} numberOfLines={1}>
-            {latestNotification.title}
-          </Text>
-          <Text style={styles.previewMessage} numberOfLines={2}>
-            {latestNotification.message}
-          </Text>
-          <Text style={styles.previewTime}>
-            {formatTime(latestNotification.timestamp)}
-          </Text>
-        </View>
+      {showPreview && latestNotification && unreadCount > 0 && (
+        <TouchableOpacity
+          onPress={handlePreviewPress}
+          activeOpacity={0.8}
+        >
+          <Animated.View 
+            style={[
+              styles.previewContainer,
+              {
+                opacity: previewOpacity,
+              },
+            ]}
+          >
+            <Text style={styles.previewTitle} numberOfLines={1}>
+              {latestNotification.title}
+            </Text>
+            <Text style={styles.previewMessage} numberOfLines={2}>
+              {latestNotification.message}
+            </Text>
+            <Text style={styles.previewTime}>
+              {formatTime(latestNotification.timestamp)}
+            </Text>
+          </Animated.View>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -194,6 +270,7 @@ const styles = StyleSheet.create({
     top: 50,
     right: 0,
     width: 280,
+    height: 80,
     backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 12,
