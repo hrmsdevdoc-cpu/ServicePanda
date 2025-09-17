@@ -21,13 +21,8 @@ import CustomAddressAutocomplete from '../../components/CustomAddressAutocomplet
 import SimpleAddressInput from '../../components/SimpleAddressInput';
 import ServiceAreaMapFallback from '../../components/ServiceAreaMapFallback';
 
-// Try to import react-native-maps, fallback to null if not available
-let ServiceAreaMap: any = null;
-try {
-  ServiceAreaMap = require('../../components/ServiceAreaMap').default;
-} catch (error) {
-  console.log('react-native-maps not available, using fallback map');
-}
+// Use the fallback map component since ServiceAreaMap doesn't exist
+const ServiceAreaMap = ServiceAreaMapFallback;
 const { colors } = require('../../utils/theme');
 
 interface ServiceArea {

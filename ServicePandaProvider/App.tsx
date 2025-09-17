@@ -37,13 +37,101 @@ if (Platform.OS === 'android') {
 }
 const { colors } = require('./src/utils/theme');
 
+// Animated dot component for loading
+const AnimatedDot = ({ delay = 0, style }: { delay?: number; style?: any }) => {
+  const [opacity] = React.useState(new Animated.Value(0.3));
+
+  React.useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.3,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    const timer = setTimeout(() => {
+      animation.start();
+    }, delay);
+
+    return () => {
+      clearTimeout(timer);
+      animation.stop();
+    };
+  }, [delay, opacity]);
+
+  return (
+    <Animated.View style={[styles.dot, style, { opacity }]} />
+  );
+};
+
 // Loading component while checking authentication
-const LoadingScreen = () => (
-  <View style={styles.loadingContainer}>
-    <ActivityIndicator size="large" color={colors.primary} />
-    <Text style={styles.loadingText}>Loading...</Text>
-  </View>
-);
+const LoadingScreen = () => {
+  const [pandaAnim] = React.useState(new Animated.Value(0));
+  const [bounceAnim] = React.useState(new Animated.Value(1));
+
+  React.useEffect(() => {
+    // Panda animation - gentle bounce
+    const bounceAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, {
+          toValue: 1.1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bounceAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    // Fade in animation
+    Animated.timing(pandaAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+
+    bounceAnimation.start();
+
+    return () => {
+      bounceAnimation.stop();
+    };
+  }, []);
+
+  return (
+    <View style={styles.loadingContainer}>
+      <Animated.View 
+        style={[
+          styles.pandaContainer,
+          {
+            opacity: pandaAnim,
+            transform: [{ scale: bounceAnim }],
+          },
+        ]}
+      >
+        <View style={styles.pandaFace}>
+          <Text style={styles.pandaEmoji}>🐼</Text>
+        </View>
+        <View style={styles.loadingDots}>
+          <AnimatedDot delay={0} style={styles.dot1} />
+          <AnimatedDot delay={200} style={styles.dot2} />
+          <AnimatedDot delay={400} style={styles.dot3} />
+        </View>
+      </Animated.View>
+      <Text style={styles.loadingText}>Loading your app...</Text>
+    </View>
+  );
+};
 
 // Main app component that handles authentication flow and navigation
 const AppContent = () => {
@@ -416,11 +504,54 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
+    paddingHorizontal: 40,
+  },
+  pandaContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  pandaFace: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  pandaEmoji: {
+    fontSize: 50,
+  },
+  loadingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    marginHorizontal: 3,
+  },
+  dot1: {
+    animationDelay: '0s',
+  },
+  dot2: {
+    animationDelay: '0.2s',
+  },
+  dot3: {
+    animationDelay: '0.4s',
   },
   loadingText: {
-    marginTop: 16,
     fontSize: 16,
     color: colors.textSecondary,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   footer: {
     position: 'absolute',
