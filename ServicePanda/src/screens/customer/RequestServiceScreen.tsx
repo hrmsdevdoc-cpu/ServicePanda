@@ -620,6 +620,12 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
         {/* Header with Background */}
         <View style={styles.headerContainer}>
           <View style={styles.backgroundGradient} />
+          <View style={styles.headerDecorations}>
+            <View style={styles.decorationCircle1} />
+            <View style={styles.decorationCircle2} />
+            <View style={styles.decorationCircle3} />
+            <View style={styles.decorationWave} />
+          </View>
           <Animated.View 
             style={[
               styles.header,
@@ -632,8 +638,29 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
               }
             ]}
           >
-            <Text style={styles.headerTitle}>Request a Service</Text>
-            <Text style={styles.headerSubtitle}>Tell us what you need and we'll connect you with the best providers</Text>
+            <View style={styles.headerContent}>
+              {/* <View style={styles.headerIconContainer}>
+                <Text style={styles.headerIcon}>🔧</Text>
+              </View> */}
+              <Text style={styles.headerTitle}>Request a Service</Text>
+              <Text style={styles.headerSubtitle}>Tell us what you need and we'll connect you with the best providers</Text>
+              <View style={styles.headerStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>1000+</Text>
+                  <Text style={styles.statLabel}>Providers</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>4.9</Text>
+                  <Text style={styles.statLabel}>Rating</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>24/7</Text>
+                  <Text style={styles.statLabel}>Support</Text>
+                </View>
+              </View>
+            </View>
           </Animated.View>
         </View>
 
@@ -657,16 +684,66 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     position: 'relative',
-    height: 200,
-    marginBottom: 20,
+    height: 320,
+    marginBottom: 0,
+    overflow: 'hidden',
   },
   backgroundGradient: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 200,
+    height: 280,
     backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  headerDecorations: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  decorationCircle1: {
+    position: 'absolute',
+    top: -50,
+    right: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  decorationCircle2: {
+    position: 'absolute',
+    top: 20,
+    right: 60,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  decorationCircle3: {
+    position: 'absolute',
+    bottom: -20,
+    left: -40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  decorationWave: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   scrollView: {
     flex: 1,
@@ -680,22 +757,77 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 40 : 20,
     paddingHorizontal: 20,
     paddingBottom: 30,
     justifyContent: 'center',
+    zIndex: 1,
+  },
+  headerContent: {
+    alignItems: 'center',
+  },
+  headerIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  headerIcon: {
+    fontSize: 28,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: colors.surface,
     marginBottom: 8,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   headerSubtitle: {
     fontSize: 16,
     color: colors.surface,
     opacity: 0.9,
     lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 10,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.surface,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.surface,
+    opacity: 0.8,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    marginHorizontal: 8,
   },
   section: {
     paddingHorizontal: 20,
@@ -720,18 +852,21 @@ const styles = StyleSheet.create({
   },
   serviceTypeContainer: {
     paddingRight: 20,
+    paddingVertical: 8,
   },
   serviceTypeCard: {
-    marginRight: 12,
+    marginRight: 16,
+    marginVertical: 8,
   },
   serviceTypeButton: {
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: 16,
+    padding: 20,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.border,
-    minWidth: 100,
+    minWidth: 120,
+    minHeight: 100,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -757,16 +892,16 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   serviceTypeIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
     position: 'relative',
   },
   serviceTypeEmoji: {
-    fontSize: 24,
+    fontSize: 28,
   },
   checkmark: {
     position: 'absolute',
@@ -791,10 +926,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   serviceTypeText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
+    lineHeight: 18,
   },
   serviceTypeTextSelected: {
     color: colors.primary,
