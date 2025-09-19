@@ -21,6 +21,11 @@ ServicePandaProvider/android/.gradle/
 ServicePandaProvider/android/build/
 ServicePandaProvider/android/app/build/
 
+
+ServicePanda/android/.gradle/
+ServicePanda/android/build/
+ServicePanda/android/app/build/
+
 # iOS specific
 ServicePandaProvider/ios/Pods/
 ServicePandaProvider/ios/Podfile.lock
