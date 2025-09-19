@@ -2,6 +2,7 @@ const React = require('react');
 const { useState, useRef, useEffect } = require('react');
 const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
 const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar, Platform, Animated, Dimensions, Alert } = require('react-native');
+const { SafeAreaProvider, SafeAreaView } = require('react-native-safe-area-context');
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 const { apiService } = require('./src/services/api');
 
@@ -384,8 +385,8 @@ const AppContent = () => {
     <View style={styles.container}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.surface} />
       
-      {/* Header with proper spacing - not on dashboard */}
-      {currentScreen !== 'dashboard' && !isLoading && (
+      {/* Header with proper spacing - not on dashboard or requestService */}
+      {currentScreen !== 'dashboard' && currentScreen !== 'requestService' && !isLoading && (
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>
@@ -396,7 +397,7 @@ const AppContent = () => {
                currentScreen === 'termsConditions' ? 'Terms & Conditions' :
                currentScreen === 'privacyPolicy' ? 'Privacy Policy' :
                currentScreen === 'helpSupport' ? 'Help & Support' :
-               currentScreen === 'requestService' ? 'Request Service' :
+               currentScreen === 'requestService' ? '' :
                currentScreen === 'viewAllServices' ? 'All Services' :
                currentScreen === 'voucher' ? 'Vouchers' : 'ServicePanda'}
             </Text>
@@ -415,11 +416,13 @@ const App = () => {
   const queryClient = new QueryClient();
 
   return (
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <AppContent />
-      </QueryClientProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <AppContent />
+        </QueryClientProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 };
 
@@ -560,27 +563,27 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   footerItemActive: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
   },
   footerIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 20,
+    height: 25,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
     position: 'relative',
   },
   footerIconContainerActive: {
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    backgroundColor: 'rgba(0, 0, 0, 0.10)',
   },
   activeIndicator: {
     position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: 18,
+    top: -1,
+    left: -1,
+    right: -1,
+    bottom: -1,
+    borderRadius: 13,
     opacity: 0.15,
   },
   footerIcon: {
@@ -589,10 +592,10 @@ const styles = StyleSheet.create({
   },
   footerIconActive: {
     opacity: 1,
-    transform: [{ scale: 1.1 }],
+    transform: [{ scale: 1.05 }],
   },
   footerLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#8E8E93',
     fontWeight: '500',
     textAlign: 'center',

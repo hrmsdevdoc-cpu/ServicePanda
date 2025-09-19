@@ -1,5 +1,6 @@
 const React = require('react');
-const { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated, Dimensions, StatusBar, Image, ImageBackground, ActivityIndicator, Alert } = require('react-native');
+const { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated, Dimensions, StatusBar, Image, ImageBackground, ActivityIndicator, Alert, Platform } = require('react-native');
+const { useSafeAreaInsets } = require('react-native-safe-area-context');
 const { colors } = require('../../utils/theme');
 const { useTheme } = require('../../contexts/ThemeContext');
 const { apiService } = require('../../services/api');
@@ -12,6 +13,9 @@ const { width, height } = Dimensions.get('window');
 const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, onLogout: any }) => {
   // Theme context
   const { colors, isDarkMode } = useTheme();
+  
+  // Safe area insets for iOS
+  const insets = useSafeAreaInsets();
   
   const [refreshing, setRefreshing] = React.useState(false);
   const [userData, setUserData] = React.useState({
@@ -35,6 +39,9 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [notificationsLoading, setNotificationsLoading] = React.useState(false);
   const [unreadCount, setUnreadCount] = React.useState(0);
+
+  // Image loading state
+  const [imageErrors, setImageErrors] = React.useState(new Set());
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -75,11 +82,17 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       // Map API data to our expected format
       const mappedCategories = categories.map((category, index) => {
         console.log('🔄 Processing category:', category);
+        const serviceName = category.name || category.title || category.categoryName || `Service ${index + 1}`;
         const mapped = {
           id: category.id || category._id || index + 1,
-          name: category.name || category.title || category.categoryName || `Service ${index + 1}`,
+          name: serviceName,
           icon: category.icon || '🔧',
-          color: category.color || '#3B82F6'
+          color: category.color || '#3B82F6',
+          image: category.image || getServiceImage(serviceName, index),
+          description: category.description || 'Professional service',
+          rating: category.rating || 4.5,
+          reviews: category.reviews || Math.floor(Math.random() * 200) + 50,
+          provider: category.provider || 'Service Provider'
         };
         console.log('✅ Mapped category:', mapped);
         return mapped;
@@ -125,12 +138,12 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       ).length;
       
       // Set statistics
-      setTotalServices(serviceCategories.length || 0);
+      setTotalServices(allRequests.length || 0);
       setActiveRequests(activeCount);
       setUserRating(4.9); // This could come from user profile API in the future
       
       console.log('📊 Dashboard stats updated:', {
-        totalServices: serviceCategories.length || 0,
+        totalServices: allRequests.length || 0,
         activeRequests: activeCount,
         userRating: 4.9
       });
@@ -138,7 +151,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
     } catch (error) {
       console.error('❌ Error fetching dashboard stats:', error);
       // Set fallback values
-      setTotalServices(serviceCategories.length || 0);
+      setTotalServices(0);
       setActiveRequests(0);
       setUserRating(4.9);
     }
@@ -348,7 +361,8 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
   };
 
   const handleServiceCategory = (category: any) => {
-    Alert.alert('Service Category', `${category} services coming soon!`);
+    // Navigate to request page with selected service type
+    onNavigate('requestService', { selectedCategory: category });
   };
 
   const handleQuickAction = (action: any) => {
@@ -400,12 +414,50 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
     setShowNotifications(!showNotifications);
   };
 
+  // Function to get service-specific images
+  const getServiceImage = (serviceName: string, index: number) => {
+    const serviceImages: { [key: string]: string } = {
+      'Plumbing': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop',
+      'Electrical': 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=400&h=300&fit=crop',
+      'HVAC': 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400&h=300&fit=crop',
+      'Cleaning': 'https://t4.ftcdn.net/jpg/03/05/63/55/240_F_305635573_47SjydzWbcQPCTbkcfHyfD4fUY81XW9R.jpg?w=400&h=300&fit=crop',
+      'Landscaping': 'https://t4.ftcdn.net/jpg/03/05/63/55/240_F_305635573_47SjydzWbcQPCTbkcfHyfD4fUY81XW9R.jpg?w=400&h=300&fit=crop',
+      'Painting': 'https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=400&h=300&fit=crop',
+      'Carpentry': 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=300&fit=crop',
+      'Appliance Repair': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop',
+      'Bike Service': 'https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=400&h=300&fit=crop',
+      'Automotive': 'https://images.unsplash.com/photo-1486754735734-325b5831c3ad?w=400&h=300&fit=crop',
+      'Home Repair': 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=300&fit=crop',
+      'Gardening': 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop',
+      'Pest Control': 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=400&h=300&fit=crop',
+      'Removals': 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop',
+      'Handyman': 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=300&fit=crop'
+    };
+    
+    // Try to find exact match first
+    if (serviceImages[serviceName]) {
+      return serviceImages[serviceName];
+    }
+    
+    // Try to find partial match
+    const lowerName = serviceName.toLowerCase();
+    for (const [key, value] of Object.entries(serviceImages)) {
+      if (lowerName.includes(key.toLowerCase()) || key.toLowerCase().includes(lowerName)) {
+        return value;
+      }
+    }
+    
+    // Fallback to random image
+    return `https://picsum.photos/400/300?random=${index + 1}`;
+  };
+
   const renderHeader = () => {
   return (
       <Animated.View 
         style={[
           styles.header,
           {
+            paddingTop: Platform.OS === 'ios' ? insets.top + 30 : 60,
             opacity: headerAnim,
             transform: [
               { translateY: headerAnim.interpolate({
@@ -508,7 +560,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
         title: 'Profile',
         description: 'Manage your account',
         icon: '👤',
-        color: colors.info,
+        color: '#6B7280',
         onPress: () => onNavigate('profile')
       }
     ];
@@ -562,14 +614,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
   // Render hero banner with featured services
   const renderHeroBanner = () => {
     const featuredServices = [
-      {
-        id: 1,
-        title: 'Home Cleaning',
-        subtitle: 'Professional cleaning services',
-        image: 'https://images.unsplash.com/photo-1581578731548-c6a0c3f2f4c4?w=400&h=200&fit=crop',
-        price: 'From $50',
-        color: '#4ECDC4'
-      },
+
       {
         id: 2,
         title: 'Plumbing Repair',
@@ -650,14 +695,94 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
     console.log('🔍 categoriesLoading:', categoriesLoading);
     
     const allCategories = serviceCategories.length > 0 ? serviceCategories : [
-      { id: 1, name: 'Plumbing', icon: '🔧', color: '#3B82F6' },
-      { id: 2, name: 'Electrical', icon: '⚡', color: '#F59E0B' },
-      { id: 3, name: 'HVAC', icon: '❄️', color: '#10B981' },
-      { id: 4, name: 'Cleaning', icon: '🧹', color: '#8B5CF6' },
-      { id: 5, name: 'Landscaping', icon: '🌱', color: '#06B6D4' },
-      { id: 6, name: 'Painting', icon: '🎨', color: '#EF4444' },
-      { id: 7, name: 'Carpentry', icon: '🔨', color: '#84CC16' },
-      { id: 8, name: 'Appliance Repair', icon: '🔌', color: '#F97316' }
+      { 
+        id: 1, 
+        name: 'Plumbing', 
+        icon: '🔧', 
+        color: '#3B82F6', 
+        description: 'Fix & Install',
+        image: getServiceImage('Plumbing', 0),
+        rating: 4.9,
+        reviews: 203,
+        provider: 'AquaFix Plumbing'
+      },
+      { 
+        id: 2, 
+        name: 'Electrical', 
+        icon: '⚡', 
+        color: '#F59E0B', 
+        description: 'Wiring & Repair',
+        image: getServiceImage('Electrical', 1),
+        rating: 4.8,
+        reviews: 156,
+        provider: 'PowerTech Electric'
+      },
+      { 
+        id: 3, 
+        name: 'HVAC', 
+        icon: '❄️', 
+        color: '#10B981', 
+        description: 'Heating & Cooling',
+        image: getServiceImage('HVAC', 2),
+        rating: 4.9,
+        reviews: 89,
+        provider: 'CoolTech HVAC'
+      },
+      { 
+        id: 4, 
+        name: 'Cleaning', 
+        icon: '🧹', 
+        color: '#8B5CF6', 
+        description: 'Deep Clean',
+        image: getServiceImage('Cleaning', 3),
+        rating: 4.8,
+        reviews: 124,
+        provider: 'CleanPro Services'
+      },
+      { 
+        id: 5, 
+        name: 'Landscaping', 
+        icon: '🌱', 
+        color: '#06B6D4', 
+        description: 'Garden Care',
+        image: getServiceImage('Landscaping', 4),
+        rating: 4.6,
+        reviews: 67,
+        provider: 'GreenThumb Landscaping'
+      },
+      { 
+        id: 6, 
+        name: 'Painting', 
+        icon: '🎨', 
+        color: '#EF4444', 
+        description: 'Interior & Exterior',
+        image: getServiceImage('Painting', 5),
+        rating: 4.7,
+        reviews: 156,
+        provider: 'ColorCraft Painters'
+      },
+      { 
+        id: 7, 
+        name: 'Carpentry', 
+        icon: '🔨', 
+        color: '#84CC16', 
+        description: 'Custom Work',
+        image: getServiceImage('Carpentry', 6),
+        rating: 4.8,
+        reviews: 98,
+        provider: 'WoodWorks Studio'
+      },
+      { 
+        id: 8, 
+        name: 'Appliance Repair', 
+        icon: '🔌', 
+        color: '#F97316', 
+        description: 'Fix & Maintain',
+        image: getServiceImage('Appliance Repair', 7),
+        rating: 4.7,
+        reviews: 112,
+        provider: 'FixIt Appliance'
+      }
     ];
     
     console.log('🔍 Using categories:', allCategories);
@@ -676,15 +801,23 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
         ]}
       >
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Popular Services</Text>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>Popular Services</Text>
+            <Text style={styles.sectionSubtitle}>Choose from our top-rated services</Text>
+          </View>
           <TouchableOpacity 
             style={styles.viewAllButton}
             onPress={() => onNavigate('viewAllServices')}
           >
             <Text style={styles.viewAllText}>View All</Text>
+            <Text style={styles.viewAllIcon}>→</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.categoriesGrid}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesScrollContent}
+        >
           {categories.map((category, index) => (
             <Animated.View
               key={category.name}
@@ -700,17 +833,63 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
               ]}
             >
               <TouchableOpacity 
-                style={[styles.categoryButton, { borderColor: category.color + '30' }]}
-                onPress={() => handleServiceCategory(category.name)}
+                style={[styles.categoryButton, { 
+                  shadowColor: category.color,
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 16,
+                  elevation: 8,
+                }]}
+                onPress={() => handleServiceCategory(category)}
+                activeOpacity={0.7}
               >
-                <View style={[styles.categoryIcon, { backgroundColor: category.color + '15' }]}>
-                  <Text style={styles.categoryEmoji}>{category.icon}</Text>
+                {imageErrors.has(category.id) || !category.image ? (
+                  <ImageBackground
+                    source={{ uri: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop&q=80' }}
+                    style={styles.categoryImage}
+                    imageStyle={styles.categoryImageStyle}
+                  >
+                    <View style={styles.categoryOverlay}>
+                      <View style={styles.categoryRating}>
+                        <Text style={styles.categoryRatingText}>⭐ {category.rating}</Text>
+                        <Text style={styles.categoryReviewsText}>({category.reviews})</Text>
+                      </View>
+                    </View>
+                  </ImageBackground>
+                ) : (
+                  <ImageBackground
+                    source={{ uri: category.image }}
+                    style={styles.categoryImage}
+                    imageStyle={styles.categoryImageStyle}
+                    onError={(error) => {
+                      console.log('Image load error for category:', category.name, error);
+                      setImageErrors(prev => new Set([...prev, category.id]));
+                    }}
+                  >
+                    <View style={styles.categoryOverlay}>
+                      <View style={styles.categoryRating}>
+                        <Text style={styles.categoryRatingText}>⭐ {category.rating}</Text>
+                        <Text style={styles.categoryReviewsText}>({category.reviews})</Text>
+                      </View>
+                    </View>
+                  </ImageBackground>
+                )}
+                <View style={styles.categoryContent}>
+                  <View style={styles.categoryHeader}>
+                    <Text style={styles.categoryName}>{category.name}</Text>
+                    <View style={[styles.categoryCategory, { backgroundColor: category.color + '15' }]}>
+                      <Text style={[styles.categoryCategoryText, { color: category.color }]}>Service</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.categoryDescription}>{category.description}</Text>
+                  <View style={styles.categoryProvider}>
+                    <Text style={styles.categoryProviderText}></Text>
+                  </View>
                 </View>
-                <Text style={styles.categoryName}>{category.name}</Text>
               </TouchableOpacity>
             </Animated.View>
           ))}
-        </View>
+        </ScrollView>
       </Animated.View>
     );
   };
@@ -720,35 +899,53 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
     const trendingServices = [
       {
         id: 1,
-        title: 'Deep Cleaning',
-        image: 'https://images.unsplash.com/photo-1581578731548-c6a0c3f2f4c4?w=300&h=200&fit=crop',
+        title: 'Home Cleaning',
+        subtitle: 'Professional deep cleaning',
+        image: getServiceImage('Cleaning', 0),
         rating: 4.8,
         reviews: 124,
-        price: '$60-90'
+        provider: 'CleanPro Services',
+        category: 'Cleaning'
       },
       {
         id: 2,
         title: 'AC Repair',
-        image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=300&h=200&fit=crop',
+        subtitle: 'Fast & reliable cooling',
+        image: getServiceImage('HVAC', 1),
         rating: 4.9,
         reviews: 89,
-        price: '$80-120'
+        provider: 'CoolTech HVAC',
+        category: 'HVAC'
       },
       {
         id: 3,
         title: 'Kitchen Renovation',
-        image: 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=300&h=200&fit=crop',
+        subtitle: 'Modern kitchen makeover',
+        image: getServiceImage('Carpentry', 2),
         rating: 4.7,
         reviews: 156,
-        price: '$200-500'
+        provider: 'RenovateRight',
+        category: 'Renovation'
       },
       {
         id: 4,
         title: 'Garden Maintenance',
-        image: 'https://images.unsplash.com/photo-1581578731548-c6a0c3f2f4c4?w=300&h=200&fit=crop',
+        subtitle: 'Beautiful outdoor spaces',
+        image: getServiceImage('Landscaping', 3),
         rating: 4.6,
         reviews: 67,
-        price: '$40-80'
+        provider: 'GreenThumb Landscaping',
+        category: 'Landscaping'
+      },
+      {
+        id: 5,
+        title: 'Plumbing Services',
+        subtitle: 'Emergency & routine repairs',
+        image: getServiceImage('Plumbing', 4),
+        rating: 4.9,
+        reviews: 203,
+        provider: 'AquaFix Plumbing',
+        category: 'Plumbing'
       }
     ];
 
@@ -764,8 +961,12 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       >
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Trending This Week</Text>
-          <TouchableOpacity onPress={() => onNavigate('viewAllServices')} activeOpacity={0.7}>
-            <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
+          <TouchableOpacity 
+            style={styles.viewAllButton}
+            onPress={() => onNavigate('viewAllServices')}
+          >
+            <Text style={styles.viewAllText}>View All</Text>
+            <Text style={styles.viewAllIcon}>→</Text>
           </TouchableOpacity>
         </View>
         <ScrollView 
@@ -785,6 +986,9 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
                 imageStyle={styles.trendingImageStyle}
               >
                 <View style={styles.trendingOverlay}>
+                  <View style={styles.trendingBadge}>
+                    <Text style={styles.trendingBadgeText}>TRENDING</Text>
+                  </View>
                   <View style={styles.trendingRating}>
                     <Text style={styles.trendingRatingText}>⭐ {service.rating}</Text>
                     <Text style={styles.trendingReviewsText}>({service.reviews})</Text>
@@ -792,8 +996,16 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
                 </View>
               </ImageBackground>
               <View style={styles.trendingContent}>
-                <Text style={[styles.trendingTitle, { color: colors.text }]}>{service.title}</Text>
-                <Text style={[styles.trendingPrice, { color: colors.primary }]}>{service.price}</Text>
+                <View style={styles.trendingHeader}>
+                  <Text style={[styles.trendingTitle, { color: colors.text }]}>{service.title}</Text>
+                  <View style={styles.trendingCategory}>
+                    <Text style={styles.trendingCategoryText}>{service.category}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.trendingSubtitle, { color: colors.textSecondary }]}>{service.subtitle}</Text>
+                <View style={styles.trendingProvider}>
+                  <Text style={styles.trendingProviderText}>by {service.provider}</Text>
+                </View>
               </View>
             </TouchableOpacity>
           ))}
@@ -842,6 +1054,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
             onPress={() => onNavigate('trackRequest')}
           >
             <Text style={styles.viewAllText}>View All</Text>
+            <Text style={styles.viewAllIcon}>→</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.activityList}>
@@ -934,7 +1147,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.background,
   },
   backgroundGradient: {
-    height: 230,
+    height: Platform.OS === 'ios' ? 280 : 230, // Taller for iOS to cover statistics
     backgroundColor: colors.primary,
     // Add gradient effect
     shadowColor: colors.primary,
@@ -942,16 +1155,15 @@ const createStyles = (colors) => StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-    marginBottom: -250, // Overlap with content below
+    marginBottom: Platform.OS === 'ios' ? -300 : -250, // Adjust overlap for iOS
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100, // Space for footer
+    paddingBottom: Platform.OS === 'ios' ? 120 : 100, // More space for iOS safe area
   },
   header: {
-    paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 40,
     position: 'relative',
@@ -1105,6 +1317,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   headerBottom: {
     marginTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 0, // Extra space for iOS
   },
   headerStats: {
     flexDirection: 'row',
@@ -1112,8 +1325,9 @@ const createStyles = (colors) => StyleSheet.create({
     marginTop: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 16,
-    paddingVertical: 12,
+    paddingVertical: Platform.OS === 'ios' ? 16 : 12, // More padding for iOS
     paddingHorizontal: 16,
+    marginBottom: Platform.OS === 'ios' ? 5 : 0, // Small margin to stay within blue header
   },
   statItem: {
     flex: 1,
@@ -1146,29 +1360,52 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 30,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 0, // Remove bottom margin since we're using sectionHeader
+    marginBottom: 6,
+    letterSpacing: -0.5,
+  },
+  sectionSubtitle: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    opacity: 0.9,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  sectionTitleContainer: {
+    flex: 1,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    alignItems: 'flex-start',
+    marginBottom: 24,
   },
   viewAllButton: {
-    backgroundColor: colors.primary + '10',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: colors.primary + '30',
+    backgroundColor: colors.primary + '15',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   viewAllText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.primary,
+    marginRight: 6,
+  },
+  viewAllIcon: {
+    fontSize: 18,
+    color: colors.primary,
+    fontWeight: 'bold',
   },
   quickActionsGrid: {
     flexDirection: 'row',
@@ -1180,7 +1417,6 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 16,
   },
   quickActionButton: {
-    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
@@ -1217,51 +1453,141 @@ const createStyles = (colors) => StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 30,
   },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start', // Align items to top
+  categoriesScrollContent: {
+    paddingRight: 20,
   },
   categoryCard: {
-    width: (width - 56) / 4, // Adjusted for better alignment
-    marginBottom: 12,
-    height: 100, // Fixed height for consistent alignment
+    width: 240,
+    marginRight: 16,
   },
   categoryButton: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center', // Center content vertically
-    borderWidth: 1,
+    borderRadius: 16,
+    padding: 0,
+    borderWidth: 0,
+    overflow: 'hidden',
+    height: 260,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    height: '100%', // Take full height of parent
-    flex: 1, // Allow flex to fill available space
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+    position: 'relative',
   },
-  categoryIcon: {
-    width: 40,
-    height: 40,
+  categoryImage: {
+    width: '100%',
+    height: 140,
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f0f0',
+  },
+  categoryImageStyle: {
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
   },
-  categoryEmoji: {
-    fontSize: 20,
+  categoryOverlay: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    padding: 16,
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  categoryBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  categoryRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+  },
+  categoryRatingText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  categoryReviewsText: {
+    color: 'white',
+    fontSize: 12,
+    marginLeft: 6,
+    opacity: 0.9,
+    fontWeight: '500',
+  },
+  categoryContent: {
+    padding: 16,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 6,
   },
   categoryName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    flex: 1,
+    marginRight: 10,
+    lineHeight: 20,
+  },
+  categoryCategory: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  categoryCategoryText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  categoryDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 16,
+    opacity: 0.8,
+    fontWeight: '500',
+    marginBottom: 10,
+  },
+  categoryProvider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryProviderText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textSecondary,
+    opacity: 0.7,
+  },
+  imageFallback: {
+    flex: 1,
+    backgroundColor: colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  fallbackIcon: {
+    fontSize: 48,
+    marginBottom: 8,
+    opacity: 0.8,
+  },
+  fallbackText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
     textAlign: 'center',
-    lineHeight: 14, // Consistent line height
-    numberOfLines: 2, // Allow max 2 lines
-    flexWrap: 'wrap', // Allow text wrapping
+    opacity: 0.9,
   },
   recentActivityContainer: {
     paddingHorizontal: 20,
@@ -1452,54 +1778,111 @@ const createStyles = (colors) => StyleSheet.create({
     paddingRight: 20,
   },
   trendingCard: {
-    width: 200,
+    width: 240,
     marginRight: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   trendingImage: {
     width: '100%',
-    height: 120,
-    justifyContent: 'flex-end',
+    height: 140,
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f0f0',
   },
   trendingImageStyle: {
-    borderRadius: 12,
+    borderRadius: 20,
   },
   trendingOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    padding: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    padding: 16,
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  trendingBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  trendingBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   trendingRating: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-end',
   },
   trendingRatingText: {
     color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '700',
   },
   trendingReviewsText: {
     color: 'white',
-    fontSize: 10,
-    marginLeft: 4,
-    opacity: 0.8,
+    fontSize: 12,
+    marginLeft: 6,
+    opacity: 0.9,
+    fontWeight: '500',
   },
   trendingContent: {
-    padding: 12,
+    padding: 16,
+  },
+  trendingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 6,
   },
   trendingTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 10,
+    lineHeight: 20,
   },
-  trendingPrice: {
-    fontSize: 14,
+  trendingCategory: {
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  trendingCategoryText: {
+    fontSize: 11,
     fontWeight: '600',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  trendingSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 10,
+    lineHeight: 16,
+    opacity: 0.8,
+  },
+  trendingProvider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trendingProviderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    opacity: 0.7,
   },
 });
 

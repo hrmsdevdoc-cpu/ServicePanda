@@ -1,8 +1,8 @@
-platform :ios, '13.4'
+platform :ios, '16.0'
 
 require_relative '../node_modules/react-native/scripts/react_native_pods'
 
-target 'ServicePandaProvider' do
+target 'ServicePanda' do
   config = use_native_modules!
 
   use_react_native!(
