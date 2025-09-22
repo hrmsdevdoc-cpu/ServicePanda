@@ -12,6 +12,7 @@ const CustomerLoginScreen = ({ onNavigate, onLoginSuccess }: { onNavigate: (scre
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('login');
+  const [rememberMe, setRememberMe] = React.useState(false);
   
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -19,6 +20,28 @@ const CustomerLoginScreen = ({ onNavigate, onLoginSuccess }: { onNavigate: (scre
   const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
   const logoAnim = React.useRef(new Animated.Value(0)).current;
   const buttonScale = React.useRef(new Animated.Value(1)).current;
+
+  // Load saved credentials on component mount
+  React.useEffect(() => {
+    const loadSavedCredentials = async () => {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const savedEmail = await AsyncStorage.getItem('rememberedEmail');
+        const savedPassword = await AsyncStorage.getItem('rememberedPassword');
+        const rememberMeStatus = await AsyncStorage.getItem('rememberMe');
+        
+        if (savedEmail && savedPassword && rememberMeStatus === 'true') {
+          setEmail(savedEmail);
+          setPassword(savedPassword);
+          setRememberMe(true);
+        }
+      } catch (error) {
+        console.log('No saved credentials found');
+      }
+    };
+
+    loadSavedCredentials();
+  }, []);
 
   // Start animations on component mount
   React.useEffect(() => {
@@ -89,18 +112,25 @@ const CustomerLoginScreen = ({ onNavigate, onLoginSuccess }: { onNavigate: (scre
         name: `${user.firstName} ${user.lastName}`,
         phone: user.phoneNumber
       }));
+
+      // Save credentials if Remember Me is checked
+      if (rememberMe) {
+        await AsyncStorage.setItem('rememberedEmail', email);
+        await AsyncStorage.setItem('rememberedPassword', password);
+        await AsyncStorage.setItem('rememberMe', 'true');
+      } else {
+        // Clear saved credentials if Remember Me is unchecked
+        await AsyncStorage.removeItem('rememberedEmail');
+        await AsyncStorage.removeItem('rememberedPassword');
+        await AsyncStorage.removeItem('rememberMe');
+      }
       
-      Alert.alert('Success', `Welcome back, ${user.firstName}!`, [
-        {
-          text: 'OK',
-          onPress: () => onLoginSuccess({
-            id: user.id,
-            email: user.email,
-            name: `${user.firstName} ${user.lastName}`,
-            phone: user.phoneNumber
-          }),
-        },
-      ]);
+      onLoginSuccess({
+        id: user.id,
+        email: user.email,
+        name: `${user.firstName} ${user.lastName}`,
+        phone: user.phoneNumber
+      });
           } catch (error: any) {
             console.error('❌ Login error:', error);
 
@@ -291,6 +321,19 @@ const CustomerLoginScreen = ({ onNavigate, onLoginSuccess }: { onNavigate: (scre
                 />
               </View>
 
+              {/* Remember Me Checkbox */}
+              <View style={styles.rememberMeContainer}>
+                <TouchableOpacity 
+                  style={styles.checkboxContainer}
+                  onPress={() => setRememberMe(!rememberMe)}
+                >
+                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                    {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.rememberMeText}>Remember me</Text>
+                </TouchableOpacity>
+              </View>
+
               {/* Login Button */}
               <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
                 <TouchableOpacity 
@@ -379,8 +422,8 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   header: {
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingTop: 140,
+    paddingBottom: 20,
     paddingHorizontal: 20,
   },
   headerContent: {
@@ -396,67 +439,67 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   logoBackground: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   logoGlow: {
     position: 'absolute',
-    top: -5,
-    left: -5,
-    right: -5,
-    bottom: -5,
-    borderRadius: 55,
-    backgroundColor: colors.primary + '30',
+    top: -3,
+    left: -3,
+    right: -3,
+    bottom: -3,
+    borderRadius: 28,
+    backgroundColor: colors.primary + '20',
     zIndex: -1,
   },
   logo: {
-    fontSize: 35,
+    fontSize: 24,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.surface,
-    marginBottom: 8,
+    marginBottom: 4,
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.surface,
     opacity: 0.9,
     textAlign: 'center',
   },
   cardContainer: {
     backgroundColor: colors.surface,
-    marginHorizontal: 20,
-    borderRadius: 24,
+    marginHorizontal: 16,
+    borderRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
     overflow: 'hidden',
   },
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: colors.background,
-    borderRadius: 12,
-    margin: 16,
-    padding: 4,
+    borderRadius: 10,
+    margin: 12,
+    padding: 3,
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 8,
     alignItems: 'center',
     position: 'relative',
   },
@@ -488,42 +531,74 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   formContent: {
-    padding: 24,
+    padding: 18,
   },
   welcomeText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   welcomeSubtext: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 32,
-  },
-  inputGroup: {
     marginBottom: 20,
   },
+  inputGroup: {
+    marginBottom: 16,
+  },
   inputLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   paperInput: {
     backgroundColor: colors.surface,
   },
   inputContent: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text,
+  },
+  rememberMeContainer: {
+    marginBottom: 12,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  checkmark: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  rememberMeText: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
   },
   loginButton: {
     backgroundColor: colors.primary,
-    borderRadius: 12,
-    height: 56,
+    borderRadius: 10,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -536,7 +611,7 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     color: colors.surface,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   loginButtonGlow: {
@@ -559,17 +634,17 @@ const styles = StyleSheet.create({
   },
   forgotPasswordButton: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 12,
   },
   forgotPasswordText: {
     color: colors.primary,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: 16,
   },
   dividerLine: {
     flex: 1,
@@ -577,16 +652,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   dividerText: {
-    marginHorizontal: 16,
+    marginHorizontal: 12,
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 12,
   },
   signupButton: {
     alignItems: 'center',
   },
   signupButtonText: {
     color: colors.textSecondary,
-    fontSize: 16,
+    fontSize: 14,
   },
   signupButtonTextBold: {
     color: colors.primary,
