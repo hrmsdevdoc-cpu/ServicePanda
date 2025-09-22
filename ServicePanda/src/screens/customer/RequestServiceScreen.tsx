@@ -388,33 +388,25 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
             
             {suburbs.length > 0 && (
               <View style={styles.suburbsDropdown}>
-                <ScrollView style={styles.suburbsList} nestedScrollEnabled>
-                  {suburbs.map((suburbItem) => (
-                    <TouchableOpacity
-                      key={suburbItem.id}
-                      style={[
-                        styles.suburbItem,
-                        suburb === suburbItem.suburb && styles.suburbItemSelected
-                      ]}
-                      onPress={() => {
-                        setSuburb(suburbItem.suburb);
-                        setPostcode(suburbItem.postcode);
-                        setPostcodeSearch('');
-                        setSuburbs([]);
-                      }}
-                    >
-                      <Text style={[
-                        styles.suburbName,
-                        suburb === suburbItem.suburb && styles.suburbNameSelected
-                      ]}>
-                        {suburbItem.suburb}
-                      </Text>
-                      <Text style={styles.suburbPostcode}>
-                        {suburbItem.postcode}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                {suburbs.map((suburbItem) => (
+                  <TouchableOpacity
+                    key={suburbItem.id}
+                    style={styles.suburbItem}
+                    onPress={() => {
+                      setSuburb(suburbItem.suburb);
+                      setPostcode(suburbItem.postcode);
+                      setPostcodeSearch('');
+                      setSuburbs([]);
+                    }}
+                  >
+                    <Text style={styles.suburbName}>
+                      {suburbItem.suburb}
+                    </Text>
+                    <Text style={styles.suburbPostcode}>
+                      {suburbItem.postcode}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
           </View>
@@ -946,7 +938,7 @@ const styles = StyleSheet.create({
     zIndex: -1,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   inputLabel: {
     fontSize: 16,
@@ -1058,6 +1050,7 @@ const styles = StyleSheet.create({
   },
   locationContainer: {
     position: 'relative',
+    marginBottom: 20,
   },
   inputWithDropdown: {
     borderBottomLeftRadius: 0,
@@ -1065,43 +1058,30 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   suburbsDropdown: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    backgroundColor: colors.surface,
+    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#ddd',
     borderTopWidth: 0,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    maxHeight: 200,
-    zIndex: 1000,
-  },
-  suburbsList: {
-    maxHeight: 200,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    marginTop: -1,
+    maxHeight: 150,
   },
   suburbItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  suburbItemSelected: {
-    backgroundColor: colors.primary + '10',
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: 'white',
   },
   suburbName: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: '#333',
     marginBottom: 2,
-  },
-  suburbNameSelected: {
-    color: colors.primary,
   },
   suburbPostcode: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#666',
   },
   selectedLocation: {
     flexDirection: 'row',
