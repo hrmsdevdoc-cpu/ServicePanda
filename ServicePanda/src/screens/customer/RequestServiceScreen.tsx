@@ -277,18 +277,7 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
           }
         ]}
       >
-        <Text style={styles.sectionTitle}>Service Type *</Text>
-        
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search services..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
+
         
         <ScrollView 
           horizontal 
@@ -373,6 +362,64 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
             );
           })}
         </ScrollView>
+      </Animated.View>
+    );
+  };
+
+  const renderSelectedServiceDisplay = () => {
+    const selectedCategory = serviceCategories.find(cat => cat.id === serviceType);
+    if (!selectedCategory) return null;
+
+    return (
+      <Animated.View 
+        style={[
+          styles.selectedServiceContainer,
+          {
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ]
+          }
+        ]}
+      >
+        <View style={styles.selectedServiceCard}>
+          <View style={styles.selectedServiceHeader}>
+            <Text style={styles.selectedServiceLabel}>Selected Service</Text>
+            <TouchableOpacity
+              style={styles.changeServiceButton}
+              onPress={() => setServiceType('')}
+            >
+              <Text style={styles.changeServiceText}>Change</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.selectedServiceContent}>
+            <ImageBackground
+              source={{ uri: selectedCategory.image }}
+              style={[
+                styles.selectedServiceImage,
+                { borderColor: selectedCategory.color + '40' }
+              ]}
+              imageStyle={styles.selectedServiceImageStyle}
+            >
+              <View style={[styles.selectedServiceIcon, { backgroundColor: selectedCategory.color }]}>
+                <Text style={styles.selectedServiceIconText}>✓</Text>
+              </View>
+            </ImageBackground>
+            
+            <View style={styles.selectedServiceInfo}>
+              <Text style={[styles.selectedServiceName, { color: selectedCategory.color }]}>
+                {selectedCategory.name}
+              </Text>
+              <Text style={styles.selectedServiceDescription}>
+                You've selected this service for your request
+              </Text>
+            </View>
+          </View>
+          
+          <View style={[styles.selectedServiceGlow, { backgroundColor: selectedCategory.color + '15' }]} />
+        </View>
       </Animated.View>
     );
   };
@@ -680,6 +727,9 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
 
         {/* Service Type Selector */}
         {renderServiceTypeSelector()}
+
+        {/* Selected Service Display */}
+        {serviceType && renderSelectedServiceDisplay()}
 
         {/* Form Fields */}
         {renderFormFields()}
@@ -1319,6 +1369,106 @@ const styles = StyleSheet.create({
   calendarDayTextSelected: {
     color: colors.surface,
     fontWeight: '600',
+  },
+  selectedServiceContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  selectedServiceCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: colors.primary + '30',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  selectedServiceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  selectedServiceLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  changeServiceButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.primary + '15',
+  },
+  changeServiceText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  selectedServiceContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectedServiceImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 16,
+    borderWidth: 2,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  selectedServiceImageStyle: {
+    borderRadius: 25,
+  },
+  selectedServiceIcon: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  selectedServiceIconText: {
+    color: colors.surface,
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  selectedServiceInfo: {
+    flex: 1,
+  },
+  selectedServiceName: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  selectedServiceDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  selectedServiceGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14,
+    zIndex: -1,
   },
 });
 
