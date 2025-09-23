@@ -5,12 +5,12 @@ const API_CONFIG = {
   development: {
     // Try these URLs in order - the first one that works will be used
     urls: [ 
-      'https://api.servicepanda.com.au',  // Live production API
-      'http://localhost:3000',            // Local development fallback
-      'http://10.0.2.2:3000',            // Android emulator
+      'http://10.0.2.2:3000',            // Android emulator (primary)
+      'http://localhost:3000',            // Local development server
       'http://127.0.0.1:3000',           // Localhost alternative
+      'https://api.servicepanda.com.au',  // Live production API fallback
     ],
-    defaultUrl: 'https://api.servicepanda.com.au'  // Use live API
+    defaultUrl: 'http://10.0.2.2:3000'  // Use Android emulator URL
   },
   production: {
     urls: ['https://api.servicepanda.com.au'],
@@ -19,11 +19,11 @@ const API_CONFIG = {
 };
 
 // Force production API for live deployment
-// const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
+const isDevelopment = false; // Set to false to use production API
 
-// Export current configuration - always use production for live app
+// Export current configuration - now using production API
 const getCurrentApiConfig = () => {
-  return API_CONFIG.production; // Always use production API
+  return isDevelopment ? API_CONFIG.development : API_CONFIG.production;
 };
 
 // Export the base URL for use in API service

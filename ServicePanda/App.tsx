@@ -2,7 +2,27 @@ const React = require('react');
 const { useState, useRef, useEffect } = require('react');
 const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
 const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar, Platform, Animated, Dimensions, Alert } = require('react-native');
-const { SafeAreaProvider, SafeAreaView } = require('react-native-safe-area-context');
+// const { SafeAreaProvider, SafeAreaView } = require('react-native-safe-area-context');
+
+// Simple fallback SafeAreaProvider that doesn't require native linking
+const SafeAreaProvider = ({ children }) => {
+  return children;
+};
+
+const SafeAreaView = ({ children, style, ...props }) => {
+  const { View } = require('react-native');
+  return <View style={style} {...props}>{children}</View>;
+};
+
+// Fallback useSafeAreaInsets hook that returns default values
+const useSafeAreaInsets = () => {
+  return {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0
+  };
+};
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 const { apiService } = require('./src/services/api');
 
@@ -18,6 +38,7 @@ const VoucherScreen = require('./src/screens/customer/VoucherScreen');
 const ReviewListScreen = require('./src/screens/customer/ReviewListScreen');
 const ProfileMenuScreen = require('./src/screens/customer/ProfileMenuScreen');
 const AccountDetailsScreen = require('./src/screens/customer/AccountDetailsScreen');
+const ChangePasswordScreen = require('./src/screens/customer/ChangePasswordScreen');
 const TermsConditionsScreen = require('./src/screens/customer/TermsConditionsScreen');
 const PrivacyPolicyScreen = require('./src/screens/customer/PrivacyPolicyScreen');
 const HelpSupportScreen = require('./src/screens/customer/HelpSupportScreen');
@@ -249,6 +270,8 @@ const AppContent = () => {
         return <ReviewListScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'accountDetails':
         return <AccountDetailsScreen onNavigate={navigateTo} onBack={goBack} />;
+      case 'changePassword':
+        return <ChangePasswordScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'termsConditions':
         return <TermsConditionsScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'privacyPolicy':

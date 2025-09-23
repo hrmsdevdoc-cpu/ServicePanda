@@ -81,7 +81,7 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
           title: 'Security',
           subtitle: 'Password and security settings',
           icon: '🔒',
-          onPress: () => Alert.alert('Coming Soon', 'Security settings coming soon!')
+          onPress: () => onNavigate('changePassword')
         },
         {
           id: 'notifications',

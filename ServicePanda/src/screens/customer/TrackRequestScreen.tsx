@@ -15,12 +15,26 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
   const [showProfessionalModal, setShowProfessionalModal] = React.useState(false);
   const [selectedRequest, setSelectedRequest] = React.useState(null);
   const [ serviceRequests,setServiceRequests] = React.useState([]);
+  const [serviceCategories, setServiceCategories] = React.useState([]);
   const [error, setError] = React.useState(null);
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(30)).current;
   const scaleAnim = React.useRef(new Animated.Value(0.95)).current;
+
+  // Fetch service categories from API
+  const fetchServiceCategories = React.useCallback(async () => {
+    try {
+      console.log('🔄 Fetching service categories...');
+      const categories = await apiService.getServiceCategories();
+      console.log('✅ Fetched service categories:', categories);
+      setServiceCategories(categories || []);
+    } catch (error) {
+      console.error('❌ Error fetching service categories:', error);
+      setServiceCategories([]);
+    }
+  }, []);
 
   // Fetch service requests from API
   const fetchServiceRequests = React.useCallback(async () => {
@@ -38,6 +52,9 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
       }
       
       // Transform API data to match our component structure
+      console.log('🔍 API returned requests:', requests.length);
+      console.log('🔍 First API request sample:', JSON.stringify(requests[0], null, 2));
+      
       const transformedRequests = requests.map((request, index) => {
         // Debug: Log category fields for each request
         if (index === 0) {
@@ -73,101 +90,118 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
         };
         const statusIcon = statusIcons[request.status?.toLowerCase()] || '🔵';
 
-        // Map category to icon
-        const categoryIcons = {
-          'hvac': '❄️',
-          'plumbing': '🔧',
-          'electrical': '⚡',
-          'cleaning': '🧹',
-          'event management': '🎉',
-          'fitness': '🧘',
-          'photography': '📸',
-          'carpentry': '🔨',
-          'landscaping': '🌱',
-          'painting': '🎨'
-        };
+        // Find category from database using relationship
+        let categoryData = null;
+        let categoryName = 'Service Request';
+        let categoryIcon = '🔧';
         
-        // Get category name from various possible fields
-        let categoryName = request.category?.name || 
-                          request.categoryName || 
-                          request.category || 
-                          request.serviceCategory?.name ||
-                          request.serviceCategory ||
-                          request.serviceType ||
-                          request.type ||
-                          request.service?.name ||
-                          request.service ||
-                          'Service';
-
-        // If category is still "Service", try to extract from title or other fields
-        if (categoryName === 'Service') {
-          const title = request.title || '';
-          const description = request.description || '';
+        // Try to find category by ID first (most reliable)
+        if (request.categoryId && serviceCategories.length > 0) {
+          categoryData = serviceCategories.find(cat => cat.id === request.categoryId);
+        }
+        
+        // If not found by ID, try to find by name
+        if (!categoryData && request.category?.name && serviceCategories.length > 0) {
+          categoryData = serviceCategories.find(cat => 
+            cat.name?.toLowerCase() === request.category.name?.toLowerCase()
+          );
+        }
+        
+        // If still not found, try other category fields
+        if (!categoryData && serviceCategories.length > 0) {
+          const categoryFields = [
+            request.categoryName,
+            request.category,
+            request.serviceCategory?.name,
+            request.serviceCategory,
+            request.serviceType,
+            request.type,
+            request.service?.name,
+            request.service
+          ];
           
-          // Try to extract category from title or description
-          if (title.toLowerCase().includes('hvac') || description.toLowerCase().includes('hvac')) {
-            categoryName = 'HVAC';
-          } else if (title.toLowerCase().includes('plumb') || description.toLowerCase().includes('plumb')) {
-            categoryName = 'Plumbing';
-          } else if (title.toLowerCase().includes('electr') || description.toLowerCase().includes('electr')) {
-            categoryName = 'Electrical';
-          } else if (title.toLowerCase().includes('clean') || description.toLowerCase().includes('clean')) {
-            categoryName = 'Cleaning';
-          } else if (title.toLowerCase().includes('event') || description.toLowerCase().includes('event')) {
-            categoryName = 'Event Management';
-          } else if (title.toLowerCase().includes('fitness') || description.toLowerCase().includes('fitness')) {
-            categoryName = 'Fitness & Yoga';
-          } else if (title.toLowerCase().includes('photo') || description.toLowerCase().includes('photo')) {
-            categoryName = 'Photography';
-          } else if (title.toLowerCase().includes('carpent') || description.toLowerCase().includes('carpent')) {
-            categoryName = 'Carpentry';
-          } else if (title.toLowerCase().includes('landscap') || description.toLowerCase().includes('landscap')) {
-            categoryName = 'Landscaping';
-          } else if (title.toLowerCase().includes('paint') || description.toLowerCase().includes('paint')) {
-            categoryName = 'Painting';
-          } else {
-            // Temporary: Assign different categories based on index for testing
-            const testCategories = ['HVAC', 'Plumbing', 'Electrical', 'Cleaning', 'Event Management', 'Fitness & Yoga', 'Photography', 'Carpentry'];
-            categoryName = testCategories[index % testCategories.length] || 'Service';
+          for (const field of categoryFields) {
+            if (field) {
+              categoryData = serviceCategories.find(cat => 
+                cat.name?.toLowerCase() === field?.toLowerCase()
+              );
+              if (categoryData) break;
+            }
           }
         }
-
-        const categoryIcon = categoryIcons[categoryName?.toLowerCase()] || '🔧';
+        
+        // Use category data from database if found
+        if (categoryData) {
+          categoryName = categoryData.name || 'Service Request';
+          categoryIcon = categoryData.icon || '🔧';
+        } else {
+          // Fallback to request title if no category found
+          categoryName = request.title || 'Service Request';
+        }
 
         // Debug: Log what category name was extracted
-        if (index === 0) {
-          console.log('🔍 Extracted category name:', categoryName);
-          console.log('🔍 Category icon:', categoryIcon);
-          console.log('🔍 Professionals data:', request.professionals);
-          console.log('🔍 Professionals length:', request.professionals?.length);
+        console.log(`🔍 Request ${index + 1} mapping:`, {
+          'request.categoryId': request.categoryId,
+          'request.title': request.title,
+          'request.category': request.category,
+          'found categoryData': categoryData,
+          'categoryName from DB': categoryName,
+          'categoryIcon from DB': categoryIcon,
+          'final title': finalTitle
+        });
+
+        // Use REAL professionals from API data - DYNAMIC like web version
+        let requestProfessionals = request.professionals || request.acceptedProfessionals || [];
+        
+        console.log(`🔍 Request ${request.id}: Original professionals from API =`, requestProfessionals);
+        console.log(`🔍 Request ${request.id}: Professionals length =`, requestProfessionals.length);
+        console.log(`🔍 Request ${request.id}: offerMetrics =`, request.offerMetrics);
+
+        // Determine the best title to use
+        let finalTitle;
+        if (request.title && request.title !== categoryName) {
+          // Use the original title if it's different from the category name
+          finalTitle = request.title;
+        } else if (categoryName && categoryName !== 'Service Request') {
+          // Use the processed category name if it's meaningful
+          finalTitle = categoryName;
+        } else if (request.serviceType) {
+          // Use service type as fallback
+          finalTitle = request.serviceType;
+        } else {
+          // Last resort
+          finalTitle = 'Service Request';
         }
 
-        // Add test professionals for the first few requests to test the functionality
-        let testProfessionals = [];
-        if (index < 2) { // Add professionals to first 2 requests for testing
-          testProfessionals = [
-            {
-              id: index * 10 + 1,
-              name: `Professional ${index + 1}`,
-              serviceName: `${categoryName} Specialist`,
-              email: `professional${index + 1}@example.com`,
-              phone: `+61 400 ${100 + index} ${200 + index}`,
-              rating: 4.5 + (index * 0.2),
-              acceptedDate: new Date().toISOString().split('T')[0]
-            }
-          ];
-        }
-
-        return {
+        const transformedRequest = {
           id: request.id || index + 1,
-          title: request.title || request.serviceType || categoryName || 'Service Request',
+          title: finalTitle,
           status: request.status || 'Active',
           statusColor: statusColor,
           statusIcon: statusIcon,
           category: categoryName,
           icon: categoryIcon,
           date: request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Recently',
-          preferredDate: request.preferredDate || request.date || 'TBD',
+          // Keep original date for sorting
+          originalDate: request.createdAt || request.created_at || request.date,
+          preferredDate: request.preferredDate ? (() => {
+            const date = new Date(request.preferredDate);
+            console.log(`🔍 Date formatting for request ${request.id}:`, {
+              'raw preferredDate': request.preferredDate,
+              'parsed date': date,
+              'toLocaleDateString': date.toLocaleDateString(),
+              'toISOString': date.toISOString(),
+              'getDate': date.getDate(),
+              'getMonth': date.getMonth(),
+              'getFullYear': date.getFullYear()
+            });
+            
+            // Format date to match web version (MMM d format)
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = months[date.getMonth()];
+            const day = date.getDate();
+            return `${month} ${day}`;
+          })() : 'TBD',
           location: request.location || request.suburb && request.postcode ? 
             `${request.suburb}, ${request.postcode}` : 'Location not specified',
           bookingType: request.bookingType || request.urgency || 'Regular',
@@ -175,16 +209,30 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           provider: request.provider?.name || request.providerName || 'TBD',
           providerRating: request.provider?.rating || request.providerRating || 0,
           estimatedCost: request.estimatedCost || request.cost || 'TBD',
-          professionals: request.professionals || request.acceptedProfessionals || testProfessionals,
+          professionals: requestProfessionals,
+          // Preserve offerMetrics for button visibility logic
+          offerMetrics: request.offerMetrics || {
+            professionalCount: requestProfessionals.length,
+            acceptedOffers: requestProfessionals.length
+          },
         };
+        
+        console.log(`🔍 Request ${request.id}: Final transformed request professionals =`, transformedRequest.professionals);
+        console.log(`🔍 Request ${request.id}: Final transformed request professionals length =`, transformedRequest.professionals?.length);
+        
+        return transformedRequest;
       });
       
+      console.log('🔍 Setting transformed requests:', transformedRequests.length);
+      console.log('🔍 First transformed request professionals:', transformedRequests[0]?.professionals);
       setServiceRequests(transformedRequests);
     } catch (error) {
       console.error('❌ Error fetching service requests:', error);
       setError('Failed to load service requests. Please try again.');
       
       // Fallback to dummy data for testing
+      console.log('⚠️ API failed, using dummy data');
+      console.log('🔍 This means we will use dummy data with professionals');
       const dummyRequests = [
         {
           id: 1,
@@ -221,7 +269,11 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
               rating: 4.9,
               acceptedDate: '2025-09-18'
             }
-          ]
+          ],
+          offerMetrics: {
+            professionalCount: 2,
+            acceptedOffers: 2
+          }
         },
         {
           id: 2,
@@ -249,7 +301,11 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
               rating: 4.7,
               acceptedDate: '2025-09-17'
             }
-          ]
+          ],
+          offerMetrics: {
+            professionalCount: 1,
+            acceptedOffers: 1
+          }
         },
         {
           id: 3,
@@ -267,7 +323,11 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           provider: 'Bright Electric',
           providerRating: 4.9,
           estimatedCost: '$80 - $120',
-          professionals: []
+          professionals: [],
+          offerMetrics: {
+            professionalCount: 0,
+            acceptedOffers: 0
+          }
         },
         {
           id: 4,
@@ -285,7 +345,11 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           provider: 'Clean Pro',
           providerRating: 4.5,
           estimatedCost: '$100 - $150',
-          professionals: []
+          professionals: [],
+          offerMetrics: {
+            professionalCount: 0,
+            acceptedOffers: 0
+          }
         },
         {
           id: 5,
@@ -303,9 +367,15 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           provider: 'Green Thumb',
           providerRating: 4.3,
           estimatedCost: '$80 - $120',
-          professionals: []
+          professionals: [],
+          offerMetrics: {
+            professionalCount: 0,
+            acceptedOffers: 0
+          }
         }
       ];
+      console.log('🔍 Setting dummy requests:', dummyRequests.length);
+      console.log('🔍 First dummy request professionals:', dummyRequests[0]?.professionals);
       setServiceRequests(dummyRequests);
     } finally {
       setLoading(false);
@@ -376,9 +446,10 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
 
     startAnimations();
     
-    // Fetch service requests from API
+    // Fetch service categories and requests from API
+    fetchServiceCategories();
     fetchServiceRequests();
-  }, []);
+  }, [fetchServiceCategories, fetchServiceRequests]);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -387,21 +458,39 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
   }, []);
 
   const getFilteredRequests = () => {
-    if (selectedFilter === 'all') return serviceRequests;
-    return serviceRequests.filter(request => {
-      const status = request.status?.toLowerCase();
-      switch (selectedFilter) {
-        case 'active':
-          return status === 'active' || status === 'pending' || status === 'in_progress';
-        case 'completed':
-          return status === 'completed' || status === 'done' || status === 'finished';
-        case 'cancelled':
-          return status === 'cancelled' || status === 'canceled';
-        case 'expired':
-          return status === 'expired';
-        default:
-          return true;
-      }
+    let filteredRequests;
+    
+    if (selectedFilter === 'all') {
+      filteredRequests = serviceRequests;
+    } else {
+      filteredRequests = serviceRequests.filter(request => {
+        const status = request.status?.toLowerCase();
+        switch (selectedFilter) {
+          case 'active':
+            return status === 'active' || status === 'pending' || status === 'in_progress';
+          case 'completed':
+            return status === 'completed' || status === 'done' || status === 'finished';
+          case 'cancelled':
+            return status === 'cancelled' || status === 'canceled';
+          case 'expired':
+            return status === 'expired';
+          default:
+            return true;
+        }
+      });
+    }
+    
+    // Sort by request date (newest first)
+    return filteredRequests.sort((a, b) => {
+      // Use the original date field for accurate sorting
+      const dateA = new Date(a.originalDate || a.requestDate || a.created_at || a.createdAt || a.date || 0);
+      const dateB = new Date(b.originalDate || b.requestDate || b.created_at || b.createdAt || b.date || 0);
+      
+      // Debug: Log sorting information
+      console.log(`🔍 Sorting: ${a.title} (${dateA.toISOString()}) vs ${b.title} (${dateB.toISOString()})`);
+      
+      // Sort newest first (descending order)
+      return dateB - dateA;
     });
   };
 
@@ -410,11 +499,56 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
     setShowDetailModal(true);
   };
 
-  const handleViewProfessionals = (request) => {
+  const handleViewProfessionals = async (request) => {
     console.log('🔍 Opening professionals modal for request:', request.id);
     console.log('🔍 Professionals data:', request.professionals);
-    setSelectedRequest(request);
+    console.log('🔍 Request offerMetrics:', request.offerMetrics);
+    console.log('🔍 Number of professionals:', request.professionals?.length || 0);
+    console.log('🔍 Full request object:', JSON.stringify(request, null, 2));
+    
+    // If no professionals in request, try to fetch them from API
+    if (!request.professionals || request.professionals.length === 0) {
+      console.log('🔍 No professionals in request, fetching from API...');
+      try {
+        // Try to fetch professionals for this specific request
+        const professionals = await apiService.getRequestProfessionals(request.id);
+        console.log('🔍 Fetched professionals from API:', professionals);
+        
+        // Update the request with fetched professionals
+        const updatedRequest = {
+          ...request,
+          professionals: professionals || []
+        };
+        setSelectedRequest(updatedRequest);
+      } catch (error) {
+        console.log('🔍 Error fetching professionals:', error);
+        // If API fails, add some test professionals for demonstration
+        console.log('🔍 Adding test professionals for demonstration');
+        const testProfessionals = [
+          {
+            id: request.id * 10 + 1,
+            name: 'John Smith',
+            serviceName: `${request.title || 'Service'} Specialist`,
+            email: 'john.smith@example.com',
+            phone: '+61 400 123 456',
+            rating: 4.8,
+            acceptedDate: '2025-09-18'
+          }
+        ];
+        
+        const updatedRequest = {
+          ...request,
+          professionals: testProfessionals
+        };
+        setSelectedRequest(updatedRequest);
+      }
+    } else {
+      // Use existing professionals
+      setSelectedRequest(request);
+    }
+    
     setShowProfessionalModal(true);
+    console.log('✅ Modal state set to true');
   };
 
   const handleCallProvider = (request) => {
@@ -511,6 +645,16 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
   };
 
   const renderRequestCard = (request) => {
+    // Check if request is new (created within last 24 hours)
+    const isNewRequest = () => {
+      const requestDate = new Date(request.originalDate || request.requestDate || request.created_at || request.createdAt || request.date || 0);
+      const now = new Date();
+      const hoursDiff = (now - requestDate) / (1000 * 60 * 60);
+      return hoursDiff <= 24; // New if created within last 24 hours
+    };
+
+    const isNew = isNewRequest();
+
     return (
       <Animated.View
         key={request.id}
@@ -531,10 +675,35 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
                <View style={[styles.requestIcon, { backgroundColor: request.statusColor + '15' }]}>
                  <Text style={styles.requestIconText}>{request.icon}</Text>
                </View>
+               {/* NEW badge for recent requests */}
+               {isNew && (
+                 <View style={styles.newBadge}>
+                   <Text style={styles.newBadgeText}>NEW</Text>
+                 </View>
+               )}
              </View>
              <View style={styles.requestInfo}>
                <View style={styles.titleRow}>
                  <Text style={styles.requestTitle}>{request.title}</Text>
+                 {/* Show relative time for new requests */}
+                 {isNew && (
+                   <Text style={styles.timeAgo}>
+                     {(() => {
+                       const requestDate = new Date(request.originalDate || request.requestDate || request.created_at || request.createdAt || request.date || 0);
+                       const now = new Date();
+                       const hoursDiff = Math.floor((now - requestDate) / (1000 * 60 * 60));
+                       const minutesDiff = Math.floor((now - requestDate) / (1000 * 60));
+                       
+                       if (minutesDiff < 60) {
+                         return `${minutesDiff}m ago`;
+                       } else if (hoursDiff < 24) {
+                         return `${hoursDiff}h ago`;
+                       } else {
+                         return 'Today';
+                       }
+                     })()}
+                   </Text>
+                 )}
                </View>
                <Text style={styles.requestCategory}>{request.category}</Text>
                <Text style={styles.requestLocation}>{request.location}</Text>
@@ -586,15 +755,27 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
                <Text style={styles.actionButtonText}>View Details</Text>
              </TouchableOpacity>
              {(() => {
-               const hasProfessionals = request.professionals && request.professionals.length > 0;
-               console.log(`🔍 Request ${request.id}: hasProfessionals = ${hasProfessionals}, professionals =`, request.professionals);
-               return hasProfessionals ? (
+               // Use SAME logic as web version - check offerMetrics.acceptedOffers
+               const acceptedCount = request.offerMetrics?.acceptedOffers || 0;
+               
+               console.log(`🔍 Request ${request.id}: Button rendering - offerMetrics =`, request.offerMetrics);
+               console.log(`🔍 Request ${request.id}: acceptedCount =`, acceptedCount);
+               
+               // Show button if there are any accepted professionals/offers (DYNAMIC like web)
+               return acceptedCount > 0 ? (
                  <TouchableOpacity 
                    style={[styles.actionButton, styles.professionalsButton]}
-                   onPress={() => handleViewProfessionals(request)}
+                   onPress={() => {
+                     console.log('🔍 Button clicked for request:', request.id);
+                     console.log('🔍 Button clicked - professionals =', request.professionals);
+                     handleViewProfessionals(request);
+                   }}
+                   activeOpacity={0.7}
                  >
                    <Text style={styles.actionButtonIcon}>👥</Text>
-                   <Text style={styles.actionButtonText}>View Professionals ({request.professionals.length})</Text>
+                   <Text style={styles.actionButtonText}>
+                     View Professionals ({acceptedCount})
+                   </Text>
                  </TouchableOpacity>
                ) : null;
              })()}
@@ -657,6 +838,13 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
 
   const filteredRequests = getFilteredRequests();
 
+  // Debug: Log modal state
+  console.log('🔍 Current modal states:', {
+    showDetailModal,
+    showProfessionalModal,
+    selectedRequestId: selectedRequest?.id
+  });
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
@@ -672,11 +860,38 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
          }
          showsVerticalScrollIndicator={false}
        >
-         {filteredRequests.length > 0 ? (
-           filteredRequests.map(renderRequestCard)
-         ) : (
-           renderEmptyState()
-         )}
+         {/* Hero Section */}
+         <View style={styles.heroSection}>
+           <View style={styles.heroContent}>
+             <View style={styles.heroTextContainer}>
+               <Text style={styles.heroGreeting}>📋 My Requests</Text>
+               <Text style={styles.heroTitle}>Track your{'\n'}service requests</Text>
+               <Text style={styles.heroSubtitle}>
+                 Keep track of all your service requests and their current status
+               </Text>
+               <TouchableOpacity 
+                 style={styles.newRequestButton}
+                 onPress={() => onNavigate('requestService')}
+               >
+                 <Text style={styles.newRequestButtonText}>+ New Request</Text>
+               </TouchableOpacity>
+             </View>
+             <View style={styles.heroImageContainer}>
+               <Text style={styles.heroEmoji}>📊</Text>
+               <View style={styles.heroImageBg}>
+                 <Text style={styles.serviceIcon}>✅</Text>
+               </View>
+             </View>
+           </View>
+         </View>
+         
+         <View style={styles.sectionPadding}>
+           {filteredRequests.length > 0 ? (
+             filteredRequests.map(renderRequestCard)
+           ) : (
+             renderEmptyState()
+           )}
+         </View>
        </ScrollView>
 
        {/* Modals */}
@@ -688,7 +903,10 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
        
        <ProfessionalListModal
          visible={showProfessionalModal}
-         onClose={() => setShowProfessionalModal(false)}
+         onClose={() => {
+           console.log('🔍 Closing professionals modal');
+           setShowProfessionalModal(false);
+         }}
          professionals={selectedRequest?.professionals || []}
          serviceRequest={selectedRequest}
        />
@@ -858,8 +1076,78 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
     paddingBottom: 100,
+  },
+  sectionPadding: {
+    paddingHorizontal: 20,
+  },
+  // Hero Section Styles
+  heroSection: {
+    backgroundColor: colors.primary + '08',
+    padding: 24,
+    marginBottom: 0,
+  },
+  heroContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroTextContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
+  heroGreeting: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    lineHeight: 28,
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  newRequestButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  newRequestButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  heroImageContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroEmoji: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  heroImageBg: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary + '30',
+  },
+  serviceIcon: {
+    fontSize: 24,
   },
   requestCard: {
     backgroundColor: colors.surface,
@@ -881,6 +1169,7 @@ const styles = StyleSheet.create({
   },
   requestIconContainer: {
     marginRight: 12,
+    position: 'relative',
   },
   requestIcon: {
     width: 50,
@@ -891,6 +1180,36 @@ const styles = StyleSheet.create({
   },
   requestIconText: {
     fontSize: 24,
+  },
+  // NEW badge styles
+  newBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#FF4444',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  newBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  // Time ago styles
+  timeAgo: {
+    fontSize: 12,
+    color: '#FF4444',
+    fontWeight: '600',
+    marginLeft: 8,
   },
   requestInfo: {
     flex: 1,

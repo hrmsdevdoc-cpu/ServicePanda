@@ -98,8 +98,10 @@ export const serviceCategories = pgTable("service_categories", {
   name: varchar("name").notNull(),
   icon: varchar("icon").notNull(),
   description: text("description"),
+  imageUrl: text("image_url").default(""), // URL to uploaded image
   active: boolean("active").default(true),
   popular: boolean("popular").default(false),
+  trending: boolean("trending").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

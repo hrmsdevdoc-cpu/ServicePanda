@@ -5,7 +5,17 @@ const { colors } = require('../utils/theme');
 const { width, height } = Dimensions.get('window');
 
 const ProfessionalListModal = ({ visible, onClose, professionals, serviceRequest }) => {
-  if (!professionals || professionals.length === 0) return null;
+  console.log('🔍 ProfessionalListModal rendered with:', {
+    visible,
+    professionalsCount: professionals?.length || 0,
+    serviceRequest: serviceRequest?.id,
+    professionals: professionals
+  });
+  
+  // Don't return null - always render the modal if visible
+  if (!visible) {
+    return null;
+  }
 
   const handleCall = (phoneNumber) => {
     Linking.openURL(`tel:${phoneNumber}`);
@@ -84,7 +94,31 @@ const ProfessionalListModal = ({ visible, onClose, professionals, serviceRequest
           </View>
           
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            {professionals.map(renderProfessional)}
+            {(() => {
+              console.log('🔍 Modal rendering professionals:', professionals);
+              console.log('🔍 Professionals length:', professionals?.length);
+              console.log('🔍 Professionals type:', typeof professionals);
+              console.log('🔍 Is array:', Array.isArray(professionals));
+              
+              if (professionals && professionals.length > 0) {
+                console.log('🔍 Rendering professional cards');
+                return professionals.map(renderProfessional);
+              } else {
+                console.log('🔍 Rendering empty state');
+                return (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateIcon}>👥</Text>
+                    <Text style={styles.emptyStateTitle}>No Professionals Yet</Text>
+                    <Text style={styles.emptyStateSubtitle}>
+                      No professionals have accepted this service request yet. Check back later!
+                    </Text>
+                    <Text style={styles.emptyStateSubtitle}>
+                      Debug: professionals = {JSON.stringify(professionals)}
+                    </Text>
+                  </View>
+                );
+              }
+            })()}
           </ScrollView>
 
           <View style={styles.modalActions}>
@@ -288,6 +322,27 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyStateIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

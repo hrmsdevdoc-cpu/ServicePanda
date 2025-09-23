@@ -12,11 +12,14 @@ const {
   Animated,
   Dimensions,
   StatusBar,
-  Platform
+  Platform,
+  ImageBackground
 } = require('react-native');
 // Using built-in date picker instead of external package
 const { colors } = require('../../utils/theme');
 const { apiService } = require('../../services/api');
+const { API_BASE_URL } = require('../../config/api');
+const { getServiceImageWithFallback } = require('../../utils/serviceImages');
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,6 +35,7 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
   const [bookingType, setBookingType] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serviceCategories, setServiceCategories] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -48,11 +52,12 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
       
       // Map API data to our expected format
       const mappedCategories = categories.map((category, index) => {
+        const serviceName = category.name || category.title || category.categoryName || 'Service';
         return {
           id: category.id || category._id || index + 1,
-          name: category.name || category.title || category.categoryName || 'Service',
-          icon: category.icon || '🔧',
+          name: serviceName,
           color: category.color || '#3B82F6',
+          image: getServiceImageWithFallback(category.imageUrl || category.image_url || category.image, serviceName, index, API_BASE_URL),
         };
       });
       
@@ -61,16 +66,16 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
       console.error('❌ Error fetching service categories:', error);
       // Fallback to static categories
       const fallbackCategories = [
-        { id: 1, name: 'Plumbing', icon: '🔧', color: '#3B82F6' },
-        { id: 2, name: 'Electrical', icon: '⚡', color: '#F59E0B' },
-        { id: 3, name: 'HVAC', icon: '❄️', color: '#10B981' },
-        { id: 4, name: 'Cleaning', icon: '🧹', color: '#8B5CF6' },
-        { id: 5, name: 'Landscaping', icon: '🌱', color: '#06B6D4' },
-        { id: 6, name: 'Painting', icon: '🎨', color: '#EF4444' },
-        { id: 7, name: 'Carpentry', icon: '🔨', color: '#84CC16' },
-        { id: 8, name: 'Appliance Repair', icon: '🔌', color: '#F97316' },
-        { id: 9, name: 'Roofing', icon: '🏠', color: '#6B7280' },
-        { id: 10, name: 'Other', icon: '🔧', color: '#9CA3AF' }
+        { id: 1, name: 'Plumbing', color: '#3B82F6', image: getServiceImageWithFallback(null, 'Plumbing', 0) },
+        { id: 2, name: 'Electrical', color: '#F59E0B', image: getServiceImageWithFallback(null, 'Electrical', 1) },
+        { id: 3, name: 'HVAC', color: '#10B981', image: getServiceImageWithFallback(null, 'HVAC', 2) },
+        { id: 4, name: 'Cleaning', color: '#8B5CF6', image: getServiceImageWithFallback(null, 'Cleaning', 3) },
+        { id: 5, name: 'Landscaping', color: '#06B6D4', image: getServiceImageWithFallback(null, 'Landscaping', 4) },
+        { id: 6, name: 'Painting', color: '#EF4444', image: getServiceImageWithFallback(null, 'Painting', 5) },
+        { id: 7, name: 'Carpentry', color: '#84CC16', image: getServiceImageWithFallback(null, 'Carpentry', 6) },
+        { id: 8, name: 'Appliance Repair', color: '#F97316', image: getServiceImageWithFallback(null, 'Appliance Repair', 7) },
+        { id: 9, name: 'Roofing', color: '#6B7280', image: getServiceImageWithFallback(null, 'Roofing', 8) },
+        { id: 10, name: 'Other', color: '#9CA3AF', image: getServiceImageWithFallback(null, 'Other', 9) }
       ];
       setServiceCategories(fallbackCategories);
     }
@@ -273,12 +278,28 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
         ]}
       >
         <Text style={styles.sectionTitle}>Service Type *</Text>
+        
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search services..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={colors.textSecondary}
+          />
+        </View>
+        
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.serviceTypeContainer}
         >
-          {serviceCategories.map((type, index) => {
+          {serviceCategories
+            .filter(category => 
+              category.name.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            .map((type, index) => {
             const isSelected = serviceType === type.id;
             console.log(`🔍 Service ${type.name} (ID: ${type.id}): isSelected=${isSelected}, serviceType=${serviceType}, type=${typeof serviceType}, typeId=${type.id}, typeIdType=${typeof type.id}`);
             return (
@@ -317,25 +338,26 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
                 {serviceType === type.id && (
                   <View style={[styles.selectedIndicator, { backgroundColor: type.color }]} />
                 )}
-                <View style={[
-                  styles.serviceTypeIcon,
-                  { backgroundColor: type.color + '15' },
-                  serviceType === type.id && { 
-                    backgroundColor: type.color + '20',
-                    shadowColor: type.color,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
-                    elevation: 6,
-                  }
-                ]}>
-                  <Text style={styles.serviceTypeEmoji}>{type.icon}</Text>
+                <ImageBackground
+                  source={{ uri: type.image }}
+                  style={[
+                    styles.serviceTypeImage,
+                    serviceType === type.id && { 
+                      shadowColor: type.color,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 6,
+                    }
+                  ]}
+                  imageStyle={styles.serviceTypeImageStyle}
+                >
                   {serviceType === type.id && (
                     <View style={[styles.checkmark, { backgroundColor: type.color }]}>
                       <Text style={styles.checkmarkText}>✓</Text>
                     </View>
                   )}
-                </View>
+                </ImageBackground>
                 <Text style={[
                   styles.serviceTypeText,
                   serviceType === type.id && styles.serviceTypeTextSelected
@@ -842,6 +864,19 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
   },
+  searchContainer: {
+    marginBottom: 16,
+  },
+  searchInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   serviceTypeContainer: {
     paddingRight: 20,
     paddingVertical: 8,
@@ -852,10 +887,10 @@ const styles = StyleSheet.create({
   },
   serviceTypeButton: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 20,
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
     minWidth: 120,
     minHeight: 100,
@@ -883,17 +918,16 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     zIndex: 1,
   },
-  serviceTypeIcon: {
+  serviceTypeImage: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 12,
     position: 'relative',
+    overflow: 'hidden',
   },
-  serviceTypeEmoji: {
-    fontSize: 28,
+  serviceTypeImageStyle: {
+    borderRadius: 30,
   },
   checkmark: {
     position: 'absolute',
