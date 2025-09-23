@@ -17,6 +17,7 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
   const [ serviceRequests,setServiceRequests] = React.useState([]);
   const [serviceCategories, setServiceCategories] = React.useState([]);
   const [error, setError] = React.useState(null);
+  const [isScreenFocused, setIsScreenFocused] = React.useState(false);
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -89,32 +90,27 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           'in_progress': '🔵'
         };
         const statusIcon = statusIcons[request.status?.toLowerCase()] || '🔵';
-
-        // Use category data directly from API response (already includes categoryName and categoryIcon)
+         console.log('checking data',request);
+        // Use categoryName directly from API - this should now contain the actual service category name
         let categoryName = request.categoryName || 'Service Request';
         let categoryIcon = request.categoryIcon || '🔧';
         
-        // If API doesn't provide category info, try to find from serviceCategories
-        if (!request.categoryName && serviceCategories.length > 0) {
-          let categoryData = null;
-          
-          // Try to find category by ID first (most reliable)
-          if (request.categoryId) {
-            categoryData = serviceCategories.find(cat => cat.id === request.categoryId);
-          }
-          
-          // If not found by ID, try to find by name
-          if (!categoryData && request.category?.name) {
-            categoryData = serviceCategories.find(cat => 
-              cat.name?.toLowerCase() === request.category.name?.toLowerCase()
-            );
-          }
-          
-          // Use category data from database if found
+        // If categoryName is still default, try to get from serviceCategories by ID
+        if (categoryName === 'Service Request' && request.categoryId && serviceCategories.length > 0) {
+          console.log(`🔍 Looking for category ID ${request.categoryId} in serviceCategories:`, serviceCategories);
+          const categoryData = serviceCategories.find(cat => cat.id === request.categoryId);
+          console.log(`🔍 Found category data:`, categoryData);
           if (categoryData) {
             categoryName = categoryData.name || 'Service Request';
             categoryIcon = categoryData.icon || '🔧';
           }
+        }
+        
+        // If still default, use description as fallback
+        if (categoryName === 'Service Request' && request.description) {
+          // Use first few words of description as title
+          const words = request.description.split(' ').slice(0, 3);
+          categoryName = words.join(' ');
         }
 
         // Use REAL professionals from API data - DYNAMIC like web version
@@ -124,21 +120,8 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
         console.log(`🔍 Request ${request.id}: Professionals length =`, requestProfessionals.length);
         console.log(`🔍 Request ${request.id}: offerMetrics =`, request.offerMetrics);
 
-        // Determine the best title to use - prioritize category name from API
-        let finalTitle;
-        if (categoryName && categoryName !== 'Service Request') {
-          // Use the category name from API as the main title
-          finalTitle = categoryName;
-        } else if (request.title && request.title !== 'Service Request') {
-          // Use the original title if category name is not available
-          finalTitle = request.title;
-        } else if (request.serviceType) {
-          // Use service type as fallback
-          finalTitle = request.serviceType;
-        } else {
-          // Last resort
-          finalTitle = 'Service Request';
-        }
+        // Use the category name as the final title - this should be the actual service name
+        let finalTitle = categoryName;
 
         // Debug: Log what category name was extracted
         console.log(`🔍 Request ${index + 1} mapping:`, {
@@ -359,7 +342,7 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [serviceCategories]);
 
   // Debug: Log all unique status values
   const uniqueStatuses = [...new Set(serviceRequests.map(r => r.status))];
@@ -430,6 +413,16 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
     fetchServiceRequests();
   }, [fetchServiceCategories, fetchServiceRequests]);
 
+  // Add a ref to track if component is mounted
+  const isMountedRef = React.useRef(true);
+  
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     await fetchServiceRequests();
@@ -468,8 +461,10 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
       // Debug: Log sorting information
       console.log(`🔍 Sorting: ${a.title} (${dateA.toISOString()}) vs ${b.title} (${dateB.toISOString()})`);
       
-      // Sort newest first (descending order)
-      return dateB - dateA;
+       // Sort newest first (descending order) - ensure dates are valid numbers
+       const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
+       const timeB = isNaN(dateB.getTime()) ? 0 : dateB.getTime();
+       return timeB - timeA;
     });
   };
 
@@ -628,7 +623,8 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
     const isNewRequest = () => {
       const requestDate = new Date(request.originalDate || request.requestDate || request.created_at || request.createdAt || request.date || 0);
       const now = new Date();
-      const hoursDiff = (now - requestDate) / (1000 * 60 * 60);
+       const timeDiff = now.getTime() - requestDate.getTime();
+       const hoursDiff = timeDiff / (1000 * 60 * 60);
       return hoursDiff <= 24; // New if created within last 24 hours
     };
 
@@ -670,8 +666,9 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
                      {(() => {
                        const requestDate = new Date(request.originalDate || request.requestDate || request.created_at || request.createdAt || request.date || 0);
                        const now = new Date();
-                       const hoursDiff = Math.floor((now - requestDate) / (1000 * 60 * 60));
-                       const minutesDiff = Math.floor((now - requestDate) / (1000 * 60));
+                        const timeDiff = now.getTime() - requestDate.getTime();
+                        const hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
+                        const minutesDiff = Math.floor(timeDiff / (1000 * 60));
                        
                        if (minutesDiff < 60) {
                          return `${minutesDiff}m ago`;
@@ -863,8 +860,11 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
              </View>
            </View>
          </View>
-         
-         <View style={styles.sectionPadding}>
+          
+         {/* Service Requests List Title - Always visible */}
+
+          
+          <View style={styles.sectionPadding}>
            {filteredRequests.length > 0 ? (
              filteredRequests.map(renderRequestCard)
            ) : (
@@ -1059,6 +1059,25 @@ const styles = StyleSheet.create({
   },
   sectionPadding: {
     paddingHorizontal: 20,
+  },
+  // List Title Section Styles
+  listTitleSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  listTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  listSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
   // Hero Section Styles
   heroSection: {
