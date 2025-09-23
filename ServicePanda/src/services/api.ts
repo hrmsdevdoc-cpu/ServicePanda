@@ -37,6 +37,13 @@ class ApiService {
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     
+    console.log('🔍 API Request:', {
+      url,
+      method: options.method || 'GET',
+      baseUrl: API_BASE_URL,
+      endpoint
+    });
+    
     const defaultHeaders = {
       'Content-Type': 'application/json',
     };
@@ -104,6 +111,13 @@ class ApiService {
     });
   }
 
+  async changePassword(data: { currentPassword: string; newPassword: string }): Promise<any> {
+    return this.makeRequest(API_ENDPOINTS.CHANGE_PASSWORD, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async logout(): Promise<void> {
     try {
       await this.makeRequest(API_ENDPOINTS.LOGOUT, {
@@ -131,6 +145,10 @@ class ApiService {
     return this.makeRequest(API_ENDPOINTS.MY_SERVICE_REQUESTS);
   }
 
+  async getRequestProfessionals(requestId: string | number): Promise<any[]> {
+    return this.makeRequest(`${API_ENDPOINTS.MY_SERVICE_REQUESTS}/${requestId}/professionals`);
+  }
+
   async createServiceRequest(data: any): Promise<any> {
     return this.makeRequest(API_ENDPOINTS.CREATE_SERVICE_REQUEST, {
       method: 'POST',
@@ -141,6 +159,10 @@ class ApiService {
   // Service Categories
   async getServiceCategories(): Promise<any[]> {
     return this.makeRequest(API_ENDPOINTS.SERVICE_CATEGORIES);
+  }
+
+  async getTrendingServiceCategories(): Promise<any[]> {
+    return this.makeRequest(`${API_ENDPOINTS.SERVICE_CATEGORIES}/trending`);
   }
 
   // Notifications

@@ -105,7 +105,6 @@ import {
   type InsertAdminUser,
   type AdminUserDepartment,
   type InsertAdminUserDepartment,
-  leadPurchases,
   type ProviderVoucher,
   type InsertProviderVoucher,
   type ProviderCreditTransaction,
@@ -151,13 +150,6 @@ import {
   type InsertPotentialProviderTask,
   type PotentialProviderCommunication,
   type InsertPotentialProviderCommunication,
-  // Lead management imports
-  leadSettings,
-  categoryLeadPricing,
-  type LeadSettings,
-  type InsertLeadSettings,
-  type CategoryLeadPricing,
-  type InsertCategoryLeadPricing,
 } from "@shared/schema";
 
 // Import Group interface
@@ -228,6 +220,7 @@ export interface IStorage {
   // Service category operations
   getServiceCategories(): Promise<ServiceCategory[]>;
   getAllServiceCategories(): Promise<ServiceCategory[]>;
+  getTrendingServiceCategories(): Promise<ServiceCategory[]>;
   getServiceCategory(id: number): Promise<ServiceCategory | undefined>;
   createServiceCategory(category: InsertServiceCategory): Promise<ServiceCategory>;
   
@@ -469,6 +462,7 @@ export interface IStorage {
   
   // Service Category management operations
   updateServiceCategory(id: number, updates: any): Promise<ServiceCategory>;
+  updateServiceCategoryImage(id: number, imageUrl: string): Promise<ServiceCategory>;
   deleteServiceCategory(id: number): Promise<boolean>;
   
   // Potential Customers operations
@@ -875,6 +869,20 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(serviceCategories.name));
     console.log('Storage: Found', categories.length, 'categories');
     return categories;
+  }
+
+  async getTrendingServiceCategories(): Promise<ServiceCategory[]> {
+    console.log('Storage: Getting trending service categories...');
+    
+    // Simplified query - just get trending services (remove active requirement for testing)
+    const result = await db
+      .select()
+      .from(serviceCategories)
+      .where(eq(serviceCategories.trending, true))
+      .orderBy(asc(serviceCategories.name));
+    console.log('Storage: Found trending service categories:', result.length);
+    console.log('Storage: Trending categories:', result);
+    return result;
   }
 
   async getServiceCategory(id: number): Promise<ServiceCategory | undefined> {
@@ -4791,6 +4799,27 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updatedCategories[0];
+  }
+
+  async updateServiceCategoryImage(id: number, imageUrl: string): Promise<ServiceCategory> {
+    console.log('updateServiceCategoryImage called with:', { id, imageUrl });
+    
+    try {
+      // Use raw SQL query to update the image_url column
+      console.log('Updating image_url with raw SQL...');
+      const result = await db.execute(sql`UPDATE service_categories SET image_url = ${imageUrl}, updated_at = NOW() WHERE id = ${id} RETURNING *`);
+      console.log('Raw SQL result:', result);
+      
+      if (result.rows && result.rows.length > 0) {
+        console.log('Image URL updated successfully');
+        return result.rows[0];
+      } else {
+        throw new Error('Service category not found');
+      }
+    } catch (error) {
+      console.error('Error in updateServiceCategoryImage:', error);
+      throw error;
+    }
   }
 
   async deleteServiceCategory(id: number): Promise<boolean> {

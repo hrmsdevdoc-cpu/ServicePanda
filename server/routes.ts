@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
@@ -41,6 +42,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   });
 
+  // Serve static files from uploads directory
+  app.use('/uploads', express.static('uploads'));
+
   // Service categories
   app.get('/api/service-categories', async (req, res) => {
     try {
@@ -49,6 +53,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching service categories:", error);
       res.status(500).json({ message: "Failed to fetch service categories" });
+    }
+  });
+
+  // Trending service categories
+  app.get('/api/service-categories/trending', async (req, res) => {
+
+    try {
+      const trendingCategories = await storage.getTrendingServiceCategories();
+      res.json(trendingCategories);
+    } catch (error) {
+      console.error("Error fetching trending service categories:", error);
+      res.status(500).json({ message: "Failed to fetch trending service categories" });
     }
   });
 
@@ -825,6 +841,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating user profile:", error);
       res.status(500).json({ message: "Failed to update user profile" });
+    }
+  });
+
+  // Customer change password endpoint
+  app.post('/api/change-password', isAuthenticated, async (req: any, res) => {
+    try {
+      console.log('🔐 Password change request received:', { userId: req.user.id, email: req.user.email });
+      
+      const userId = req.user.id;
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        console.log('❌ Missing password fields');
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+
+      if (newPassword.length < 6) {
+        console.log('❌ New password too short');
+        return res.status(400).json({ message: "New password must be at least 6 characters long" });
+      }
+
+      if (currentPassword === newPassword) {
+        console.log('❌ Same password provided');
+        return res.status(400).json({ message: "New password must be different from current password" });
+      }
+
+      // Get user from database
+      console.log('📝 Getting user from database...');
+      const user = await storage.getUser(userId);
+      if (!user) {
+        console.log('❌ User not found in database');
+        return res.status(404).json({ message: "User not found" });
+      }
+      console.log('✅ User found:', { id: user.id, email: user.email });
+
+      // Verify current password
+      console.log('🔍 Verifying current password...');
+      const bcrypt = await import('bcrypt');
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isCurrentPasswordValid) {
+        console.log('❌ Current password is incorrect');
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      console.log('✅ Current password verified');
+
+      // Hash new password
+      console.log('🔐 Hashing new password...');
+      const saltRounds = 10;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+      console.log('✅ New password hashed');
+
+      // Update password in database
+      console.log('💾 Updating password in database...');
+      await storage.updateUserPassword(userId, hashedNewPassword);
+      console.log('✅ Password updated in database');
+
+      // Log user activity
+      console.log('📝 Logging user activity...');
+      await storage.logUserActivity({
+        userId,
+        userType: "customer",
+        action: "password_changed",
+        details: { passwordChanged: true },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+      });
+      console.log('✅ Activity logged');
+
+      console.log('🎉 Password change successful');
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("💥 Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
     }
   });
 
@@ -3336,6 +3425,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting service category:', error);
       res.status(500).json({ message: error.message || 'Failed to delete service category' });
+    }
+  });
+
+  // Service category image upload endpoint
+  app.post('/api/admin/service-categories/:id/image', isAdminAuthenticated, upload.single('image'), async (req, res) => {
+    try {
+      console.log('Image upload endpoint called');
+      console.log('Headers:', req.headers);
+      console.log('File:', req.file);
+      console.log('Body:', req.body);
+
+      if (!req.file) {
+        console.log('No file provided');
+        return res.status(400).json({ message: 'No image file provided' });
+      }
+
+      const categoryId = parseInt(req.params.id);
+      console.log('Category ID:', categoryId);
+      const imageUrl = `/uploads/${req.file.filename}`;
+      console.log('Image URL:', imageUrl);
+
+      // Update the service category with the image URL
+      const updatedCategory = await storage.updateServiceCategoryImage(categoryId, imageUrl);
+      console.log('Updated category:', updatedCategory);
+
+      if (updatedCategory) {
+        res.json({ 
+          message: 'Image uploaded successfully', 
+          imageUrl: imageUrl,
+          category: updatedCategory 
+        });
+      } else {
+        res.status(404).json({ message: 'Service category not found' });
+      }
+    } catch (error) {
+      console.error('Error uploading service category image:', error);
+      res.status(500).json({ message: error.message || 'Failed to upload image' });
     }
   });
 

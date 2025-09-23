@@ -34,6 +34,9 @@ import {
   Truck,
   Shield,
   AlertTriangle,
+  Upload,
+  Image as ImageIcon,
+  X,
 } from "lucide-react";
 
 // Service icons mapping
@@ -62,8 +65,10 @@ interface ServiceCategory {
   name: string;
   description: string;
   icon: string;
+  imageUrl?: string;
   active: boolean;
   popular: boolean;
+  trending: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,12 +80,15 @@ export default function AdminLeadManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null);
   const [deleteCategory, setDeleteCategory] = useState<ServiceCategory | null>(null);
+  const [uploadingImage, setUploadingImage] = useState<number | null>(null);
   const [newCategory, setNewCategory] = useState({
     name: '',
     description: '',
     icon: 'home',
+    imageFile: null as File | null,
     active: true,
     popular: false,
+    trending: false,
   });
 
   // Check admin authentication
@@ -109,30 +117,89 @@ export default function AdminLeadManagement() {
       const response = await adminApiRequest('POST', '/api/admin/service-categories', category);
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Service Type Created",
-        description: "New service type has been created successfully.",
-      });
+    onSuccess: async (data) => {
+      // If there's an image file, upload it after category creation
+      if (newCategory.imageFile) {
+        try {
+          console.log('Starting image upload for category ID:', data.id);
+          console.log('Image file:', newCategory.imageFile);
+          setUploadingImage(data.id);
+          
+          // Show uploading message
+          toast({
+            title: "Uploading Image",
+            description: "Please wait while the image is being uploaded...",
+          });
+          
+          // Upload image directly using fetch
+          const formData = new FormData();
+          formData.append('image', newCategory.imageFile);
+          
+          console.log('FormData created, sending request...');
+          const uploadResponse = await fetch(`/api/admin/service-categories/${data.id}/image`, {
+            method: 'POST',
+            headers: {
+              'x-admin-token': localStorage.getItem('adminToken') || '',
+            },
+            body: formData,
+          });
+          
+          console.log('Upload response status:', uploadResponse.status);
+          console.log('Upload response:', uploadResponse);
+          
+          if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            console.error('Upload error response:', errorText);
+            throw new Error(`Failed to upload image: ${uploadResponse.status} - ${errorText}`);
+          }
+          
+          const result = await uploadResponse.json();
+          console.log('Image uploaded successfully:', result);
+          
+          // Show success message for image upload
+          toast({
+            title: "Image Uploaded Successfully",
+            description: "Service type and image have been created successfully.",
+          });
+        } catch (error) {
+          console.error('Image upload failed:', error);
+          toast({
+            title: "Image Upload Failed",
+            description: "Service type created but image upload failed. You can upload it later.",
+            variant: "destructive",
+          });
+        } finally {
+          setUploadingImage(null);
+        }
+      } else {
+        // No image file, just show success message
+        toast({
+          title: "Service Type Created",
+          description: "New service type has been created successfully.",
+        });
+      }
+      
       setIsAddDialogOpen(false);
       setNewCategory({
         name: '',
         description: '',
         icon: 'home',
+        imageFile: null,
         active: true,
         popular: false,
+        trending: false,
       });
-             queryClient.invalidateQueries({ queryKey: ['/api/admin/service-categories'] });
-     },
-     onError: (error: any) => {
-       console.error('Create category error:', error);
-       toast({
-         title: "Creation Failed",
-         description: error.message || "Failed to create service type",
-         variant: "destructive",
-       });
-     },
-   });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/service-categories'] });
+    },
+    onError: (error: any) => {
+      console.error('Create category error:', error);
+      toast({
+        title: "Creation Failed",
+        description: error.message || "Failed to create service type",
+        variant: "destructive",
+      });
+    },
+  });
 
    // Update service category mutation
    const updateCategoryMutation = useMutation({
@@ -182,6 +249,54 @@ export default function AdminLeadManagement() {
     },
   });
 
+  // Image upload mutation
+  const uploadImageMutation = useMutation({
+    mutationFn: async ({ categoryId, file }: { categoryId: number; file: File }) => {
+      console.log('Uploading image for category ID:', categoryId);
+      console.log('File:', file);
+      
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await fetch(`/api/admin/service-categories/${categoryId}/image`, {
+        method: 'POST',
+        headers: {
+          'x-admin-token': localStorage.getItem('adminToken') || '',
+        },
+        body: formData,
+      });
+      
+      console.log('Upload response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Upload error response:', errorText);
+        throw new Error(`Failed to upload image: ${response.status} - ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Upload successful:', result);
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Image Uploaded Successfully",
+        description: "Service type image has been uploaded successfully.",
+      });
+      setUploadingImage(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/service-categories'] });
+    },
+    onError: (error: any) => {
+      console.error('Image upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload image",
+        variant: "destructive",
+      });
+      setUploadingImage(null);
+    },
+  });
+
   const handleCreateCategory = () => {
     if (!newCategory.name.trim()) {
       toast({
@@ -191,7 +306,13 @@ export default function AdminLeadManagement() {
       });
       return;
     }
-         createCategoryMutation.mutate(newCategory);
+    
+    console.log('Creating category with data:', newCategory);
+    console.log('Image file:', newCategory.imageFile);
+    
+    // Extract imageFile and send the rest of the data
+    const { imageFile, ...categoryData } = newCategory;
+    createCategoryMutation.mutate(categoryData);
   };
 
   const handleUpdateCategory = () => {
@@ -212,6 +333,7 @@ export default function AdminLeadManagement() {
         icon: editingCategory.icon,
         active: editingCategory.active,
         popular: editingCategory.popular,
+        trending: editingCategory.trending,
       },
     });
   };
@@ -219,6 +341,34 @@ export default function AdminLeadManagement() {
   const handleDeleteCategory = () => {
     if (!deleteCategory) return;
     deleteCategoryMutation.mutate(deleteCategory.id);
+  };
+
+  const handleImageUpload = (categoryId: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select an image file (PNG, JPG, JPEG)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please select an image smaller than 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingImage(categoryId);
+    uploadImageMutation.mutate({ categoryId, file });
   };
 
   const getIconComponent = (iconName: string) => {
@@ -319,6 +469,77 @@ export default function AdminLeadManagement() {
                           <option value="shield">Shield (Security)</option>
                         </select>
                       </div>
+                      <div>
+                        <Label htmlFor="image">Service Image (Optional)</Label>
+                        <div className="mt-2">
+                          <input
+                            id="image"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              console.log('File selected:', file);
+                              console.log('File type:', file?.type);
+                              console.log('File size:', file?.size);
+                              if (file) {
+                                // Validate file type
+                                if (!file.type.startsWith('image/')) {
+                                  toast({
+                                    title: "Invalid File Type",
+                                    description: "Please select an image file (PNG, JPG, JPEG)",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+
+                                // Validate file size (10MB limit)
+                                if (file.size > 10 * 1024 * 1024) {
+                                  toast({
+                                    title: "File Too Large",
+                                    description: "Please select an image smaller than 10MB",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+
+                                // Store the file for later upload after category creation
+                                setNewCategory({ ...newCategory, imageFile: file });
+                                console.log('Image file set in state');
+                                
+                                // Show success message for file selection
+                                toast({
+                                  title: "Image Selected",
+                                  description: `${file.name} is ready to upload`,
+                                });
+                              }
+                            }}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor="image"
+                            className={`flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                              newCategory.imageFile 
+                                ? 'border-green-400 bg-green-50 hover:border-green-500' 
+                                : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+                            }`}
+                          >
+                            <div className="text-center">
+                              <Upload className={`h-8 w-8 mx-auto mb-2 ${
+                                newCategory.imageFile ? 'text-green-500' : 'text-gray-400'
+                              }`} />
+                              <p className={`text-sm ${
+                                newCategory.imageFile ? 'text-green-700 font-medium' : 'text-gray-600'
+                              }`}>
+                                {newCategory.imageFile ? newCategory.imageFile.name : 'Click to upload image'}
+                              </p>
+                              <p className="text-xs text-gray-500">PNG, JPG, JPEG up to 10MB</p>
+                              {newCategory.imageFile && (
+                                <p className="text-xs text-green-600 mt-1">✓ Ready to upload</p>
+                              )}
+                            </div>
+                          </label>
+                        </div>
+                      </div>
                       <div className="flex items-center justify-between">
                         <Label className="text-sm">Active</Label>
                         <Switch
@@ -331,6 +552,13 @@ export default function AdminLeadManagement() {
                         <Switch
                           checked={newCategory.popular}
                           onCheckedChange={(checked) => setNewCategory({ ...newCategory, popular: checked })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm">Trending</Label>
+                        <Switch
+                          checked={newCategory.trending}
+                          onCheckedChange={(checked) => setNewCategory({ ...newCategory, trending: checked })}
                         />
                       </div>
                       <div className="flex gap-2">
@@ -375,11 +603,20 @@ export default function AdminLeadManagement() {
                       className="flex items-center justify-between p-3 border rounded-lg"
                     >
                       <div className="flex items-center gap-3">
+                        {/* Image or Icon */}
                         <div className="flex items-center gap-2">
-                          {(() => {
-                            const IconComponent = getIconComponent(category.icon);
-                            return <IconComponent className="h-4 w-4" />;
-                          })()}
+                          {category.imageUrl ? (
+                            <img
+                              src={category.imageUrl}
+                              alt={category.name}
+                              className="h-8 w-8 rounded object-cover"
+                            />
+                          ) : (
+                            (() => {
+                              const IconComponent = getIconComponent(category.icon);
+                              return <IconComponent className="h-4 w-4" />;
+                            })()
+                          )}
                           <span className="font-medium">{category.name}</span>
                         </div>
                         <div className="flex gap-1">
@@ -403,6 +640,28 @@ export default function AdminLeadManagement() {
                         </div>
                       </div>
                       <div className="flex gap-2">
+                        {/* Image Upload Button */}
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleImageUpload(category.id, e)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            disabled={uploadingImage === category.id}
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={uploadingImage === category.id}
+                            className="relative"
+                          >
+                            {uploadingImage === category.id ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                            ) : (
+                              <ImageIcon className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                         <Button
                           size="sm"
                           variant="outline"
@@ -474,6 +733,79 @@ export default function AdminLeadManagement() {
                     <option value="shield">Shield (Security)</option>
                   </select>
                 </div>
+                <div>
+                  <Label htmlFor="edit-image">Service Image</Label>
+                  <div className="mt-2">
+                    {editingCategory.imageUrl && (
+                      <div className="mb-2">
+                        <img
+                          src={editingCategory.imageUrl}
+                          alt={editingCategory.name}
+                          className="h-16 w-16 rounded object-cover"
+                        />
+                      </div>
+                    )}
+                    <input
+                      id="edit-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        console.log('Edit dialog - File selected:', file);
+                        if (file) {
+                          // Validate file type
+                          if (!file.type.startsWith('image/')) {
+                            toast({
+                              title: "Invalid File Type",
+                              description: "Please select an image file (PNG, JPG, JPEG)",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+
+                          // Validate file size (10MB limit)
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast({
+                              title: "File Too Large",
+                              description: "Please select an image smaller than 10MB",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+
+                          // Show success message for file selection
+                          toast({
+                            title: "Image Selected",
+                            description: `${file.name} is ready to upload`,
+                          });
+
+                          handleImageUpload(editingCategory.id, e);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="edit-image"
+                      className={`flex items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                        uploadingImage === editingCategory.id 
+                          ? 'border-blue-400 bg-blue-50' 
+                          : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <Upload className={`h-6 w-6 mx-auto mb-1 ${
+                          uploadingImage === editingCategory.id ? 'text-blue-500' : 'text-gray-400'
+                        }`} />
+                        <p className={`text-xs ${
+                          uploadingImage === editingCategory.id ? 'text-blue-700' : 'text-gray-600'
+                        }`}>
+                          {uploadingImage === editingCategory.id ? 'Uploading...' : 'Click to upload new image'}
+                        </p>
+                        <p className="text-xs text-gray-500">PNG, JPG, JPEG up to 10MB</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
                 <div className="flex items-center justify-between">
                   <Label className="text-sm">Active</Label>
                   <Switch
@@ -486,6 +818,13 @@ export default function AdminLeadManagement() {
                   <Switch
                     checked={editingCategory.popular}
                     onCheckedChange={(checked) => setEditingCategory({ ...editingCategory, popular: checked })}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Trending</Label>
+                  <Switch
+                    checked={editingCategory.trending}
+                    onCheckedChange={(checked) => setEditingCategory({ ...editingCategory, trending: checked })}
                   />
                 </div>
                 <div className="flex gap-2">

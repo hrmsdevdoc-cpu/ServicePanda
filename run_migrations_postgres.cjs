@@ -18,7 +18,8 @@ async function runMigrations() {
       '0001_giant_tattoo.sql', 
       '0002_cute_doctor_faustus.sql',
       '0003_email_management.sql',
-      '0004_notification_system.sql'
+      '0004_notification_system.sql',
+      '0005_add_service_category_image.sql'
     ];
 
     for (const fileName of migrationFiles) {

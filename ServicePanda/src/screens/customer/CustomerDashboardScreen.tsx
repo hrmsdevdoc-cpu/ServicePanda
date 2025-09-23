@@ -1,12 +1,23 @@
 const React = require('react');
 const { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated, Dimensions, StatusBar, Image, ImageBackground, ActivityIndicator, Alert, Platform } = require('react-native');
-const { useSafeAreaInsets } = require('react-native-safe-area-context');
+// const { useSafeAreaInsets } = require('react-native-safe-area-context');
+
+// Fallback useSafeAreaInsets hook that returns default values
+const useSafeAreaInsets = () => {
+  return {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0
+  };
+};
 const { colors } = require('../../utils/theme');
 const { useTheme } = require('../../contexts/ThemeContext');
 const { apiService } = require('../../services/api');
 const { API_BASE_URL } = require('../../config/api');
 const NotificationList = require('../../components/NotificationList');
 const notificationService = require('../../services/notifications');
+const { getServiceImageWithFallback } = require('../../utils/serviceImages');
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,9 +35,11 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
     avatar: null
   });
   const [serviceCategories, setServiceCategories] = React.useState([]);
+  const [trendingServices, setTrendingServices] = React.useState([]);
   const [recentRequests, setRecentRequests] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [categoriesLoading, setCategoriesLoading] = React.useState(true);
+  const [trendingLoading, setTrendingLoading] = React.useState(true);
   const [requestsLoading, setRequestsLoading] = React.useState(true);
   
   // Dashboard statistics
@@ -82,13 +95,15 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       // Map API data to our expected format
       const mappedCategories = categories.map((category, index) => {
         console.log('🔄 Processing category:', category);
+        
+        // Simple service name extraction - just use what's in the database
         const serviceName = category.name || category.title || category.categoryName || `Service ${index + 1}`;
+        
         const mapped = {
           id: category.id || category._id || index + 1,
           name: serviceName,
-          icon: category.icon || '🔧',
           color: category.color || '#3B82F6',
-          image: category.image || getServiceImage(serviceName, index),
+          image: getServiceImageWithFallback(category.imageUrl || category.image_url || category.image, serviceName, index, API_BASE_URL),
           description: category.description || 'Professional service',
           rating: category.rating || 4.5,
           reviews: category.reviews || Math.floor(Math.random() * 200) + 50,
@@ -119,6 +134,49 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       setServiceCategories(fallbackCategories);
     } finally {
       setCategoriesLoading(false);
+    }
+  };
+
+  // Fetch trending service categories
+  const fetchTrendingServices = async () => {
+    try {
+      console.log('🔥 Dashboard: Fetching trending service categories...');
+      const trendingCategories = await apiService.getTrendingServiceCategories();
+      console.log('📡 Dashboard: API Response for trending categories:', trendingCategories);
+      
+      if (!trendingCategories || !Array.isArray(trendingCategories)) {
+        console.warn('⚠️ Trending categories is not an array:', trendingCategories);
+        throw new Error('Invalid trending categories data');
+      }
+      
+      // Map API data to trending services format
+      const mappedTrendingServices = trendingCategories.map((category, index) => {
+        console.log('🔄 Processing trending category:', category);
+        
+        // Simple service name extraction - just use what's in the database
+        const serviceName = category.name || category.title || category.categoryName || `Service ${index + 1}`;
+        
+        return {
+          id: category.id || category._id || index + 1,
+          title: serviceName,
+          subtitle: category.description || 'Professional service',
+          image: getServiceImageWithFallback(category.imageUrl || category.image_url || category.image, serviceName, index, API_BASE_URL),
+          rating: category.rating || (4.0 + Math.random() * 1.0).toFixed(1),
+          reviews: category.reviews || Math.floor(Math.random() * 200) + 50,
+          provider: category.provider || 'Professional Service Provider',
+          category: serviceName
+        };
+      });
+      
+      console.log('🎯 Dashboard: Final mapped trending services:', mappedTrendingServices);
+      setTrendingServices(mappedTrendingServices);
+      console.log('✅ Dashboard: Trending services set successfully');
+    } catch (error) {
+      console.error('❌ Dashboard: Error fetching trending services:', error);
+      // Don't show any trending services if API fails - keep it empty
+      setTrendingServices([]);
+    } finally {
+      setTrendingLoading(false);
     }
   };
 
@@ -157,20 +215,27 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
     }
   };
 
-  // Fetch recent requests
+  // Fetch recent requests with proper category linking
   const fetchRecentRequests = async () => {
     try {
       const requests = await apiService.getMyServiceRequests();
-      console.log('Fetched requests:', requests);
+      console.log('🔄 Fetched requests:', requests);
+      
+      // Also fetch categories if not already loaded to ensure we have them
+      let categoriesData = serviceCategories;
+      if (!categoriesData || categoriesData.length === 0) {
+        console.log('🔄 Fetching categories for recent requests...');
+        categoriesData = await apiService.getServiceCategories();
+        console.log('🔄 Fetched categories for requests:', categoriesData);
+      }
       
       // Map API data to match web version structure
       const mappedRequests = requests.slice(0, 3).map((request, index) => {
-        console.log('Processing request:', request);
-        console.log('Available categories:', serviceCategories);
+        console.log('🔍 Processing request:', request);
         
-        // Find the category for this request
-        const category = serviceCategories.find(cat => cat.id === request.categoryId);
-        console.log('Found category for request:', category);
+        // Find the category for this request using categoryId
+        const category = categoriesData.find(cat => cat.id === request.categoryId);
+        console.log('🔍 Found category for request:', category);
         
         const isLatest = index === 0;
         
@@ -182,76 +247,43 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
           'cancelled': colors.error
         }[request.status] || colors.primary;
         
-        // Enhanced service name extraction (same logic as TrackRequestScreen)
-        let serviceName = request.category?.name || 
+        // Use category name with fallbacks - prioritize the category lookup
+        let serviceName = category?.name || 
                           request.categoryName || 
                           request.category || 
-                          request.serviceCategory?.name ||
-                          request.serviceCategory ||
                           request.serviceType ||
-                          request.type ||
-                          request.service?.name ||
-                          request.service ||
-                          category?.name ||
-                          'Service';
+                          'Service Request';
 
-        // If service name is still "Service", try to extract from title or other fields
-        if (serviceName === 'Service') {
-          const title = request.title || '';
-          const description = request.description || '';
-          
-          // Try to extract service name from title or description
-          if (title.toLowerCase().includes('hvac') || description.toLowerCase().includes('hvac')) {
-            serviceName = 'HVAC';
-          } else if (title.toLowerCase().includes('plumb') || description.toLowerCase().includes('plumb')) {
-            serviceName = 'Plumbing';
-          } else if (title.toLowerCase().includes('electr') || description.toLowerCase().includes('electr')) {
-            serviceName = 'Electrical';
-          } else if (title.toLowerCase().includes('clean') || description.toLowerCase().includes('clean')) {
-            serviceName = 'Cleaning';
-          } else if (title.toLowerCase().includes('event') || description.toLowerCase().includes('event')) {
-            serviceName = 'Event Management';
-          } else if (title.toLowerCase().includes('fitness') || description.toLowerCase().includes('fitness')) {
-            serviceName = 'Fitness & Yoga';
-          } else if (title.toLowerCase().includes('photo') || description.toLowerCase().includes('photo')) {
-            serviceName = 'Photography';
-          } else if (title.toLowerCase().includes('carpent') || description.toLowerCase().includes('carpent')) {
-            serviceName = 'Carpentry';
-          } else if (title.toLowerCase().includes('landscap') || description.toLowerCase().includes('landscap')) {
-            serviceName = 'Landscaping';
-          } else if (title.toLowerCase().includes('paint') || description.toLowerCase().includes('paint')) {
-            serviceName = 'Painting';
-          } else {
-            // Fallback to a more descriptive name
-            serviceName = `Service ${request.id || index + 1}`;
-          }
-        }
+        // Get category image with fallback
+        const categoryImage = category ? 
+          getServiceImageWithFallback(
+            category.imageUrl || category.image_url || category.image, 
+            category.name, 
+            category.id, 
+            API_BASE_URL
+          ) : null;
 
-        // Debug logging
-        if (index === 0) {
-          console.log('🔍 Dashboard - Service name extraction for request:', {
-            'request.category': request.category,
-            'request.categoryName': request.categoryName,
-            'request.serviceCategory': request.serviceCategory,
-            'request.serviceType': request.serviceType,
-            'request.title': request.title,
-            'extracted serviceName': serviceName
-          });
-        }
-        
-        console.log('Final service name:', serviceName);
+        console.log('🔍 Final mapping:', {
+          serviceName,
+          categoryImage,
+          categoryIcon: category?.icon,
+          requestId: request.id,
+          categoryId: request.categoryId
+        });
         
         return {
           id: request.id || index + 1,
-          title: `${serviceName} request${isLatest ? ' (Latest)' : ''}`,
+          title: serviceName, // Remove "request" suffix and (Latest) - keep it clean
           status: request.status || 'active',
           date: request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Recently',
           location: request.suburb && request.postcode ? `${request.suburb}, ${request.postcode}` : 'Location not specified',
-          icon: '🔧',
+          icon: category?.icon || '🔧',
+          image: categoryImage, // Add actual service category image
           color: statusColor
         };
       });
       
+      console.log('✅ Final mapped requests:', mappedRequests);
       setRecentRequests(mappedRequests);
     } catch (error) {
       console.error('Error fetching recent requests:', error);
@@ -304,12 +336,14 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
   const loadDashboardData = async () => {
     setLoading(true);
     setCategoriesLoading(true);
+    setTrendingLoading(true);
     setRequestsLoading(true);
     
-    // Load user data, categories, and notifications in parallel
+    // Load user data, categories, trending services, and notifications in parallel
     await Promise.all([
       fetchUserData(),
       fetchServiceCategories(),
+      fetchTrendingServices(),
       fetchNotifications()
     ]);
     
@@ -414,42 +448,6 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
     setShowNotifications(!showNotifications);
   };
 
-  // Function to get service-specific images
-  const getServiceImage = (serviceName: string, index: number) => {
-    const serviceImages: { [key: string]: string } = {
-      'Plumbing': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop',
-      'Electrical': 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=400&h=300&fit=crop',
-      'HVAC': 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400&h=300&fit=crop',
-      'Cleaning': 'https://t4.ftcdn.net/jpg/03/05/63/55/240_F_305635573_47SjydzWbcQPCTbkcfHyfD4fUY81XW9R.jpg?w=400&h=300&fit=crop',
-      'Landscaping': 'https://t4.ftcdn.net/jpg/03/05/63/55/240_F_305635573_47SjydzWbcQPCTbkcfHyfD4fUY81XW9R.jpg?w=400&h=300&fit=crop',
-      'Painting': 'https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=400&h=300&fit=crop',
-      'Carpentry': 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=300&fit=crop',
-      'Appliance Repair': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop',
-      'Bike Service': 'https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=400&h=300&fit=crop',
-      'Automotive': 'https://images.unsplash.com/photo-1486754735734-325b5831c3ad?w=400&h=300&fit=crop',
-      'Home Repair': 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=300&fit=crop',
-      'Gardening': 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop',
-      'Pest Control': 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=400&h=300&fit=crop',
-      'Removals': 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop',
-      'Handyman': 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=300&fit=crop'
-    };
-    
-    // Try to find exact match first
-    if (serviceImages[serviceName]) {
-      return serviceImages[serviceName];
-    }
-    
-    // Try to find partial match
-    const lowerName = serviceName.toLowerCase();
-    for (const [key, value] of Object.entries(serviceImages)) {
-      if (lowerName.includes(key.toLowerCase()) || key.toLowerCase().includes(lowerName)) {
-        return value;
-      }
-    }
-    
-    // Fallback to random image
-    return `https://picsum.photos/400/300?random=${index + 1}`;
-  };
 
   const renderHeader = () => {
   return (
@@ -595,7 +593,13 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
               ]}
             >
               <TouchableOpacity 
-                style={[styles.quickActionButton, { backgroundColor: action.color + '15' }]}
+                style={[
+                  styles.quickActionButton, 
+                  { 
+                    backgroundColor: action.color + '15', // More visible color background
+                    borderColor: Platform.OS === 'ios' ? action.color + '25' : action.color + '15', // More visible on iOS
+                  }
+                ]}
                 onPress={action.onPress}
               >
                 <View style={[styles.quickActionIcon, { backgroundColor: action.color }]}>
@@ -627,7 +631,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
         id: 3,
         title: 'Electrical Work',
         subtitle: 'Safe and reliable electrical services',
-        image: 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=400&h=200&fit=crop',
+        image: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400&h=200&fit=crop',
         price: 'From $70',
         color: '#96CEB4'
       }
@@ -698,10 +702,9 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       { 
         id: 1, 
         name: 'Plumbing', 
-        icon: '🔧', 
         color: '#3B82F6', 
         description: 'Fix & Install',
-        image: getServiceImage('Plumbing', 0),
+        image: getServiceImageWithFallback(null, 'Plumbing', 0),
         rating: 4.9,
         reviews: 203,
         provider: 'AquaFix Plumbing'
@@ -709,10 +712,9 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       { 
         id: 2, 
         name: 'Electrical', 
-        icon: '⚡', 
         color: '#F59E0B', 
         description: 'Wiring & Repair',
-        image: getServiceImage('Electrical', 1),
+        image: getServiceImageWithFallback(null, 'Electrical', 1),
         rating: 4.8,
         reviews: 156,
         provider: 'PowerTech Electric'
@@ -720,10 +722,9 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       { 
         id: 3, 
         name: 'HVAC', 
-        icon: '❄️', 
         color: '#10B981', 
         description: 'Heating & Cooling',
-        image: getServiceImage('HVAC', 2),
+        image: getServiceImageWithFallback(null, 'HVAC', 2),
         rating: 4.9,
         reviews: 89,
         provider: 'CoolTech HVAC'
@@ -731,10 +732,9 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       { 
         id: 4, 
         name: 'Cleaning', 
-        icon: '🧹', 
         color: '#8B5CF6', 
         description: 'Deep Clean',
-        image: getServiceImage('Cleaning', 3),
+        image: getServiceImageWithFallback(null, 'Cleaning', 3),
         rating: 4.8,
         reviews: 124,
         provider: 'CleanPro Services'
@@ -742,10 +742,9 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       { 
         id: 5, 
         name: 'Landscaping', 
-        icon: '🌱', 
         color: '#06B6D4', 
         description: 'Garden Care',
-        image: getServiceImage('Landscaping', 4),
+        image: getServiceImageWithFallback(null, 'Landscaping', 4),
         rating: 4.6,
         reviews: 67,
         provider: 'GreenThumb Landscaping'
@@ -753,10 +752,9 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       { 
         id: 6, 
         name: 'Painting', 
-        icon: '🎨', 
         color: '#EF4444', 
         description: 'Interior & Exterior',
-        image: getServiceImage('Painting', 5),
+        image: getServiceImageWithFallback(null, 'Painting', 5),
         rating: 4.7,
         reviews: 156,
         provider: 'ColorCraft Painters'
@@ -764,10 +762,9 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       { 
         id: 7, 
         name: 'Carpentry', 
-        icon: '🔨', 
         color: '#84CC16', 
         description: 'Custom Work',
-        image: getServiceImage('Carpentry', 6),
+        image: getServiceImageWithFallback(null, 'Carpentry', 6),
         rating: 4.8,
         reviews: 98,
         provider: 'WoodWorks Studio'
@@ -775,10 +772,9 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       { 
         id: 8, 
         name: 'Appliance Repair', 
-        icon: '🔌', 
         color: '#F97316', 
         description: 'Fix & Maintain',
-        image: getServiceImage('Appliance Repair', 7),
+        image: getServiceImageWithFallback(null, 'Appliance Repair', 7),
         rating: 4.7,
         reviews: 112,
         provider: 'FixIt Appliance'
@@ -896,58 +892,40 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
 
   // Render trending services with photos
   const renderTrendingServices = () => {
-    const trendingServices = [
-      {
-        id: 1,
-        title: 'Home Cleaning',
-        subtitle: 'Professional deep cleaning',
-        image: getServiceImage('Cleaning', 0),
-        rating: 4.8,
-        reviews: 124,
-        provider: 'CleanPro Services',
-        category: 'Cleaning'
-      },
-      {
-        id: 2,
-        title: 'AC Repair',
-        subtitle: 'Fast & reliable cooling',
-        image: getServiceImage('HVAC', 1),
-        rating: 4.9,
-        reviews: 89,
-        provider: 'CoolTech HVAC',
-        category: 'HVAC'
-      },
-      {
-        id: 3,
-        title: 'Kitchen Renovation',
-        subtitle: 'Modern kitchen makeover',
-        image: getServiceImage('Carpentry', 2),
-        rating: 4.7,
-        reviews: 156,
-        provider: 'RenovateRight',
-        category: 'Renovation'
-      },
-      {
-        id: 4,
-        title: 'Garden Maintenance',
-        subtitle: 'Beautiful outdoor spaces',
-        image: getServiceImage('Landscaping', 3),
-        rating: 4.6,
-        reviews: 67,
-        provider: 'GreenThumb Landscaping',
-        category: 'Landscaping'
-      },
-      {
-        id: 5,
-        title: 'Plumbing Services',
-        subtitle: 'Emergency & routine repairs',
-        image: getServiceImage('Plumbing', 4),
-        rating: 4.9,
-        reviews: 203,
-        provider: 'AquaFix Plumbing',
-        category: 'Plumbing'
-      }
-    ];
+    if (trendingLoading) {
+      return (
+        <View style={styles.trendingServicesContainer}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>🔥 Trending Services</Text>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.loadingText}>Loading trending services...</Text>
+          </View>
+        </View>
+      );
+    }
+
+    if (!trendingServices || trendingServices.length === 0) {
+      // Show section with placeholder when no trending services
+      return (
+        <Animated.View 
+          style={[
+            styles.trendingServicesContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>🔥 Trending Services</Text>
+          </View>
+          <View style={styles.emptyTrendingContainer}>
+            <Text style={styles.emptyTrendingText}>No trending services at the moment</Text>
+            <Text style={styles.emptyTrendingSubtext}>Check back later for trending services</Text>
+          </View>
+        </Animated.View>
+      );
+    }
 
     return (
       <Animated.View 
@@ -1067,34 +1045,50 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
               date: activity.date || 'Recently',
               location: activity.location || 'Location not specified',
               icon: activity.icon || '🔧',
+              image: activity.image || null, // Add dynamic service category image
               color: activity.color || colors.primary
             };
             
             return (
-              <Animated.View
+              <TouchableOpacity
                 key={safeActivity.id}
-                style={[
-                  styles.activityCard,
-                  {
-                    opacity: fadeAnim,
-                    transform: [{ translateY: slideAnim }]
-                  }
-                ]}
+                style={[styles.activityItem, { backgroundColor: colors.surface }]}
+                activeOpacity={0.7}
+                onPress={() => onNavigate('trackRequest')}
               >
-                <View style={[styles.activityIcon, { backgroundColor: safeActivity.color + '15' }]}>
-                  <Text style={styles.activityEmoji}>{safeActivity.icon}</Text>
+                {/* Service Image/Icon */}
+                <View style={styles.activityImageContainer}>
+                  {safeActivity.image ? (
+                    <Image 
+                      source={{ uri: safeActivity.image }}
+                      style={styles.activityImage}
+                    />
+                  ) : (
+                    <View style={[styles.activityIconBg, { backgroundColor: safeActivity.color + '15' }]}>
+                      <Text style={styles.activityIcon}>{safeActivity.icon}</Text>
+                    </View>
+                  )}
                 </View>
+                
+                {/* Content */}
                 <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>{safeActivity.title}</Text>
-                  <Text style={styles.activityLocation}>{safeActivity.location}</Text>
-                  <Text style={styles.activityDate}>{safeActivity.date}</Text>
-                </View>
-                <View style={[styles.activityStatus, { backgroundColor: safeActivity.color + '20' }]}>
-                  <Text style={[styles.activityStatusText, { color: safeActivity.color }]}>
-                    {safeActivity.status}
+                  <View style={styles.activityHeader}>
+                    <Text style={[styles.activityTitle, { color: colors.text }]} numberOfLines={1}>
+                      {safeActivity.title}
+                    </Text>
+                    <View style={[styles.statusDot, { backgroundColor: safeActivity.color }]} />
+                  </View>
+                  <Text style={[styles.activitySubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
+                    📍 {safeActivity.location}
                   </Text>
+                  <View style={styles.activityFooter}>
+                    <Text style={styles.activityDate}>{safeActivity.date}</Text>
+                    <Text style={[styles.activityStatus, { color: safeActivity.color }]}>
+                      {safeActivity.status.charAt(0).toUpperCase() + safeActivity.status.slice(1)}
+                    </Text>
+                  </View>
                 </View>
-              </Animated.View>
+              </TouchableOpacity>
             );
           })}
       </View>
@@ -1356,7 +1350,7 @@ const createStyles = (colors) => StyleSheet.create({
     opacity: 0.9,
   },
   quickActionsContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16, // Reduced padding for better space utilization
     marginBottom: 30,
   },
   sectionTitle: {
@@ -1411,43 +1405,63 @@ const createStyles = (colors) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    paddingHorizontal: 4, // Add padding for better spacing
   },
   quickActionCard: {
-    width: (width - 56) / 2, // Adjusted for better alignment
+    width: '48%', // Use percentage instead of calculated width
     marginBottom: 16,
+    minHeight: 140, // Ensure consistent height
   },
   quickActionButton: {
     borderRadius: 16,
-    padding: 20,
+    padding: 16, // Reduced padding for better fit
     alignItems: 'center',
+    justifyContent: 'center', // Center content vertically
+    flex: 1, // Take full available space
+    minHeight: 120, // Ensure minimum height
+    // Platform-specific border styling
+    borderColor: colors.border + '30', // Fallback border color
+    ...Platform.select({
+      ios: {
+        borderWidth: 0.5,
+      },
+      android: {
+        borderWidth: 0.2,
+      },
+    }),
+    // iOS shadow
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    // Android elevation - much more subtle
+    elevation: 1,
   },
   quickActionIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   quickActionEmoji: {
-    fontSize: 24,
+    fontSize: 22,
   },
   quickActionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
     textAlign: 'center',
+    lineHeight: 18,
   },
   quickActionDescription: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 14,
+    paddingHorizontal: 4, // Add horizontal padding for text wrapping
   },
   categoriesContainer: {
     paddingHorizontal: 20,
@@ -1596,55 +1610,78 @@ const createStyles = (colors) => StyleSheet.create({
   activityList: {
     gap: 12,
   },
-  activityCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
+  // Improved List-style Activity Styles
+  activityItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 6,
+    borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 3,
     elevation: 2,
   },
-  activityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  activityImageContainer: {
     marginRight: 12,
   },
-  activityEmoji: {
-    fontSize: 18,
+  activityImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    resizeMode: 'cover',
+  },
+  activityIconBg: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityIcon: {
+    fontSize: 24,
   },
   activityContent: {
     flex: 1,
   },
-  activityTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
+  activityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
-  activityLocation: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 2,
+  activityTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  activitySubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  activityFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   activityDate: {
-    fontSize: 12,
-    color: colors.textTertiary,
+    fontSize: 11,
+    color: colors.textTertiary || '#9CA3AF',
+    fontWeight: '500',
   },
   activityStatus: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  activityStatusText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
+    textTransform: 'uppercase',
   },
   bottomActions: {
     paddingHorizontal: 20,
@@ -1773,6 +1810,23 @@ const createStyles = (colors) => StyleSheet.create({
   trendingServicesContainer: {
     paddingHorizontal: 20,
     marginBottom: 30,
+  },
+  emptyTrendingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyTrendingText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyTrendingSubtext: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    textAlign: 'center',
   },
   trendingScrollContent: {
     paddingRight: 20,
