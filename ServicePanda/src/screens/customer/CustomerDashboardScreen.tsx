@@ -7,7 +7,7 @@ const useSafeAreaInsets = () => {
   const { Platform, StatusBar } = require('react-native');
   
   return {
-    top: Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 0,
+    top: Platform.OS === 'ios' ? 44 : 0, // iOS notch area, Android uses StatusBar
     bottom: Platform.OS === 'ios' ? 34 : 0, // Home indicator area
     left: 0,
     right: 0
@@ -457,7 +457,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
         style={[
           styles.header,
           {
-            paddingTop: Platform.OS === 'ios' ? insets.top + 30 : 60,
+            paddingTop: Platform.OS === 'ios' ? insets.top + 20 : 20,
             opacity: headerAnim,
             transform: [
               { translateY: headerAnim.interpolate({
@@ -1161,7 +1161,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20, // Proper safe area padding
+    paddingTop: Platform.OS === 'ios' ? 50 : 10, // Remove Android padding here too
     paddingBottom: 40,
     position: 'relative',
     overflow: 'hidden',
