@@ -90,65 +90,32 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
         };
         const statusIcon = statusIcons[request.status?.toLowerCase()] || '🔵';
 
-        // Find category from database using relationship
-        let categoryData = null;
-        let categoryName = 'Service Request';
-        let categoryIcon = '🔧';
+        // Use category data directly from API response (already includes categoryName and categoryIcon)
+        let categoryName = request.categoryName || 'Service Request';
+        let categoryIcon = request.categoryIcon || '🔧';
         
-        // Try to find category by ID first (most reliable)
-        if (request.categoryId && serviceCategories.length > 0) {
-          categoryData = serviceCategories.find(cat => cat.id === request.categoryId);
-        }
-        
-        // If not found by ID, try to find by name
-        if (!categoryData && request.category?.name && serviceCategories.length > 0) {
-          categoryData = serviceCategories.find(cat => 
-            cat.name?.toLowerCase() === request.category.name?.toLowerCase()
-          );
-        }
-        
-        // If still not found, try other category fields
-        if (!categoryData && serviceCategories.length > 0) {
-          const categoryFields = [
-            request.categoryName,
-            request.category,
-            request.serviceCategory?.name,
-            request.serviceCategory,
-            request.serviceType,
-            request.type,
-            request.service?.name,
-            request.service
-          ];
+        // If API doesn't provide category info, try to find from serviceCategories
+        if (!request.categoryName && serviceCategories.length > 0) {
+          let categoryData = null;
           
-          for (const field of categoryFields) {
-            if (field) {
-              categoryData = serviceCategories.find(cat => 
-                cat.name?.toLowerCase() === field?.toLowerCase()
-              );
-              if (categoryData) break;
-            }
+          // Try to find category by ID first (most reliable)
+          if (request.categoryId) {
+            categoryData = serviceCategories.find(cat => cat.id === request.categoryId);
+          }
+          
+          // If not found by ID, try to find by name
+          if (!categoryData && request.category?.name) {
+            categoryData = serviceCategories.find(cat => 
+              cat.name?.toLowerCase() === request.category.name?.toLowerCase()
+            );
+          }
+          
+          // Use category data from database if found
+          if (categoryData) {
+            categoryName = categoryData.name || 'Service Request';
+            categoryIcon = categoryData.icon || '🔧';
           }
         }
-        
-        // Use category data from database if found
-        if (categoryData) {
-          categoryName = categoryData.name || 'Service Request';
-          categoryIcon = categoryData.icon || '🔧';
-        } else {
-          // Fallback to request title if no category found
-          categoryName = request.title || 'Service Request';
-        }
-
-        // Debug: Log what category name was extracted
-        console.log(`🔍 Request ${index + 1} mapping:`, {
-          'request.categoryId': request.categoryId,
-          'request.title': request.title,
-          'request.category': request.category,
-          'found categoryData': categoryData,
-          'categoryName from DB': categoryName,
-          'categoryIcon from DB': categoryIcon,
-          'final title': finalTitle
-        });
 
         // Use REAL professionals from API data - DYNAMIC like web version
         let requestProfessionals = request.professionals || request.acceptedProfessionals || [];
@@ -157,14 +124,14 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
         console.log(`🔍 Request ${request.id}: Professionals length =`, requestProfessionals.length);
         console.log(`🔍 Request ${request.id}: offerMetrics =`, request.offerMetrics);
 
-        // Determine the best title to use
+        // Determine the best title to use - prioritize category name from API
         let finalTitle;
-        if (request.title && request.title !== categoryName) {
-          // Use the original title if it's different from the category name
-          finalTitle = request.title;
-        } else if (categoryName && categoryName !== 'Service Request') {
-          // Use the processed category name if it's meaningful
+        if (categoryName && categoryName !== 'Service Request') {
+          // Use the category name from API as the main title
           finalTitle = categoryName;
+        } else if (request.title && request.title !== 'Service Request') {
+          // Use the original title if category name is not available
+          finalTitle = request.title;
         } else if (request.serviceType) {
           // Use service type as fallback
           finalTitle = request.serviceType;
@@ -172,6 +139,18 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           // Last resort
           finalTitle = 'Service Request';
         }
+
+        // Debug: Log what category name was extracted
+        console.log(`🔍 Request ${index + 1} mapping:`, {
+          'request.categoryId': request.categoryId,
+          'request.title': request.title,
+          'request.category': request.category,
+          'request.categoryName': request.categoryName,
+          'request.categoryIcon': request.categoryIcon,
+          'final categoryName': categoryName,
+          'final categoryIcon': categoryIcon,
+          'final title': finalTitle
+        });
 
         const transformedRequest = {
           id: request.id || index + 1,

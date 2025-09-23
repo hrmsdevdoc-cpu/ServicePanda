@@ -2,11 +2,13 @@ const React = require('react');
 const { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated, Dimensions, StatusBar, Image, ImageBackground, ActivityIndicator, Alert, Platform } = require('react-native');
 // const { useSafeAreaInsets } = require('react-native-safe-area-context');
 
-// Fallback useSafeAreaInsets hook that returns default values
+// useSafeAreaInsets hook with proper safe area values
 const useSafeAreaInsets = () => {
+  const { Platform, StatusBar } = require('react-native');
+  
   return {
-    top: 0,
-    bottom: 0,
+    top: Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 0,
+    bottom: Platform.OS === 'ios' ? 34 : 0, // Home indicator area
     left: 0,
     right: 0
   };
@@ -1159,6 +1161,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20, // Proper safe area padding
     paddingBottom: 40,
     position: 'relative',
     overflow: 'hidden',
@@ -1213,7 +1216,7 @@ const createStyles = (colors) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 6,
-    // marginTop: -15,
+    marginTop: 30, // Remove extra margin
     paddingRight: 50, // Increased padding to avoid emulator controls
   },
   headerSpacer: {

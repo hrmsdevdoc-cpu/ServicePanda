@@ -168,7 +168,7 @@ import crypto from "crypto";
 async function insertAndReturn<T>(table: any, data: any, idField: string = 'id'): Promise<T> {
   try {
     await db.insert(table).values(data);
-    
+
     // Get the last inserted record by email if it's a provider, otherwise by id
     let result;
     if (data.email && table === serviceProviders) {
@@ -186,7 +186,7 @@ async function insertAndReturn<T>(table: any, data: any, idField: string = 'id')
         .orderBy(desc(table[idField]))
         .limit(1);
     }
-    
+
     return result;
   } catch (error) {
     console.error('Error in insertAndReturn:', error);
@@ -206,7 +206,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   getUsersWithStats(): Promise<Array<User & { lastLogin?: string; isActive: boolean }>>;
   getLeadsWithMetrics(): Promise<Array<ServiceRequest & { leadOffers?: any[], offerMetrics?: any, leadAssignments?: any[] }>>;
-  
+
   // Service provider operations
   createServiceProvider(provider: InsertServiceProvider): Promise<ServiceProvider>;
   getServiceProvider(id: number): Promise<ServiceProvider | undefined>;
@@ -216,19 +216,19 @@ export interface IStorage {
   updateProviderStatus(id: number, providerStatus: string): Promise<void>;
   getServiceProvidersByStatus(status: string): Promise<ServiceProvider[]>;
   getServiceProvidersForAdmin(status?: string): Promise<any[]>;
-  
+
   // Service category operations
   getServiceCategories(): Promise<ServiceCategory[]>;
   getAllServiceCategories(): Promise<ServiceCategory[]>;
   getTrendingServiceCategories(): Promise<ServiceCategory[]>;
   getServiceCategory(id: number): Promise<ServiceCategory | undefined>;
   createServiceCategory(category: InsertServiceCategory): Promise<ServiceCategory>;
-  
+
   // Provider service operations
   addProviderService(providerService: InsertProviderService): Promise<void>;
   replaceProviderServices(providerId: number, categoryIds: number[]): Promise<void>;
   getProviderServices(providerId: number): Promise<any[]>;
-  
+
   // Location operations
   getAustralianStates(): Promise<AustralianState[]>;
   getSuburbsByPostcode(postcode: string): Promise<AustralianSuburb[]>;
@@ -244,13 +244,13 @@ export interface IStorage {
   getProviderServiceAreas(providerId: number): Promise<AustralianSuburb[]>;
   getProviderLocationServiceAreas(providerId: number): Promise<ProviderServiceArea[]>;
   deleteProviderLocationServiceArea(providerId: number, areaId: number): Promise<void>;
-  
+
   // Document operations
   uploadProviderDocument(document: InsertProviderDocument): Promise<ProviderDocument>;
   getProviderDocuments(providerId: number): Promise<ProviderDocument[]>;
   getProviderDocument(id: number): Promise<ProviderDocument | undefined>;
   updateDocumentStatus(id: number, status: string): Promise<void>;
-  
+
   // Service request operations
   createServiceRequest(request: InsertServiceRequest): Promise<ServiceRequest>;
   getServiceRequests(customerId?: string): Promise<ServiceRequest[]>;
@@ -261,29 +261,29 @@ export interface IStorage {
   getServiceRequestsByArea(postcode: string, categoryId: number): Promise<ServiceRequest[]>;
   getServiceRequest(id: number): Promise<ServiceRequest | undefined>;
   updateServiceRequestStatus(id: number, status: string): Promise<void>;
-  
+
   // Lead assignment operations
   createLeadAssignment(assignment: InsertLeadAssignment): Promise<LeadAssignment>;
   getProviderLeads(providerId: number, status?: string): Promise<LeadAssignment[]>;
   updateLeadStatus(id: number, status: string): Promise<void>;
-  
+
   // Email operations
   createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
   getEmailTemplates(): Promise<EmailTemplate[]>;
   logSentEmail(email: InsertSentEmail): Promise<SentEmail>;
-  
+
   // Activity logging
   logUserActivity(log: InsertUserActivityLog): Promise<UserActivityLog>;
-  
+
   // System settings
   getSystemSetting(key: string): Promise<SystemSetting | undefined>;
   updateSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
-  
+
   // Regional operations
   getAllRegions(): Promise<AustralianRegion[]>;
   getRegionsByStateId(stateId: number): Promise<AustralianRegion[]>;
   getSuburbsByRegion(regionId: number): Promise<AustralianSuburb[]>;
-  
+
   // Service availability operations
   getServiceAvailability(postcode: string, categoryId?: number): Promise<{
     totalProviders: number;
@@ -311,7 +311,7 @@ export interface IStorage {
   getAdminSettings(): Promise<{ stripeConfigured: boolean; mailgunConfigured: boolean }>;
   updateAdminSetting(key: string, value: string): Promise<void>;
   getDecryptedSetting(key: string): Promise<string | null>;
-  
+
   // Mailgun settings operations
   getDecryptedMailgunKeys(): Promise<{ apiKey: string; domain: string; domainSendingKey: string } | null>;
 
@@ -322,10 +322,10 @@ export interface IStorage {
   removeProviderPaymentMethod(providerId: number, paymentMethodId: number): Promise<void>;
   deleteProviderPaymentMethod(paymentMethodId: number): Promise<void>;
   updateProviderStripeCustomerId(providerId: number, stripeCustomerId: string): Promise<void>;
-  
+
   // Stripe settings operations
   getDecryptedStripeKeys(): Promise<{ secretKey: string; publicKey: string } | null>;
-  
+
   // Password reset operations
   createPasswordResetToken(token: InsertPasswordResetToken): Promise<PasswordResetToken>;
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
@@ -348,17 +348,17 @@ export interface IStorage {
 
   // Lead sharing system operations
   initializeLeadDistribution(requestId: number): Promise<void>;
-  getEligibleProviders(categoryId: number, postcode: string): Promise<Array<{providerId: number, rating: number, firstName: string, lastName: string}>>;
+  getEligibleProviders(categoryId: number, postcode: string): Promise<Array<{ providerId: number, rating: number, firstName: string, lastName: string }>>;
   getLeadCost(categoryId: number, offerType: 'unique' | 'shared'): Promise<number>;
   activateNextUniqueOffer(requestId: number): Promise<void>;
   startSharedPhase(requestId: number): Promise<void>;
-  purchaseLead(requestId: number, providerId: number): Promise<{success: boolean, message: string}>;
+  purchaseLead(requestId: number, providerId: number): Promise<{ success: boolean, message: string }>;
   endLeadDistribution(requestId: number): Promise<void>;
   getLeadOfferDetails(requestId: number): Promise<any>;
   getProviderActiveLeads(providerId: number): Promise<any[]>;
   getProviderClosedLeads(providerId: number): Promise<any[]>;
   getProviderActivityHistory(providerId: number): Promise<any[]>;
-  
+
   // Credit system operations
   getProviderCreditBalance(providerId: number): Promise<number>;
   addProviderCredit(providerId: number, amount: number, description: string, transactionType?: string): Promise<void>;
@@ -412,13 +412,13 @@ export interface IStorage {
   createAdminUser(user: InsertAdminUser): Promise<AdminUser>;
   updateAdminUser(id: number, updates: Partial<AdminUser>): Promise<AdminUser>;
   deleteAdminUser(id: number): Promise<boolean>;
-  
+
   // Admin user department operations
   getUserDepartments(userId: number): Promise<AdminDepartment[]>;
   assignUserToDepartment(userId: number, departmentId: number): Promise<void>;
   removeUserFromDepartment(userId: number, departmentId: number): Promise<void>;
   updateUserDepartments(userId: number, departmentIds: number[]): Promise<void>;
-  
+
   // Provider billing operations
   getProviderBillingData(providerId: number): Promise<{
     thisMonthPurchases: number;
@@ -455,16 +455,16 @@ export interface IStorage {
   // Terms and Conditions operations
   getTermsAndConditions(): Promise<TermsAndConditions | null>;
   updateTermsAndConditions(terms: Partial<TermsAndConditions>): Promise<TermsAndConditions>;
-  
+
   // Lead Management Settings operations
   getLeadManagementSettings(): Promise<any>;
   updateLeadManagementSettings(settings: any): Promise<any>;
-  
+
   // Service Category management operations
   updateServiceCategory(id: number, updates: any): Promise<ServiceCategory>;
   updateServiceCategoryImage(id: number, imageUrl: string): Promise<ServiceCategory>;
   deleteServiceCategory(id: number): Promise<boolean>;
-  
+
   // Potential Customers operations
   getAllPotentialCustomers(): Promise<PotentialCustomer[]>;
   getPotentialCustomersByImportId(importId: string): Promise<PotentialCustomer[]>;
@@ -483,7 +483,7 @@ export interface IStorage {
   sendEmailToPotentialProvider(providerId: number, subject: string, content: string): Promise<any>;
   sendSmsToPotentialProvider(providerId: number, content: string): Promise<any>;
   convertPotentialProviderToProvider(potentialProviderId: number): Promise<any>;
-  
+
   // Provider Reports operations
   getProviderReports(): Promise<{
     totalProviders: number;
@@ -527,10 +527,10 @@ export class DatabaseStorage implements IStorage {
   private decrypt(encryptedText: string): string {
     const parts = encryptedText.split(':');
     if (parts.length !== 2) throw new Error('Invalid encrypted format');
-    
+
     const iv = Buffer.from(parts[0], 'hex');
     const encrypted = parts[1];
-    
+
     const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
     const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
@@ -596,13 +596,13 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(users.id, id));
-    
+
     // Get the updated user
     const [user] = await db
       .select()
       .from(users)
       .where(eq(users.id, id));
-    
+
     return user;
   }
 
@@ -622,7 +622,7 @@ export class DatabaseStorage implements IStorage {
 
   async getUsersWithStats(): Promise<Array<User & { lastLogin?: string; isActive: boolean }>> {
     const allUsers = await this.getAllUsers();
-    
+
     // Return users with real last login data from database
     return allUsers.map(user => ({
       ...user,
@@ -723,13 +723,13 @@ export class DatabaseStorage implements IStorage {
           let leadStatus = request.status;
           const purchasedOffers = offers.filter(offer => offer.status === 'purchased');
           const sharedOffersPurchased = purchasedOffers.filter(offer => offer.offerType === 'shared').length;
-          
+
           // Check for PAID unique purchases (which assign the lead exclusively)
           // Free unique purchases move to shared phase and don't assign the lead
           const paidUniqueOfferPurchased = await (async () => {
             const uniquePurchased = purchasedOffers.find(offer => offer.offerType === 'unique');
             if (!uniquePurchased) return false;
-            
+
             // Check if this was a free lead purchase
             const [leadPurchase] = await db
               .select({ isFreeLeadUsed: leadPurchases.isFreeLeadUsed })
@@ -740,10 +740,10 @@ export class DatabaseStorage implements IStorage {
                   eq(leadPurchases.providerId, uniquePurchased.providerId)
                 )
               );
-            
+
             return leadPurchase && !leadPurchase.isFreeLeadUsed; // Only paid purchases assign the lead
           })();
-          
+
           // Check if job date has passed (expired)
           const now = new Date();
           const jobDate = request.preferredDate ? new Date(request.preferredDate) : null;
@@ -827,13 +827,13 @@ export class DatabaseStorage implements IStorage {
       .update(serviceProviders)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(serviceProviders.id, id));
-    
+
     // Get the updated provider
     const [provider] = await db
       .select()
       .from(serviceProviders)
       .where(eq(serviceProviders.id, id));
-    
+
     return provider;
   }
 
@@ -873,7 +873,7 @@ export class DatabaseStorage implements IStorage {
 
   async getTrendingServiceCategories(): Promise<ServiceCategory[]> {
     console.log('Storage: Getting trending service categories...');
-    
+
     // Simplified query - just get trending services (remove active requirement for testing)
     const result = await db
       .select()
@@ -910,7 +910,7 @@ export class DatabaseStorage implements IStorage {
   async replaceProviderServices(providerId: number, categoryIds: number[]): Promise<void> {
     // First, delete all existing services for this provider
     await db.delete(providerServices).where(eq(providerServices.providerId, providerId));
-    
+
     // Then, add the new services
     if (categoryIds.length > 0) {
       const newServices = categoryIds.map(categoryId => ({
@@ -1065,7 +1065,7 @@ export class DatabaseStorage implements IStorage {
       .insert(serviceRequests)
       .values(request)
       .returning();
-    
+
     // Automatically start lead distribution for the new request
     try {
       console.log(`Starting automatic lead distribution for request ${serviceRequest.id}`);
@@ -1076,34 +1076,36 @@ export class DatabaseStorage implements IStorage {
       // Don't throw error - the service request was created successfully
       // Lead distribution will be retried by the background processor
     }
-    
+
     return serviceRequest;
   }
 
   async getServiceRequests(customerId?: string): Promise<ServiceRequest[]> {
     const query = db.select().from(serviceRequests);
-    
+
     if (customerId) {
       return await query
         .where(eq(serviceRequests.customerId, customerId))
         .orderBy(desc(serviceRequests.createdAt));
     }
-    
+
     return await query.orderBy(desc(serviceRequests.createdAt));
   }
 
   async getCustomerServiceRequestsWithOffers(customerId: string): Promise<any[]> {
     try {
       console.log(`Getting service requests for customer: ${customerId}`);
-      
-      // Use direct pool query for maximum compatibility
+
+      // Use direct pool query for maximum compatibility with category name
       const result = await pool.query(
-        `SELECT id, customer_id, category_id, description, postcode, suburb, 
-                property_type, urgency, budget, preferred_date, booking_type, 
-                scheduled_date, status, created_at, updated_at
-         FROM service_requests 
-         WHERE customer_id = $1
-         ORDER BY created_at DESC`,
+        `SELECT sr.id, sr.customer_id, sr.category_id, sr.description, sr.postcode, sr.suburb, 
+                sr.property_type, sr.urgency, sr.budget, sr.preferred_date, sr.booking_type, 
+                sr.scheduled_date, sr.status, sr.created_at, sr.updated_at,
+                sc.name as category_name, sc.icon as category_icon
+         FROM service_requests sr
+         LEFT JOIN service_categories sc ON sr.category_id = sc.id
+         WHERE sr.customer_id = $1
+         ORDER BY sr.created_at DESC`,
         [customerId]
       );
 
@@ -1132,6 +1134,8 @@ export class DatabaseStorage implements IStorage {
           id: request.id,
           customerId: request.customer_id,
           categoryId: request.category_id,
+          categoryName: request.category_name || 'Service Request',
+          categoryIcon: request.category_icon || '🔧',
           description: request.description,
           postcode: request.postcode,
           suburb: request.suburb,
@@ -1332,7 +1336,7 @@ export class DatabaseStorage implements IStorage {
   async createLeadsForRequest(requestId: number, postcode: string, categoryId: number): Promise<LeadAssignment[]> {
     // Find all eligible providers
     const providers = await this.findProvidersInArea(postcode, categoryId);
-    
+
     // Create lead assignments for each provider
     const leads: LeadAssignment[] = [];
     for (const provider of providers) {
@@ -1343,13 +1347,13 @@ export class DatabaseStorage implements IStorage {
       });
       leads.push(lead);
     }
-    
+
     return leads;
   }
 
   async getProviderLeads(providerId: number, status?: string): Promise<LeadAssignment[]> {
     const query = db.select().from(leadAssignments);
-    
+
     if (status) {
       return await query
         .where(
@@ -1360,7 +1364,7 @@ export class DatabaseStorage implements IStorage {
         )
         .orderBy(desc(leadAssignments.createdAt));
     }
-    
+
     return await query
       .where(eq(leadAssignments.providerId, providerId))
       .orderBy(desc(leadAssignments.createdAt));
@@ -1368,13 +1372,13 @@ export class DatabaseStorage implements IStorage {
 
   async updateLeadStatus(id: number, status: string): Promise<void> {
     const updates: any = { status };
-    
+
     if (status === "accepted") {
       updates.acceptedAt = new Date();
     } else if (status === "declined") {
       updates.declinedAt = new Date();
     }
-    
+
     await db
       .update(leadAssignments)
       .set(updates)
@@ -1449,7 +1453,7 @@ export class DatabaseStorage implements IStorage {
           .where(eq(serviceProviders.status, status));
         return result[0]?.count || 0;
       }
-      
+
       const result = await db
         .select({ count: sql<number>`count(*)` })
         .from(serviceProviders);
@@ -1467,12 +1471,12 @@ export class DatabaseStorage implements IStorage {
 
   async getServiceRequestCount(status?: string): Promise<number> {
     const query = db.select().from(serviceRequests);
-    
+
     if (status) {
       const result = await query.where(eq(serviceRequests.status, status));
       return result.length;
     }
-    
+
     const result = await query;
     return result.length;
   }
@@ -1593,9 +1597,9 @@ export class DatabaseStorage implements IStorage {
   }): Promise<void> {
     await db
       .update(serviceProviders)
-      .set({ 
+      .set({
         ...fields,
-        updatedAt: new Date() 
+        updatedAt: new Date()
       })
       .where(eq(serviceProviders.id, providerId));
   }
@@ -1655,7 +1659,7 @@ export class DatabaseStorage implements IStorage {
       .from(systemSettings)
       .where(eq(systemSettings.key, 'stripe_secret_key'))
       .limit(1);
-    
+
     const stripePublicKey = await db
       .select()
       .from(systemSettings)
@@ -1667,7 +1671,7 @@ export class DatabaseStorage implements IStorage {
       .from(systemSettings)
       .where(eq(systemSettings.key, 'mailgun_api_key'))
       .limit(1);
-    
+
     const mailgunDomain = await db
       .select()
       .from(systemSettings)
@@ -1690,7 +1694,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`[updateAdminSetting] Setting ${key} with value length: ${value.length}`);
     const encryptedValue = this.encrypt(value);
     console.log(`[updateAdminSetting] Encrypted value length: ${encryptedValue.length}`);
-    
+
     const result = await db
       .insert(systemSettings)
       .values({
@@ -1707,7 +1711,7 @@ export class DatabaseStorage implements IStorage {
         }
       })
       .returning();
-    
+
     console.log(`[updateAdminSetting] Database result for ${key}:`, result.length > 0 ? 'Success' : 'Failed');
   }
 
@@ -1744,7 +1748,7 @@ export class DatabaseStorage implements IStorage {
   async updateProviderStripeCustomerId(providerId: number, stripeCustomerId: string): Promise<void> {
     await db
       .update(serviceProviders)
-      .set({ 
+      .set({
         stripeCustomerId,
         updatedAt: new Date()
       })
@@ -1755,11 +1759,11 @@ export class DatabaseStorage implements IStorage {
     try {
       const secretKey = await this.getDecryptedSetting('stripe_secret_key');
       const publicKey = await this.getDecryptedSetting('stripe_public_key');
-      
+
       if (!secretKey || !publicKey) {
         return null;
       }
-      
+
       return { secretKey, publicKey };
     } catch (error) {
       console.error('Failed to get Stripe keys:', error);
@@ -1772,11 +1776,11 @@ export class DatabaseStorage implements IStorage {
       const apiKey = await this.getDecryptedSetting('mailgun_api_key');
       const domain = await this.getDecryptedSetting('mailgun_domain');
       const domainSendingKey = await this.getDecryptedSetting('mailgun_domain_sending_key');
-      
+
       if (!apiKey || !domain || !domainSendingKey) {
         return null;
       }
-      
+
       return { apiKey, domain, domainSendingKey };
     } catch (error) {
       console.error('Failed to get Mailgun keys:', error);
@@ -1811,7 +1815,7 @@ export class DatabaseStorage implements IStorage {
   async updateUserPassword(userId: string, hashedPassword: string): Promise<User> {
     const [user] = await db
       .update(users)
-      .set({ 
+      .set({
         password: hashedPassword,
         updatedAt: new Date()
       })
@@ -1847,7 +1851,7 @@ export class DatabaseStorage implements IStorage {
   async updateProviderPassword(providerId: number, hashedPassword: string): Promise<ServiceProvider> {
     const [provider] = await db
       .update(serviceProviders)
-      .set({ 
+      .set({
         password: hashedPassword,
         updatedAt: new Date()
       })
@@ -1863,7 +1867,7 @@ export class DatabaseStorage implements IStorage {
 
   async getProviderActivityLogs(providerId: number, actorType?: 'admin' | 'provider'): Promise<ProviderActivityLog[]> {
     const conditions = [eq(providerActivityLogs.providerId, providerId)];
-    
+
     if (actorType) {
       conditions.push(eq(providerActivityLogs.actorType, actorType));
     }
@@ -1888,7 +1892,7 @@ export class DatabaseStorage implements IStorage {
           minProviderRating: parseFloat(settings.minProviderRating || '3.0'),
         };
       }
-      
+
       // Return default settings if none exist
       return {
         id: 1,
@@ -1947,7 +1951,7 @@ export class DatabaseStorage implements IStorage {
 
       // Check if settings exist
       const [existingSettings] = await db.select().from(leadSettings).limit(1);
-      
+
       let result;
       if (existingSettings) {
         // Update existing settings
@@ -2073,7 +2077,7 @@ export class DatabaseStorage implements IStorage {
 
       // Find eligible providers based on service category and service areas
       const eligibleProviders = await this.getEligibleProviders(request.categoryId, request.postcode);
-      
+
       if (eligibleProviders.length === 0) {
         console.log(`No eligible providers found for request ${requestId}`);
         return;
@@ -2115,10 +2119,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getEligibleProviders(categoryId: number, postcode: string): Promise<Array<{providerId: number, rating: number, firstName: string, lastName: string}>> {
+  async getEligibleProviders(categoryId: number, postcode: string): Promise<Array<{ providerId: number, rating: number, firstName: string, lastName: string }>> {
     try {
       console.log(`Finding eligible providers for category ${categoryId}, postcode ${postcode}`);
-      
+
       // Method 1: Check providers with explicit postcode coverage (existing system)
       let postcodeCoverageProviders: any[] = [];
       try {
@@ -2156,7 +2160,7 @@ export class DatabaseStorage implements IStorage {
 
       // Method 2: Check providers with location-based (radius) service areas
       let locationBasedProviders: any[] = [];
-      
+
       try {
         // Get coordinates for target postcode
         const targetSuburb = await db
@@ -2174,7 +2178,7 @@ export class DatabaseStorage implements IStorage {
         if (targetSuburb.length > 0 && targetSuburb[0].latitude && targetSuburb[0].longitude) {
           const target = targetSuburb[0];
           console.log(`Target location: ${target.suburb} (${target.latitude}, ${target.longitude})`);
-          
+
           // Get all approved providers for this category
           const eligibleProviders = await db
             .select({
@@ -2216,16 +2220,16 @@ export class DatabaseStorage implements IStorage {
             // Check if any service area covers the target location
             for (const area of serviceAreas) {
               if (!area.centerLat || !area.centerLng || !area.radiusKm) continue;
-              
+
               const distance = this.calculateDistance(
                 parseFloat(target.latitude),
                 parseFloat(target.longitude),
                 parseFloat(area.centerLat),
                 parseFloat(area.centerLng)
               );
-              
+
               console.log(`Provider ${provider.firstName} ${provider.lastName} (${area.centerAddress}): ${distance.toFixed(2)}km away, radius: ${area.radiusKm}km`);
-              
+
               if (distance <= parseInt(area.radiusKm.toString())) {
                 console.log(`✓ Provider ${provider.firstName} ${provider.lastName} is within service area`);
                 locationBasedProviders.push({
@@ -2258,7 +2262,7 @@ export class DatabaseStorage implements IStorage {
       ];
 
       // Remove duplicates by providerId
-      const uniqueProviders = allProviders.filter((provider, index, self) => 
+      const uniqueProviders = allProviders.filter((provider, index, self) =>
         index === self.findIndex(p => p.providerId === provider.providerId)
       );
 
@@ -2267,7 +2271,7 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`Total eligible providers found: ${uniqueProviders.length} (${postcodeCoverageProviders.length} via postcode, ${locationBasedProviders.length} via distance)`);
       return uniqueProviders;
-      
+
     } catch (error) {
       console.error('Error getting eligible providers:', error);
       return [];
@@ -2279,16 +2283,16 @@ export class DatabaseStorage implements IStorage {
     const R = 6371; // Earth's radius in kilometers
     const dLat = this.toRadians(lat2 - lat1);
     const dLon = this.toRadians(lon2 - lon1);
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
 
   private toRadians(degrees: number): number {
-    return degrees * (Math.PI/180);
+    return degrees * (Math.PI / 180);
   }
 
   // Calculate and store postcode coverage when provider adds/updates service area
@@ -2511,7 +2515,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async purchaseLead(requestId: number, providerId: number): Promise<{success: boolean, message: string}> {
+  async purchaseLead(requestId: number, providerId: number): Promise<{ success: boolean, message: string }> {
     try {
       // Find active offer for this provider
       const [offer] = await db
@@ -2555,11 +2559,11 @@ export class DatabaseStorage implements IStorage {
 
         if (provider.length > 0 && (provider[0].firstLeadsFreeUsed || 0) < 3) {
           isFreeLeadUsed = true;
-          
+
           // Update the provider's free leads count
           await db
             .update(serviceProviders)
-            .set({ 
+            .set({
               firstLeadsFreeUsed: (provider[0].firstLeadsFreeUsed || 0) + 1,
               updatedAt: new Date()
             })
@@ -2570,20 +2574,20 @@ export class DatabaseStorage implements IStorage {
       // If not a free lead, deduct payment from provider's account
       if (!isFreeLeadUsed) {
         const leadCost = parseFloat(offer.leadCost?.toString() || '0');
-        
+
         if (leadCost > 0) {
           // Check provider's credit balance
           const creditBalance = await this.getProviderCreditBalance(providerId);
-          
+
           if (creditBalance >= leadCost) {
             // Deduct from credit balance
             const deductionSuccess = await this.deductProviderCredit(
-              providerId, 
-              leadCost, 
-              `Lead purchase for request ${requestId}`, 
+              providerId,
+              leadCost,
+              `Lead purchase for request ${requestId}`,
               offer.id
             );
-            
+
             if (!deductionSuccess) {
               return { success: false, message: 'Insufficient credit balance' };
             }
@@ -2621,7 +2625,7 @@ export class DatabaseStorage implements IStorage {
               eq(leadOffers.offerType, 'shared')
             )
           );
-        
+
         if (purchasedSharedCount[0]?.count >= 3) {
           await this.updateServiceRequestStatus(requestId, 'assigned');
         }
@@ -2669,9 +2673,9 @@ export class DatabaseStorage implements IStorage {
       // Mark all pending offers as expired
       await db
         .update(leadOffers)
-        .set({ 
-          status: 'expired', 
-          isCurrentOffer: false 
+        .set({
+          status: 'expired',
+          isCurrentOffer: false
         })
         .where(
           and(
@@ -2703,10 +2707,10 @@ export class DatabaseStorage implements IStorage {
     try {
       // 1. First process uninitialized leads (leads that never entered distribution system)
       await this.processUninitializedLeads();
-      
+
       // 2. Process dynamic lead matching for service updates
       await this.processDynamicLeadMatching();
-      
+
       // 3. Then expire leads based on job date
       const now = new Date();
       await db
@@ -2722,7 +2726,7 @@ export class DatabaseStorage implements IStorage {
             sql`${serviceRequests.preferredDate} < ${now}`
           )
         );
-        
+
       // 4. Then process expired offers
       await this.processExpiredOffers();
     } catch (error) {
@@ -2734,7 +2738,7 @@ export class DatabaseStorage implements IStorage {
   async processDynamicLeadMatching(): Promise<void> {
     try {
       console.log('Processing dynamic lead matching...');
-      
+
       // Get all active/in-progress leads
       const activeLeads = await db
         .select({
@@ -2762,7 +2766,7 @@ export class DatabaseStorage implements IStorage {
       for (const lead of activeLeads) {
         await this.checkForNewProvidersForLead(lead.id, lead.categoryId, lead.postcode);
       }
-      
+
     } catch (error) {
       console.error('Error processing dynamic lead matching:', error);
     }
@@ -2776,14 +2780,14 @@ export class DatabaseStorage implements IStorage {
         .select({ providerId: leadOffers.providerId })
         .from(leadOffers)
         .where(eq(leadOffers.requestId, requestId));
-      
+
       const existingProviderIds = existingProviders.map(p => p.providerId);
 
       // Get all currently eligible providers for this category and area
       const eligibleProviders = await this.getEligibleProviders(categoryId, postcode);
-      
+
       // Find new providers who don't have offers for this lead yet
-      const newProviders = eligibleProviders.filter(provider => 
+      const newProviders = eligibleProviders.filter(provider =>
         !existingProviderIds.includes(provider.providerId)
       );
 
@@ -2803,7 +2807,7 @@ export class DatabaseStorage implements IStorage {
 
       // Get lead settings for pricing
       const leadSettings = await this.getLeadSettings();
-      
+
       // Determine if we should add them to unique or shared phase
       const hasUniqueOffers = await db
         .select({ count: sql<number>`count(*)` })
@@ -2820,7 +2824,7 @@ export class DatabaseStorage implements IStorage {
       // Add new providers to the lead
       for (let i = 0; i < newProviders.length; i++) {
         const provider = newProviders[i];
-        
+
         if (isInSharedPhase) {
           // Add as shared offer if lead is already in shared phase
           await this.createSharedOffer(requestId, provider.providerId, leadSettings);
@@ -2838,7 +2842,7 @@ export class DatabaseStorage implements IStorage {
             );
 
           const nextSortOrder = (totalUniqueOffers[0]?.count || 0) + 1;
-          
+
           await this.createUniqueOffer(requestId, provider.providerId, nextSortOrder, leadSettings);
           console.log(`Added provider ${provider.firstName} ${provider.lastName} to unique queue (position ${nextSortOrder}) for lead ${requestId}`);
         }
@@ -2852,7 +2856,7 @@ export class DatabaseStorage implements IStorage {
   // Helper method to create shared offers
   async createSharedOffer(requestId: number, providerId: number, leadSettings: any): Promise<void> {
     const sharedPrice = parseFloat(leadSettings.uniformSharePrice?.toString() || '12.00');
-    
+
     await db.insert(leadOffers).values({
       requestId,
       providerId,
@@ -2872,11 +2876,11 @@ export class DatabaseStorage implements IStorage {
   async createUniqueOffer(requestId: number, providerId: number, sortOrder: number, leadSettings: any): Promise<void> {
     const uniquePrice = parseFloat(leadSettings.uniformUniquePrice?.toString() || '30.00');
     const offerWindow = leadSettings.uniqueOfferWindow || 2; // hours
-    
+
     // Only make it current if it's the first in queue
     const isCurrentOffer = sortOrder === 1;
     const offerStartTime = isCurrentOffer ? new Date() : null;
-    const expiresAt = isCurrentOffer ? 
+    const expiresAt = isCurrentOffer ?
       new Date(Date.now() + offerWindow * 60 * 60 * 1000) : null;
 
     await db.insert(leadOffers).values({
@@ -2899,7 +2903,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Find recent active leads (within last 24 hours) that have no distribution log entries
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      
+
       const uninitializedLeads = await db
         .select({
           id: serviceRequests.id,
@@ -2926,7 +2930,7 @@ export class DatabaseStorage implements IStorage {
           console.error(`Failed to initialize lead distribution for lead ${lead.id}:`, error);
         }
       }
-      
+
       if (uninitializedLeads.length > 0) {
         console.log(`Processed ${uninitializedLeads.length} uninitialized leads`);
       }
@@ -2938,7 +2942,7 @@ export class DatabaseStorage implements IStorage {
   async processExpiredOffers(): Promise<void> {
     try {
       const now = new Date();
-      
+
       // Find expired unique offers that are still marked as current
       // Note: Shared offers don't have individual expiration times - they expire based on job date or purchase limit
       const expiredOffers = await db
@@ -2956,13 +2960,13 @@ export class DatabaseStorage implements IStorage {
 
       for (const expiredOffer of expiredOffers) {
         console.log(`Processing expired offer ${expiredOffer.id} for request ${expiredOffer.requestId}`);
-        
+
         // Mark offer as expired
         await db
           .update(leadOffers)
-          .set({ 
-            status: 'expired', 
-            isCurrentOffer: false 
+          .set({
+            status: 'expired',
+            isCurrentOffer: false
           })
           .where(eq(leadOffers.id, expiredOffer.id));
 
@@ -2997,13 +3001,13 @@ export class DatabaseStorage implements IStorage {
 
       for (const expired of expiredByJobDate) {
         console.log(`Expiring shared offers for request ${expired.requestId} due to job date proximity`);
-        
+
         // Mark all pending shared offers for this request as expired
         await db
           .update(leadOffers)
-          .set({ 
-            status: 'expired', 
-            isCurrentOffer: false 
+          .set({
+            status: 'expired',
+            isCurrentOffer: false
           })
           .where(
             and(
@@ -3028,7 +3032,7 @@ export class DatabaseStorage implements IStorage {
         .select({ creditBalance: serviceProviders.creditBalance })
         .from(serviceProviders)
         .where(eq(serviceProviders.id, providerId));
-      
+
       return parseFloat(provider?.creditBalance || '0');
     } catch (error) {
       console.error('Error getting provider credit balance:', error);
@@ -3040,13 +3044,13 @@ export class DatabaseStorage implements IStorage {
     try {
       const currentBalance = await this.getProviderCreditBalance(providerId);
       const newBalance = currentBalance + amount;
-      
+
       // Update provider balance
       await db
         .update(serviceProviders)
         .set({ creditBalance: newBalance.toFixed(2) })
         .where(eq(serviceProviders.id, providerId));
-      
+
       // Record transaction
       await db.insert(providerCreditTransactions).values({
         providerId,
@@ -3056,7 +3060,7 @@ export class DatabaseStorage implements IStorage {
         balanceAfter: newBalance.toFixed(2),
         description,
       });
-      
+
       console.log(`Added $${amount} credit to provider ${providerId}. New balance: $${newBalance}`);
     } catch (error) {
       console.error('Error adding provider credit:', error);
@@ -3067,20 +3071,20 @@ export class DatabaseStorage implements IStorage {
   async deductProviderCredit(providerId: number, amount: number, description: string, leadOfferId?: number): Promise<boolean> {
     try {
       const currentBalance = await this.getProviderCreditBalance(providerId);
-      
+
       if (currentBalance < amount) {
         console.log(`Insufficient credit for provider ${providerId}. Required: $${amount}, Available: $${currentBalance}`);
         return false;
       }
-      
+
       const newBalance = currentBalance - amount;
-      
+
       // Update provider balance
       await db
         .update(serviceProviders)
         .set({ creditBalance: newBalance.toFixed(2) })
         .where(eq(serviceProviders.id, providerId));
-      
+
       // Record transaction
       await db.insert(providerCreditTransactions).values({
         providerId,
@@ -3091,7 +3095,7 @@ export class DatabaseStorage implements IStorage {
         description,
         leadOfferId,
       });
-      
+
       console.log(`Deducted $${amount} credit from provider ${providerId}. New balance: $${newBalance}`);
       return true;
     } catch (error) {
@@ -3107,19 +3111,19 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(providerVouchers)
         .where(eq(providerVouchers.code, voucherCode));
-      
+
       if (!voucher) {
         return { success: false, message: 'Invalid voucher code' };
       }
-      
+
       if (voucher.status === 'closed') {
         return { success: false, message: 'This voucher has already been redeemed' };
       }
-      
+
       if (voucher.status !== 'active') {
         return { success: false, message: 'This voucher is not available for redemption' };
       }
-      
+
       // Check if provider already used this voucher
       const [existingUsage] = await db
         .select()
@@ -3130,30 +3134,30 @@ export class DatabaseStorage implements IStorage {
             eq(providerCreditTransactions.voucherCode, voucherCode)
           )
         );
-      
+
       if (existingUsage) {
         return { success: false, message: 'You have already used this voucher' };
       }
-      
+
       // Add credit to provider
       const creditAmount = parseFloat(voucher.value);
       await this.addProviderCredit(
-        providerId, 
-        creditAmount, 
+        providerId,
+        creditAmount,
         `Voucher redeemed: ${voucherCode} - ${voucher.description}`,
         'voucher_redemption'
       );
-      
+
       // Mark voucher as closed (one-time use)
       await db
         .update(providerVouchers)
-        .set({ 
+        .set({
           status: 'closed',
           redeemedBy: providerId,
           redeemedAt: new Date()
         })
         .where(eq(providerVouchers.id, voucher.id));
-      
+
       // Update the transaction record with voucher code
       await db
         .update(providerCreditTransactions)
@@ -3165,9 +3169,9 @@ export class DatabaseStorage implements IStorage {
             isNull(providerCreditTransactions.voucherCode)
           )
         );
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `Successfully added $${creditAmount} to your account!`,
         creditAdded: creditAmount
       };
@@ -3259,10 +3263,10 @@ export class DatabaseStorage implements IStorage {
     try {
       const [updated] = await db
         .update(providerVouchers)
-        .set({ 
+        .set({
           status: 'active',
           redeemedBy: null,
-          redeemedAt: null 
+          redeemedAt: null
         })
         .where(eq(providerVouchers.id, id))
         .returning();
@@ -3306,55 +3310,55 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(leadOffers)
         .where(eq(leadOffers.id, offerId));
-      
+
       if (!offer) {
         return { success: false, message: 'Lead offer not found' };
       }
-      
+
       if (offer.status !== 'pending') {
         return { success: false, message: 'This lead offer is no longer available' };
       }
-      
+
       if (offer.providerId !== providerId) {
         return { success: false, message: 'This lead is not assigned to you' };
       }
-      
+
       const leadCost = parseFloat(offer.leadCost);
       const currentBalance = await this.getProviderCreditBalance(providerId);
-      
+
       // Get provider to check free leads
       const [provider] = await db
         .select()
         .from(serviceProviders)
         .where(eq(serviceProviders.id, providerId));
-      
+
       if (!provider) {
         return { success: false, message: 'Provider not found' };
       }
-      
+
       let paymentMethod = '';
       let creditUsed = 0;
       let amountCharged = 0;
       let isFreeLeadUsed = false;
-      
+
       // Get lead settings to check if free leads are enabled
       const leadSettings = await this.getLeadSettings();
-      
+
       // Check if provider can use a free lead (first 3 leads) AND free leads are enabled
       if (leadSettings.freeLeadsEnabled && (provider.firstLeadsFreeUsed || 0) < 3) {
         // Use free lead
         isFreeLeadUsed = true;
         paymentMethod = 'free_lead';
-        
+
         // Update provider's free leads used count
         await db
           .update(serviceProviders)
-          .set({ 
+          .set({
             firstLeadsFreeUsed: (provider.firstLeadsFreeUsed || 0) + 1,
             leadsPurchasedCount: (provider.leadsPurchasedCount || 0) + 1
           })
           .where(eq(serviceProviders.id, providerId));
-        
+
         // Record free lead transaction
         await db.insert(providerCreditTransactions).values({
           providerId,
@@ -3365,31 +3369,31 @@ export class DatabaseStorage implements IStorage {
           description: `Free lead used (${(provider.firstLeadsFreeUsed || 0) + 1} of 3) - Lead #${offer.requestId}`,
           leadOfferId: offerId,
         });
-        
+
       } else if (currentBalance >= leadCost) {
         // Use credit only
         creditUsed = leadCost;
         paymentMethod = 'credit_only';
-        
+
         await this.deductProviderCredit(
-          providerId, 
-          leadCost, 
+          providerId,
+          leadCost,
           `Lead purchase - Lead #${offer.requestId}`,
           offerId
         );
-        
+
         // Update provider's leads purchased count
         await db
           .update(serviceProviders)
           .set({ leadsPurchasedCount: (provider.leadsPurchasedCount || 0) + 1 })
           .where(eq(serviceProviders.id, providerId));
-        
+
       } else if (currentBalance > 0) {
         // Use partial credit + charge remainder
         creditUsed = currentBalance;
         amountCharged = leadCost - currentBalance;
         paymentMethod = 'credit_and_card';
-        
+
         // Deduct available credit
         await this.deductProviderCredit(
           providerId,
@@ -3397,40 +3401,40 @@ export class DatabaseStorage implements IStorage {
           `Partial payment for Lead #${offer.requestId} (Credit portion)`,
           offerId
         );
-        
+
         // TODO: Charge remaining amount to card using Stripe
         // This would be implemented with Stripe payment processing
-        
+
         // Update provider's leads purchased count
         await db
           .update(serviceProviders)
           .set({ leadsPurchasedCount: (provider.leadsPurchasedCount || 0) + 1 })
           .where(eq(serviceProviders.id, providerId));
-        
+
       } else {
         // No credit, charge full amount to card
         amountCharged = leadCost;
         paymentMethod = 'card_only';
-        
+
         // TODO: Charge full amount to card using Stripe
         // This would be implemented with Stripe payment processing
-        
+
         // Update provider's leads purchased count
         await db
           .update(serviceProviders)
           .set({ leadsPurchasedCount: (provider.leadsPurchasedCount || 0) + 1 })
           .where(eq(serviceProviders.id, providerId));
       }
-      
+
       // Mark lead offer as purchased
       await db
         .update(leadOffers)
-        .set({ 
+        .set({
           status: 'purchased',
           purchasedAt: new Date()
         })
         .where(eq(leadOffers.id, offerId));
-      
+
       // Record lead purchase
       await db.insert(leadPurchases).values({
         leadOfferId: offerId,
@@ -3442,22 +3446,22 @@ export class DatabaseStorage implements IStorage {
         paymentMethod,
         isFreeLeadUsed,
       });
-      
+
       // Handle shared leads - activate more offers if needed
       if (offer.offerType === 'shared') {
         const [distributionLog] = await db
           .select()
           .from(leadDistributionLog)
           .where(eq(leadDistributionLog.requestId, offer.requestId));
-        
+
         if (distributionLog) {
           const newSharedCount = (distributionLog.sharedOffersPurchased || 0) + 1;
-          
+
           await db
             .update(leadDistributionLog)
             .set({ sharedOffersPurchased: newSharedCount })
             .where(eq(leadDistributionLog.id, distributionLog.id));
-          
+
           // If we've reached the maximum shared offers, end distribution
           if (newSharedCount >= (distributionLog.maxSharedOffers || 3)) {
             await this.endLeadDistribution(offer.requestId);
@@ -3480,10 +3484,10 @@ export class DatabaseStorage implements IStorage {
           await this.endLeadDistribution(offer.requestId);
         }
       }
-      
+
       return {
         success: true,
-        message: isFreeLeadUsed ? 
+        message: isFreeLeadUsed ?
           `Lead purchased using free lead (${(provider.firstLeadsFreeUsed || 0) + 1} of 3 used)` :
           `Lead purchased successfully! ${creditUsed > 0 ? `Used $${creditUsed} credit` : ''}${amountCharged > 0 ? ` and charged $${amountCharged}` : ''}`,
         paymentDetails: {
@@ -3495,7 +3499,7 @@ export class DatabaseStorage implements IStorage {
           freeLeadsRemaining: 3 - ((provider.firstLeadsFreeUsed || 0) + (isFreeLeadUsed ? 1 : 0))
         }
       };
-      
+
     } catch (error) {
       console.error('Error purchasing lead with credit:', error);
       return { success: false, message: 'Failed to purchase lead. Please try again.' };
@@ -3593,7 +3597,7 @@ export class DatabaseStorage implements IStorage {
                 eq(leadOffers.status, 'purchased')
               )
             );
-          
+
           // Only show if less than 3 providers have purchased
           if (purchasedCount[0]?.count < 3) {
             filteredLeads.push(lead);
@@ -3650,7 +3654,7 @@ export class DatabaseStorage implements IStorage {
           or(
             // Show current unique offers that are pending and active
             and(
-              eq(leadOffers.status, 'pending'), 
+              eq(leadOffers.status, 'pending'),
               eq(leadOffers.isCurrentOffer, true),
               eq(leadOffers.offerType, 'unique')
             ),
@@ -3747,7 +3751,7 @@ export class DatabaseStorage implements IStorage {
             or(
               // Current unique offers
               and(
-                eq(leadOffers.status, 'pending'), 
+                eq(leadOffers.status, 'pending'),
                 eq(leadOffers.isCurrentOffer, true),
                 eq(leadOffers.offerType, 'unique')
               ),
@@ -3813,7 +3817,7 @@ export class DatabaseStorage implements IStorage {
           requestId: parseInt(lead.requestid),
           categoryName: lead.categoryname,
           customerName: lead.customername,
-          customerEmail: lead.customeremail,  
+          customerEmail: lead.customeremail,
           customerPhone: lead.customerphone,
           suburb: lead.suburb,
           postcode: lead.postcode,
@@ -3937,7 +3941,7 @@ export class DatabaseStorage implements IStorage {
         .innerJoin(serviceProviders, eq(providerLeadInteractions.providerId, serviceProviders.id))
         .where(eq(providerLeadInteractions.leadId, leadId))
         .orderBy(desc(providerLeadInteractions.createdAt));
-      
+
       return results;
     } catch (error) {
       console.error('Error getting provider lead interactions:', error);
@@ -3956,7 +3960,7 @@ export class DatabaseStorage implements IStorage {
           eq(providerLeadStatus.leadId, leadId)
         ))
         .limit(1);
-      
+
       return status || null;
     } catch (error) {
       console.error('Error getting provider lead status:', error);
@@ -3982,7 +3986,7 @@ export class DatabaseStorage implements IStorage {
           },
         })
         .returning();
-      
+
       return status;
     } catch (error) {
       console.error('Error upserting provider lead status:', error);
@@ -3995,7 +3999,7 @@ export class DatabaseStorage implements IStorage {
       const results = await db
         .select({
           id: providerLeadStatus.id,
-          providerId: providerLeadStatus.providerId,  
+          providerId: providerLeadStatus.providerId,
           leadId: providerLeadStatus.leadId,
           status: providerLeadStatus.status,
           wasJobBooked: providerLeadStatus.wasJobBooked,
@@ -4016,7 +4020,7 @@ export class DatabaseStorage implements IStorage {
         .innerJoin(users, eq(serviceRequests.customerId, users.id))
         .where(eq(providerLeadStatus.providerId, providerId))
         .orderBy(desc(providerLeadStatus.statusUpdatedAt));
-      
+
       return results;
     } catch (error) {
       console.error('Error getting provider lead statuses:', error);
@@ -4066,7 +4070,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // First remove all user-department associations
       await db.delete(adminUserDepartments).where(eq(adminUserDepartments.departmentId, id));
-      
+
       const result = await db.delete(adminDepartments).where(eq(adminDepartments.id, id));
       return result.rowCount > 0;
     } catch (error) {
@@ -4137,7 +4141,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // First remove all user-department associations
       await db.delete(adminUserDepartments).where(eq(adminUserDepartments.userId, id));
-      
+
       const result = await db.delete(adminUsers).where(eq(adminUsers.id, id));
       return result.rowCount > 0;
     } catch (error) {
@@ -4196,7 +4200,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Remove all existing assignments
       await db.delete(adminUserDepartments).where(eq(adminUserDepartments.userId, userId));
-      
+
       // Add new assignments
       if (departmentIds.length > 0) {
         const assignments = departmentIds.map(departmentId => ({ userId, departmentId }));
@@ -4266,12 +4270,12 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Calculate this month's statistics
-      const thisMonthLeads = allPaidLeads.filter(lead => 
+      const thisMonthLeads = allPaidLeads.filter(lead =>
         new Date(lead.purchasedAt) >= startOfMonth
       );
 
       const thisMonthPurchases = thisMonthLeads.length;
-      const thisMonthTotal = thisMonthLeads.reduce((sum, lead) => 
+      const thisMonthTotal = thisMonthLeads.reduce((sum, lead) =>
         sum + lead.amountCharged, 0
       );
 
@@ -4292,11 +4296,11 @@ export class DatabaseStorage implements IStorage {
       // Generate secure random token
       const crypto = await import('crypto');
       const token = crypto.randomBytes(32).toString('hex');
-      
+
       // Set expiry to 30 days from now
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30);
-      
+
       await db.insert(reviewTokens).values({
         token,
         customerId,
@@ -4304,7 +4308,7 @@ export class DatabaseStorage implements IStorage {
         requestId,
         expiresAt
       });
-      
+
       return token;
     } catch (error) {
       console.error('Error creating review token:', error);
@@ -4342,7 +4346,7 @@ export class DatabaseStorage implements IStorage {
         .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
         .where(eq(reviewTokens.token, token))
         .limit(1);
-      
+
       return result[0] || null;
     } catch (error) {
       console.error('Error getting review token:', error);
@@ -4364,11 +4368,11 @@ export class DatabaseStorage implements IStorage {
           )
         )
         .limit(1);
-      
+
       if (existingReview.length > 0) {
         throw new Error('Review already submitted for this service');
       }
-      
+
       // Create the review
       const [review] = await db
         .insert(customerReviews)
@@ -4385,19 +4389,19 @@ export class DatabaseStorage implements IStorage {
           isPublic: reviewData.isPublic !== false // Default to true
         })
         .returning();
-      
+
       // Mark token as used
       await db
         .update(reviewTokens)
-        .set({ 
-          isUsed: true, 
-          usedAt: new Date() 
+        .set({
+          isUsed: true,
+          usedAt: new Date()
         })
         .where(eq(reviewTokens.token, reviewData.token));
-      
+
       // Update provider rating
       await this.updateProviderRating(reviewData.providerId);
-      
+
       return review;
     } catch (error) {
       console.error('Error submitting customer review:', error);
@@ -4433,7 +4437,7 @@ export class DatabaseStorage implements IStorage {
           )
         )
         .orderBy(desc(customerReviews.createdAt));
-      
+
       return reviews;
     } catch (error) {
       console.error('Error getting provider reviews:', error);
@@ -4472,7 +4476,7 @@ export class DatabaseStorage implements IStorage {
         .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
         .where(eq(customerReviews.customerId, customerId))
         .orderBy(desc(customerReviews.createdAt));
-      
+
       return reviews;
     } catch (error) {
       console.error('Error getting customer reviews:', error);
@@ -4490,9 +4494,9 @@ export class DatabaseStorage implements IStorage {
         })
         .from(customerReviews)
         .where(eq(customerReviews.providerId, providerId));
-      
+
       const stats = reviewStats[0];
-      
+
       if (stats && stats.totalReviews > 0) {
         // Update provider ratings table
         await db
@@ -4503,7 +4507,7 @@ export class DatabaseStorage implements IStorage {
             updatedAt: new Date()
           })
           .where(eq(providerRatings.providerId, providerId));
-        
+
         console.log(`Updated rating for provider ${providerId}: ${stats.averageRating} (${stats.totalReviews} reviews)`);
       }
     } catch (error) {
@@ -4524,7 +4528,7 @@ export class DatabaseStorage implements IStorage {
         .from(providerRatings)
         .where(eq(providerRatings.providerId, providerId))
         .limit(1);
-      
+
       return result[0] || null;
     } catch (error) {
       console.error('Error getting provider rating:', error);
@@ -4548,7 +4552,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Get total users
       const totalUsers = await this.getUserCount();
-      
+
       // Get new users this month
       const newUsersThisMonth = await db
         .select({ count: sql<number>`count(*)` })
@@ -4559,7 +4563,7 @@ export class DatabaseStorage implements IStorage {
             lte(users.createdAt, new Date())
           )
         );
-      
+
       // Get active users (last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -4567,7 +4571,7 @@ export class DatabaseStorage implements IStorage {
         .select({ count: sql<number>`count(*)` })
         .from(users)
         .where(gte(users.lastLogin, thirtyDaysAgo));
-      
+
       // Get users joined in date range
       const joined = await db
         .select({ count: sql<number>`count(*)` })
@@ -4578,7 +4582,7 @@ export class DatabaseStorage implements IStorage {
             lte(users.createdAt, toDate)
           )
         );
-      
+
       // Get leads generated in date range
       const leadsGenerated = await db
         .select({ count: sql<number>`count(*)` })
@@ -4589,7 +4593,7 @@ export class DatabaseStorage implements IStorage {
             lte(serviceRequests.createdAt, toDate)
           )
         );
-      
+
       // Get unique leads purchased in date range
       const uniqueLeadsPurchased = await db
         .select({ count: sql<number>`count(*)` })
@@ -4602,7 +4606,7 @@ export class DatabaseStorage implements IStorage {
             lte(leadOffers.purchasedAt, toDate)
           )
         );
-      
+
       // Get shared leads purchased in date range
       const sharedLeadsPurchased = await db
         .select({ count: sql<number>`count(*)` })
@@ -4615,7 +4619,7 @@ export class DatabaseStorage implements IStorage {
             lte(leadOffers.purchasedAt, toDate)
           )
         );
-      
+
       // Get pending leads in date range
       const pendingLeads = await db
         .select({ count: sql<number>`count(*)` })
@@ -4627,7 +4631,7 @@ export class DatabaseStorage implements IStorage {
             lte(serviceRequests.createdAt, toDate)
           )
         );
-      
+
       // Get top service categories
       const topServiceCategories = await db
         .select({
@@ -4645,7 +4649,7 @@ export class DatabaseStorage implements IStorage {
         .groupBy(serviceCategories.name)
         .orderBy(desc(sql<number>`count(*)`))
         .limit(5);
-      
+
       // Calculate growth rate (simplified)
       const previousMonth = new Date(fromDate);
       previousMonth.setMonth(previousMonth.getMonth() - 1);
@@ -4658,13 +4662,13 @@ export class DatabaseStorage implements IStorage {
             lte(users.createdAt, fromDate)
           )
         );
-      
+
       const currentMonthCount = joined[0]?.count || 0;
       const previousMonthCount = previousMonthUsers[0]?.count || 0;
-      const userGrowthRate = previousMonthCount > 0 
+      const userGrowthRate = previousMonthCount > 0
         ? Math.round(((currentMonthCount - previousMonthCount) / previousMonthCount) * 100)
         : 0;
-      
+
       return {
         totalUsers,
         newUsersThisMonth: newUsersThisMonth[0]?.count || 0,
@@ -4702,7 +4706,7 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(termsAndConditions)
         .limit(1);
-      
+
       return terms || null;
     } catch (error) {
       console.error('Error getting terms and conditions:', error);
@@ -4713,7 +4717,7 @@ export class DatabaseStorage implements IStorage {
   async updateTermsAndConditions(terms: Partial<TermsAndConditions>): Promise<TermsAndConditions> {
     try {
       const existingTerms = await this.getTermsAndConditions();
-      
+
       if (existingTerms) {
         // Update existing terms
         const [updatedTerms] = await db
@@ -4727,7 +4731,7 @@ export class DatabaseStorage implements IStorage {
           })
           .where(eq(termsAndConditions.id, existingTerms.id))
           .returning();
-        
+
         return updatedTerms;
       } else {
         // Create new terms
@@ -4740,7 +4744,7 @@ export class DatabaseStorage implements IStorage {
             websiteUpdatedAt: terms.websiteTerms ? new Date() : null,
           })
           .returning();
-        
+
         return newTerms;
       }
     } catch (error) {
@@ -4753,12 +4757,12 @@ export class DatabaseStorage implements IStorage {
   async getLeadManagementSettings(): Promise<any> {
     // Get current lead settings
     const leadSettings = await this.getLeadSettings();
-    
+
     // Get system settings for credit access
     const providersCanRedeemCredits = await this.getDecryptedSetting('providers_can_redeem_credits');
     const customerVoucherAreaVisible = await this.getDecryptedSetting('customer_voucher_area_visible');
     const spCreditsAreaVisible = await this.getDecryptedSetting('sp_credits_area_visible');
-    
+
     return {
       freeLeadsEnabled: leadSettings.freeLeadsEnabled,
       providersCanRedeemCredits: providersCanRedeemCredits === 'true',
@@ -4774,12 +4778,12 @@ export class DatabaseStorage implements IStorage {
       ...currentLeadSettings,
       freeLeadsEnabled: settings.freeLeadsEnabled
     });
-    
+
     // Update system settings for credit access
     await this.updateAdminSetting('providers_can_redeem_credits', settings.providersCanRedeemCredits.toString());
     await this.updateAdminSetting('customer_voucher_area_visible', settings.customerVoucherAreaVisible.toString());
     await this.updateAdminSetting('sp_credits_area_visible', settings.spCreditsAreaVisible.toString());
-    
+
     return this.getLeadManagementSettings();
   }
 
@@ -4793,23 +4797,23 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(serviceCategories.id, id))
       .returning();
-    
+
     if (updatedCategories.length === 0) {
       throw new Error('Service category not found');
     }
-    
+
     return updatedCategories[0];
   }
 
   async updateServiceCategoryImage(id: number, imageUrl: string): Promise<ServiceCategory> {
     console.log('updateServiceCategoryImage called with:', { id, imageUrl });
-    
+
     try {
       // Use raw SQL query to update the image_url column
       console.log('Updating image_url with raw SQL...');
       const result = await db.execute(sql`UPDATE service_categories SET image_url = ${imageUrl}, updated_at = NOW() WHERE id = ${id} RETURNING *`);
       console.log('Raw SQL result:', result);
-      
+
       if (result.rows && result.rows.length > 0) {
         console.log('Image URL updated successfully');
         return result.rows[0];
@@ -4830,28 +4834,28 @@ export class DatabaseStorage implements IStorage {
         .from(providerServices)
         .where(eq(providerServices.categoryId, id))
         .limit(1);
-      
+
       if (providerServices.length > 0) {
         throw new Error('Cannot delete category that is being used by providers');
       }
-      
+
       // Check if category is being used by any service requests
       const serviceRequests = await db
         .select()
         .from(serviceRequests)
         .where(eq(serviceRequests.categoryId, id))
         .limit(1);
-      
+
       if (serviceRequests.length > 0) {
         throw new Error('Cannot delete category that has associated service requests');
       }
-      
+
       // Delete the category
       const result = await db
         .delete(serviceCategories)
         .where(eq(serviceCategories.id, id))
         .returning();
-      
+
       return result.length > 0;
     } catch (error) {
       console.error('Error deleting service category:', error);
@@ -4866,7 +4870,7 @@ export class DatabaseStorage implements IStorage {
         .select({ creditBalance: users.creditBalance })
         .from(users)
         .where(eq(users.id, customerId));
-      
+
       return parseFloat(user?.creditBalance?.toString() || '0');
     } catch (error) {
       console.error('Error getting customer credit balance:', error);
@@ -4878,13 +4882,13 @@ export class DatabaseStorage implements IStorage {
     try {
       const currentBalance = await this.getCustomerCreditBalance(customerId);
       const newBalance = currentBalance + amount;
-      
+
       // Update user's credit balance
       await db
         .update(users)
         .set({ creditBalance: newBalance.toFixed(2) })
         .where(eq(users.id, customerId));
-      
+
       // Record transaction
       await db.insert(customerCreditTransactions).values({
         customerId,
@@ -4903,19 +4907,19 @@ export class DatabaseStorage implements IStorage {
   async deductCustomerCredit(customerId: string, amount: number, description: string, serviceRequestId?: number): Promise<boolean> {
     try {
       const currentBalance = await this.getCustomerCreditBalance(customerId);
-      
+
       if (currentBalance < amount) {
         return false; // Insufficient credit
       }
-      
+
       const newBalance = currentBalance - amount;
-      
+
       // Update user's credit balance
       await db
         .update(users)
         .set({ creditBalance: newBalance.toFixed(2) })
         .where(eq(users.id, customerId));
-      
+
       // Record transaction
       await db.insert(customerCreditTransactions).values({
         customerId,
@@ -4926,7 +4930,7 @@ export class DatabaseStorage implements IStorage {
         description,
         serviceRequestId,
       });
-      
+
       return true;
     } catch (error) {
       console.error('Error deducting customer credit:', error);
@@ -4941,27 +4945,27 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(customerVouchers)
         .where(eq(customerVouchers.code, voucherCode));
-      
+
       if (!voucher) {
         return { success: false, message: 'Invalid voucher code' };
       }
-      
+
       if (voucher.status !== 'active') {
         return { success: false, message: 'Voucher is not active' };
       }
-      
+
       if (voucher.redeemedBy) {
         return { success: false, message: 'Voucher has already been redeemed' };
       }
-      
+
       if (new Date() > new Date(voucher.expiryDate)) {
         return { success: false, message: 'Voucher has expired' };
       }
-      
+
       // Add credit to customer
       const creditAmount = parseFloat(voucher.value.toString());
       await this.addCustomerCredit(customerId, creditAmount, `Voucher redemption: ${voucherCode}`, 'voucher_redemption');
-      
+
       // Mark voucher as redeemed
       await db
         .update(customerVouchers)
@@ -4971,7 +4975,7 @@ export class DatabaseStorage implements IStorage {
           status: 'closed'
         })
         .where(eq(customerVouchers.id, voucher.id));
-      
+
       return {
         success: true,
         message: `Successfully redeemed voucher! Added $${creditAmount} to your account.`,
@@ -4990,7 +4994,7 @@ export class DatabaseStorage implements IStorage {
         .from(customerCreditTransactions)
         .where(eq(customerCreditTransactions.customerId, customerId))
         .orderBy(desc(customerCreditTransactions.createdAt));
-      
+
       return transactions;
     } catch (error) {
       console.error('Error getting customer credit transactions:', error);
@@ -5011,7 +5015,7 @@ export class DatabaseStorage implements IStorage {
           )
         )
         .orderBy(desc(customerVouchers.createdAt));
-      
+
       return vouchers;
     } catch (error) {
       console.error('Error getting available customer vouchers:', error);
@@ -5025,7 +5029,7 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(customerVouchers)
         .where(eq(customerVouchers.code, code));
-      
+
       return voucher;
     } catch (error) {
       console.error('Error getting customer voucher by code:', error);
@@ -5072,7 +5076,7 @@ export class DatabaseStorage implements IStorage {
         .from(potentialCustomers)
         .groupBy(potentialCustomers.importId, potentialCustomers.importName)
         .orderBy(desc(sql<string>`min(${potentialCustomers.createdAt})`));
-      
+
       return groups;
     } catch (error) {
       console.error('Error getting potential customer import groups:', error);
@@ -5084,10 +5088,10 @@ export class DatabaseStorage implements IStorage {
     try {
       // Generate unique import ID
       const importId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       // Parse CSV/Excel file
       const customers: InsertPotentialCustomer[] = [];
-      
+
       // If no file is provided (for test imports), use sample data
       if (!file) {
         const sampleCustomers: InsertPotentialCustomer[] = [
@@ -5202,28 +5206,28 @@ export class DatabaseStorage implements IStorage {
             smsDeliveryStatus: "not_sent"
           }
         ];
-        
+
         const result = await db
           .insert(potentialCustomers)
           .values(sampleCustomers)
           .returning();
-        
+
         return { count: result.length };
       }
-      
+
       // Parse CSV file
       return new Promise(async (resolve, reject) => {
         const results: any[] = [];
-        
+
         // Validate file object
         if (!file) {
           console.error('File object is invalid:', file);
           reject(new Error('Invalid file object'));
           return;
         }
-        
+
         console.log('Processing file:', file.name, 'at path:', file.tempFilePath);
-        
+
         // Check if we have temp file or data buffer
         if (file.tempFilePath && file.tempFilePath !== '') {
           // Use temp file
@@ -5235,7 +5239,7 @@ export class DatabaseStorage implements IStorage {
                 console.error('Missing required fields in CSV row:', data);
                 return;
               }
-              
+
               // Create customer object
               const customer: InsertPotentialCustomer = {
                 name: data.Name.trim(),
@@ -5248,7 +5252,7 @@ export class DatabaseStorage implements IStorage {
                 importName,
                 smsDeliveryStatus: "not_sent"
               };
-              
+
               results.push(customer);
             })
             .on('end', async () => {
@@ -5257,12 +5261,12 @@ export class DatabaseStorage implements IStorage {
                   reject(new Error('No customers data provided'));
                   return;
                 }
-                
+
                 const result = await db
                   .insert(potentialCustomers)
                   .values(results)
                   .returning();
-                
+
                 resolve({ count: result.length });
               } catch (error) {
                 console.error('Error importing potential customers:', error);
@@ -5276,31 +5280,31 @@ export class DatabaseStorage implements IStorage {
         } else if (file.data) {
           // Use data buffer directly
           console.log('Using file data buffer, size:', file.data.length);
-          
+
           const csvString = file.data.toString('utf8');
           const lines = csvString.split('\n');
-          
+
           // Skip header row
           for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
-            
+
             // Simple CSV parsing (assuming no commas in quoted fields)
             const values = line.split(',').map(val => val.trim().replace(/^"|"$/g, ''));
-            
+
             if (values.length < 6) {
               console.error('Invalid CSV row:', line);
               continue;
             }
-            
+
             const [name, email, phone, state, city, address] = values;
-            
+
             // Validate required fields
             if (!name || !email || !phone || !state || !city || !address) {
               console.error('Missing required fields in CSV row:', values);
               continue;
             }
-            
+
             // Create customer object
             const customer: InsertPotentialCustomer = {
               name: name.trim(),
@@ -5313,21 +5317,21 @@ export class DatabaseStorage implements IStorage {
               importName,
               smsDeliveryStatus: "not_sent"
             };
-            
+
             results.push(customer);
           }
-          
+
           if (results.length === 0) {
             reject(new Error('No customers data provided'));
             return;
           }
-          
+
           try {
             const result = await db
               .insert(potentialCustomers)
               .values(results)
               .returning();
-            
+
             resolve({ count: result.length });
           } catch (error) {
             console.error('Error importing potential customers:', error);
@@ -5346,7 +5350,7 @@ export class DatabaseStorage implements IStorage {
   async updatePotentialCustomerSmsStatus(customerId: number, status: '1st_sent' | '2nd_sent'): Promise<void> {
     try {
       const updateData: any = {};
-      
+
       if (status === '1st_sent') {
         updateData.smsDeliveryStatus = '1st_sent';
         updateData.firstSmsSentAt = new Date();
@@ -5354,7 +5358,7 @@ export class DatabaseStorage implements IStorage {
         updateData.smsDeliveryStatus = '2nd_sent';
         updateData.secondSmsSentAt = new Date();
       }
-      
+
       await db
         .update(potentialCustomers)
         .set(updateData)
@@ -5369,7 +5373,7 @@ export class DatabaseStorage implements IStorage {
     try {
       let successCount = 0;
       const details: Array<{ customerId: number, name: string, phone: string, status: '1st_sent' | '2nd_sent' | 'skipped', sent: boolean, reason?: string }> = [];
-      
+
       for (const customerId of customerIds) {
         try {
           // Get customer details
@@ -5377,7 +5381,7 @@ export class DatabaseStorage implements IStorage {
             .select()
             .from(potentialCustomers)
             .where(eq(potentialCustomers.id, customerId));
-          
+
           if (!customer) {
             console.warn(`[SMS][skip] Customer not found: id=${customerId}`);
             details.push({ customerId, name: '', phone: '', status: 'skipped', sent: false, reason: 'not_found' });
@@ -5402,7 +5406,7 @@ export class DatabaseStorage implements IStorage {
             details.push({ customerId: customer.id, name: customer.name, phone: customer.phone, status: 'skipped', sent: false, reason: 'invalid_phone' });
             continue;
           }
-          
+
           // Determine which SMS to send (treat null/undefined as not_sent)
           let smsStatus: '1st_sent' | '2nd_sent';
           if (customer.smsDeliveryStatus === 'not_sent' || !customer.smsDeliveryStatus) {
@@ -5414,14 +5418,14 @@ export class DatabaseStorage implements IStorage {
             details.push({ customerId: customer.id, name: customer.name, phone: customer.phone, status: 'skipped', sent: false, reason: 'limit_reached' });
             continue; // Already sent 2 SMS
           }
-          
+
           // Send SMS using the SMS service
           const templateMessage = smsStatus === '1st_sent'
             ? `Hi ${customer.name}! 👋 \n\nServicePanda here! We noticed you might be looking for reliable service providers in your area.\n\nWe have pre-screened, verified professionals ready to help with your needs. Would you like to learn more about our services?\n\nReply YES to get started, or visit our website for more info.\n\nBest regards,\nServicePanda Team`
             : `Hi ${customer.name}! \n\nJust following up on our previous message about ServicePanda's verified service providers.\n\nWe're here to connect you with trusted professionals in your area. No obligation, just quality service connections.\n\nReply YES to learn more, or call us directly.\n\nServicePanda Team`;
           console.log(`[SMS] Sending -> id=${customer.id} status=${smsStatus} to=${normalizedPhone}`);
           const smsSent = await smsService.sendSms(normalizedPhone, templateMessage, { customerId: customer.id, smsType: smsStatus });
-          
+
           if (smsSent) {
             // Update SMS status only if SMS was sent successfully
             await this.updatePotentialCustomerSmsStatus(customerId, smsStatus);
@@ -5498,13 +5502,13 @@ export class DatabaseStorage implements IStorage {
               console.warn('Failed to persist failed SMS to DB (non-fatal):', e);
             }
           }
-          
+
         } catch (error) {
           console.error(`Error sending SMS to customer ${customerId}:`, error);
           details.push({ customerId, name: '', phone: '', status: 'skipped', sent: false, reason: 'exception' });
         }
       }
-      
+
       return { count: successCount, details };
     } catch (error) {
       console.error('Error sending SMS to potential customers:', error);
@@ -5538,7 +5542,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('Getting provider reports...');
       const startTime = Date.now();
-      
+
       // Get all provider stats in a single optimized query
       const providerStats = await db
         .select({
@@ -5548,14 +5552,14 @@ export class DatabaseStorage implements IStorage {
           rejected: sql<number>`count(case when ${serviceProviders.status} = 'rejected' then 1 end)`
         })
         .from(serviceProviders);
-      
+
       const totalProviders = providerStats[0]?.total || 0;
       const approvedProviders = providerStats[0]?.approved || 0;
       const pendingProviders = providerStats[0]?.pending || 0;
       const rejectedProviders = providerStats[0]?.rejected || 0;
-      
+
       console.log('Provider stats:', { totalProviders, approvedProviders, pendingProviders, rejectedProviders });
-      
+
       // Get new providers this month in a single query
       const currentDate = new Date();
       const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -5568,9 +5572,9 @@ export class DatabaseStorage implements IStorage {
             eq(serviceProviders.status, 'approved')
           )
         );
-      
+
       console.log('New providers this month:', newProvidersThisMonth[0]?.count || 0);
-      
+
       // Get monthly join data for ALL providers (not just last 12 months)
       const monthlyData = await db
         .select({
@@ -5580,19 +5584,19 @@ export class DatabaseStorage implements IStorage {
         })
         .from(serviceProviders)
         .groupBy(sql`to_char(${serviceProviders.createdAt}, 'YYYY-MM'), ${serviceProviders.status}`);
-      
+
       // Process monthly data into the required format
       const monthlyJoins = [];
       const monthMap = new Map();
-      
+
       // Initialize months based on actual data found
       const uniqueMonths = new Set(monthlyData.map(row => row.month));
       const sortedMonths = Array.from(uniqueMonths).sort();
-      
+
       sortedMonths.forEach(monthKey => {
         const date = new Date(monthKey + '-01');
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        
+
         monthMap.set(monthKey, {
           month: monthName,
           count: 0,
@@ -5601,7 +5605,7 @@ export class DatabaseStorage implements IStorage {
           rejected: 0
         });
       });
-      
+
       // Fill in the actual data
       console.log('Raw monthly data from database:', monthlyData);
       monthlyData.forEach(row => {
@@ -5617,12 +5621,12 @@ export class DatabaseStorage implements IStorage {
           if (row.status === 'rejected') monthData.rejected = parseInt(row.count.toString()) || 0;
         }
       });
-      
+
       // Convert to array and sort by month
       monthlyJoins.push(...Array.from(monthMap.values()));
-      
+
       console.log('Monthly joins:', monthlyJoins);
-      
+
       // Get top service categories in a single query
       const topServiceCategories = await db
         .select({
@@ -5634,9 +5638,9 @@ export class DatabaseStorage implements IStorage {
         .groupBy(serviceCategories.name)
         .orderBy(desc(sql<number>`count(distinct ${providerServices.providerId})`))
         .limit(5);
-      
+
       console.log('Top service categories:', topServiceCategories);
-      
+
       // Calculate real average approval time based on actual data
       const approvalTimeData = await db
         .select({
@@ -5650,19 +5654,19 @@ export class DatabaseStorage implements IStorage {
         })
         .from(serviceProviders)
         .where(eq(serviceProviders.status, 'approved'));
-      
+
       const avgApprovalDays = approvalTimeData[0]?.avgDays || 3;
       const avgApprovalTime = `${Math.round(avgApprovalDays)} days`;
-      
+
       // Calculate real approval rate
       const approvalRate = totalProviders > 0 ? Math.round((approvedProviders / totalProviders) * 100) : 0;
-      
+
       // Get real average rating
       const avgRatingResult = await db
         .select({ avgRating: sql<number>`avg(${providerRatings.rating})` })
         .from(providerRatings);
       const avgRating = avgRatingResult[0]?.avgRating || 4.8;
-      
+
       // Calculate real job completion rate based on service requests
       const jobCompletionData = await db
         .select({
@@ -5676,11 +5680,11 @@ export class DatabaseStorage implements IStorage {
             gte(serviceRequests.createdAt, new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
           )
         );
-      
+
       const totalRequests = jobCompletionData[0]?.totalRequests || 0;
       const completedRequests = jobCompletionData[0]?.completedRequests || 0;
       const jobCompletionRate = totalRequests > 0 ? Math.round((completedRequests / totalRequests) * 100) : 92;
-      
+
       // Calculate real average response time based on lead interactions
       const responseTimeData = await db
         .select({
@@ -5695,10 +5699,10 @@ export class DatabaseStorage implements IStorage {
         .from(providerLeadInteractions)
         .innerJoin(leadAssignments, eq(providerLeadInteractions.leadId, leadAssignments.id))
         .where(eq(providerLeadInteractions.interactionType, 'initial_response'));
-      
+
       const avgResponseHours = responseTimeData[0]?.avgHours || 24;
       const avgResponseTime = avgResponseHours < 24 ? `${Math.round(avgResponseHours)}h` : `${Math.round(avgResponseHours / 24)}d`;
-      
+
       const result = {
         totalProviders,
         approvedProviders,
@@ -5716,7 +5720,7 @@ export class DatabaseStorage implements IStorage {
         avgResponseTime,
         monthlyJoins
       };
-      
+
       const endTime = Date.now();
       console.log(`Provider reports generated in ${endTime - startTime}ms`);
       console.log('Provider reports result:', result);
@@ -5759,7 +5763,7 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date(),
         updatedAt: new Date(),
       }).returning();
-      
+
       return provider;
     } catch (error) {
       console.error('Error creating potential provider:', error);
@@ -5770,15 +5774,15 @@ export class DatabaseStorage implements IStorage {
   async importPotentialProviders(csvData: string, importName: string): Promise<{ count: number, providers: any[] }> {
     try {
       console.log('Importing potential providers:', importName);
-      
+
       // Parse CSV data
       const lines = csvData.trim().split('\n');
       const headers = lines[0].split(',').map(h => h.trim());
       const data = lines.slice(1);
-      
+
       const importId = `import_${Date.now()}`;
       const providers = [];
-      
+
       for (const line of data) {
         const values = line.split(',').map(v => v.trim());
         const provider = {
@@ -5801,10 +5805,10 @@ export class DatabaseStorage implements IStorage {
           createdAt: new Date(),
           updatedAt: new Date(),
         };
-        
+
         providers.push(provider);
       }
-      
+
       console.log(`Parsed ${providers.length} potential providers for confirmation`);
       return { count: providers.length, providers };
     } catch (error) {
@@ -5816,11 +5820,11 @@ export class DatabaseStorage implements IStorage {
   async confirmPotentialProvidersImport(providers: any[]): Promise<{ count: number }> {
     try {
       console.log('Confirming import of potential providers');
-      
+
       if (providers.length > 0) {
         await db.insert(potentialProviders).values(providers);
       }
-      
+
       console.log(`Confirmed import of ${providers.length} potential providers`);
       return { count: providers.length };
     } catch (error) {
@@ -5838,7 +5842,7 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(potentialProviders.id, id))
         .returning();
-      
+
       return provider;
     } catch (error) {
       console.error('Error updating potential provider:', error);
@@ -5859,7 +5863,7 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date(),
         updatedAt: new Date(),
       }).returning();
-      
+
       return task;
     } catch (error) {
       console.error('Error creating potential provider task:', error);
@@ -5870,7 +5874,7 @@ export class DatabaseStorage implements IStorage {
   async sendEmailToPotentialProvider(providerId: number, subject: string, content: string): Promise<any> {
     try {
       const provider = await db.select().from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
-      
+
       if (provider.length === 0) {
         throw new Error('Potential provider not found');
       }
@@ -5908,7 +5912,7 @@ export class DatabaseStorage implements IStorage {
   async sendSmsToPotentialProvider(providerId: number, content: string): Promise<any> {
     try {
       const provider = await db.select().from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
-      
+
       if (provider.length === 0) {
         throw new Error('Potential provider not found');
       }
@@ -5966,7 +5970,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Get the potential provider
       const potentialProvider = await db.select().from(potentialProviders).where(eq(potentialProviders.id, potentialProviderId)).limit(1);
-      
+
       if (potentialProvider.length === 0) {
         throw new Error('Potential provider not found');
       }
@@ -6012,10 +6016,10 @@ export class DatabaseStorage implements IStorage {
         timestamp: new Date(),
       });
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: 'Provider converted successfully',
-        providerId: newProvider.id 
+        providerId: newProvider.id
       };
     } catch (error) {
       console.error('Error converting potential provider:', error);
