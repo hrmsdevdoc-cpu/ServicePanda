@@ -1108,8 +1108,23 @@ export class DatabaseStorage implements IStorage {
          ORDER BY sr.created_at DESC`,
         [customerId]
       );
+      
+      // Debug: Check if categories exist
+      const categoryCheck = await pool.query('SELECT id, name, icon FROM service_categories ORDER BY id');
+      console.log('🔍 Available categories in database:', categoryCheck.rows);
 
       console.log(`Found ${result.rows.length} service requests via pool.query`);
+      
+      // Debug: Log first request to see what data we're getting
+      if (result.rows.length > 0) {
+        console.log('🔍 First request from database:', JSON.stringify(result.rows[0], null, 2));
+        console.log('🔍 Category ID type:', typeof result.rows[0].category_id);
+        console.log('🔍 Category ID value:', result.rows[0].category_id);
+        console.log('🔍 Category name:', result.rows[0].category_name);
+        console.log('🔍 Category icon:', result.rows[0].category_icon);
+        console.log('🔍 Is category_name null?', result.rows[0].category_name === null);
+        console.log('🔍 Is category_name undefined?', result.rows[0].category_name === undefined);
+      }
 
       // Get offer metrics for each request
       const requestsWithOffers = await Promise.all(result.rows.map(async (request: any) => {
@@ -1130,12 +1145,33 @@ export class DatabaseStorage implements IStorage {
           accepted_offers: 0
         };
 
-        return {
+        // If category_name is null from JOIN, try to fetch it manually
+        let finalCategoryName = request.category_name;
+        let finalCategoryIcon = request.category_icon;
+        
+        if (!finalCategoryName && request.category_id) {
+          console.log(`🔍 Category name missing for ID ${request.category_id}, fetching manually...`);
+          try {
+            const categoryResult = await pool.query(
+              'SELECT name, icon FROM service_categories WHERE id = $1',
+              [request.category_id]
+            );
+            if (categoryResult.rows.length > 0) {
+              finalCategoryName = categoryResult.rows[0].name;
+              finalCategoryIcon = categoryResult.rows[0].icon;
+              console.log(`🔍 Found category: ${finalCategoryName} with icon: ${finalCategoryIcon}`);
+            }
+          } catch (error) {
+            console.error('Error fetching category:', error);
+          }
+        }
+
+        const finalResult = {
           id: request.id,
           customerId: request.customer_id,
           categoryId: request.category_id,
-          categoryName: request.category_name || 'Service Request',
-          categoryIcon: request.category_icon || '🔧',
+          categoryName: finalCategoryName || 'Service Request',
+          categoryIcon: finalCategoryIcon || '🔧',
           description: request.description,
           postcode: request.postcode,
           suburb: request.suburb,
@@ -1154,6 +1190,15 @@ export class DatabaseStorage implements IStorage {
             professionalCount: parseInt(offerMetrics.professional_count) || 0
           }
         };
+        
+        // Debug: Log the final result for this request
+        console.log(`🔍 Final result for request ${request.id}:`, {
+          categoryId: finalResult.categoryId,
+          categoryName: finalResult.categoryName,
+          categoryIcon: finalResult.categoryIcon
+        });
+        
+        return finalResult;
       }));
 
       return requestsWithOffers;
