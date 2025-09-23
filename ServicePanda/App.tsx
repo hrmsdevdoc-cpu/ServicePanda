@@ -4,21 +4,38 @@ const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
 const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar, Platform, Animated, Dimensions, Alert } = require('react-native');
 // const { SafeAreaProvider, SafeAreaView } = require('react-native-safe-area-context');
 
-// Simple fallback SafeAreaProvider that doesn't require native linking
-const SafeAreaProvider = ({ children }) => {
-  return children;
-};
-
-const SafeAreaView = ({ children, style, ...props }) => {
+// SafeAreaProvider with proper safe area handling
+const SafeAreaProvider = ({ children }: { children: any }) => {
   const { View } = require('react-native');
-  return <View style={style} {...props}>{children}</View>;
+  
+  return (
+    <View style={{ flex: 1 }}>
+      {children}
+    </View>
+  );
 };
 
-// Fallback useSafeAreaInsets hook that returns default values
+const SafeAreaView = ({ children, style, ...props }: { children: any; style?: any; [key: string]: any }) => {
+  const { View } = require('react-native');
+  const { Platform, StatusBar } = require('react-native');
+  
+  // Add safe area padding
+  const statusBarHeight = Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 0;
+  const safeAreaStyle = {
+    paddingTop: statusBarHeight,
+    ...style
+  };
+  
+  return <View style={safeAreaStyle} {...props}>{children}</View>;
+};
+
+// useSafeAreaInsets hook with proper safe area values
 const useSafeAreaInsets = () => {
+  const { Platform, StatusBar } = require('react-native');
+  
   return {
-    top: 0,
-    bottom: 0,
+    top: Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 0,
+    bottom: Platform.OS === 'ios' ? 34 : 0, // Home indicator area
     left: 0,
     right: 0
   };
@@ -143,13 +160,13 @@ const AppContent = () => {
   };
 
   // Navigation function
-  const navigateTo = (screen, data = {}) => {
+  const navigateTo = (screen: string, data: any = {}) => {
     console.log('🔍 navigateTo called with screen:', screen, 'data:', data);
     console.log('🔍 Current screen before change:', currentScreen);
     
     // Add current screen to history if it's not already the last item
     if (currentScreen !== screen) {
-      setNavigationHistory((prev) => {
+      setNavigationHistory((prev: string[]) => {
         const newHistory = [...prev];
         if (newHistory[newHistory.length - 1] !== currentScreen) {
           newHistory.push(currentScreen);
@@ -172,7 +189,7 @@ const AppContent = () => {
       console.log('🔍 Going back to:', previousScreen);
       
       // Remove the last item from history (current screen)
-      setNavigationHistory((prev) => prev.slice(0, -1));
+      setNavigationHistory((prev: string[]) => prev.slice(0, -1));
       setCurrentScreen(previousScreen);
     } else {
       // If no history, go to dashboard as fallback
@@ -191,7 +208,7 @@ const AppContent = () => {
   };
 
   // Handle login success
-  const handleLoginSuccess = (customerData) => {
+  const handleLoginSuccess = (customerData: any) => {
     console.log('🔍 Customer login successful:', customerData);
     setIsAuthenticated(true);
     setCurrentScreen('dashboard');
@@ -470,12 +487,6 @@ const styles = StyleSheet.create({
   headerContent: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
-    textAlign: 'center',
   },
   backButton: {
     flexDirection: 'row',

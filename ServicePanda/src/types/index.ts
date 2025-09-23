@@ -99,8 +99,14 @@ export interface Activity {
 export interface ServiceCategory {
   id: number;
   name: string;
+  icon: string;
   description?: string;
-  isActive: boolean;
+  imageUrl?: string;
+  active: boolean;
+  popular: boolean;
+  trending: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   leadCost?: number;
 }
 
