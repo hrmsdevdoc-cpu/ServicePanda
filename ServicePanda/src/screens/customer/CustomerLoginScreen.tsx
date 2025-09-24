@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   header: {
-    paddingTop: 140,
+    paddingTop: Platform.OS === 'ios' ? 140 : 60, // Reduce top padding on Android
     paddingBottom: 20,
     paddingHorizontal: 20,
   },

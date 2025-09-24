@@ -245,7 +245,6 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
       // Make API call
       const response = await apiService.post('/api/service-requests', formData);
       
-      console.log('API response:', response);
       
       Alert.alert(
         'Service Request Submitted! 🎉', 
@@ -600,7 +599,7 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
                 <View style={styles.calendarGrid}>
                   {getCalendarDays().map((day, index) => (
                     <TouchableOpacity
-                      key={index}
+                      key={day.value}
                       style={[
                         styles.calendarDay,
                         !day.isCurrentMonth && styles.calendarDayOtherMonth,

@@ -60,9 +60,17 @@ class ApiService {
     try {
       console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
       
-      const response = await fetch(url, config);
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
       
-      console.log(`📡 API Response: ${response.status} ${response.statusText}`);
+      const response = await fetch(url, {
+        ...config,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -71,11 +79,16 @@ class ApiService {
       }
 
       const data = await response.json();
-      console.log(`✅ API Success:`, data);
       
       return data;
     } catch (error) {
       console.error(`💥 API Request Failed:`, error);
+      
+      // Handle timeout errors specifically
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - please check your connection');
+      }
+      
       throw error;
     }
   }

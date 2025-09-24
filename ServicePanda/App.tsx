@@ -2,6 +2,7 @@ const React = require('react');
 const { useState, useRef, useEffect } = require('react');
 const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
 const { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, StatusBar, Platform, Animated, Dimensions, Alert } = require('react-native');
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 // const { SafeAreaProvider, SafeAreaView } = require('react-native-safe-area-context');
 
 // SafeAreaProvider with proper safe area handling
@@ -276,7 +277,7 @@ const AppContent = () => {
       case 'requestService':
         return <RequestServiceScreen onNavigate={navigateTo} onBack={goBack} navigationData={navigationData} />;
       case 'trackRequest':
-        return <TrackRequestScreen onNavigate={navigateTo} onBack={goBack} />;
+        return <TrackRequestScreen onNavigate={navigateTo} onBack={goBack} isActive={currentScreen === 'trackRequest'} />;
       case 'profile':
         return <ProfileMenuScreen onNavigate={navigateTo} onLogout={handleLogout} />;
       case 'viewAllServices':
@@ -308,37 +309,42 @@ const AppContent = () => {
       { 
         id: 'home', 
         label: 'Home', 
-        icon: '🏠', 
+        icon: 'home',
         active: currentScreen === 'dashboard',
-        gradient: ['#667eea', '#764ba2']
+        gradient: ['#3B82F6', '#1D4ED8'],
+        iconColor: '#3B82F6'
       },
       { 
         id: 'requests', 
         label: 'Requests', 
-        icon: '📋', 
+        icon: 'assignment',
         active: currentScreen === 'trackRequest',
-        gradient: ['#f093fb', '#f5576c']
+        gradient: ['#6B7280', '#4B5563'],
+        iconColor: '#6B7280'
       },
       { 
         id: 'add', 
         label: 'Add', 
-        icon: '+', 
+        icon: 'add',
         isSpecial: true,
-        gradient: ['#4facfe', '#00f2fe']
+        gradient: ['#3B82F6', '#1D4ED8'],
+        iconColor: '#3B82F6'
       },
       { 
         id: 'review', 
         label: 'Review', 
-        icon: '⭐', 
+        icon: 'star',
         active: currentScreen === 'reviews',
-        gradient: ['#43e97b', '#38f9d7']
+        gradient: ['#F59E0B', '#D97706'],
+        iconColor: '#F59E0B'
       },
       { 
         id: 'profile', 
         label: 'Profile', 
-        icon: '👤', 
+        icon: 'person',
         active: currentScreen === 'profile',
-        gradient: ['#fa709a', '#fee140']
+        gradient: ['#1E40AF', '#1E3A8A'],
+        iconColor: '#1E40AF'
       }
     ];
 
@@ -358,7 +364,7 @@ const AppContent = () => {
                   <View style={styles.addButtonOuter}>
                     <View style={styles.addButtonContainer}>
                       <View style={styles.addButtonGlow} />
-                      <Text style={styles.addButtonIcon}>{item.icon}</Text>
+                      <Icon name={item.icon} size={24} color="white" style={{ fontWeight: 'bold' }} />
                     </View>
                   </View>
                   <Text style={styles.addButtonLabel}>{item.label}</Text>
@@ -395,16 +401,17 @@ const AppContent = () => {
                   {item.active && (
                     <View style={[styles.activeIndicator, { backgroundColor: item.gradient[0] }]} />
                   )}
-                  <Text style={[
-                    styles.footerIcon,
-                    item.active && styles.footerIconActive
-                  ]}>
-                    {item.icon}
-                  </Text>
+                  <Icon 
+                    name={item.icon} 
+                    size={item.active ? 24 : 22} 
+                    color={item.active ? item.gradient[0] : item.iconColor}
+                    style={{ fontWeight: 'bold' }}
+                  />
                 </View>
                 <Text style={[
                   styles.footerLabel,
-                  item.active && styles.footerLabelActive
+                  item.active && styles.footerLabelActive,
+                  { color: item.active ? item.gradient[0] : item.iconColor }
                 ]}>
                   {item.label}
                 </Text>
@@ -561,7 +568,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1000,
-    height: 90,
+    height: 100,
+    overflow: 'hidden',
   },
   footerBackground: {
     position: 'absolute',
@@ -570,81 +578,63 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 16,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
   },
   footerContent: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 34, // Account for safe area
-    paddingHorizontal: 16,
+    justifyContent: 'space-between', // Better distribution
+    paddingTop: 20,
+    paddingBottom: 30, // Account for safe area
+    paddingHorizontal: 8, // Minimal padding to maximize space
   },
   footerItem: {
     alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    minWidth: 60,
+    paddingHorizontal: 4,
+    borderRadius: 20,
+    minWidth: 0,
+    minHeight: 0,
     flex: 1,
     position: 'relative',
   },
   footerItemActive: {
-    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    backgroundColor: 'rgba(44, 122, 248, 0.1)', // Light blue background instead of dark
   },
   footerIconContainer: {
-    width: 20,
-    height: 25,
-    borderRadius: 10,
-    justifyContent: 'center',
+    width: 24,
+    height: 28,
+    borderRadius: 0,
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 1, // Reduced from 3 to 1
     position: 'relative',
   },
-  footerIconContainerActive: {
-    backgroundColor: 'rgba(0, 0, 0, 0.10)',
-  },
-  activeIndicator: {
-    position: 'absolute',
-    top: -1,
-    left: -1,
-    right: -1,
-    bottom: -1,
-    borderRadius: 13,
-    opacity: 0.15,
-  },
-  footerIcon: {
-    fontSize: 18,
-    opacity: 0.6,
-  },
-  footerIconActive: {
-    opacity: 1,
-    transform: [{ scale: 1.05 }],
-  },
+
   footerLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#8E8E93',
-    fontWeight: '500',
+    fontWeight: '600',
     textAlign: 'center',
+    numberOfLines: 1,
   },
   footerLabelActive: {
     color: '#000000',
-    fontWeight: '600',
+    fontWeight: '800',
   },
   // Modern Add Button Styles
   footerAddButton: {
     alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 4,
     borderRadius: 20,
-    minWidth: 70,
+    minWidth: 0,
     flex: 1,
     position: 'relative',
   },
@@ -661,27 +651,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   addButtonGlow: {
     position: 'absolute',
-    top: -4,
-    left: -4,
-    right: -4,
-    bottom: -4,
-    borderRadius: 32,
+    top: -3,
+    left: -3,
+    right: -3,
+    bottom: -3,
+    borderRadius: 27,
     backgroundColor: 'rgba(0, 122, 255, 0.2)',
     zIndex: -1,
-  },
-  addButtonIcon: {
-    fontSize: 28,
-    color: '#ffffff',
-    fontWeight: '300',
-    textAlign: 'center',
-    lineHeight: 28,
   },
   addButtonLabel: {
     fontSize: 11,
