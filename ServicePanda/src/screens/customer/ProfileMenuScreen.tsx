@@ -10,6 +10,7 @@ const {
   Dimensions,
   Animated
 } = require('react-native');
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 const { colors } = require('../../utils/theme');
 const { useTheme } = require('../../contexts/ThemeContext');
 
@@ -73,21 +74,24 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
           id: 'account',
           title: 'Account Details',
           subtitle: 'Manage your personal information',
-          icon: '👤',
+          icon: 'person',
+          iconColor: '#4CAF50',
           onPress: () => onNavigate('accountDetails')
         },
         {
           id: 'security',
           title: 'Security',
           subtitle: 'Password and security settings',
-          icon: '🔒',
+          icon: 'security',
+          iconColor: '#FF9800',
           onPress: () => onNavigate('changePassword')
         },
         {
           id: 'notifications',
           title: 'Notifications',
           subtitle: 'Manage your notification preferences',
-          icon: '🔔',
+          icon: 'notifications',
+          iconColor: '#2196F3',
           hasToggle: true,
           toggleValue: notificationsEnabled,
           onToggle: () => setNotificationsEnabled(!notificationsEnabled)
@@ -101,7 +105,8 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
           id: 'appearance',
           title: 'Appearance',
           subtitle: isDarkMode ? 'Dark Mode' : 'Light Mode',
-          icon: '🎨',
+          icon: 'palette',
+          iconColor: '#9C27B0',
           hasToggle: true,
           toggleValue: isDarkMode,
           onToggle: toggleTheme
@@ -110,7 +115,8 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
           id: 'language',
           title: 'Language',
           subtitle: 'Change your language preference',
-          icon: '🌐',
+          icon: 'language',
+          iconColor: '#00BCD4',
           onPress: () => Alert.alert('Coming Soon', 'Language settings coming soon!')
         }
       ]
@@ -122,14 +128,16 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
           id: 'help',
           title: 'Help & Support',
           subtitle: 'Get help and contact support',
-          icon: '❓',
+          icon: 'help',
+          iconColor: '#607D8B',
           onPress: () => onNavigate('helpSupport')
         },
         {
           id: 'feedback',
           title: 'Send Feedback',
           subtitle: 'Share your thoughts with us',
-          icon: '💬',
+          icon: 'feedback',
+          iconColor: '#795548',
           onPress: () => Alert.alert('Coming Soon', 'Feedback feature coming soon!')
         }
       ]
@@ -141,23 +149,25 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
           id: 'terms',
           title: 'Terms & Conditions',
           subtitle: 'Read our terms and conditions',
-          icon: '📄',
+          icon: 'description',
+          iconColor: '#3F51B5',
           onPress: () => onNavigate('termsConditions')
         },
         {
           id: 'privacy',
           title: 'Privacy Policy',
           subtitle: 'Learn how we protect your data',
-          icon: '🛡️',
+          icon: 'privacy-tip',
+          iconColor: '#E91E63',
           onPress: () => onNavigate('privacyPolicy')
         }
       ]
     }
   ];
 
-  const renderMenuSection = (section, index) => (
+  const renderMenuSection = (section, index, key) => (
     <Animated.View
-      key={section.title}
+      key={key}
       style={[
         styles.section,
         {
@@ -183,8 +193,8 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
               disabled={item.hasToggle}
             >
               <View style={styles.menuItemLeft}>
-                <View style={styles.menuItemIcon}>
-                  <Text style={styles.menuItemIconText}>{item.icon}</Text>
+                <View style={[styles.menuItemIcon, { backgroundColor: item.iconColor + '15' }]}>
+                  <Icon name={item.icon} size={24} color={item.iconColor} />
                 </View>
                 <View style={styles.menuItemText}>
                   <Text style={styles.menuItemTitle}>{item.title}</Text>
@@ -242,7 +252,7 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
       >
         {renderUserInfo()}
         
-        {menuSections.map((section, index) => renderMenuSection(section, index))}
+        {menuSections.map((section, index) => renderMenuSection(section, index, section.title))}
         
         {/* Logout Button */}
         <Animated.View
@@ -268,6 +278,7 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
             }}
             activeOpacity={0.7}
           >
+            <Icon name="logout" size={20} color={colors.surface} style={styles.logoutIcon} />
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -311,7 +322,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginRight: 16,
   },
   userAvatarText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: colors.surface,
   },
@@ -371,13 +382,13 @@ const createStyles = (colors) => StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
   menuItemIconText: {
     fontSize: 20,
+    fontWeight: 'bold',
   },
   menuItemText: {
     flex: 1,
@@ -405,12 +416,17 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.error,
     borderRadius: 12,
     paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  logoutIcon: {
+    marginRight: 8,
   },
   logoutButtonText: {
     fontSize: 16,

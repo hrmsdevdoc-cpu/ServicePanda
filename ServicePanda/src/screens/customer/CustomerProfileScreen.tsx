@@ -143,6 +143,21 @@ const CustomerProfileScreen = ({ navigation, onLogout }) => {
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       
       {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+        
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>⚙</Text>
+          <Text style={styles.headerTitleText}>Profile</Text>
+        </View>
+        
+        <View style={styles.headerSpacer} />
+      </View>
 
       <ScrollView 
         style={styles.scrollView}
@@ -264,12 +279,22 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
-  backButtonText: {
-    fontSize: 16,
+  backIcon: {
+    fontSize: 24,
     color: colors.primary,
-    fontWeight: '500',
+    fontWeight: 'bold',
+  },
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
+    fontSize: 28,
+    color: colors.primary,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  headerTitleText: {
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,

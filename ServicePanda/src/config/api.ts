@@ -18,7 +18,7 @@ const API_CONFIG = {
   }
 };
 
-// Force production API for live deployment
+// Use production API for login and registration
 const isDevelopment = false; // Set to false to use production API
 
 // Export current configuration - now using production API

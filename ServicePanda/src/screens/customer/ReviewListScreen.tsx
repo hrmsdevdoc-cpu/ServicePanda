@@ -2,6 +2,7 @@ const React = require('react');
 const { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated, Dimensions, StatusBar, ActivityIndicator, Alert } = require('react-native');
 const { colors } = require('../../utils/theme');
 const { apiService } = require('../../services/api');
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
 const { width, height } = Dimensions.get('window');
 
@@ -83,9 +84,13 @@ const ReviewListScreen = ({ onNavigate, onBack }) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       stars.push(
-        <Text key={i} style={[styles.star, { color: i <= rating ? colors.warning : colors.border }]}>
-          ⭐
-        </Text>
+        <Icon 
+          key={i} 
+          name="star" 
+          size={16} 
+          color={i <= rating ? colors.warning : colors.border}
+          style={styles.star}
+        />
       );
     }
     return <View style={styles.starContainer}>{stars}</View>;
@@ -102,15 +107,17 @@ const ReviewListScreen = ({ onNavigate, onBack }) => {
     return (
       <View style={styles.detailedRatings}>
         {ratingCategories.map((category, index) => (
-          <View key={index} style={styles.ratingRow}>
+          <View key={category.label} style={styles.ratingRow}>
             <Text style={styles.ratingLabel}>{category.label}:</Text>
             <View style={styles.miniStars}>
               {[1, 2, 3, 4, 5].map(star => (
-                <Text key={star} style={[styles.miniStar, { 
-                  color: star <= category.value ? colors.warning : colors.border 
-                }]}>
-                  ⭐
-                </Text>
+                <Icon 
+                  key={star} 
+                  name="star" 
+                  size={12} 
+                  color={star <= category.value ? colors.warning : colors.border}
+                  style={styles.miniStar}
+                />
               ))}
             </View>
             <Text style={styles.ratingValue}>{category.value}/5</Text>
@@ -188,7 +195,7 @@ const ReviewListScreen = ({ onNavigate, onBack }) => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyIcon}>⭐</Text>
+      <Icon name="star-border" size={64} color={colors.textSecondary} style={styles.emptyIcon} />
       <Text style={styles.emptyTitle}>No Reviews Yet</Text>
       <Text style={styles.emptyMessage}>
         Complete a service request to leave your first review and help other customers find great providers.
@@ -385,7 +392,6 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyIcon: {
-    fontSize: 64,
     marginBottom: 20,
   },
   emptyTitle: {

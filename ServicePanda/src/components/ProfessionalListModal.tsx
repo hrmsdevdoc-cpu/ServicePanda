@@ -5,12 +5,6 @@ const { colors } = require('../utils/theme');
 const { width, height } = Dimensions.get('window');
 
 const ProfessionalListModal = ({ visible, onClose, professionals, serviceRequest }) => {
-  console.log('🔍 ProfessionalListModal rendered with:', {
-    visible,
-    professionalsCount: professionals?.length || 0,
-    serviceRequest: serviceRequest?.id,
-    professionals: professionals
-  });
   
   // Don't return null - always render the modal if visible
   if (!visible) {
@@ -88,9 +82,6 @@ const ProfessionalListModal = ({ visible, onClose, professionals, serviceRequest
                 {professionals.length} professional{professionals.length > 1 ? 's' : ''} accepted your {serviceRequest?.category || 'service'} request.
               </Text>
             </View>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
           </View>
           
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
@@ -158,7 +149,6 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flex: 1,
-    marginRight: 10,
   },
   modalTitle: {
     fontSize: 18,
@@ -170,22 +160,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 18,
-    color: colors.primary,
-    fontWeight: 'bold',
   },
   modalContent: {
     padding: 20,

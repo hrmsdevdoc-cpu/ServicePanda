@@ -15,6 +15,7 @@ const useSafeAreaInsets = () => {
 };
 const { colors } = require('../../utils/theme');
 const { useTheme } = require('../../contexts/ThemeContext');
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 const { apiService } = require('../../services/api');
 const { API_BASE_URL } = require('../../config/api');
 const NotificationList = require('../../components/NotificationList');
@@ -489,7 +490,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
           </View>
           <TouchableOpacity style={styles.notificationButton} onPress={handleNotificationToggle}>
             <View style={styles.notificationButtonGlow} />
-            <Text style={styles.notificationIcon}>🔔</Text>
+            <Icon name="notifications" size={24} color="#FFFFFF" style={{ fontWeight: 'bold' }} />
             {unreadCount > 0 && (
               <View style={styles.notificationBadge}>
                 <Text style={styles.notificationBadgeText}>
@@ -535,7 +536,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
         id: 'request',
         title: 'Request Service',
         description: 'Get quotes from providers',
-        icon: '🔧',
+        icon: 'build',
         color: colors.primary,
         onPress: handleRequestService
       },
@@ -543,7 +544,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
         id: 'track',
         title: 'Track Request',
         description: 'Monitor your requests',
-        icon: '📊',
+        icon: 'track-changes',
         color: colors.success,
         onPress: () => onNavigate('trackRequest')
       },
@@ -551,7 +552,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
         id: 'review',
         title: 'Reviews',
         description: 'View your reviews',
-        icon: '⭐',
+        icon: 'star',
         color: colors.warning,
         onPress: () => onNavigate('reviews')
       },
@@ -559,7 +560,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
         id: 'profile',
         title: 'Profile',
         description: 'Manage your account',
-        icon: '👤',
+        icon: 'person',
         color: '#6B7280',
         onPress: () => onNavigate('profile')
       }
@@ -598,14 +599,14 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
                 style={[
                   styles.quickActionButton, 
                   { 
-                    backgroundColor: action.color + '15', // More visible color background
+                    backgroundColor: action.color + '25', // Darker color background
                     borderColor: Platform.OS === 'ios' ? action.color + '25' : action.color + '15', // More visible on iOS
                   }
                 ]}
                 onPress={action.onPress}
               >
                 <View style={[styles.quickActionIcon, { backgroundColor: action.color }]}>
-                  <Text style={styles.quickActionEmoji}>{action.icon}</Text>
+                  <Icon name={action.icon} size={24} color="#FFFFFF" style={{ fontWeight: 'bold' }} />
                 </View>
                 <Text style={styles.quickActionTitle}>{action.title}</Text>
                 <Text style={styles.quickActionDescription}>{action.description}</Text>
@@ -801,14 +802,14 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleContainer}>
             <Text style={styles.sectionTitle}>Popular Services</Text>
-            <Text style={styles.sectionSubtitle}>Choose from our top-rated services</Text>
+            {/* <Text style={styles.sectionSubtitle}></Text> */}
           </View>
           <TouchableOpacity 
             style={styles.viewAllButton}
             onPress={() => onNavigate('viewAllServices')}
           >
             <Text style={styles.viewAllText}>View All</Text>
-            <Text style={styles.viewAllIcon}>→</Text>
+            <Icon name="arrow-forward" size={16} color={colors.primary} style={{ fontWeight: 'bold' }} />
           </TouchableOpacity>
         </View>
         <ScrollView 
@@ -818,7 +819,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
         >
           {categories.map((category, index) => (
             <Animated.View
-              key={category.name}
+              key={category.id || `category-${index}`}
               style={[
                 styles.categoryCard,
                 {
@@ -849,7 +850,10 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
                   >
                     <View style={styles.categoryOverlay}>
                       <View style={styles.categoryRating}>
-                        <Text style={styles.categoryRatingText}>⭐ {category.rating}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Icon name="star" size={14} color="#FFD700" style={{ marginRight: 4 }} />
+                          <Text style={styles.categoryRatingText}>{category.rating}</Text>
+                        </View>
                         <Text style={styles.categoryReviewsText}>({category.reviews})</Text>
                       </View>
                     </View>
@@ -866,7 +870,10 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
                   >
                     <View style={styles.categoryOverlay}>
                       <View style={styles.categoryRating}>
-                        <Text style={styles.categoryRatingText}>⭐ {category.rating}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Icon name="star" size={14} color="#FFD700" style={{ marginRight: 4 }} />
+                          <Text style={styles.categoryRatingText}>{category.rating}</Text>
+                        </View>
                         <Text style={styles.categoryReviewsText}>({category.reviews})</Text>
                       </View>
                     </View>
@@ -946,7 +953,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
             onPress={() => onNavigate('viewAllServices')}
           >
             <Text style={styles.viewAllText}>View All</Text>
-            <Text style={styles.viewAllIcon}>→</Text>
+            <Icon name="arrow-forward" size={16} color={colors.primary} style={{ fontWeight: 'bold' }} />
           </TouchableOpacity>
         </View>
         <ScrollView 
@@ -970,17 +977,18 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
                     <Text style={styles.trendingBadgeText}>TRENDING</Text>
                   </View>
                   <View style={styles.trendingRating}>
-                    <Text style={styles.trendingRatingText}>⭐ {service.rating}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Icon name="star" size={14} color="#FFD700" style={{ marginRight: 4 }} />
+                      <Text style={styles.trendingRatingText}>{service.rating}</Text>
+                    </View>
                     <Text style={styles.trendingReviewsText}>({service.reviews})</Text>
                   </View>
                 </View>
               </ImageBackground>
               <View style={styles.trendingContent}>
                 <View style={styles.trendingHeader}>
-                  <Text style={[styles.trendingTitle, { color: colors.text }]}>{service.title}</Text>
-                  <View style={styles.trendingCategory}>
-                    <Text style={styles.trendingCategoryText}>{service.category}</Text>
-                  </View>
+                  <Text style={[styles.trendingCategoryText, { color: colors.text }]}>{service.title}</Text>
+
                 </View>
                 <Text style={[styles.trendingSubtitle, { color: colors.textSecondary }]}>{service.subtitle}</Text>
                 <View style={styles.trendingProvider}>
@@ -1034,7 +1042,7 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
             onPress={() => onNavigate('trackRequest')}
           >
             <Text style={styles.viewAllText}>View All</Text>
-            <Text style={styles.viewAllIcon}>→</Text>
+            <Icon name="arrow-forward" size={16} color={colors.primary} style={{ fontWeight: 'bold' }} />
           </TouchableOpacity>
         </View>
         <View style={styles.activityList}>
@@ -1252,7 +1260,7 @@ const createStyles = (colors) => StyleSheet.create({
     zIndex: -1,
   },
   avatarText: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.primary,
   },
@@ -1260,7 +1268,7 @@ const createStyles = (colors) => StyleSheet.create({
     flex: 1,
   },
   greetingText: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.surface,
     opacity: 0.9,
   },
@@ -1289,7 +1297,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   notificationIcon: {
-    fontSize: 24,
+    fontSize: 20,
     color: colors.surface,
     zIndex: 1,
   },
@@ -1313,7 +1321,7 @@ const createStyles = (colors) => StyleSheet.create({
     textAlign: 'center',
   },
   headerBottom: {
-    marginTop: 8,
+    marginTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 20 : 0, // Extra space for iOS
   },
   headerStats: {
@@ -1337,7 +1345,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.surface,
     opacity: 0.8,
   },
@@ -1353,18 +1361,18 @@ const createStyles = (colors) => StyleSheet.create({
     opacity: 0.9,
   },
   quickActionsContainer: {
-    paddingHorizontal: 16, // Reduced padding for better space utilization
-    marginBottom: 30,
+    paddingHorizontal: 12, // Reduced padding for better space utilization
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 6,
     letterSpacing: -0.5,
   },
   sectionSubtitle: {
-    fontSize: 15,
+    fontSize: 10,
     color: colors.textSecondary,
     opacity: 0.9,
     fontWeight: '500',
@@ -1380,35 +1388,40 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 24,
   },
   viewAllButton: {
-    backgroundColor: colors.primary + '15',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderWidth: 0,
+    backgroundColor: colors.primary + '10',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.primary + '20',
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   viewAllText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.primary,
-    marginRight: 6,
-  },
-  viewAllIcon: {
-    fontSize: 18,
-    color: colors.primary,
-    fontWeight: 'bold',
+    marginRight: 8,
+    letterSpacing: 0.5,
+    // Better text rendering on Android
+    ...Platform.select({
+      android: {
+        includeFontPadding: false,
+        textAlignVertical: 'center',
+      },
+    }),
   },
   quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     paddingHorizontal: 4, // Add padding for better spacing
+    marginTop: 20, // Add space from top
   },
   quickActionCard: {
     width: '48%', // Use percentage instead of calculated width
@@ -1422,23 +1435,8 @@ const createStyles = (colors) => StyleSheet.create({
     justifyContent: 'center', // Center content vertically
     flex: 1, // Take full available space
     minHeight: 120, // Ensure minimum height
-    // Platform-specific border styling
-    borderColor: colors.border + '30', // Fallback border color
-    ...Platform.select({
-      ios: {
-        borderWidth: 0.5,
-      },
-      android: {
-        borderWidth: 0.2,
-      },
-    }),
-    // iOS shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    // Android elevation - much more subtle
-    elevation: 1,
+    borderWidth: 0, // Remove all borders
+    // Clean look - no shadows or borders
   },
   quickActionIcon: {
     width: 48,
@@ -1452,12 +1450,12 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 22,
   },
   quickActionTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 16,
   },
   quickActionDescription: {
     fontSize: 11,
@@ -1474,34 +1472,34 @@ const createStyles = (colors) => StyleSheet.create({
     paddingRight: 20,
   },
   categoryCard: {
-    width: 240,
-    marginRight: 16,
+    width: 200,
+    marginRight: 12,
   },
   categoryButton: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    // borderRadius: 16,
     padding: 0,
     borderWidth: 0,
     overflow: 'hidden',
-    height: 260,
+    height: 220,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
     position: 'relative',
   },
   categoryImage: {
     width: '100%',
-    height: 140,
+    height: 120,
     justifyContent: 'space-between',
     backgroundColor: '#f0f0f0',
   },
   categoryImageStyle: {
-    borderRadius: 20,
+    borderRadius: 0,
   },
   categoryOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     padding: 16,
     flex: 1,
     justifyContent: 'space-between',
@@ -1511,7 +1509,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    // borderRadius: 12,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -1551,12 +1549,15 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 6,
   },
   categoryName: {
-    fontSize: 16,
+    fontSize: 11,
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     color: colors.text,
     flex: 1,
     marginRight: 10,
-    lineHeight: 20,
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   categoryCategory: {
     paddingHorizontal: 10,
@@ -1566,15 +1567,17 @@ const createStyles = (colors) => StyleSheet.create({
   categoryCategoryText: {
     fontSize: 11,
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   categoryDescription: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 16,
-    opacity: 0.8,
+    fontSize: 10,
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    color: colors.textSecondary,
+    lineHeight: 14,
+    opacity: 0.8,
     marginBottom: 10,
   },
   categoryProvider: {
@@ -1753,7 +1756,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 30,
   },
   heroTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 16,
   },
@@ -1781,8 +1784,10 @@ const createStyles = (colors) => StyleSheet.create({
     borderRadius: 16,
   },
   heroOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     padding: 20,
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   heroContent: {
     alignItems: 'flex-start',
@@ -1811,8 +1816,8 @@ const createStyles = (colors) => StyleSheet.create({
   },
   // Trending Services Styles
   trendingServicesContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
   emptyTrendingContainer: {
     alignItems: 'center',
@@ -1835,27 +1840,27 @@ const createStyles = (colors) => StyleSheet.create({
     paddingRight: 20,
   },
   trendingCard: {
-    width: 240,
-    marginRight: 16,
-    borderRadius: 16,
+    width: 200,
+    marginRight: 12,
+    // borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   trendingImage: {
     width: '100%',
-    height: 140,
+    height: 120,
     justifyContent: 'space-between',
     backgroundColor: '#f0f0f0',
   },
   trendingImageStyle: {
-    borderRadius: 20,
+    borderRadius: 0,
   },
   trendingOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     padding: 16,
     flex: 1,
     justifyContent: 'space-between',
@@ -1905,11 +1910,12 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 6,
   },
   trendingTitle: {
-    fontSize: 16,
+    fontSize: 11,
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     flex: 1,
     marginRight: 10,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   trendingCategory: {
     backgroundColor: colors.primary + '15',
@@ -1919,14 +1925,16 @@ const createStyles = (colors) => StyleSheet.create({
   },
   trendingCategoryText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     color: colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   trendingSubtitle: {
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     marginBottom: 10,
     lineHeight: 16,
     opacity: 0.8,
@@ -1936,9 +1944,9 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
   },
   trendingProviderText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.primary,
     opacity: 0.7,
   },
 });

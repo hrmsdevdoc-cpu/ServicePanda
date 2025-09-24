@@ -1,6 +1,7 @@
 const React = require('react');
 const { View, Text, TouchableOpacity, StyleSheet } = require('react-native');
 const { IconButton } = require('react-native-paper');
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 const { colors } = require('../utils/theme');
 
 interface NotificationIconProps {
@@ -32,13 +33,9 @@ function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification 
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <IconButton
-          icon="bell"
-          size={size}
-          iconColor={colors.text}
-          onPress={onPress}
-          style={styles.iconButton}
-        />
+        <TouchableOpacity onPress={onPress} style={styles.iconButton}>
+          <Icon name="notifications" size={size} color={colors.text} style={{ fontWeight: 'bold' }} />
+        </TouchableOpacity>
         {unreadCount > 0 && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>

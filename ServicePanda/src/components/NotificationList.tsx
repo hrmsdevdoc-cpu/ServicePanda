@@ -8,6 +8,7 @@ const {
   Modal,
   Dimensions 
 } = require('react-native');
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 const { colors } = require('../utils/theme');
 
 const { width, height } = Dimensions.get('window');
@@ -47,14 +48,14 @@ function NotificationList({
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'success':
-        return '✅';
+        return 'check-circle';
       case 'warning':
-        return '⚠️';
+        return 'warning';
       case 'error':
-        return '❌';
+        return 'error';
       case 'info':
       default:
-        return 'ℹ️';
+        return 'info';
     }
   };
 
@@ -126,9 +127,12 @@ function NotificationList({
     >
       <View style={styles.notificationHeader}>
         <View style={styles.notificationIconContainer}>
-          <Text style={styles.notificationIcon}>
-            {getNotificationIcon(notification.type)}
-          </Text>
+          <Icon 
+            name={getNotificationIcon(notification.type)} 
+            size={24} 
+            color={getNotificationColor(notification.type)}
+            style={{ fontWeight: 'bold' }}
+          />
         </View>
         <View style={styles.notificationContent}>
           <Text style={[
@@ -218,7 +222,7 @@ function NotificationList({
           <ScrollView style={styles.notificationsList} showsVerticalScrollIndicator={false}>
             {notifications.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyStateIcon}>🔔</Text>
+                <Icon name="notifications" size={48} color="#8E8E93" style={{ fontWeight: 'bold' }} />
                 <Text style={styles.emptyStateTitle}>No notifications yet</Text>
                 <Text style={styles.emptyStateMessage}>
                   You're all caught up! New notifications will appear here.
@@ -226,7 +230,7 @@ function NotificationList({
               </View>
             ) : unreadCount === 0 && !showReadNotifications ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyStateIcon}>✅</Text>
+                <Icon name="check-circle" size={48} color="#4CAF50" style={{ fontWeight: 'bold' }} />
                 <Text style={styles.emptyStateTitle}>All caught up!</Text>
                 <Text style={styles.emptyStateMessage}>
                   You have no unread notifications. All {readCount} notifications have been read.

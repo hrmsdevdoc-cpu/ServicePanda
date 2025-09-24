@@ -2,12 +2,13 @@ const React = require('react');
 const { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated, Dimensions, StatusBar, ActivityIndicator, Alert } = require('react-native');
 const { colors } = require('../../utils/theme');
 const { apiService } = require('../../services/api');
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 const ServiceRequestDetailModal = require('../../components/ServiceRequestDetailModal');
 const ProfessionalListModal = require('../../components/ProfessionalListModal');
 
 const { width, height } = Dimensions.get('window');
 
-const TrackRequestScreen = ({ onNavigate, onBack }) => {
+const TrackRequestScreen = ({ onNavigate, onBack, isActive }) => {
   const [refreshing, setRefreshing] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [selectedFilter, setSelectedFilter] = React.useState('all');
@@ -17,59 +18,55 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
   const [ serviceRequests,setServiceRequests] = React.useState([]);
   const [serviceCategories, setServiceCategories] = React.useState([]);
   const [error, setError] = React.useState(null);
-  const [isScreenFocused, setIsScreenFocused] = React.useState(false);
+  const [isScreenFocused, setIsScreenFocused] = React.useState(true);
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(30)).current;
   const scaleAnim = React.useRef(new Animated.Value(0.95)).current;
 
-  // Fetch service categories from API
-  const fetchServiceCategories = React.useCallback(async () => {
-    try {
-      console.log('🔄 Fetching service categories...');
-      const categories = await apiService.getServiceCategories();
-      console.log('✅ Fetched service categories:', categories);
-      setServiceCategories(categories || []);
-    } catch (error) {
-      console.error('❌ Error fetching service categories:', error);
-      setServiceCategories([]);
-    }
-  }, []);
 
   // Fetch service requests from API
   const fetchServiceRequests = React.useCallback(async () => {
     try {
+      console.log('🔄 Fetching service requests...');
       setLoading(true);
       setError(null);
-      console.log('🔄 Fetching service requests from API...');
       
-      const requests = await apiService.getMyServiceRequests();
-      console.log('✅ Fetched service requests:', requests);
+      // Fetch both service categories and requests in parallel to ensure categories are available
+      const [requests, categories] = await Promise.all([
+        apiService.getMyServiceRequests(),
+        apiService.getServiceCategories().catch(error => {
+          console.warn('⚠️ Failed to fetch service categories, using empty array:', error);
+          return [];
+        })
+      ]);
+      
+      // Update service categories state
+      setServiceCategories(categories || []);
       
       // Debug: Log the first request to see the structure
       if (requests.length > 0) {
-        console.log('🔍 First request structure:', JSON.stringify(requests[0], null, 2));
+        console.log('🔍 First request data:', {
+          id: requests[0].id,
+          title: requests[0].title,
+          serviceName: requests[0].serviceName,
+          categoryId: requests[0].categoryId,
+          categoryName: requests[0].categoryName,
+          description: requests[0].description?.substring(0, 50) + '...'
+        });
       }
       
-      // Transform API data to match our component structure
-      console.log('🔍 API returned requests:', requests.length);
-      console.log('🔍 First API request sample:', JSON.stringify(requests[0], null, 2));
+      // Debug: Log available service categories
+      console.log('📂 Available service categories:', categories.map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        icon: cat.icon
+      })));
       
+      // Transform API data to match our component structure
+
       const transformedRequests = requests.map((request, index) => {
-        // Debug: Log category fields for each request
-        if (index === 0) {
-          console.log('🔍 Full request object keys:', Object.keys(request));
-          console.log('🔍 Category fields available:', {
-            'request.category': request.category,
-            'request.categoryName': request.categoryName,
-            'request.serviceCategory': request.serviceCategory,
-            'request.serviceType': request.serviceType,
-            'request.title': request.title,
-            'request.description': request.description
-          });
-          console.log('🔍 All request properties:', request);
-        }
         // Map status to colors with better visual distinction
         const statusColor = {
           'active': '#10B981',        // Green - Active
@@ -82,58 +79,68 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
 
         // Map status to icons
         const statusIcons = {
-          'active': '🟢',
-          'pending': '🟡',
-          'completed': '✅',
-          'cancelled': '❌',
-          'expired': '⏰',
-          'in_progress': '🔵'
+          'active': 'radio-button-checked',
+          'pending': 'schedule',
+          'completed': 'check-circle',
+          'cancelled': 'cancel',
+          'expired': 'access-time',
+          'in_progress': 'play-circle-filled'
         };
-        const statusIcon = statusIcons[request.status?.toLowerCase()] || '🔵';
-         console.log('checking data',request);
-        // Use categoryName directly from API - this should now contain the actual service category name
-        let categoryName = request.categoryName || 'Service Request';
-        let categoryIcon = request.categoryIcon || '🔧';
+        const statusIcon = statusIcons[request.status?.toLowerCase()] || 'radio-button-unchecked';
+        // First try to get category name from serviceCategories using categoryId (most reliable)
+        let categoryName = 'Service Request';
+        let categoryIcon = 'build';
         
-        // If categoryName is still default, try to get from serviceCategories by ID
-        if (categoryName === 'Service Request' && request.categoryId && serviceCategories.length > 0) {
-          console.log(`🔍 Looking for category ID ${request.categoryId} in serviceCategories:`, serviceCategories);
-          const categoryData = serviceCategories.find(cat => cat.id === request.categoryId);
-          console.log(`🔍 Found category data:`, categoryData);
+        if (request.categoryId && categories && categories.length > 0) {
+          const categoryData = categories.find(cat => cat.id === request.categoryId);
           if (categoryData) {
             categoryName = categoryData.name || 'Service Request';
-            categoryIcon = categoryData.icon || '🔧';
+            categoryIcon = categoryData.icon || 'build';
           }
         }
         
-        // If still default, use description as fallback
-        if (categoryName === 'Service Request' && request.description) {
-          // Use first few words of description as title
-          const words = request.description.split(' ').slice(0, 3);
-          categoryName = words.join(' ');
+        // If no categoryId or not found in serviceCategories, use direct categoryName from API
+        if (categoryName === 'Service Request' && request.categoryName) {
+          categoryName = request.categoryName;
+          categoryIcon = request.categoryIcon || 'build';
         }
-
+        
+        // Final fallback - if we still don't have a proper category name, try to use serviceName
+        if (categoryName === 'Service Request' && request.serviceName) {
+          categoryName = request.serviceName;
+        }
+        
         // Use REAL professionals from API data - DYNAMIC like web version
         let requestProfessionals = request.professionals || request.acceptedProfessionals || [];
-        
-        console.log(`🔍 Request ${request.id}: Original professionals from API =`, requestProfessionals);
-        console.log(`🔍 Request ${request.id}: Professionals length =`, requestProfessionals.length);
-        console.log(`🔍 Request ${request.id}: offerMetrics =`, request.offerMetrics);
 
-        // Use the category name as the final title - this should be the actual service name
-        let finalTitle = categoryName;
+        // Determine the best title to use - prioritize actual service category name
+        let finalTitle;
+        if (request.title && request.title.trim()) {
+          // Use actual request title if available
+          finalTitle = request.title.trim();
+        } else if (request.serviceName && request.serviceName.trim()) {
+          // Use service name if available
+          finalTitle = request.serviceName.trim();
+        } else if (categoryName && categoryName !== 'Service Request') {
+          // Use actual service category name (this is what we want!)
+          finalTitle = categoryName;
+        } else {
+          // Final fallback - no description needed since we have categoryId
+          finalTitle = 'Service Request';
+        }
 
-        // Debug: Log what category name was extracted
-        console.log(`🔍 Request ${index + 1} mapping:`, {
-          'request.categoryId': request.categoryId,
-          'request.title': request.title,
-          'request.category': request.category,
-          'request.categoryName': request.categoryName,
-          'request.categoryIcon': request.categoryIcon,
-          'final categoryName': categoryName,
-          'final categoryIcon': categoryIcon,
-          'final title': finalTitle
-        });
+        // Debug: Log title decision for first request
+        if (index === 0) {
+          console.log('📝 Title decision (NO DESCRIPTION):', {
+            requestTitle: request.title,
+            serviceName: request.serviceName,
+            categoryId: request.categoryId,
+            categoryName: categoryName,
+            categoryIcon: categoryIcon,
+            finalTitle: finalTitle,
+            note: 'Using actual service category name from categoryId'
+          });
+        }
 
         const transformedRequest = {
           id: request.id || index + 1,
@@ -148,15 +155,7 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           originalDate: request.createdAt || request.created_at || request.date,
           preferredDate: request.preferredDate ? (() => {
             const date = new Date(request.preferredDate);
-            console.log(`🔍 Date formatting for request ${request.id}:`, {
-              'raw preferredDate': request.preferredDate,
-              'parsed date': date,
-              'toLocaleDateString': date.toLocaleDateString(),
-              'toISOString': date.toISOString(),
-              'getDate': date.getDate(),
-              'getMonth': date.getMonth(),
-              'getFullYear': date.getFullYear()
-            });
+
             
             // Format date to match web version (MMM d format)
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -179,31 +178,26 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           },
         };
         
-        console.log(`🔍 Request ${request.id}: Final transformed request professionals =`, transformedRequest.professionals);
-        console.log(`🔍 Request ${request.id}: Final transformed request professionals length =`, transformedRequest.professionals?.length);
-        
+
         return transformedRequest;
       });
       
-      console.log('🔍 Setting transformed requests:', transformedRequests.length);
-      console.log('🔍 First transformed request professionals:', transformedRequests[0]?.professionals);
       setServiceRequests(transformedRequests);
+      dataLoadedRef.current = true; // Mark data as loaded
     } catch (error) {
       console.error('❌ Error fetching service requests:', error);
       setError('Failed to load service requests. Please try again.');
+      dataLoadedRef.current = false; // Reset data loaded flag on error
       
-      // Fallback to dummy data for testing
-      console.log('⚠️ API failed, using dummy data');
-      console.log('🔍 This means we will use dummy data with professionals');
       const dummyRequests = [
         {
           id: 1,
           title: 'HVAC Repair',
           status: 'Active',
           statusColor: '#10B981',
-          statusIcon: '🟢',
+          statusIcon: 'radio-button-checked',
           category: 'HVAC',
-          icon: '❄️',
+          icon: 'ac-unit',
           date: '9/18/2025',
           preferredDate: '9/20/2025',
           location: 'Brisbane, 4000',
@@ -242,9 +236,9 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           title: 'Plumbing Service',
           status: 'Completed',
           statusColor: '#059669',
-          statusIcon: '✅',
+          statusIcon: 'check-circle',
           category: 'Plumbing',
-          icon: '🔧',
+          icon: 'build',
           date: '9/17/2025',
           preferredDate: '9/19/2025',
           location: 'Brisbane, 4000',
@@ -274,9 +268,9 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           title: 'Electrical Work',
           status: 'Pending',
           statusColor: '#F59E0B',
-          statusIcon: '🟡',
+          statusIcon: 'schedule',
           category: 'Electrical',
-          icon: '⚡',
+          icon: 'electrical-services',
           date: '9/16/2025',
           preferredDate: '9/21/2025',
           location: 'Brisbane, 4000',
@@ -296,9 +290,9 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           title: 'Cleaning Service',
           status: 'Cancelled',
           statusColor: '#EF4444',
-          statusIcon: '❌',
+          statusIcon: 'cancel',
           category: 'Cleaning',
-          icon: '🧹',
+          icon: 'cleaning-services',
           date: '9/15/2025',
           preferredDate: '9/18/2025',
           location: 'Brisbane, 4000',
@@ -318,9 +312,9 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           title: 'Garden Maintenance',
           status: 'Expired',
           statusColor: '#DC2626',
-          statusIcon: '⏰',
+          statusIcon: 'access-time',
           category: 'Landscaping',
-          icon: '🌱',
+          icon: 'yard',
           date: '9/10/2025',
           preferredDate: '9/12/2025',
           location: 'Brisbane, 4000',
@@ -336,17 +330,14 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
           }
         }
       ];
-      console.log('🔍 Setting dummy requests:', dummyRequests.length);
-      console.log('🔍 First dummy request professionals:', dummyRequests[0]?.professionals);
       setServiceRequests(dummyRequests);
     } finally {
       setLoading(false);
     }
-  }, [serviceCategories]);
+  }, []); // Remove serviceCategories dependency to prevent infinite re-renders
 
   // Debug: Log all unique status values
   const uniqueStatuses = [...new Set(serviceRequests.map(r => r.status))];
-  console.log('🔍 All unique status values:', uniqueStatuses);
 
   const filters = [
     { id: 'all', label: 'All', count: serviceRequests.length },
@@ -408,13 +399,14 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
 
     startAnimations();
     
-    // Fetch service categories and requests from API
-    fetchServiceCategories();
+    // Fetch service requests (which now also fetches categories)
     fetchServiceRequests();
-  }, [fetchServiceCategories, fetchServiceRequests]);
+  }, []); // Remove dependencies to prevent infinite re-renders
 
   // Add a ref to track if component is mounted
   const isMountedRef = React.useRef(true);
+  // Add a ref to track if data has been loaded to prevent unnecessary refetches
+  const dataLoadedRef = React.useRef(false);
   
   // Cleanup on unmount
   React.useEffect(() => {
@@ -423,11 +415,27 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
     };
   }, []);
 
+  // Refetch data when screen comes into focus
+  React.useEffect(() => {
+    if (isActive) {
+      // Add a small delay to prevent too many API calls
+      const timer = setTimeout(() => {
+        // Only refetch if there's an actual error and data hasn't been loaded yet
+        if (error && !dataLoadedRef.current) {
+          // Refetch data when screen becomes active and there's an error
+          fetchServiceRequests();
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isActive, error]);
+
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     await fetchServiceRequests();
     setRefreshing(false);
-  }, []);
+  }, [fetchServiceRequests]);
 
   const getFilteredRequests = () => {
     let filteredRequests;
@@ -459,7 +467,6 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
       const dateB = new Date(b.originalDate || b.requestDate || b.created_at || b.createdAt || b.date || 0);
       
       // Debug: Log sorting information
-      console.log(`🔍 Sorting: ${a.title} (${dateA.toISOString()}) vs ${b.title} (${dateB.toISOString()})`);
       
        // Sort newest first (descending order) - ensure dates are valid numbers
        const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
@@ -474,19 +481,13 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
   };
 
   const handleViewProfessionals = async (request) => {
-    console.log('🔍 Opening professionals modal for request:', request.id);
-    console.log('🔍 Professionals data:', request.professionals);
-    console.log('🔍 Request offerMetrics:', request.offerMetrics);
-    console.log('🔍 Number of professionals:', request.professionals?.length || 0);
-    console.log('🔍 Full request object:', JSON.stringify(request, null, 2));
+
     
     // If no professionals in request, try to fetch them from API
     if (!request.professionals || request.professionals.length === 0) {
-      console.log('🔍 No professionals in request, fetching from API...');
       try {
         // Try to fetch professionals for this specific request
         const professionals = await apiService.getRequestProfessionals(request.id);
-        console.log('🔍 Fetched professionals from API:', professionals);
         
         // Update the request with fetched professionals
         const updatedRequest = {
@@ -522,7 +523,6 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
     }
     
     setShowProfessionalModal(true);
-    console.log('✅ Modal state set to true');
   };
 
   const handleCallProvider = (request) => {
@@ -646,20 +646,10 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
       >
         <View style={styles.requestCardContent}>
            <View style={styles.requestHeader}>
-             <View style={styles.requestIconContainer}>
-               <View style={[styles.requestIcon, { backgroundColor: request.statusColor + '15' }]}>
-                 <Text style={styles.requestIconText}>{request.icon}</Text>
-               </View>
-               {/* NEW badge for recent requests */}
-               {isNew && (
-                 <View style={styles.newBadge}>
-                   <Text style={styles.newBadgeText}>NEW</Text>
-                 </View>
-               )}
-             </View>
+
              <View style={styles.requestInfo}>
                <View style={styles.titleRow}>
-                 <Text style={styles.requestTitle}>{request.title}</Text>
+                 <Text style={styles.requestTitle}>{request.title || request.serviceName || request.category || 'Service Request'}</Text>
                  {/* Show relative time for new requests */}
                  {isNew && (
                    <Text style={styles.timeAgo}>
@@ -671,9 +661,9 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
                         const minutesDiff = Math.floor(timeDiff / (1000 * 60));
                        
                        if (minutesDiff < 60) {
-                         return `${minutesDiff}m ago`;
+                         return `${minutesDiff}m ago `;
                        } else if (hoursDiff < 24) {
-                         return `${hoursDiff}h ago`;
+                         return `${hoursDiff}h ago `;
                        } else {
                          return 'Today';
                        }
@@ -681,8 +671,8 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
                    </Text>
                  )}
                </View>
-               <Text style={styles.requestCategory}>{request.category}</Text>
-               <Text style={styles.requestLocation}>{request.location}</Text>
+               <Text style={styles.requestCategory}>{request.description}</Text>
+               {/* <Text style={styles.requestLocation}>{request.location}</Text> */}
              </View>
              <View style={styles.statusContainer}>
                <View style={[
@@ -693,7 +683,7 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
                    borderWidth: 1
                  }
                ]}>
-                 <Text style={styles.statusIcon}>{request.statusIcon}</Text>
+                 <Icon name={request.statusIcon} size={12} color={request.statusColor} style={{ marginRight: 3, fontWeight: 'bold' }} />
                  <Text style={[styles.statusText, { color: request.statusColor }]}>
                    {request.status}
                  </Text>
@@ -727,23 +717,21 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
                style={[styles.actionButton, styles.detailsButton]}
                onPress={() => handleRequestPress(request)}
              >
-               <Text style={styles.actionButtonIcon}>👁️</Text>
+               <Icon name="visibility" size={16} color={colors.primary} style={{ marginRight: 6, fontWeight: 'bold' }} />
                <Text style={styles.actionButtonText}>View Details</Text>
              </TouchableOpacity>
              {(() => {
                // Use SAME logic as web version - check offerMetrics.acceptedOffers
                const acceptedCount = request.offerMetrics?.acceptedOffers || 0;
                
-               console.log(`🔍 Request ${request.id}: Button rendering - offerMetrics =`, request.offerMetrics);
-               console.log(`🔍 Request ${request.id}: acceptedCount =`, acceptedCount);
+
                
                // Show button if there are any accepted professionals/offers (DYNAMIC like web)
                return acceptedCount > 0 ? (
                  <TouchableOpacity 
                    style={[styles.actionButton, styles.professionalsButton]}
                    onPress={() => {
-                     console.log('🔍 Button clicked for request:', request.id);
-                     console.log('🔍 Button clicked - professionals =', request.professionals);
+                   
                      handleViewProfessionals(request);
                    }}
                    activeOpacity={0.7}
@@ -814,12 +802,6 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
 
   const filteredRequests = getFilteredRequests();
 
-  // Debug: Log modal state
-  console.log('🔍 Current modal states:', {
-    showDetailModal,
-    showProfessionalModal,
-    selectedRequestId: selectedRequest?.id
-  });
 
   return (
     <View style={styles.container}>
@@ -840,7 +822,10 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
          <View style={styles.heroSection}>
            <View style={styles.heroContent}>
              <View style={styles.heroTextContainer}>
-               <Text style={styles.heroGreeting}>📋 My Requests</Text>
+               <View style={styles.heroGreetingContainer}>
+                 <Icon name="assignment" size={16} color={colors.textSecondary} style={{ marginRight: 6, fontWeight: 'bold' }} />
+                 <Text style={styles.heroGreeting}>My Requests</Text>
+               </View>
                <Text style={styles.heroTitle}>Track your{'\n'}service requests</Text>
                <Text style={styles.heroSubtitle}>
                  Keep track of all your service requests and their current status
@@ -853,9 +838,9 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
                </TouchableOpacity>
              </View>
              <View style={styles.heroImageContainer}>
-               <Text style={styles.heroEmoji}>📊</Text>
+               <Icon name="analytics" size={32} color={colors.primary} style={{ fontWeight: 'bold' }} />
                <View style={styles.heroImageBg}>
-                 <Text style={styles.serviceIcon}>✅</Text>
+                 <Icon name="check-circle" size={24} color="#4CAF50" style={{ fontWeight: 'bold' }} />
                </View>
              </View>
            </View>
@@ -883,7 +868,6 @@ const TrackRequestScreen = ({ onNavigate, onBack }) => {
        <ProfessionalListModal
          visible={showProfessionalModal}
          onClose={() => {
-           console.log('🔍 Closing professionals modal');
            setShowProfessionalModal(false);
          }}
          professionals={selectedRequest?.professionals || []}
@@ -1094,11 +1078,15 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 16,
   },
+  heroGreetingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   heroGreeting: {
     fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '500',
-    marginBottom: 4,
   },
   heroTitle: {
     fontSize: 22,
@@ -1176,9 +1164,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  requestIconText: {
-    fontSize: 24,
-  },
   // NEW badge styles
   newBadge: {
     position: 'absolute',
@@ -1208,13 +1193,15 @@ const styles = StyleSheet.create({
     color: '#FF4444',
     fontWeight: '600',
     marginLeft: 8,
+    alignSelf: 'flex-start',
   },
   requestInfo: {
     flex: 1,
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
   requestTitle: {
