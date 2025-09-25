@@ -59,15 +59,91 @@ class NotificationService {
   async getNotifications(): Promise<Notification[]> {
     console.log('🔍 DEBUG: getNotifications called');
     
-    // Skip API call for now since provider notifications endpoint is not live yet
-    // Instead, convert activity data to notifications directly
     try {
-      const activities = await apiService.getActivity();
-      return this.convertActivitiesToNotifications(activities);
+      // Get notifications from multiple sources
+      const [activities, serverNotifications] = await Promise.allSettled([
+        // Source 1: Activities (price drops, expired offers, etc.)
+        apiService.getActivity(),
+        // Source 2: Server notifications (new customer requests) 
+        this.getServerNotifications()
+      ]);
+
+      let allNotifications: Notification[] = [];
+
+      // Process activity-based notifications (price drops, etc.)
+      if (activities.status === 'fulfilled' && activities.value) {
+        const activityNotifications = this.convertActivitiesToNotifications(activities.value);
+        allNotifications.push(...activityNotifications);
+        console.log(`📊 Found ${activityNotifications.length} activity-based notifications`);
+      }
+
+      // Process server notifications (new requests)
+      if (serverNotifications.status === 'fulfilled' && serverNotifications.value) {
+        allNotifications.push(...serverNotifications.value);
+        console.log(`📡 Found ${serverNotifications.value.length} server notifications`);
+      }
+
+      // Sort by timestamp (newest first)
+      allNotifications.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      console.log(`🔔 Total notifications: ${allNotifications.length}`);
+      return allNotifications;
+
     } catch (error) {
-      console.error('Error fetching activities for notifications:', error);
+      console.error('Error fetching notifications:', error);
       // Fallback to mock data without throwing error
       return this.getMockNotifications();
+    }
+  }
+
+  // Get notifications from server (new customer requests)
+  private async getServerNotifications(): Promise<Notification[]> {
+    try {
+      const response = await fetch(`${require('./api').API_BASE_URL}/api/provider/notifications/poll`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-provider-id': '1',
+        }
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        return [];
+      }
+
+      const data = await response.json();
+      const serverNotifs = data.notifications || [];
+      
+      // Convert server notifications to app notification format
+      return serverNotifs.map((notif: any) => ({
+        id: parseInt(notif.id) || Date.now(),
+        title: notif.title,
+        message: notif.message,
+        type: this.mapServerNotificationType(notif.type),
+        isRead: false,
+        timestamp: notif.timestamp || new Date().toISOString(),
+        category: 'lead' as const,
+        metadata: notif.data
+      }));
+
+    } catch (error) {
+      console.log('📄 Server notifications not available yet');
+      return [];
+    }
+  }
+
+  private mapServerNotificationType(serverType: string): 'info' | 'success' | 'warning' | 'error' {
+    switch (serverType) {
+      case 'customer_request': return 'info';
+      case 'payment': return 'success';
+      case 'urgent': return 'warning';
+      case 'error': return 'error';
+      default: return 'info';
     }
   }
 
