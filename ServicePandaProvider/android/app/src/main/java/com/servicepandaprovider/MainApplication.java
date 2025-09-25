@@ -10,6 +10,7 @@ import com.facebook.react.defaults.DefaultReactNativeHost;
 import com.facebook.soloader.SoLoader;
 import com.reactnativecommunity.asyncstorage.AsyncStoragePackage;
 import com.reactnative.ivpusic.imagepicker.PickerPackage;
+import com.servicepandaprovider.AndroidNotificationPackage;
 import java.util.List;
 import java.util.Arrays;
 
@@ -27,7 +28,9 @@ public class MainApplication extends Application implements ReactApplication {
           return Arrays.asList(
               new MainReactPackage(),
               new AsyncStoragePackage(),
-              new PickerPackage()
+              new PickerPackage(),
+              new AndroidNotificationPackage() // Custom Android notification module
+              // react-native-push-notification will auto-link
               // Add other packages here
           );
         }

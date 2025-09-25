@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import csv from 'csv-parser';
 import { smsService } from './smsService';
+import { providerNotificationService } from './providerNotificationService';
 
 // Load environment variables from .env file
 const envPath = path.resolve(process.cwd(), '.env');
@@ -2128,6 +2129,15 @@ export class DatabaseStorage implements IStorage {
         return;
       }
 
+      // Get service category name for notification
+      const category = await db
+        .select({ name: serviceCategories.name })
+        .from(serviceCategories)
+        .where(eq(serviceCategories.id, request.categoryId))
+        .limit(1);
+      
+      const categoryName = category.length > 0 ? category[0].name : 'Service';
+
       // Create distribution log
       await db
         .insert(leadDistributionLog)
@@ -2154,6 +2164,22 @@ export class DatabaseStorage implements IStorage {
           // Don't set expiresAt here - will be set when offer becomes active
           expiresAt: null,
         });
+      }
+
+      // 🔔 SEND NOTIFICATIONS TO ALL ELIGIBLE PROVIDERS
+      try {
+        const customerLocation = `${request.suburb}, ${request.postcode}`;
+        await providerNotificationService.notifyProvidersOfNewRequest(
+          requestId,
+          categoryName,
+          customerLocation,
+          request.description,
+          eligibleProviders
+        );
+        console.log(`📱 Notifications sent to ${eligibleProviders.length} providers for request ${requestId}`);
+      } catch (notificationError) {
+        console.error('Error sending notifications to providers:', notificationError);
+        // Don't fail the lead distribution if notifications fail
       }
 
       // Start the first offer

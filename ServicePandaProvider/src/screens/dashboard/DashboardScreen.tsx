@@ -34,7 +34,9 @@ const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
 const NotificationIcon = require('../../components/NotificationIcon');
 const NotificationList = require('../../components/NotificationList');
+import NotificationTestPanel from '../../components/NotificationTestPanel';
 const notificationService = require('../../services/notifications');
+import realTimeNotificationService from '../../services/realTimeNotificationService';
 // Import vector icons like customer app
 const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
@@ -52,6 +54,7 @@ function DashboardScreen({ onNavigate }) {
   const [notificationsVisible, setNotificationsVisible] = React.useState(false);
   const [notifications, setNotifications] = React.useState([]);
   const [notificationsLoading, setNotificationsLoading] = React.useState(false);
+  // Removed control panel and system notification states
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -316,6 +319,30 @@ function DashboardScreen({ onNavigate }) {
     fetchNotifications();
   }, [activities]); // Re-fetch notifications when activities change
 
+  // Listen for real-time notifications for system overlay
+  React.useEffect(() => {
+    try {
+      console.log('📱 Setting up notification listener...');
+      console.log('📱 realTimeNotificationService:', realTimeNotificationService);
+      console.log('📱 addListener function:', realTimeNotificationService?.addListener);
+      
+      if (realTimeNotificationService && typeof realTimeNotificationService.addListener === 'function') {
+        const unsubscribe = realTimeNotificationService.addListener((notification) => {
+          console.log('📱 Dashboard received system notification:', notification.title);
+          
+          // Show system notification overlay
+          console.log('🔔 Real-time notification received:', notification.title);
+        });
+
+        return unsubscribe;
+      } else {
+        console.error('📱 realTimeNotificationService.addListener is not available');
+      }
+    } catch (error) {
+      console.error('📱 Error setting up notification listener:', error);
+    }
+  }, []);
+
   // Animation effects on mount
   React.useEffect(() => {
     Animated.parallel([
@@ -412,6 +439,9 @@ function DashboardScreen({ onNavigate }) {
           </View>
         </LinearGradient>
       </View>
+
+
+      {/* Removed Dashboard Notification Bar */}
 
       {/* Sidebar */}
       {sidebarOpen && (
@@ -943,6 +973,10 @@ function DashboardScreen({ onNavigate }) {
               ))}
             </View>
           )}
+
+          {/* Notification Test Panel */}
+          <NotificationTestPanel />
+
         </View>
         </Animated.View>
       </ScrollView>
@@ -956,6 +990,8 @@ function DashboardScreen({ onNavigate }) {
         onNotificationPress={handleNotificationPress}
         onMarkAllAsRead={handleMarkAllAsRead}
       />
+
+      {/* Removed notification control panel and system overlay */}
 
     </View>
   );
@@ -1011,6 +1047,25 @@ const styles = StyleSheet.create({
   },
   notificationContainer: {
     marginLeft: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  controlPanelButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    marginRight: 8,
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 1000,
   },
   menuButton: {
     padding: 12,
