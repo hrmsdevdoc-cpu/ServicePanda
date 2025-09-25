@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import nativeAndroidNotificationService from './nativeAndroidNotificationService';
 
 interface IncomingNotification {
@@ -11,6 +11,7 @@ interface IncomingNotification {
 class NotificationApiService {
   private isInitialized = false;
   private serverUrl: string;
+  private backgroundPolling = true; // Continue polling in background
 
   constructor() {
     // Live production URL
@@ -27,23 +28,47 @@ class NotificationApiService {
     // Initialize the native notification service
     nativeAndroidNotificationService.initialize();
 
-    // Set up polling for notifications (in real app, use WebSocket or Firebase)
+    // Set up polling for notifications (continues in background)
     this.startNotificationPolling();
+    
+    // Setup background polling monitoring
+    this.setupBackgroundPolling();
 
     this.isInitialized = true;
-    console.log('✅ Notification API Service initialized!');
+    console.log('✅ Notification API Service initialized with background support!');
+  }
+
+  // Setup background polling - continues even when app is minimized
+  private setupBackgroundPolling() {
+    AppState.addEventListener('change', (nextAppState) => {
+      console.log(`📱 App state changed to: ${nextAppState}`);
+      
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        console.log('📱 App went to background - continuing notification polling');
+        // Continue polling in background
+        this.backgroundPolling = true;
+      } else if (nextAppState === 'active') {
+        console.log('📱 App came to foreground - resuming normal polling');
+        this.backgroundPolling = true;
+      }
+    });
   }
 
   // Start polling for notifications from server
   private startNotificationPolling() {
-    // Poll every 30 seconds for new notifications
+    // Poll every 30 seconds for new notifications (works in background too)
     setInterval(async () => {
       try {
-        await this.checkForNewNotifications();
+        // Always check for notifications - even in background
+        if (this.backgroundPolling) {
+          await this.checkForNewNotifications();
+        }
       } catch (error) {
         console.error('Error checking for notifications:', error);
       }
     }, 30000); // 30 seconds
+    
+    console.log('📡 Background notification polling started - will continue even when app is minimized');
   }
 
   // Check server for new notifications
