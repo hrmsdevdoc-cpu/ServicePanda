@@ -36,14 +36,14 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
-    
+
     console.log('🔍 API Request:', {
       url,
       method: options.method || 'GET',
       baseUrl: API_BASE_URL,
       endpoint
     });
-    
+
     const defaultHeaders = {
       'Content-Type': 'application/json',
     };
@@ -59,19 +59,19 @@ class ApiService {
 
     try {
       console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
-      
+
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
-      
+
       const response = await fetch(url, {
         ...config,
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
-      
+
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`❌ API Error: ${response.status} - ${errorText}`);
@@ -79,16 +79,16 @@ class ApiService {
       }
 
       const data = await response.json();
-      
+
       return data;
     } catch (error) {
       console.error(`💥 API Request Failed:`, error);
-      
+
       // Handle timeout errors specifically
       if (error.name === 'AbortError') {
         throw new Error('Request timeout - please check your connection');
       }
-      
+
       throw error;
     }
   }

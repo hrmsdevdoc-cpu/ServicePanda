@@ -949,6 +949,13 @@ function DashboardScreen({ onNavigate }) {
 
 
       {/* Notification List Modal */}
+      <NotificationList
+        visible={notificationsVisible}
+        notifications={notifications}
+        onClose={() => setNotificationsVisible(false)}
+        onNotificationPress={handleNotificationPress}
+        onMarkAllAsRead={handleMarkAllAsRead}
+      />
 
     </View>
   );
