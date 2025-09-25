@@ -3,6 +3,8 @@ const { useState, useEffect } = require('react');
 const { View, Text, StyleSheet, ScrollView, Alert, TextInput, Animated, Dimensions, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard } = require('react-native');
 const { Card, Title, Paragraph, Button, TextInput: PaperTextInput, HelperText } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 const { useQuery, useMutation, useQueryClient } = require('@tanstack/react-query');
 const { getProfile, updateProfile } = require('../../services/api');
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
@@ -268,7 +270,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
             </Text>
           </View>
           <View style={styles.modernHeaderIcon}>
-            <Text style={styles.modernHeaderEmoji}>👤</Text>
+            <Icon name="person" size={32} color="#EC4899" style={styles.modernHeaderEmoji} />
           </View>
         </View>
 
@@ -276,7 +278,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
         <View style={styles.modernCard}>
           <View style={styles.modernCardHeader}>
             <View style={styles.modernCardIcon}>
-              <Text style={styles.modernCardEmoji}>👤</Text>
+              <Icon name="person" size={24} color="#EC4899" style={styles.modernCardEmoji} />
             </View>
             <View style={styles.modernCardInfo}>
               <Text style={styles.modernCardTitle}>Personal Information</Text>
@@ -290,7 +292,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
             <View style={styles.modernInputGroup}>
               <Text style={styles.modernLabel}>First Name *</Text>
               <View style={styles.modernInputContainer}>
-                <Text style={styles.modernInputIcon}>👤</Text>
+                <Icon name="person" size={20} color="#EC4899" style={styles.modernInputIcon} />
                 <PaperTextInput
                   mode="outlined"
                   value={formData.firstName}
@@ -309,7 +311,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
             <View style={styles.modernInputGroup}>
               <Text style={styles.modernLabel}>Last Name *</Text>
               <View style={styles.modernInputContainer}>
-                <Text style={styles.modernInputIcon}>👤</Text>
+                <Icon name="person" size={20} color="#EC4899" style={styles.modernInputIcon} />
                 <PaperTextInput
                   mode="outlined"
                   value={formData.lastName}
@@ -346,7 +348,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
             <View style={styles.modernInputGroup}>
               <Text style={styles.modernLabel}>Mobile Number *</Text>
               <View style={styles.modernInputContainer}>
-                <Text style={styles.modernInputIcon}>📱</Text>
+                <Icon name="phone" size={20} color="#3B82F6" style={styles.modernInputIcon} />
                 <PaperTextInput
                   mode="outlined"
                   value={formData.mobileNumber}
@@ -366,7 +368,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
             <View style={styles.modernInputGroup}>
               <Text style={styles.modernLabel}>Business Address *</Text>
               <View style={styles.modernInputContainer}>
-                <Text style={styles.modernInputIcon}>📍</Text>
+                <Icon name="location-on" size={20} color="#10B981" style={styles.modernInputIcon} />
                 <PaperTextInput
                   mode="outlined"
                   value={formData.address}
@@ -383,7 +385,7 @@ const PersonalDetailsScreen = ({ onNavigate, onBack }: PersonalDetailsScreenProp
               </View>
               {errors.address && <Text style={styles.modernErrorText}>{errors.address}</Text>}
               <Text style={styles.modernWarningText}>
-                ⚠️ Please select from suggestions to verify address
+                <Icon name="warning" size={16} color="#F59E0B" /> Please select from suggestions to verify address
               </Text>
             </View>
           </View>

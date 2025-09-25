@@ -57,6 +57,7 @@ class NotificationService {
   }
 
   async getNotifications(): Promise<Notification[]> {
+    console.log('🔍 DEBUG: getNotifications called');
     try {
       // First try to get real notifications from the API
       const response = await apiService.get('/api/provider/notifications');
@@ -65,6 +66,7 @@ class NotificationService {
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      // Continue to fallback instead of throwing
     }
 
     // If no real notifications, convert activity data to notifications
@@ -73,7 +75,7 @@ class NotificationService {
       return this.convertActivitiesToNotifications(activities);
     } catch (error) {
       console.error('Error fetching activities for notifications:', error);
-      // Fallback to mock data
+      // Fallback to mock data without throwing error
       return this.getMockNotifications();
     }
   }

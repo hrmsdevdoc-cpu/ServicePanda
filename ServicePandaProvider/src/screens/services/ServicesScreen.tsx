@@ -13,95 +13,132 @@ import {
 import { Card, Title, Paragraph, Button } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 const { colors } = require('../../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 const apiService = require('../../services/api');
 
 const { width } = Dimensions.get('window');
 
-// Service icons mapping - comprehensive service categories
-const serviceIcons = {
+// Service icons mapping - comprehensive service categories with vector icons
+const getServiceIcon = (serviceName: string) => {
+  const service = serviceName.toLowerCase();
+  
   // Cleaning Services
-  'Domestic Cleaning': '✨',
-  'Bond Cleaning': '🏢',
-  'Carpet Cleaning': '🏠',
-  'Window Cleaning': '🪟',
-  'Pressure Cleaning': '💨',
-  'Gutter Cleaning': '🌧️',
+  if (service.includes('cleaning') || service.includes('clean')) {
+    return { name: 'cleaning-services', color: '#3B82F6' };
+  }
   
   // Home Maintenance
-  'Handyman': '🔧',
-  'Electrical': '⚡',
-  'Plumbing': '💧',
-  'Air Conditioning': '❄️',
-  'Appliance Repair': '🔧',
-  'Locksmith': '🔒',
-  'Painting': '🎨',
-  'Roofing': '🏠',
+  if (service.includes('handyman') || service.includes('repair')) {
+    return { name: 'build', color: '#8B5CF6' };
+  }
+  if (service.includes('electrical') || service.includes('electric')) {
+    return { name: 'electrical-services', color: '#F59E0B' };
+  }
+  if (service.includes('plumbing') || service.includes('water')) {
+    return { name: 'plumbing', color: '#06B6D4' };
+  }
+  if (service.includes('air conditioning') || service.includes('ac')) {
+    return { name: 'ac-unit', color: '#10B981' };
+  }
+  if (service.includes('locksmith') || service.includes('lock')) {
+    return { name: 'lock', color: '#EF4444' };
+  }
+  if (service.includes('painting') || service.includes('paint')) {
+    return { name: 'format-paint', color: '#EC4899' };
+  }
+  if (service.includes('roofing') || service.includes('roof')) {
+    return { name: 'home', color: '#6B7280' };
+  }
   
   // Garden & Landscaping
-  'Gardening': '🌱',
-  'Tree Services': '🌳',
-  'Lawn Mowing': '🌿',
-  'Landscaping': '🌺',
-  'Pruning': '✂️',
-  'Hedge Trimming': '🌳',
-  'Garden Design': '🎨',
-  'Irrigation': '💧',
-  'Mulching': '🍂',
-  'Weed Control': '🌿',
+  if (service.includes('garden') || service.includes('landscap') || service.includes('lawn')) {
+    return { name: 'park', color: '#10B981' };
+  }
+  if (service.includes('tree') || service.includes('pruning') || service.includes('hedge')) {
+    return { name: 'park', color: '#059669' };
+  }
+  if (service.includes('irrigation') || service.includes('water')) {
+    return { name: 'water-drop', color: '#06B6D4' };
+  }
   
   // Construction & Renovation
-  'Fencing': '🚧',
-  'Tiling': '🔲',
-  'Carpentry': '🪚',
-  'Flooring': '🏠',
-  'Decking': '🪵',
-  'Pergolas': '🏗️',
-  'Concrete Work': '🏗️',
-  'Retaining Walls': '🧱',
-  'Insulation': '🧱',
-  'Waterproofing': '💦',
+  if (service.includes('fencing') || service.includes('fence')) {
+    return { name: 'fence', color: '#8B5CF6' };
+  }
+  if (service.includes('tiling') || service.includes('tile')) {
+    return { name: 'grid-on', color: '#6B7280' };
+  }
+  if (service.includes('carpentry') || service.includes('wood')) {
+    return { name: 'carpenter', color: '#D97706' };
+  }
+  if (service.includes('flooring') || service.includes('floor')) {
+    return { name: 'layers', color: '#6B7280' };
+  }
+  if (service.includes('decking') || service.includes('deck')) {
+    return { name: 'deck', color: '#D97706' };
+  }
+  if (service.includes('concrete') || service.includes('construction')) {
+    return { name: 'construction', color: '#6B7280' };
+  }
   
   // Pool Services
-  'Pool Maintenance': '🏊',
-  'Pool Cleaning': '🧽',
-  'Pool Repairs': '🔧',
-  'Pool Equipment': '⚙️',
-  'Pool Heating': '🌡️',
-  'Pool Safety': '🛡️',
-  'Pool Tiles': '🔲',
-  'Pool Resurfacing': '🔄',
-  'Pool Renovation': '🏊',
+  if (service.includes('pool')) {
+    return { name: 'pool', color: '#06B6D4' };
+  }
   
   // Security & Safety
-  'Security Systems': '🔐',
-  'Garage Door Repair': '🚪',
-  'Gate Repair': '🚧',
+  if (service.includes('security') || service.includes('safety')) {
+    return { name: 'security', color: '#EF4444' };
+  }
+  if (service.includes('garage') || service.includes('gate')) {
+    return { name: 'garage', color: '#6B7280' };
+  }
   
   // Energy & Technology
-  'Solar Installation': '☀️',
-  'TV Mounting': '📺',
-  'Outdoor Lighting': '💡',
+  if (service.includes('solar') || service.includes('energy')) {
+    return { name: 'solar-power', color: '#F59E0B' };
+  }
+  if (service.includes('tv') || service.includes('mounting')) {
+    return { name: 'tv', color: '#3B82F6' };
+  }
+  if (service.includes('lighting') || service.includes('light')) {
+    return { name: 'lightbulb', color: '#F59E0B' };
+  }
   
   // Moving & Transport
-  'Removals': '🚚',
-  'Rubbish Removal': '🗑️',
-  'Furniture Assembly': '🪑',
+  if (service.includes('removal') || service.includes('moving')) {
+    return { name: 'local-shipping', color: '#8B5CF6' };
+  }
+  if (service.includes('rubbish') || service.includes('waste')) {
+    return { name: 'delete', color: '#6B7280' };
+  }
+  if (service.includes('furniture') || service.includes('assembly')) {
+    return { name: 'chair', color: '#D97706' };
+  }
   
   // Specialized Services
-  'Pest Control': '🐛',
-  'Curtains & Blinds': '🪟',
-  'Driveway Repair': '🛣️',
-  'Pathway Installation': '🛤️',
-  'BBQ Installation': '🔥',
-  'Outdoor Kitchens': '🍳',
-  'Fire Pits': '🔥',
-  'Outdoor Furniture': '🪑',
-  'Spa Installation': '🛁',
-  'Pond Installation': '🐠',
+  if (service.includes('pest') || service.includes('control')) {
+    return { name: 'bug-report', color: '#EF4444' };
+  }
+  if (service.includes('curtain') || service.includes('blind')) {
+    return { name: 'curtains', color: '#8B5CF6' };
+  }
+  if (service.includes('driveway') || service.includes('pathway')) {
+    return { name: 'road', color: '#6B7280' };
+  }
+  if (service.includes('bbq') || service.includes('fire')) {
+    return { name: 'outdoor-grill', color: '#EF4444' };
+  }
+  if (service.includes('kitchen') || service.includes('outdoor')) {
+    return { name: 'kitchen', color: '#F59E0B' };
+  }
+  if (service.includes('spa') || service.includes('pond')) {
+    return { name: 'spa', color: '#06B6D4' };
+  }
   
-  // Test/Demo
-  'Demo': '🏠',
-  'Test Service': '🏠',
+  // Default fallback
+  return { name: 'build', color: '#6B7280' };
 };
 
 const ServicesScreen = ({ onNavigate, onBack }: { onNavigate?: (screen: string) => void; onBack?: () => void }) => {
@@ -249,7 +286,7 @@ const ServicesScreen = ({ onNavigate, onBack }: { onNavigate?: (screen: string) 
           {/* Services Grid */}
           <View style={styles.servicesGrid}>
             {categories.map((category: any) => {
-              const icon = serviceIcons[category.name as keyof typeof serviceIcons] || '🔧';
+              const iconInfo = getServiceIcon(category.name);
               const isSelected = selectedServices.includes(category.id);
               
               return (
@@ -266,7 +303,12 @@ const ServicesScreen = ({ onNavigate, onBack }: { onNavigate?: (screen: string) 
                     styles.serviceIcon,
                     isSelected && styles.serviceIconSelected
                   ]}>
-                    <Text style={styles.serviceIconText}>{icon}</Text>
+                    <Icon 
+                      name={iconInfo.name} 
+                      size={24} 
+                      color={isSelected ? '#FFFFFF' : iconInfo.color} 
+                      style={styles.serviceIconText} 
+                    />
                   </View>
                   <Text style={[
                     styles.serviceName,

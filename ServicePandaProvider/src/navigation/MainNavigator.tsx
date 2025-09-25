@@ -4,6 +4,8 @@ const { createStackNavigator } = require('@react-navigation/stack');
 const { IconButton } = require('react-native-paper');
 const { colors } = require('../utils/theme');
 const { Text } = require('react-native');
+// Import vector icons like customer app
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
 // Import screens
 const DashboardScreen = require('../screens/dashboard/DashboardScreen');
@@ -17,10 +19,38 @@ const ServicesScreen = require('../screens/services/ServicesScreen');
 const ServiceAreaScreen = require('../screens/services/ServiceAreaScreen');
 const DocumentsScreen = require('../screens/documents/DocumentsScreen');
 const PaymentScreen = require('../screens/payment/PaymentScreen');
+const CreditsScreen = require('../screens/credits/CreditsScreen');
+const BillingScreen = require('../screens/billing/BillingScreen');
 
 const Tab = createBottomTabNavigator();
 const LeadsStack = createStackNavigator();
 const ServicesStack = createStackNavigator();
+
+// Direct icon rendering function
+const renderFooterIcon = (routeName, focused, size) => {
+  const iconColor = focused ? colors.primary : colors.textSecondary;
+  
+  // Test with emoji first to see if function is called
+  const emojiMap = {
+    'Dashboard': '🏠',
+    'Leads': '🎯',
+    'Credits': '🎁',
+    'Billing': '💳',
+    'Profile': '👤',
+    'TestTab': '🧪'
+  };
+  
+  console.log('renderFooterIcon called for:', routeName, 'focused:', focused);
+  
+  // Return emoji for testing
+  return React.createElement(Text, { 
+    style: { 
+      fontSize: size, 
+      color: iconColor,
+      fontWeight: focused ? 'bold' : 'normal'
+    } 
+  }, 'TEST' + (emojiMap[routeName] || '🏠'));
+};
 
 function LeadsNavigator() {
   return (
@@ -91,34 +121,8 @@ function MainTabs({ onLogout }) {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          switch (route.name) {
-            case 'Dashboard':
-              iconName = '🏠';
-              break;
-            case 'Leads':
-              iconName = '🎯';
-              break;
-            case 'Services':
-              iconName = '🔧';
-              break;
-            case 'Profile':
-              iconName = '👤';
-              break;
-            default:
-              iconName = '🏠';
-          }
-
-          return (
-            <Text style={{
-              fontSize: size,
-              color: focused ? colors.primary : color,
-              fontWeight: focused ? 'bold' : 'normal',
-            }}>
-              {iconName}
-            </Text>
-          );
+          console.log('Footer Icon Called:', route.name, focused);
+          return renderFooterIcon(route.name, focused, size || 24);
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
@@ -150,8 +154,8 @@ function MainTabs({ onLogout }) {
       <Tab.Screen 
         name="Dashboard" 
         options={{ 
-          title: 'Dashboard',
-          tabBarLabel: 'Dashboard'
+          title: 'Home',
+          tabBarLabel: 'Home'
         }}
       >
         {(props) => <DashboardScreen {...props} onLogout={onLogout} />}
@@ -166,14 +170,23 @@ function MainTabs({ onLogout }) {
         }}
       />
       <Tab.Screen 
-        name="Services" 
-        component={ServicesNavigator}
+        name="Credits" 
         options={{ 
-          title: 'Services', 
-          headerShown: false,
-          tabBarLabel: 'Services'
+          title: 'Credits',
+          tabBarLabel: 'Credits'
         }}
-      />
+      >
+        {(props) => <CreditsScreen {...props} onLogout={onLogout} />}
+      </Tab.Screen>
+      <Tab.Screen 
+        name="Billing" 
+        options={{ 
+          title: 'Billing',
+          tabBarLabel: 'Billing'
+        }}
+      >
+        {(props) => <BillingScreen {...props} onLogout={onLogout} />}
+      </Tab.Screen>
       <Tab.Screen 
         name="Profile" 
         options={{ 
@@ -182,6 +195,15 @@ function MainTabs({ onLogout }) {
         }}
       >
         {(props) => <ProfileScreen {...props} onLogout={onLogout} />}
+      </Tab.Screen>
+      <Tab.Screen 
+        name="TestTab" 
+        options={{ 
+          title: 'Test',
+          tabBarLabel: 'Test'
+        }}
+      >
+        {() => <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text>Test Tab</Text></View>}
       </Tab.Screen>
     </Tab.Navigator>
   );

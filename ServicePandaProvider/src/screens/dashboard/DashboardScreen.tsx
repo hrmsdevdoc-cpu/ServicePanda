@@ -35,6 +35,8 @@ const { colors } = require('../../utils/theme');
 const NotificationIcon = require('../../components/NotificationIcon');
 const NotificationList = require('../../components/NotificationList');
 const notificationService = require('../../services/notifications');
+// Import vector icons like customer app
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
 const { width } = Dimensions.get('window');
 
@@ -206,17 +208,34 @@ function DashboardScreen({ onNavigate }) {
   const getActivityIcon = (activityType) => {
     switch (activityType) {
       case 'lead_purchased':
-        return '✅';
+        return 'check-circle';
       case 'lead_lost':
-        return '❌';
+        return 'cancel';
       case 'offer_expired':
-        return '⏰';
+        return 'schedule';
       case 'new_offer':
-        return '🎯';
+        return 'fiber-new';
       case 'price_drop':
-        return '📉';
+        return 'trending-down';
       default:
-        return '📋';
+        return 'assignment';
+    }
+  };
+
+  const getActivityIconColor = (activityType) => {
+    switch (activityType) {
+      case 'lead_purchased':
+        return '#10B981';
+      case 'lead_lost':
+        return '#EF4444';
+      case 'offer_expired':
+        return '#F59E0B';
+      case 'new_offer':
+        return '#3B82F6';
+      case 'price_drop':
+        return '#8B5CF6';
+      default:
+        return '#6B7280';
     }
   };
 
@@ -366,11 +385,11 @@ function DashboardScreen({ onNavigate }) {
               style={styles.menuButton}
               onPress={openSidebar}
             >
-              <Text style={styles.menuIcon}>☰</Text>
+              <Icon name="menu" size={20} color="#ffffff" />
             </TouchableOpacity>
             <View style={styles.headerMainContent}>
               <View style={styles.logoContainer}>
-                <Text style={styles.logo}>💼</Text>
+                <Icon name="business" size={24} color="#ffffff" style={styles.logo} />
                 <View style={styles.logoGlow} />
               </View>
               <View style={styles.titleContainer}>
@@ -434,7 +453,7 @@ function DashboardScreen({ onNavigate }) {
                   style={styles.closeButton}
                   onPress={closeSidebar}
                 >
-                  <Text style={styles.closeButtonText}>✕</Text>
+                  <Icon name="close" size={16} color="#1e293b" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -464,7 +483,7 @@ function DashboardScreen({ onNavigate }) {
                 onPress={() => handleNavigation('dashboard')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.sidebarIcon}>📊</Text>
+                <Icon name="dashboard" size={18} color={colors.primary} style={styles.sidebarIcon} />
                 <Text style={[styles.sidebarText, styles.activeText]}>Dashboard</Text>
                 {/* <View style={styles.notificationBadge}>
                   <Text style={styles.notificationBadgeText}>3</Text>
@@ -477,11 +496,14 @@ function DashboardScreen({ onNavigate }) {
                   style={styles.sidebarSectionHeader}
                   onPress={() => toggleSection('leads')}
                 >
-                  <Text style={styles.sidebarIcon}>🎯</Text>
+                  <Icon name="assignment" size={18} color={colors.text} style={styles.sidebarIcon} />
                   <Text style={styles.sidebarText}>Leads</Text>
-                  <Text style={styles.expandIcon}>
-                    {expandedSections.leads ? '▼' : '▶'}
-                  </Text>
+                  <Icon 
+                    name={expandedSections.leads ? "expand-more" : "chevron-right"} 
+                    size={16} 
+                    color={colors.textSecondary} 
+                    style={styles.expandIcon}
+                  />
                 </TouchableOpacity>
                 
                 {expandedSections.leads && (
@@ -490,28 +512,28 @@ function DashboardScreen({ onNavigate }) {
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('leads')}
                     >
-                      <Text style={styles.sidebarSubIcon}>📊</Text>
+                      <Icon name="assessment" size={24} color="#3B82F6" style={styles.sidebarSubIcon} />
                       <Text style={styles.sidebarSubText}>All Leads</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('newLeads')}
                     >
-                      <Text style={styles.sidebarSubIcon}>🆕</Text>
+                      <Icon name="fiber-new" size={24} color="#10B981" style={styles.sidebarSubIcon} />
                       <Text style={styles.sidebarSubText}>New Leads</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('activeLeads')}
                     >
-                      <Text style={styles.sidebarSubIcon}>⚡</Text>
+                      <Icon name="flash-on" size={24} color="#F59E0B" style={styles.sidebarSubIcon} />
                       <Text style={styles.sidebarSubText}>Active Leads</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('closedLeads')}
                     >
-                      <Text style={styles.sidebarSubIcon}>✅</Text>
+                      <Icon name="check-circle" size={24} color="#10B981" style={styles.sidebarSubIcon} />
                       <Text style={styles.sidebarSubText}>Closed Leads</Text>
                     </TouchableOpacity>
                   </View>
@@ -524,11 +546,14 @@ function DashboardScreen({ onNavigate }) {
                   style={styles.sidebarSectionHeader}
                   onPress={() => toggleSection('settings')}
                 >
-                  <Text style={styles.sidebarIcon}>⚙️</Text>
+                  <Icon name="settings" size={18} color={colors.text} style={styles.sidebarIcon} />
                   <Text style={styles.sidebarText}>Settings</Text>
-                  <Text style={styles.expandIcon}>
-                    {expandedSections.settings ? '▼' : '▶'}
-                  </Text>
+                  <Icon 
+                    name={expandedSections.settings ? "expand-more" : "chevron-right"} 
+                    size={16} 
+                    color={colors.textSecondary} 
+                    style={styles.expandIcon}
+                  />
                 </TouchableOpacity>
                 
                 {expandedSections.settings && (
@@ -537,28 +562,28 @@ function DashboardScreen({ onNavigate }) {
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('personalDetails')}
                     >
-                      <Text style={styles.sidebarSubIcon}>👤</Text>
+                      <Icon name="person" size={24} color="#EC4899" style={styles.sidebarSubIcon} />
                       <Text style={styles.sidebarSubText}>Personal Details</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('services')}
                     >
-                      <Text style={styles.sidebarSubIcon}>🔧</Text>
+                      <Icon name="build" size={24} color="#3B82F6" style={styles.sidebarSubIcon} />
                       <Text style={styles.sidebarSubText}>Services</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('serviceArea')}
                     >
-                      <Text style={styles.sidebarSubIcon}>📍</Text>
+                      <Icon name="location-on" size={24} color="#10B981" style={styles.sidebarSubIcon} />
                       <Text style={styles.sidebarSubText}>Service Area</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={styles.sidebarSubItem}
                       onPress={() => handleNavigation('documents')}
                     >
-                      <Text style={styles.sidebarSubIcon}>📄</Text>
+                      <Icon name="description" size={24} color="#8B5CF6" style={styles.sidebarSubIcon} />
                       <Text style={styles.sidebarSubText}>Documents</Text>
                     </TouchableOpacity>
                   </View>
@@ -571,7 +596,7 @@ function DashboardScreen({ onNavigate }) {
                   style={styles.sidebarItem}
                   onPress={() => handleNavigation('payment')}
                 >
-                  <Text style={styles.sidebarIcon}>💳</Text>
+                  <Icon name="payment" size={22} color="#3B82F6" style={styles.sidebarIcon} />
                   <Text style={styles.sidebarText}>Payment</Text>
                 </TouchableOpacity>
               </View>
@@ -581,7 +606,7 @@ function DashboardScreen({ onNavigate }) {
                   style={styles.sidebarItem}
                   onPress={() => handleNavigation('credits')}
                 >
-                  <Text style={styles.sidebarIcon}>🎁</Text>
+                  <Icon name="card-giftcard" size={22} color="#F59E0B" style={styles.sidebarIcon} />
                   <Text style={styles.sidebarText}>Credits</Text>
                 </TouchableOpacity>
               </View>
@@ -591,7 +616,7 @@ function DashboardScreen({ onNavigate }) {
                   style={styles.sidebarItem}
                   onPress={() => handleNavigation('billing')}
                 >
-                  <Text style={styles.sidebarIcon}>💰</Text>
+                  <Icon name="account-balance-wallet" size={22} color="#10B981" style={styles.sidebarIcon} />
                   <Text style={styles.sidebarText}>Billing</Text>
                 </TouchableOpacity>
               </View>
@@ -601,7 +626,7 @@ function DashboardScreen({ onNavigate }) {
                   style={styles.sidebarItem}
                   onPress={() => handleNavigation('help')}
                 >
-                  <Text style={styles.sidebarIcon}>❓</Text>
+                  <Icon name="help" size={22} color="#8B5CF6" style={styles.sidebarIcon} />
                   <Text style={styles.sidebarText}>Help</Text>
                 </TouchableOpacity>
               </View>
@@ -612,7 +637,7 @@ function DashboardScreen({ onNavigate }) {
                   style={styles.sidebarItem}
                   onPress={() => handleNavigation('profile')}
                 >
-                  <Text style={styles.sidebarIcon}>👤</Text>
+                  <Icon name="person" size={22} color="#EC4899" style={styles.sidebarIcon} />
                   <Text style={styles.sidebarText}>
                     {profile?.firstName} {profile?.lastName}
                   </Text>
@@ -626,7 +651,7 @@ function DashboardScreen({ onNavigate }) {
                   onPress={logout}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.sidebarIcon}>🚪</Text>
+                  <Icon name="logout" size={22} color="#ef4444" style={styles.sidebarIcon} />
                   <Text style={[styles.sidebarText, styles.logoutText]}>Logout</Text>
                 </TouchableOpacity>
               </View>
@@ -718,7 +743,7 @@ function DashboardScreen({ onNavigate }) {
               >
                 <View style={styles.metricCardHeader}>
                   <View style={styles.metricIconWrapper}>
-                    <Text style={styles.metricIcon}>🎯</Text>
+                    <Icon name="fiber-new" size={24} color="#3B82F6" style={styles.metricIcon} />
                     <View style={styles.metricIconGlow} />
                   </View>
                   <View style={styles.metricBadge}>
@@ -728,7 +753,7 @@ function DashboardScreen({ onNavigate }) {
                 <Text style={styles.modernMetricNumber}>{newLeadsCount}</Text>
                 <Text style={styles.modernMetricLabel}>New Leads Available</Text>
                 <View style={styles.metricTrendContainer}>
-                  <Text style={styles.trendIcon}>📈</Text>
+                  <Icon name="trending-up" size={16} color="#10B981" style={styles.trendIcon} />
                   <Text style={styles.trendText}>+12% this week</Text>
                 </View>
                 <View style={styles.metricCardPattern} />
@@ -746,7 +771,7 @@ function DashboardScreen({ onNavigate }) {
               >
                 <View style={styles.metricCardHeader}>
                   <View style={styles.metricIconWrapper}>
-                    <Text style={styles.metricIcon}>⚡</Text>
+                    <Icon name="flash-on" size={24} color="#F59E0B" style={styles.metricIcon} />
                     <View style={styles.metricIconGlow} />
                   </View>
                   <View style={styles.metricBadge}>
@@ -756,7 +781,7 @@ function DashboardScreen({ onNavigate }) {
                 <Text style={styles.modernMetricNumber}>{activeLeadsCount}</Text>
                 <Text style={styles.modernMetricLabel}>Active Leads</Text>
                 <View style={styles.metricTrendContainer}>
-                  <Text style={styles.trendIcon}>🔥</Text>
+                  <Icon name="local-fire-department" size={16} color="#F59E0B" style={styles.trendIcon} />
                   <Text style={styles.trendText}>3 in progress</Text>
                 </View>
                 <View style={styles.metricCardPattern} />
@@ -777,7 +802,7 @@ function DashboardScreen({ onNavigate }) {
               >
                 <View style={styles.metricCardHeader}>
                   <View style={styles.metricIconWrapper}>
-                    <Text style={styles.metricIcon}>💰</Text>
+                    <Icon name="account-balance-wallet" size={24} color="#10B981" style={styles.metricIcon} />
                     <View style={styles.metricIconGlow} />
                   </View>
                   <View style={styles.addCreditButton}>
@@ -807,15 +832,15 @@ function DashboardScreen({ onNavigate }) {
               >
                 <View style={styles.metricCardHeader}>
                   <View style={styles.metricIconWrapper}>
-                    <Text style={styles.metricIcon}>⭐</Text>
+                    <Icon name="star" size={24} color="#F59E0B" style={styles.metricIcon} />
                     <View style={styles.metricIconGlow} />
                   </View>
                   <View style={styles.ratingStars}>
-                    <Text style={styles.starIcon}>⭐</Text>
-                    <Text style={styles.starIcon}>⭐</Text>
-                    <Text style={styles.starIcon}>⭐</Text>
-                    <Text style={styles.starIcon}>⭐</Text>
-                    <Text style={styles.starIcon}>⭐</Text>
+                    <Icon name="star" size={16} color="#F59E0B" style={styles.starIcon} />
+                    <Icon name="star" size={16} color="#F59E0B" style={styles.starIcon} />
+                    <Icon name="star" size={16} color="#F59E0B" style={styles.starIcon} />
+                    <Icon name="star" size={16} color="#F59E0B" style={styles.starIcon} />
+                    <Icon name="star" size={16} color="#F59E0B" style={styles.starIcon} />
                   </View>
                 </View>
                 <Text style={styles.modernMetricNumber}>
@@ -842,7 +867,7 @@ function DashboardScreen({ onNavigate }) {
           <View style={styles.modernActivityHeader}>
             <View style={styles.activityHeaderLeft}>
               <View style={styles.activityIconContainer}>
-                <Text style={styles.activityIcon}>🔔</Text>
+                <Icon name="notifications" size={20} color="#3B82F6" style={styles.activityIcon} />
               </View>
               <View>
                 <Text style={styles.modernActivityTitle}>Recent Activity</Text>
@@ -866,7 +891,7 @@ function DashboardScreen({ onNavigate }) {
           ) : activities.length === 0 ? (
             <View style={styles.modernEmptyContainer}>
               <View style={styles.emptyIconContainer}>
-                <Text style={styles.emptyIcon}>🔔</Text>
+                <Icon name="notifications-none" size={32} color="#9CA3AF" style={styles.emptyIcon} />
               </View>
               <Text style={styles.modernEmptyTitle}>No recent activity</Text>
               <Text style={styles.modernEmptyDescription}>
@@ -885,7 +910,7 @@ function DashboardScreen({ onNavigate }) {
                 <View key={activity.id || index} style={styles.modernActivityItem}>
                   <View style={styles.activityItemLeft}>
                     <View style={[styles.activityTypeIcon, { backgroundColor: getActivityColor(activity.activityType) + '20' }]}>
-                      <Text style={styles.activityTypeEmoji}>{getActivityIcon(activity.activityType)}</Text>
+                      <Icon name={getActivityIcon(activity.activityType)} size={16} color={getActivityIconColor(activity.activityType)} style={styles.activityTypeEmoji} />
                     </View>
                     <View style={styles.activityContent}>
                       <Text style={styles.modernActivityMessage} numberOfLines={2}>
@@ -924,13 +949,7 @@ function DashboardScreen({ onNavigate }) {
 
 
       {/* Notification List Modal */}
-      <NotificationList
-        visible={notificationsVisible}
-        notifications={notifications}
-        onClose={() => setNotificationsVisible(false)}
-        onNotificationPress={handleNotificationPress}
-        onMarkAllAsRead={handleMarkAllAsRead}
-      />
+
     </View>
   );
 }
@@ -1490,7 +1509,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fef3c7',
     marginHorizontal: 20,
-    marginTop: 16,
+    marginTop: 8,
     padding: 16,
     borderRadius: 16,
     borderLeftWidth: 4,
@@ -1672,7 +1691,7 @@ const styles = StyleSheet.create({
   // Modern Activity Section
   modernActivitySection: {
     marginHorizontal: 16,
-    marginTop: 16,
+    marginTop: 8,
     marginBottom: 20,
     backgroundColor: '#ffffff',
     borderRadius: 20,
@@ -1848,7 +1867,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 12,
     backgroundColor: '#f8fafc',
     borderRadius: 16,
     borderWidth: 1,

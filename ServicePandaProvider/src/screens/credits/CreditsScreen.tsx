@@ -16,6 +16,8 @@ const { useQuery, useMutation } = require('@tanstack/react-query');
 const { useAuth } = require('../../contexts/AuthContext');
 const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
 const { width } = Dimensions.get('window');
 
@@ -119,10 +121,19 @@ function CreditsScreen({ onNavigate, onBack }) {
 
   const getTransactionIcon = (type) => {
     switch (type) {
-      case 'voucher_redemption': return '🎁';
-      case 'free_lead': return '💵';
-      case 'debit': return '💳';
-      default: return '📊';
+      case 'voucher_redemption': return 'card-giftcard';
+      case 'free_lead': return 'money';
+      case 'debit': return 'payment';
+      default: return 'assessment';
+    }
+  };
+
+  const getTransactionIconColor = (type) => {
+    switch (type) {
+      case 'voucher_redemption': return '#F59E0B';
+      case 'free_lead': return '#10B981';
+      case 'debit': return '#3B82F6';
+      default: return '#6B7280';
     }
   };
 
@@ -159,7 +170,7 @@ function CreditsScreen({ onNavigate, onBack }) {
         </Text>
           </View>
           <View style={styles.modernHeaderIcon}>
-            <Text style={styles.modernHeaderEmoji}>💳</Text>
+            <Icon name="account-balance-wallet" size={32} color="#3B82F6" style={styles.modernHeaderEmoji} />
           </View>
       </View>
 
@@ -167,7 +178,7 @@ function CreditsScreen({ onNavigate, onBack }) {
         <View style={styles.modernBalanceCard}>
           <View style={styles.modernBalanceHeader}>
             <View style={styles.modernBalanceIcon}>
-              <Text style={styles.modernBalanceEmoji}>💰</Text>
+              <Icon name="account-balance-wallet" size={24} color="#10B981" style={styles.modernBalanceEmoji} />
             </View>
             <View style={styles.modernBalanceInfo}>
               <Text style={styles.modernBalanceTitle}>Credit Balance</Text>
@@ -193,7 +204,7 @@ function CreditsScreen({ onNavigate, onBack }) {
         <View style={styles.modernVoucherCard}>
           <View style={styles.modernVoucherHeader}>
             <View style={styles.modernVoucherIcon}>
-              <Text style={styles.modernVoucherEmoji}>🎁</Text>
+              <Icon name="card-giftcard" size={24} color="#F59E0B" style={styles.modernVoucherEmoji} />
             </View>
             <View style={styles.modernVoucherInfo}>
               <Text style={styles.modernVoucherTitle}>Redeem Voucher</Text>
@@ -236,7 +247,7 @@ function CreditsScreen({ onNavigate, onBack }) {
         <View style={styles.modernTransactionCard}>
           <View style={styles.modernTransactionHeader}>
             <View style={styles.modernTransactionIcon}>
-              <Text style={styles.modernTransactionEmoji}>📊</Text>
+              <Icon name="assessment" size={24} color="#6B7280" style={styles.modernTransactionEmoji} />
             </View>
             <View style={styles.modernTransactionInfo}>
               <Text style={styles.modernTransactionTitle}>Transaction History</Text>
@@ -254,7 +265,7 @@ function CreditsScreen({ onNavigate, onBack }) {
             </View>
           ) : transactions.length === 0 ? (
             <View style={styles.modernEmptyState}>
-              <Text style={styles.modernEmptyStateEmoji}>📋</Text>
+              <Icon name="assignment" size={32} color="#9CA3AF" style={styles.modernEmptyStateEmoji} />
               <Text style={styles.modernEmptyStateText}>
                 No transactions yet. Redeem a voucher to get started!
               </Text>
@@ -264,9 +275,12 @@ function CreditsScreen({ onNavigate, onBack }) {
               {transactions.map((transaction) => (
                 <View key={transaction.id} style={styles.modernTransactionItem}>
                   <View style={styles.modernTransactionItemIcon}>
-                    <Text style={styles.modernTransactionItemEmoji}>
-                      {getTransactionIcon(transaction.transactionType)}
-                    </Text>
+                    <Icon 
+                      name={getTransactionIcon(transaction.transactionType)} 
+                      size={20} 
+                      color={getTransactionIconColor(transaction.transactionType)} 
+                      style={styles.modernTransactionItemEmoji} 
+                    />
                   </View>
                   
                   <View style={styles.modernTransactionItemContent}>
