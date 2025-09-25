@@ -40,6 +40,7 @@ const { colors } = require('./src/utils/theme');
 const Icon = require('react-native-vector-icons/MaterialIcons').default;
 // Import notification components
 const NotificationList = require('./src/components/NotificationList');
+import RealTimeNotificationController from './src/components/RealTimeNotificationController';
 
 // Animated dot component for loading
 const AnimatedDot = ({ delay = 0, style }: { delay?: number; style?: any }) => {
@@ -432,27 +433,28 @@ const AppContent = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
-      {currentScreen !== 'dashboard' && (
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={goBack}>
-            <Text style={styles.backArrow}>←</Text>
-            <Text style={styles.backButtonText}>Back</Text>
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>
-              {currentScreen.charAt(0).toUpperCase() + currentScreen.slice(1)}
-            </Text>
+    <RealTimeNotificationController oneSignalAppId="f64bf04a-b174-4862-a7b4-62b8d93f159b">
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+        {currentScreen !== 'dashboard' && (
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backButton} onPress={goBack}>
+              <Text style={styles.backArrow}>←</Text>
+              <Text style={styles.backButtonText}>Back</Text>
+            </TouchableOpacity>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle}>
+                {currentScreen.charAt(0).toUpperCase() + currentScreen.slice(1)}
+              </Text>
+            </View>
+            <View style={styles.headerSpacer} />
           </View>
-          <View style={styles.headerSpacer} />
-        </View>
-      )}
-      
-      {renderScreen()}
-      
-      {/* Static Footer Navigation Bar - Always Visible */}
-      <View style={styles.footer}>
+        )}
+        
+        {renderScreen()}
+        
+        {/* Static Footer Navigation Bar - Always Visible */}
+        <View style={styles.footer}>
         <TouchableOpacity 
           style={[styles.footerTab, currentScreen === 'dashboard' && styles.activeFooterTab]}
           onPress={() => navigateTo('dashboard')}
@@ -513,8 +515,9 @@ const AppContent = () => {
           <Text style={[styles.footerLabel, currentScreen === 'profile' && styles.activeFooterLabel]}>Profile</Text>
         </TouchableOpacity>
 
+        </View>
       </View>
-    </View>
+    </RealTimeNotificationController>
   );
 };
 
