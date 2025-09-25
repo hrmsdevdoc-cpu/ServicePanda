@@ -6,6 +6,8 @@ const { useQuery, useQueryClient } = require('@tanstack/react-query');
 const apiService = require('../../services/api');
 const { useAuth } = require('../../contexts/AuthContext');
 const { colors } = require('../../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
 const { width } = Dimensions.get('window');
 
@@ -120,7 +122,11 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
               />
               <View style={styles.modernStatusBadge}>
                 <Text style={styles.modernStatusText}>
-                  {profile.status === 'approved' ? '✅' : '⏳'}
+                  <Icon 
+                    name={profile.status === 'approved' ? 'check-circle' : 'schedule'} 
+                    size={20} 
+                    color={profile.status === 'approved' ? '#10B981' : '#F59E0B'} 
+                  />
                 </Text>
               </View>
             </View>
@@ -183,7 +189,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
             
             <View style={styles.modernInfoItem}>
               <View style={styles.modernInfoItemIcon}>
-                <Text style={styles.modernInfoItemEmoji}>📱</Text>
+                <Icon name="phone" size={20} color="#3B82F6" style={styles.modernInfoItemEmoji} />
               </View>
               <View style={styles.modernInfoItemContent}>
                 <Text style={styles.modernInfoItemTitle}>Mobile Number</Text>
@@ -197,7 +203,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
             
             <View style={styles.modernInfoItem}>
               <View style={styles.modernInfoItemIcon}>
-                <Text style={styles.modernInfoItemEmoji}>📍</Text>
+                <Icon name="location-on" size={20} color="#10B981" style={styles.modernInfoItemEmoji} />
               </View>
               <View style={styles.modernInfoItemContent}>
                 <Text style={styles.modernInfoItemTitle}>Address</Text>
@@ -213,7 +219,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
         <View style={styles.modernStatusCard}>
           <View style={styles.modernStatusHeader}>
             <View style={styles.modernStatusIcon}>
-              <Text style={styles.modernStatusEmoji}>📊</Text>
+              <Icon name="assessment" size={24} color="#6B7280" style={styles.modernStatusEmoji} />
             </View>
             <View style={styles.modernStatusInfo}>
               <Text style={styles.modernStatusTitle}>Account Status</Text>
@@ -226,7 +232,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
           <View style={styles.modernStatusList}>
             <View style={styles.modernStatusItem}>
               <View style={styles.modernStatusItemIcon}>
-                <Text style={styles.modernStatusItemEmoji}>👤</Text>
+                <Icon name="person" size={20} color="#EC4899" style={styles.modernStatusItemEmoji} />
               </View>
               <View style={styles.modernStatusItemContent}>
                 <Text style={styles.modernStatusItemTitle}>Provider Status</Text>
@@ -235,7 +241,14 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                     styles.modernStatusItemValue,
                     profile.providerStatus === 'activated' ? styles.modernStatusActive : styles.modernStatusInactive
                   ]}>
-                    {profile.providerStatus === 'activated' ? '✅ Activated' : '❌ Deactivated'}
+                    <Icon 
+                      name={profile.providerStatus === 'activated' ? 'check-circle' : 'cancel'} 
+                      size={16} 
+                      color={profile.providerStatus === 'activated' ? '#10B981' : '#EF4444'} 
+                    />
+                    <Text style={{ marginLeft: 4 }}>
+                      {profile.providerStatus === 'activated' ? 'Activated' : 'Deactivated'}
+                    </Text>
                   </Text>
                 </View>
               </View>
@@ -245,7 +258,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
             
             <View style={styles.modernStatusItem}>
               <View style={styles.modernStatusItemIcon}>
-                <Text style={styles.modernStatusItemEmoji}>📄</Text>
+                <Icon name="description" size={20} color="#8B5CF6" style={styles.modernStatusItemEmoji} />
               </View>
               <View style={styles.modernStatusItemContent}>
                 <Text style={styles.modernStatusItemTitle}>Documents Uploaded</Text>
@@ -254,7 +267,14 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                     styles.modernStatusItemValue,
                     profile.documentsUploaded ? styles.modernStatusActive : styles.modernStatusInactive
                   ]}>
-                    {profile.documentsUploaded ? '✅ Complete' : '❌ Incomplete'}
+                    <Icon 
+                      name={profile.documentsUploaded ? 'check-circle' : 'cancel'} 
+                      size={16} 
+                      color={profile.documentsUploaded ? '#10B981' : '#EF4444'} 
+                    />
+                    <Text style={{ marginLeft: 4 }}>
+                      {profile.documentsUploaded ? 'Complete' : 'Incomplete'}
+                    </Text>
                   </Text>
                 </View>
               </View>
@@ -264,7 +284,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
             
             <View style={styles.modernStatusItem}>
               <View style={styles.modernStatusItemIcon}>
-                <Text style={styles.modernStatusItemEmoji}>✅</Text>
+                <Icon name="check-circle" size={20} color="#10B981" style={styles.modernStatusItemEmoji} />
               </View>
               <View style={styles.modernStatusItemContent}>
                 <Text style={styles.modernStatusItemTitle}>Terms Accepted</Text>
@@ -273,7 +293,14 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                     styles.modernStatusItemValue,
                     profile.termsAccepted ? styles.modernStatusActive : styles.modernStatusInactive
                   ]}>
-                    {profile.termsAccepted ? '✅ Accepted' : '❌ Not Accepted'}
+                    <Icon 
+                      name={profile.termsAccepted ? 'check-circle' : 'cancel'} 
+                      size={16} 
+                      color={profile.termsAccepted ? '#10B981' : '#EF4444'} 
+                    />
+                    <Text style={{ marginLeft: 4 }}>
+                      {profile.termsAccepted ? 'Accepted' : 'Not Accepted'}
+                    </Text>
                   </Text>
                 </View>
               </View>
@@ -283,12 +310,12 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
             
             <View style={styles.modernStatusItem}>
               <View style={styles.modernStatusItemIcon}>
-                <Text style={styles.modernStatusItemEmoji}>⭐</Text>
+                <Icon name="star" size={20} color="#F59E0B" style={styles.modernStatusItemEmoji} />
               </View>
               <View style={styles.modernStatusItemContent}>
                 <Text style={styles.modernStatusItemTitle}>Rating</Text>
                 <Text style={styles.modernStatusItemValue}>
-                  {profile.rating || '5.0'} ⭐ ({profile.totalReviews || 0} reviews)
+                  {profile.rating || '5.0'} <Icon name="star" size={16} color="#F59E0B" /> ({profile.totalReviews || 0} reviews)
                 </Text>
               </View>
             </View>
@@ -350,7 +377,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
               activeOpacity={0.7}
             >
               <View style={styles.modernActionIcon}>
-                <Text style={styles.modernActionEmoji}>🔔</Text>
+                <Icon name="notifications" size={20} color="#3B82F6" style={styles.modernActionEmoji} />
               </View>
               <View style={styles.modernActionContent}>
                 <Text style={styles.modernActionTitle}>Notification Settings</Text>
@@ -369,7 +396,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
             activeOpacity={0.8}
           >
             <View style={styles.modernLogoutIcon}>
-              <Text style={styles.modernLogoutEmoji}>🚪</Text>
+              <Icon name="logout" size={20} color="#EF4444" style={styles.modernLogoutEmoji} />
             </View>
             <Text style={styles.modernLogoutText}>Logout</Text>
           </TouchableOpacity>

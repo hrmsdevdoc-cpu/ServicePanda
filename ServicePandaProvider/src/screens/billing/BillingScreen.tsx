@@ -14,6 +14,8 @@ const { useQuery } = require('@tanstack/react-query');
 const { useAuth } = require('../../contexts/AuthContext');
 const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
 const { width } = Dimensions.get('window');
 
@@ -84,10 +86,19 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
 
   const getPaymentMethodIcon = (method: string) => {
     switch (method?.toLowerCase()) {
-      case 'credit': return '💰';
-      case 'card': return '💳';
-      case 'partial': return '💳💰';
-      default: return '💳';
+      case 'credit': return 'account-balance-wallet';
+      case 'card': return 'payment';
+      case 'partial': return 'payment';
+      default: return 'payment';
+    }
+  };
+
+  const getPaymentMethodIconColor = (method: string) => {
+    switch (method?.toLowerCase()) {
+      case 'credit': return '#10B981';
+      case 'card': return '#3B82F6';
+      case 'partial': return '#F59E0B';
+      default: return '#6B7280';
     }
   };
 
@@ -128,7 +139,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
         </Text>
           </View>
           <View style={styles.modernHeaderIcon}>
-            <Text style={styles.modernHeaderEmoji}>💳</Text>
+            <Icon name="account-balance-wallet" size={32} color="#3B82F6" style={styles.modernHeaderEmoji} />
           </View>
       </View>
 
@@ -138,7 +149,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
             <TouchableOpacity style={styles.modernSummaryCard} activeOpacity={0.8}>
               <View style={styles.modernSummaryCardHeader}>
                 <View style={styles.modernSummaryIcon}>
-                  <Text style={styles.modernSummaryEmoji}>📊</Text>
+                  <Icon name="assessment" size={24} color="#6B7280" style={styles.modernSummaryEmoji} />
                 </View>
                 <View style={styles.modernSummaryInfo}>
                   <Text style={styles.modernSummaryLabel}>This Month</Text>
@@ -153,7 +164,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
             <TouchableOpacity style={styles.modernSummaryCard} activeOpacity={0.8}>
               <View style={styles.modernSummaryCardHeader}>
                 <View style={styles.modernSummaryIcon}>
-                  <Text style={styles.modernSummaryEmoji}>💰</Text>
+                  <Icon name="account-balance-wallet" size={24} color="#10B981" style={styles.modernSummaryEmoji} />
                 </View>
                 <View style={styles.modernSummaryInfo}>
                   <Text style={styles.modernSummaryLabel}>Total Spent</Text>
@@ -168,7 +179,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
             <TouchableOpacity style={styles.modernSummaryCard} activeOpacity={0.8}>
               <View style={styles.modernSummaryCardHeader}>
                 <View style={styles.modernSummaryIcon}>
-                  <Text style={styles.modernSummaryEmoji}>💳</Text>
+                  <Icon name="payment" size={24} color="#3B82F6" style={styles.modernSummaryEmoji} />
         </View>
                 <View style={styles.modernSummaryInfo}>
                   <Text style={styles.modernSummaryLabel}>Credit Balance</Text>
@@ -183,7 +194,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
             <TouchableOpacity style={styles.modernSummaryCard} activeOpacity={0.8}>
               <View style={styles.modernSummaryCardHeader}>
                 <View style={styles.modernSummaryIcon}>
-                  <Text style={styles.modernSummaryEmoji}>🎯</Text>
+                  <Icon name="fiber-new" size={24} color="#F59E0B" style={styles.modernSummaryEmoji} />
                 </View>
                 <View style={styles.modernSummaryInfo}>
                   <Text style={styles.modernSummaryLabel}>Total Leads</Text>
@@ -201,7 +212,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
         <View style={styles.modernBillingHistoryCard}>
           <View style={styles.modernBillingHistoryHeader}>
             <View style={styles.modernBillingHistoryIcon}>
-              <Text style={styles.modernBillingHistoryEmoji}>📋</Text>
+              <Icon name="assignment" size={24} color="#6B7280" style={styles.modernBillingHistoryEmoji} />
       </View>
             <View style={styles.modernBillingHistoryInfo}>
               <Text style={styles.modernBillingHistoryTitle}>Billing History</Text>
@@ -218,7 +229,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
             </View>
           ) : !billingData?.allPaidLeads || billingData.allPaidLeads.length === 0 ? (
             <View style={styles.modernEmptyState}>
-              <Text style={styles.modernEmptyStateIcon}>📋</Text>
+              <Icon name="assignment" size={32} color="#9CA3AF" style={styles.modernEmptyStateIcon} />
               <Text style={styles.modernEmptyStateTitle}>No billing history yet</Text>
               <Text style={styles.modernEmptyStateText}>
                 Your lead purchases and payment records will appear here once you start buying leads.
@@ -231,7 +242,12 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
                   <View style={styles.modernBillingHistoryItemHeader}>
                     <View style={styles.modernBillingHistoryItemLeft}>
                       <View style={styles.modernTransactionTypeContainer}>
-                        <Text style={styles.modernTransactionTypeIcon}>💳</Text>
+                        <Icon 
+                          name={getPaymentMethodIcon(lead.paymentMethod)} 
+                          size={20} 
+                          color={getPaymentMethodIconColor(lead.paymentMethod)} 
+                          style={styles.modernTransactionTypeIcon} 
+                        />
                         <Text style={styles.modernTransactionTypeLabel}>Lead Purchase</Text>
                       </View>
                       <Text style={styles.modernBillingHistoryItemTitle}>
@@ -290,7 +306,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
         <View style={styles.modernQuickActionsCard}>
           <View style={styles.modernQuickActionsHeader}>
             <View style={styles.modernQuickActionsIcon}>
-              <Text style={styles.modernQuickActionsEmoji}>⚡</Text>
+              <Icon name="flash-on" size={24} color="#F59E0B" style={styles.modernQuickActionsEmoji} />
             </View>
             <View style={styles.modernQuickActionsInfo}>
               <Text style={styles.modernQuickActionsTitle}>Quick Actions</Text>
@@ -307,7 +323,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
               activeOpacity={0.7}
             >
               <View style={styles.modernQuickActionIcon}>
-                <Text style={styles.modernQuickActionEmoji}>💰</Text>
+                <Icon name="account-balance-wallet" size={20} color="#10B981" style={styles.modernQuickActionEmoji} />
               </View>
               <Text style={styles.modernQuickActionText}>Manage Credits</Text>
             </TouchableOpacity>
@@ -318,7 +334,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
               activeOpacity={0.7}
             >
               <View style={styles.modernQuickActionIcon}>
-                <Text style={styles.modernQuickActionEmoji}>💳</Text>
+                <Icon name="payment" size={20} color="#3B82F6" style={styles.modernQuickActionEmoji} />
               </View>
               <Text style={styles.modernQuickActionText}>Payment Methods</Text>
             </TouchableOpacity>
@@ -329,7 +345,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
               activeOpacity={0.7}
             >
               <View style={styles.modernQuickActionIcon}>
-                <Text style={styles.modernQuickActionEmoji}>🎯</Text>
+                <Icon name="fiber-new" size={20} color="#F59E0B" style={styles.modernQuickActionEmoji} />
               </View>
               <Text style={styles.modernQuickActionText}>View Leads</Text>
             </TouchableOpacity>
@@ -340,7 +356,7 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
               activeOpacity={0.7}
             >
               <View style={styles.modernQuickActionIcon}>
-                <Text style={styles.modernQuickActionEmoji}>🆕</Text>
+                <Icon name="fiber-new" size={20} color="#3B82F6" style={styles.modernQuickActionEmoji} />
               </View>
               <Text style={styles.modernQuickActionText}>New Leads</Text>
             </TouchableOpacity>

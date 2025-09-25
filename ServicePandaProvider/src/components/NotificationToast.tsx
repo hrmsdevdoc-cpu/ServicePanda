@@ -141,7 +141,7 @@ const NotificationToast: React.FC<NotificationToastProps> = ({
       style={[
         styles.container,
         {
-          [position]: Platform.OS === 'ios' ? 60 : 40,
+          [position]: Platform.OS === 'ios' ? 10 : 8,
           transform: [
             { translateY },
             { scale },

@@ -9,6 +9,8 @@ const {
   Dimensions 
 } = require('react-native');
 const { colors } = require('../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
 const { width, height } = Dimensions.get('window');
 
@@ -47,14 +49,14 @@ function NotificationList({
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'success':
-        return '✅';
+        return { name: 'check-circle', color: '#10B981' };
       case 'warning':
-        return '⚠️';
+        return { name: 'warning', color: '#F59E0B' };
       case 'error':
-        return '❌';
+        return { name: 'error', color: '#EF4444' };
       case 'info':
       default:
-        return 'ℹ️';
+        return { name: 'info', color: '#3B82F6' };
     }
   };
 
@@ -126,9 +128,12 @@ function NotificationList({
     >
       <View style={styles.notificationHeader}>
         <View style={styles.notificationIconContainer}>
-          <Text style={styles.notificationIcon}>
-            {getNotificationIcon(notification.type)}
-          </Text>
+          <Icon 
+            name={getNotificationIcon(notification.type).name} 
+            size={20} 
+            color={getNotificationIcon(notification.type).color} 
+            style={styles.notificationIcon} 
+          />
         </View>
         <View style={styles.notificationContent}>
           <Text style={[

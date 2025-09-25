@@ -4,6 +4,8 @@ const { Card, Title, Paragraph, Button, Chip, ActivityIndicator } = require('rea
 const { useQuery } = require('@tanstack/react-query');
 const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
 function LeadsScreen({ onNavigate, onBack }) {
   // Animation values
@@ -118,7 +120,7 @@ function LeadsScreen({ onNavigate, onBack }) {
             <Text style={styles.welcomeSubtitle}>Manage your leads and grow your business</Text>
           </View>
           <View style={styles.welcomeIcon}>
-            <Text style={styles.welcomeEmoji}>🎯</Text>
+            <Icon name="fiber-new" size={32} color="#3B82F6" style={styles.welcomeEmoji} />
           </View>
         </View>
 
@@ -133,7 +135,7 @@ function LeadsScreen({ onNavigate, onBack }) {
             >
               <View style={styles.statCardHeader}>
                 <View style={styles.statIconWrapper}>
-                  <Text style={styles.statIcon}>🆕</Text>
+                  <Icon name="fiber-new" size={24} color="#3B82F6" style={styles.statIcon} />
                 </View>
                 <View style={styles.statBadge}>
                   <Text style={styles.statBadgeText}>NEW</Text>
@@ -155,7 +157,7 @@ function LeadsScreen({ onNavigate, onBack }) {
             >
               <View style={styles.statCardHeader}>
                 <View style={styles.statIconWrapper}>
-                  <Text style={styles.statIcon}>⚡</Text>
+                  <Icon name="flash-on" size={24} color="#F59E0B" style={styles.statIcon} />
                 </View>
                 <View style={styles.statBadge}>
                   <Text style={styles.statBadgeText}>ACTIVE</Text>
@@ -179,7 +181,7 @@ function LeadsScreen({ onNavigate, onBack }) {
           >
             <View style={styles.statCardHeader}>
               <View style={styles.statIconWrapper}>
-                <Text style={styles.statIcon}>✅</Text>
+                <Icon name="check-circle" size={24} color="#10B981" style={styles.statIcon} />
               </View>
               <View style={styles.statBadge}>
                 <Text style={styles.statBadgeText}>DONE</Text>
@@ -209,7 +211,7 @@ function LeadsScreen({ onNavigate, onBack }) {
               onPress={() => onNavigate('newLeads')}
             >
               <View style={styles.actionIconContainer}>
-                <Text style={styles.actionIcon}>🆕</Text>
+                <Icon name="fiber-new" size={20} color="#3B82F6" style={styles.actionIcon} />
               </View>
               <Text style={styles.modernActionTitle}>Browse New Leads</Text>
               <Text style={styles.modernActionDescription}>
@@ -226,7 +228,7 @@ function LeadsScreen({ onNavigate, onBack }) {
               onPress={() => onNavigate('activeLeads')}
             >
               <View style={styles.actionIconContainer}>
-                <Text style={styles.actionIcon}>⚡</Text>
+                <Icon name="flash-on" size={20} color="#F59E0B" style={styles.actionIcon} />
               </View>
               <Text style={styles.modernActionTitle}>Active Leads</Text>
               <Text style={styles.modernActionDescription}>
@@ -243,7 +245,7 @@ function LeadsScreen({ onNavigate, onBack }) {
               onPress={() => onNavigate('closedLeads')}
             >
               <View style={styles.actionIconContainer}>
-                <Text style={styles.actionIcon}>✅</Text>
+                <Icon name="check-circle" size={20} color="#10B981" style={styles.actionIcon} />
               </View>
               <Text style={styles.modernActionTitle}>Completed Leads</Text>
               <Text style={styles.modernActionDescription}>
@@ -267,7 +269,7 @@ function LeadsScreen({ onNavigate, onBack }) {
             <View style={styles.modernActivityCard}>
               <View style={styles.activityItemLeft}>
                 <View style={styles.activityIconContainer}>
-                  <Text style={styles.activityIcon}>🎯</Text>
+                  <Icon name="fiber-new" size={16} color="#3B82F6" style={styles.activityIcon} />
                 </View>
                 <View style={styles.activityContent}>
                   <Text style={styles.modernActivityTitle}>New lead available</Text>
@@ -285,7 +287,7 @@ function LeadsScreen({ onNavigate, onBack }) {
             <View style={styles.modernActivityCard}>
               <View style={styles.activityItemLeft}>
                 <View style={styles.activityIconContainer}>
-                  <Text style={styles.activityIcon}>✅</Text>
+                  <Icon name="check-circle" size={16} color="#10B981" style={styles.activityIcon} />
                 </View>
                 <View style={styles.activityContent}>
                   <Text style={styles.modernActivityTitle}>Lead completed</Text>

@@ -36,6 +36,10 @@ if (Platform.OS === 'android') {
   Text.defaultProps.allowFontScaling = false;
 }
 const { colors } = require('./src/utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
+// Import notification components
+const NotificationList = require('./src/components/NotificationList');
 
 // Animated dot component for loading
 const AnimatedDot = ({ delay = 0, style }: { delay?: number; style?: any }) => {
@@ -352,6 +356,75 @@ const AppContent = () => {
         return <BillingScreen onNavigate={navigateTo} onBack={goBack} />;
       case 'help':
         return <HelpScreen onNavigate={navigateTo} onBack={goBack} />;
+      case 'notifications':
+        return (
+          <NotificationList
+            visible={true}
+            notifications={[
+              {
+                id: 1,
+                title: 'New Lead Available',
+                message: 'A new lead for "House Cleaning" is available in your area. Estimated value: $150',
+                type: 'success',
+                isRead: false,
+                timestamp: '2 min ago',
+                category: 'lead'
+              },
+              {
+                id: 2,
+                title: 'Payment Received',
+                message: 'Payment of $200 has been credited to your account for completed service',
+                type: 'success',
+                isRead: false,
+                timestamp: '1 hour ago',
+                category: 'payment'
+              },
+              {
+                id: 3,
+                title: 'New Rating',
+                message: 'Customer John Smith rated your service 5 stars with a great review',
+                type: 'success',
+                isRead: true,
+                timestamp: '3 hours ago',
+                category: 'general'
+              },
+              {
+                id: 4,
+                title: 'Credit Added',
+                message: 'You have received 5 free credits for completing your profile setup',
+                type: 'info',
+                isRead: true,
+                timestamp: '1 day ago',
+                category: 'system'
+              },
+              {
+                id: 5,
+                title: 'System Update',
+                message: 'New features have been added to the app. Check out the latest updates!',
+                type: 'info',
+                isRead: true,
+                timestamp: '2 days ago',
+                category: 'system'
+              },
+              {
+                id: 6,
+                title: 'Reminder',
+                message: 'Don\'t forget to update your service availability for next week',
+                type: 'warning',
+                isRead: true,
+                timestamp: '3 days ago',
+                category: 'general'
+              }
+            ]}
+            onClose={() => navigateTo('dashboard')}
+            onNotificationPress={(notification: any) => {
+              console.log('Notification pressed:', notification.title);
+            }}
+            onMarkAllAsRead={() => {
+              console.log('Mark all as read');
+            }}
+          />
+        );
       
       default:
         return <DashboardScreen onNavigate={navigateTo} />;
@@ -384,7 +457,11 @@ const AppContent = () => {
           style={[styles.footerTab, currentScreen === 'dashboard' && styles.activeFooterTab]}
           onPress={() => navigateTo('dashboard')}
         >
-          <Text style={[styles.footerIcon, currentScreen === 'dashboard' && styles.activeFooterIcon]}>🏠</Text>
+          <Icon 
+            name="home" 
+            size={24} 
+            color="#3B82F6" 
+          />
           <Text style={[styles.footerLabel, currentScreen === 'dashboard' && styles.activeFooterLabel]}>Home</Text>
         </TouchableOpacity>
 
@@ -392,33 +469,50 @@ const AppContent = () => {
           style={[styles.footerTab, currentScreen === 'leads' && styles.activeFooterTab]}
           onPress={() => navigateTo('leads')}
         >
-          <Text style={[styles.footerIcon, currentScreen === 'leads' && styles.activeFooterIcon]}>🎯</Text>
-          <Text style={styles.footerLabel}>Leads</Text>
+          <Icon 
+            name="assignment" 
+            size={24} 
+            color="#10B981" 
+          />
+          <Text style={[styles.footerLabel, currentScreen === 'leads' && styles.activeFooterLabel]}>Leads</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={[styles.footerTab, currentScreen === 'credits' && styles.activeFooterTab]}
           onPress={() => navigateTo('credits')}
         >
-          <Text style={[styles.footerIcon, currentScreen === 'credits' && styles.activeFooterIcon]}>💰</Text>
-          <Text style={styles.footerLabel}>Credits</Text>
+          <Icon 
+            name="card-giftcard" 
+            size={24} 
+            color="#F59E0B" 
+          />
+          <Text style={[styles.footerLabel, currentScreen === 'credits' && styles.activeFooterLabel]}>Credits</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={[styles.footerTab, currentScreen === 'billing' && styles.activeFooterTab]}
           onPress={() => navigateTo('billing')}
         >
-          <Text style={[styles.footerIcon, currentScreen === 'billing' && styles.activeFooterIcon]}>📊</Text>
-          <Text style={styles.footerLabel}>Billing</Text>
+          <Icon 
+            name="payment" 
+            size={24} 
+            color="#8B5CF6" 
+          />
+          <Text style={[styles.footerLabel, currentScreen === 'billing' && styles.activeFooterLabel]}>Billing</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={[styles.footerTab, currentScreen === 'profile' && styles.activeFooterTab]}
           onPress={() => navigateTo('profile')}
         >
-          <Text style={[styles.footerIcon, currentScreen === 'profile' && styles.activeFooterIcon]}>👤</Text>
-          <Text style={styles.footerLabel}>Profile</Text>
+          <Icon 
+            name="person" 
+            size={24} 
+            color="#EC4899" 
+          />
+          <Text style={[styles.footerLabel, currentScreen === 'profile' && styles.activeFooterLabel]}>Profile</Text>
         </TouchableOpacity>
+
       </View>
     </View>
   );
@@ -595,19 +689,20 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   activeFooterTab: {
-    backgroundColor: colors.primary + '15',
-    shadowColor: colors.primary,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: 16,
+    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   activeFooterIcon: {
-    color: colors.primary,
+    color: '#3B82F6',
   },
   activeFooterLabel: {
     fontWeight: '700',
-    color: colors.primary,
+    color: '#3B82F6',
   },
 });
 

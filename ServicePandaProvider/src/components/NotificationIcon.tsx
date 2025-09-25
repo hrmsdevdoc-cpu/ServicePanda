@@ -2,6 +2,8 @@ const React = require('react');
 const { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } = require('react-native');
 const { IconButton } = require('react-native-paper');
 const { colors } = require('../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
 interface NotificationIconProps {
   unreadCount: number;
@@ -173,7 +175,12 @@ function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification 
           style={styles.iconButton}
           activeOpacity={0.7}
         >
-          <Text style={[styles.bellIcon, { fontSize: size }]}>🔔</Text>
+          <Icon 
+            name="notifications" 
+            size={size} 
+            color={unreadCount > 0 ? "#EF4444" : "#6B7280"} 
+            style={styles.bellIcon} 
+          />
         </TouchableOpacity>
         
         {unreadCount > 0 && (
