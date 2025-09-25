@@ -14,6 +14,7 @@ import multer from "multer";
 import path from "path";
 import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail, sendEmail } from "./emailService";
 import { smsService } from "./smsService";
+import { notificationRoutes } from "./notificationBridge";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware for customers
@@ -2108,6 +2109,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message || 'Failed to fetch activity history' });
     }
   });
+
+  // 🔔 REAL-TIME NOTIFICATION ROUTES
+  // Provider app polls these endpoints for notifications
+  app.get('/api/provider/notifications/poll', notificationRoutes.poll);
+  app.get('/api/provider/notifications/long-poll', notificationRoutes.longPoll);
+  app.get('/api/provider/notifications/stats', notificationRoutes.stats);
 
   app.post('/api/provider/leads/:requestId/purchase', isProviderAuthenticated, async (req, res) => {
     try {
