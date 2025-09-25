@@ -58,18 +58,9 @@ class NotificationService {
 
   async getNotifications(): Promise<Notification[]> {
     console.log('🔍 DEBUG: getNotifications called');
-    try {
-      // First try to get real notifications from the API
-      const response = await apiService.get('/api/provider/notifications');
-      if (response && response.length > 0) {
-        return response;
-      }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      // Continue to fallback instead of throwing
-    }
-
-    // If no real notifications, convert activity data to notifications
+    
+    // Skip API call for now since provider notifications endpoint is not live yet
+    // Instead, convert activity data to notifications directly
     try {
       const activities = await apiService.getActivity();
       return this.convertActivitiesToNotifications(activities);

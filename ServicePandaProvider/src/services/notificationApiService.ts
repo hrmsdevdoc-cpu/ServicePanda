@@ -49,9 +49,10 @@ class NotificationApiService {
   // Check server for new notifications
   private async checkForNewNotifications() {
     try {
-      // In a real implementation, this would call your server API
-      // For now, we'll simulate checking for notifications
-      const notifications = await this.simulateServerNotificationCheck();
+      console.log('🔍 Checking for new notifications from server...');
+      
+      // Check server for real notifications
+      const notifications = await this.checkServerForNotifications();
       
       for (const notification of notifications) {
         await this.handleIncomingNotification(notification);
@@ -156,14 +157,49 @@ class NotificationApiService {
     await this.handleIncomingNotification(paymentNotification);
   }
 
-  // Simulate checking server for notifications (replace with real API call)
-  private async simulateServerNotificationCheck(): Promise<IncomingNotification[]> {
-    // In real implementation, this would be:
-    // const response = await fetch(`${this.serverUrl}/api/provider/notifications`);
-    // return response.json();
+  // Check server for real notifications
+  private async checkServerForNotifications(): Promise<IncomingNotification[]> {
+    try {
+      const response = await fetch(`${this.serverUrl}/api/provider/notifications/poll`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-provider-id': '1', // This should come from AsyncStorage
+        }
+      });
 
-    // For now, return empty array (no new notifications)
-    return [];
+      if (!response.ok) {
+        console.log(`Server response: ${response.status} - No new notifications available`);
+        return [];
+      }
+
+      // Check if response is JSON or HTML
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.log('Server returned HTML instead of JSON - notification endpoints not deployed yet');
+        return [];
+      }
+
+      const data = await response.json();
+      const notifications = data.notifications || [];
+      
+      console.log(`📨 Received ${notifications.length} notifications from server`);
+      return notifications.map((notif: any) => ({
+        id: notif.id,
+        title: notif.title,
+        message: notif.message,
+        type: notif.type,
+        data: notif.data,
+        timestamp: notif.timestamp
+      }));
+    } catch (error) {
+      if (error.message && error.message.includes('JSON')) {
+        console.log('📄 Server returned HTML instead of JSON (notification endpoints not deployed)');
+      } else {
+        console.error('Error checking server for notifications:', error);
+      }
+      return [];
+    }
   }
 }
 
