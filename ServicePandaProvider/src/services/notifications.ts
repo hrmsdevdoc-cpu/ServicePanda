@@ -80,17 +80,28 @@ class NotificationService {
     }
   }
 
+  // Get all activities for counting (including offer_expired)
+  async getAllActivitiesForCounting(): Promise<any[]> {
+    try {
+      const activities = await apiService.getActivity();
+      return activities || [];
+    } catch (error) {
+      console.error('Error fetching activities for counting:', error);
+      return [];
+    }
+  }
+
   async markAsRead(notificationId: number): Promise<boolean> {
     try {
       // Add to local read tracking
       this.readNotificationIds.add(notificationId);
-      
+
       // Save to persistent storage
       await this.saveReadNotifications();
-      
+
       // Cleanup old read notifications
       await this.cleanupOldReadNotifications();
-      
+
       // Try to mark as read on server (this might fail for activity-based notifications)
       try {
         await apiService.put(`/api/provider/notifications/${notificationId}/read`);
@@ -98,7 +109,7 @@ class NotificationService {
         // If server call fails, we still mark it as read locally
         console.log('Server notification marking failed, using local tracking only');
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -109,20 +120,20 @@ class NotificationService {
   async markAllAsRead(): Promise<boolean> {
     try {
       console.log('NotificationService: Starting markAllAsRead');
-      
+
       // Get current notifications to mark them all as read locally
       const notifications = await this.getNotifications();
       console.log('NotificationService: Current notifications before marking:', notifications.map(n => ({ id: n.id, isRead: n.isRead })));
-      
+
       notifications.forEach(notification => {
         this.readNotificationIds.add(notification.id);
       });
-      
+
       console.log('NotificationService: Read notification IDs after adding:', Array.from(this.readNotificationIds));
-      
+
       // Save to persistent storage
       await this.saveReadNotifications();
-      
+
       // Try to mark all as read on server
       try {
         await apiService.put('/api/provider/notifications/read-all');
@@ -130,7 +141,7 @@ class NotificationService {
         // If server call fails, we still mark them as read locally
         console.log('Server mark all as read failed, using local tracking only');
       }
-      
+
       console.log('NotificationService: markAllAsRead completed successfully');
       return true;
     } catch (error) {
@@ -163,13 +174,16 @@ class NotificationService {
   private convertActivitiesToNotifications(activities: any[]): Notification[] {
     console.log('NotificationService: Converting activities to notifications');
     console.log('NotificationService: Read notification IDs:', Array.from(this.readNotificationIds));
-    
-    const notifications = activities.slice(0, 10).map((activity, index) => {
+
+    // Include all activities in the notification list
+    const filteredActivities = activities;
+
+    const notifications = filteredActivities.slice(0, 10).map((activity, index) => {
       const notificationId = activity.id || index + 1000;
       const isRead = this.readNotificationIds.has(notificationId);
-      
+
       console.log(`NotificationService: Activity ${notificationId} -> isRead: ${isRead}`);
-      
+
       return {
         id: notificationId,
         title: this.getActivityTitle(activity.activityType),
@@ -184,15 +198,15 @@ class NotificationService {
           leadCost: activity.leadCost
         }
       };
-    });
-    
+    }).filter(notification => notification.title && notification.message); // Filter out empty notifications
+
     console.log('NotificationService: Converted notifications:', notifications.map(n => ({ id: n.id, isRead: n.isRead })));
     return notifications;
   }
 
   private formatActivityMessage(activity: any): string {
     const baseMessage = activity.message || activity.description || 'No description available';
-    
+
     // Add additional context based on activity type
     switch (activity.activityType) {
       case 'lead_purchased':
@@ -202,7 +216,7 @@ class NotificationService {
       case 'price_drop':
         return `📉 ${baseMessage}${activity.leadCost ? ` - Now $${activity.leadCost}` : ''}`;
       case 'offer_expired':
-        return `⏰ ${baseMessage}`;
+        return `⏰ ${baseMessage}`; // Restore normal message format
       case 'lead_lost':
         return `❌ ${baseMessage}`;
       case 'lead_status_updated':
@@ -233,7 +247,7 @@ class NotificationService {
       case 'lead_lost':
         return 'Lead No Longer Available';
       case 'offer_expired':
-        return 'Lead Offer Expired';
+        return 'Lead Offer Expired'; // Restore normal title format
       case 'new_offer':
         return 'New Lead Available';
       case 'price_drop':
@@ -270,9 +284,10 @@ class NotificationService {
       case 'rating_received':
         return 'success';
       case 'lead_lost':
-      case 'offer_expired':
       case 'profile_rejected':
         return 'warning';
+      case 'offer_expired':
+        return 'info'; // Make offer_expired less prominent
       case 'new_offer':
       case 'price_drop':
       case 'lead_status_updated':
@@ -324,15 +339,6 @@ class NotificationService {
         isRead: false,
         timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         category: 'payment'
-      },
-      {
-        id: 3,
-        title: 'Lead Expired',
-        message: 'A lead you were interested in has expired',
-        type: 'warning',
-        isRead: true,
-        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        category: 'lead'
       },
       {
         id: 4,

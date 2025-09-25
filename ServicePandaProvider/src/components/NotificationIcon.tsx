@@ -63,42 +63,11 @@ function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification 
     }
   }, [unreadCount]);
 
-  // Auto-hide notification preview
+  // Auto-hide notification preview - DISABLED
   React.useEffect(() => {
-    if (latestNotification && unreadCount > 0) {
-      // Show preview with fade in animation
-      setShowPreview(true);
-      Animated.timing(previewOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-
-      // Clear any existing timer
-      if (previewTimer.current) {
-        clearTimeout(previewTimer.current);
-      }
-
-      // Set timer to hide preview after 4 seconds
-      previewTimer.current = setTimeout(() => {
-        Animated.timing(previewOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }).start(() => {
-          setShowPreview(false);
-        });
-      }, 4000);
-    } else {
-      // Hide preview immediately if no notification
-      setShowPreview(false);
-      Animated.timing(previewOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
-
+    // Disabled preview popup to prevent overlapping with welcome message
+    setShowPreview(false);
+    
     // Cleanup timer on unmount
     return () => {
       if (previewTimer.current) {
