@@ -99,6 +99,10 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <!-- Background Notification Service -->
+        <service android:name="com.facebook.react.HeadlessJsTaskService" />
+        
     </application>
 
 </manifest>

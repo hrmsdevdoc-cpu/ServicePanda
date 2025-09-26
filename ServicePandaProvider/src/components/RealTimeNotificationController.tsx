@@ -60,7 +60,16 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
       // Initialize notification service
       console.log('🔄 Initializing notification services...');
       
-      // Initialize working notification services (avoiding Firebase for now)
+      // Initialize all notification services for maximum coverage
+      try {
+        // Initialize Firebase for background notifications
+        const firebaseNotificationService = await import('../services/firebaseNotificationService');
+        await firebaseNotificationService.default.initialize();
+        console.log('✅ Firebase background notifications initialized');
+      } catch (error) {
+        console.log('⚠️ Firebase failed, using local notifications only');
+      }
+
       try {
         // Initialize real system notification service  
         const realSystemNotificationService = await import('../services/realSystemNotificationService');
