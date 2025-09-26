@@ -1,4 +1,4 @@
-import messaging from '@react-native-firebase/messaging';
+// import messaging from '@react-native-firebase/messaging'; // Temporarily disabled
 import { Platform, PermissionsAndroid } from 'react-native';
 
 class FirebaseNotificationService {
@@ -19,8 +19,9 @@ class FirebaseNotificationService {
         console.log('📱 Notification permission:', granted);
       }
 
-      // Request Firebase messaging permission
-      const authStatus = await messaging().requestPermission();
+      // Firebase messaging disabled - module not installed
+      console.log('⚠️ Firebase messaging module not available');
+      throw new Error('Firebase module not installed');
       const enabled =
         authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
         authStatus === messaging.AuthorizationStatus.PROVISIONAL;

@@ -18,18 +18,36 @@ class OneSignalAdminService {
   private restApiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_6zf7asvroregfj5umk4nspyvtoi4yl4hrd3u7suvnwraxsu43zmjjgzlysqusuxf7gjgfkjzgwpunhz4m3yflqr4fz7kfitlcxxsexy";
   private apiUrl = "https://onesignal.com/api/v1/notifications";
 
+  // Manual device mapping for testing (replace with database lookup in production)
+  private getDeviceIdForProvider(providerId: number): string | null {
+    const deviceMapping = {
+      1: '37b92c0a-63a7-44b4-b1b6-561e80301b21', // Your manually registered device
+      // Add more providers as they register their devices
+    };
+    return deviceMapping[providerId] || null;
+  }
+
   // Send push notification to provider using OneSignal
   async sendToProvider(providerId: number, notification: OneSignalNotification): Promise<OneSignalResult> {
     try {
       console.log(`📤 Sending OneSignal push notification to provider ${providerId}`);
 
+      // Get device ID for this provider
+      const deviceId = this.getDeviceIdForProvider(providerId);
+      console.log(`📱 Device ID for provider ${providerId}: ${deviceId || 'Not found, using broadcast'}`);
+
       // Try multiple targeting methods to ensure delivery
       const payload = {
         app_id: this.appId,
-        // Method 1: Target by external user ID (provider ID)
-        include_external_user_ids: [providerId.toString()],
-        // Method 2: ALSO target all subscribed users as fallback
-        included_segments: ["Subscribed Users"],
+        // Method 1: Use specific device ID if available
+        ...(deviceId 
+          ? { include_player_ids: [deviceId] }
+          : { 
+              // Method 2: Fallback to external user ID and broadcast
+              include_external_user_ids: [providerId.toString()],
+              included_segments: ["Subscribed Users"]
+            }
+        ),
         
         headings: { en: notification.title },
         contents: { en: notification.message },

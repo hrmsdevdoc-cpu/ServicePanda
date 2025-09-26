@@ -62,14 +62,8 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
       console.log('🔄 Initializing notification services...');
       
       // Initialize all notification services for maximum coverage
-      try {
-        // Initialize Firebase for background notifications
-        const firebaseNotificationService = await import('../services/firebaseNotificationService');
-        await firebaseNotificationService.default.initialize();
-        console.log('✅ Firebase background notifications initialized');
-      } catch (error) {
-        console.log('⚠️ Firebase failed, using local notifications only');
-      }
+      // Firebase disabled - module not installed, using OneSignal instead
+      console.log('🔥 Firebase disabled, using OneSignal for push notifications');
 
       try {
         // Initialize real system notification service  

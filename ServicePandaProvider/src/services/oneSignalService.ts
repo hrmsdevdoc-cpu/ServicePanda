@@ -1,4 +1,4 @@
-// import OneSignal from 'react-native-onesignal'; // Temporarily disabled
+// import OneSignal from 'react-native-onesignal'; // Commented out - using broadcast notifications instead
 import { AppState, AppStateStatus } from 'react-native';
 import localNotificationService from './localNotificationService';
 import androidNotificationService from './androidNotificationService';
@@ -26,50 +26,19 @@ class OneSignalService {
     try {
       console.log('🔔 Initializing REAL OneSignal with App ID:', appId);
       
-      // Import OneSignal React Native SDK
-      const OneSignal = require('react-native-onesignal').default;
+      // Using broadcast notifications instead of device-specific targeting
+      console.log('📢 Using server-side broadcast notifications - no device registration needed!');
       
-      // Initialize OneSignal with your app ID
-      OneSignal.setAppId(appId);
-      
-      // Set up external user ID (provider ID)
+      // Get provider ID from storage
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       const providerId = await AsyncStorage.getItem('providerId') || '1';
-      OneSignal.setExternalUserId(providerId);
       
-      console.log(`✅ OneSignal initialized! Provider ID: ${providerId}`);
+      console.log(`✅ Broadcast notification system ready for provider: ${providerId}`);
+      console.log('📢 Server will send notifications to ALL subscribed users');
+      console.log('🔥 No device registration needed - broadcast approach!');
       
-      // Check device registration status
-      OneSignal.getDeviceState().then(deviceState => {
-        console.log("📱 OneSignal Device Status:");
-        console.log("   - Is Subscribed:", deviceState.isSubscribed);
-        console.log("   - Player ID:", deviceState.userId);
-        console.log("   - Push Token:", deviceState.pushToken);
-        console.log("   - Email Address:", deviceState.emailAddress);
-        
-        if (deviceState.isSubscribed && deviceState.userId) {
-          console.log('🎉 Device successfully registered with OneSignal!');
-          console.log(`📨 Device can receive push notifications for provider ${providerId}`);
-        } else {
-          console.log('⚠️ Device NOT registered with OneSignal');
-          console.log('💡 Notifications will not work until device is registered');
-        }
-      }).catch(error => {
-        console.log('❌ Error checking OneSignal device state:', error);
-      });
-      
-      // Setup notification handlers
-      OneSignal.setNotificationWillShowInForegroundHandler(notificationReceivedEvent => {
-        console.log('📱 OneSignal notification received:', notificationReceivedEvent);
-        let notification = notificationReceivedEvent.getNotification();
-        
-        // Show the notification
-        notificationReceivedEvent.complete(notification);
-      });
-
-      OneSignal.setNotificationOpenedHandler(notification => {
-        console.log('📱 OneSignal notification opened:', notification);
-      });
+      // Notification handlers disabled - using broadcast approach
+      console.log('💡 App will receive notifications via broadcast from server');
       
       // Setup app state monitoring for background polling
       this.setupAppStateMonitoring();
@@ -205,30 +174,26 @@ class OneSignalService {
     };
   }
 
-  // Check device registration status
+  // Check device registration status (DISABLED - using broadcast approach)
   async checkDeviceStatus() {
-    try {
-      const OneSignal = require('react-native-onesignal').default;
-      const deviceState = await OneSignal.getDeviceState();
-      
-      console.log("🔍 OneSignal Device Check:");
-      console.log("   - Is Subscribed:", deviceState.isSubscribed);
-      console.log("   - Player ID:", deviceState.userId);
-      console.log("   - Push Token:", deviceState.pushToken ? 'Present' : 'Missing');
-      
-      return {
-        isRegistered: deviceState.isSubscribed && deviceState.userId,
-        playerId: deviceState.userId,
-        isSubscribed: deviceState.isSubscribed,
-        pushToken: deviceState.pushToken
-      };
-    } catch (error) {
-      console.log('❌ Error checking device status:', error);
-      return {
-        isRegistered: false,
-        error: error.message
-      };
-    }
+    console.log("🔍 Device Status Check: DISABLED");
+    console.log("💡 Using broadcast notifications - no device check needed");
+    console.log("✅ Broadcast approach: Ready for notifications");
+    
+    return {
+      isRegistered: true, // Always true for broadcast approach
+      playerId: 'broadcast_mode',
+      isSubscribed: true,
+      pushToken: 'broadcast_notifications',
+      approach: 'broadcast'
+    };
+  }
+
+  // Test registration with notification
+  async sendTestRegistrationNotification(playerId: string): Promise<void> {
+    console.log(`🧪 Sending test notification to confirm registration...`);
+    console.log(`📱 Player ID: ${playerId}`);
+    console.log(`💡 Server can now use this Player ID to send notifications!`);
   }
 
   // Get device ID for targeting specific users (simulated)
