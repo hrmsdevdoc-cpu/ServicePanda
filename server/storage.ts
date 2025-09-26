@@ -2549,6 +2549,8 @@ export class DatabaseStorage implements IStorage {
 
       // Create shared offers only for providers who didn't purchase unique offers
       const offerStartTime = new Date();
+      const providerIds: number[] = [];
+      
       for (const provider of eligibleProviders) {
         await db.insert(leadOffers).values({
           requestId,
@@ -2561,6 +2563,32 @@ export class DatabaseStorage implements IStorage {
           // Shared offers don't expire individually - only expire 24 hours before job date
           expiresAt: null,
         });
+        
+        providerIds.push(provider.providerId);
+      }
+
+      // Send price drop notifications to all eligible providers
+      if (providerIds.length > 0) {
+        try {
+          console.log(`🔔 Sending price drop notifications to providers: ${providerIds.join(', ')}`);
+          const { providerNotificationService } = await import('./providerNotificationService');
+          await providerNotificationService.sendNotificationToProviders(providerIds, {
+            title: 'Price Drop Alert! 💸',
+            message: `The lead price has dropped to $${leadCost}! The offer is now available at a reduced shared price.`,
+            type: 'system',
+            data: {
+              requestId,
+              newPrice: leadCost,
+              offerType: 'shared',
+              priceDropEvent: true
+            }
+          });
+          console.log(`✅ Price drop notifications sent to ${providerIds.length} providers for request ${requestId}`);
+        } catch (error) {
+          console.error('Failed to send price drop notifications:', error);
+        }
+      } else {
+        console.log('⚠️ No eligible providers found for price drop notification');
       }
 
       // Update distribution log to shared phase
@@ -3031,6 +3059,25 @@ export class DatabaseStorage implements IStorage {
 
       for (const expiredOffer of expiredOffers) {
         console.log(`Processing expired offer ${expiredOffer.id} for request ${expiredOffer.requestId}`);
+
+        // Send notification to provider about expired offer
+        try {
+          console.log(`🔔 Sending expired offer notification to provider ${expiredOffer.providerId}`);
+          const { providerNotificationService } = await import('./providerNotificationService');
+          await providerNotificationService.sendNotificationToProvider(expiredOffer.providerId, {
+            title: 'Lead Offer Expired',
+            message: 'One of your lead offers has expired and moved to the next provider.',
+            type: 'system',
+            data: {
+              offerId: expiredOffer.id,
+              requestId: expiredOffer.requestId,
+              expired: true
+            }
+          });
+          console.log(`✅ Expired offer notification sent to provider ${expiredOffer.providerId}`);
+        } catch (error) {
+          console.error('Failed to send expired offer notification:', error);
+        }
 
         // Mark offer as expired
         await db

@@ -45,6 +45,11 @@ class NotificationBridge {
   getPendingNotifications(providerId: number): PendingNotification[] {
     const notifications = this.pendingNotifications.get(providerId) || [];
     
+    console.log(`🔍 Provider ${providerId} polling - found ${notifications.length} pending notifications`);
+    if (notifications.length > 0) {
+      console.log('📋 Pending notifications:', notifications.map(n => n.title));
+    }
+    
     // Mark as delivered and remove from pending
     notifications.forEach(notif => notif.delivered = true);
     this.pendingNotifications.set(providerId, []);

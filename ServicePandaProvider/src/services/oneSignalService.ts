@@ -20,33 +20,33 @@ class OneSignalService {
   private notificationCallbacks: Array<(notification: NotificationPayload) => void> = [];
 
   // Initialize notification service (without OneSignal for now)
-  async initialize(appId: string) {
-    if (this.isInitialized) return;
+  // async initialize(appId: string) {
+  //   if (this.isInitialized) return;
 
-    try {
-      console.log('Initializing notification service with App ID:', appId);
+  //   try {
+  //     console.log('Initializing notification service with App ID:', appId);
       
-      // Initialize Android notification service
-      androidNotificationService.initialize();
+  //     // Initialize Android notification service
+  //     androidNotificationService.initialize();
       
-      // Setup app state monitoring for background polling
-      this.setupAppStateMonitoring();
+  //     // Setup app state monitoring for background polling
+  //     this.setupAppStateMonitoring();
 
-      this.isInitialized = true;
-      console.log('Notification service initialized successfully');
+  //     this.isInitialized = true;
+  //     console.log('Notification service initialized successfully');
       
-      // Send a welcome notification to test the system
-      setTimeout(() => {
-        this.sendTimeBasedNotification(
-          'ServicePanda Provider Ready',
-          'Real-time customer notifications are now active!',
-          'system'
-        );
-      }, 3000);
-    } catch (error) {
-      console.error('Failed to initialize notification service:', error);
-    }
-  }
+  //     // Send a welcome notification to test the system
+  //     setTimeout(() => {
+  //       this.sendTimeBasedNotification(
+  //         'ServicePanda Provider Ready',
+  //         'Real-time customer notifications are now active!',
+  //         'system'
+  //       );
+  //     }, 3000);
+  //   } catch (error) {
+  //     console.error('Failed to initialize notification service:', error);
+  //   }
+  // }
 
   // Setup background polling when app goes to background
   private setupAppStateMonitoring() {

@@ -59,6 +59,26 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
     try {
       // Initialize notification service
       console.log('🔄 Initializing notification services...');
+      
+      // Initialize working notification services (avoiding Firebase for now)
+      try {
+        // Initialize real system notification service  
+        const realSystemNotificationService = await import('../services/realSystemNotificationService');
+        await realSystemNotificationService.default.initialize();
+        console.log('✅ Real system notifications initialized');
+      } catch (error) {
+        console.log('⚠️ Real system notifications failed, continuing...');
+      }
+      
+      try {
+        // Initialize notification API service for server polling
+        const notificationApiService = await import('../services/notificationApiService');
+        notificationApiService.default.initialize();
+        console.log('✅ API notification service initialized');
+      } catch (error) {
+        console.log('⚠️ API notification service failed, continuing...');
+      }
+
       await oneSignalService.initialize(oneSignalAppId);
 
       // Setup notification listeners
@@ -69,15 +89,7 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
       realTimeNotificationService.start();
       setIsServiceRunning(true);
 
-      console.log('✅ Notification services initialized successfully');
-
-      // Send a welcome notification
-      setTimeout(() => {
-        realTimeNotificationService.sendTestNotification(
-          'ServicePanda Provider Ready',
-          'Real-time notifications are now active!'
-        );
-      }, 2000);
+      console.log('✅ All notification services initialized successfully');
 
     } catch (error) {
       console.error('❌ Failed to initialize notification services:', error);
