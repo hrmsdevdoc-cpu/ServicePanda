@@ -1,13 +1,8 @@
-// import 'react-native-screens';
+import {AppRegistry} from 'react-native';
+import App from './App';
+import {name as appName} from './app.json';
 
-const {AppRegistry} = require('react-native');
-const App = require('./App');
+// Simple app registration without Firebase for now
+// Firebase background handlers will be added after proper linking
 
-// Disable font scaling on Android to prevent zooming issues
-if (require('react-native').Platform.OS === 'android') {
-  require('react-native').Text.defaultProps = require('react-native').Text.defaultProps || {};
-  require('react-native').Text.defaultProps.allowFontScaling = false;
-}
-
-AppRegistry.registerComponent('ServicePandaProvider', () => App);
-
+AppRegistry.registerComponent(appName, () => App);

@@ -1,71 +1,29 @@
-import messaging from '@react-native-firebase/messaging';
+// Temporarily disabled Firebase import to fix module error
+// import messaging from '@react-native-firebase/messaging';
 import { Platform, PermissionsAndroid } from 'react-native';
 
 class FirebaseNotificationService {
   private isInitialized = false;
 
-  // Initialize Firebase for Android notification bar
+  // Initialize Firebase for Android notification bar (temporarily disabled)
   async initialize() {
-    if (this.isInitialized || Platform.OS !== 'android') return;
+    console.log('⚠️ Firebase notifications temporarily disabled due to module linking issue');
+    console.log('💡 Using alternative notification service instead');
+    
+    // For now, just mark as initialized to prevent errors
+    this.isInitialized = true;
+    return;
 
-    console.log('🔥 Initializing Firebase for REAL Android notification bar...');
-
-    try {
-      // Request permission for Android 13+
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-        );
-        console.log('📱 Notification permission:', granted);
-      }
-
-      // Request Firebase messaging permission
-      const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-      if (enabled) {
-        console.log('✅ Firebase messaging permission granted');
-        
-        // Get FCM token
-        const token = await messaging().getToken();
-        console.log('📱 FCM Token:', token);
-
-        // Setup notification handlers
-        this.setupNotificationHandlers();
-
-        this.isInitialized = true;
-        console.log('✅ Firebase notification service ready for Android bar!');
-      } else {
-        console.log('❌ Firebase messaging permission denied');
-      }
-
-    } catch (error) {
-      console.error('❌ Firebase initialization failed:', error);
-    }
+    // TODO: Re-enable after proper Firebase linking
+    // if (this.isInitialized || Platform.OS !== 'android') return;
+    // console.log('🔥 Initializing Firebase for REAL Android notification bar...');
   }
 
-  // Setup notification handlers
+  // Setup notification handlers (temporarily disabled)
   private setupNotificationHandlers() {
-    // Handle foreground notifications
-    messaging().onMessage(async remoteMessage => {
-      console.log('📱 Foreground notification received:', remoteMessage);
-    });
-
-    // Handle background/quit state notifications
-    messaging().onNotificationOpenedApp(remoteMessage => {
-      console.log('📱 Notification caused app to open:', remoteMessage);
-    });
-
-    // Handle notification when app is killed
-    messaging()
-      .getInitialNotification()
-      .then(remoteMessage => {
-        if (remoteMessage) {
-          console.log('📱 Notification caused app to open from killed state:', remoteMessage);
-        }
-      });
+    console.log('⚠️ Firebase notification handlers temporarily disabled');
+    // TODO: Re-enable after Firebase linking is fixed
+    return;
   }
 
   // Send local notification to Android notification bar

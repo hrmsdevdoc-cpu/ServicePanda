@@ -185,11 +185,25 @@ class NotificationApiService {
   // Check server for real notifications
   private async checkServerForNotifications(): Promise<IncomingNotification[]> {
     try {
+      // Get actual provider ID from AsyncStorage
+      let providerId = '1'; // Default fallback
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const storedProviderId = await AsyncStorage.getItem('providerId');
+        if (storedProviderId) {
+          providerId = storedProviderId;
+        }
+      } catch (error) {
+        console.log('Failed to get provider ID from storage, using default');
+      }
+
+      console.log(`🔍 Checking notifications for provider ID: ${providerId}`);
+      
       const response = await fetch(`${this.serverUrl}/api/provider/notifications/poll`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'x-provider-id': '1', // This should come from AsyncStorage
+          'x-provider-id': providerId,
         }
       });
 

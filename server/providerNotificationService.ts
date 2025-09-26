@@ -242,27 +242,23 @@ class ProviderNotificationService {
     notification: NotificationPayload
   ): Promise<boolean> {
     try {
-      // Store notification in database so provider app can poll for it
-      // This is a reliable fallback method
-      console.log(`💾 Storing notification in database for provider ${providerId}:`, notification.title);
+      // Store notification in the notification bridge for real-time polling
+      console.log(`💾 Storing notification for polling by provider ${providerId}:`, notification.title);
       
-      // Here we would insert into a provider_notifications table
-      // For now, we'll just log it
-      const notificationData = {
-        providerId,
+      const { notificationBridge } = await import('./notificationBridge');
+      
+      // Add to notification bridge so polling API can find it
+      notificationBridge.addNotification(providerId, {
         title: notification.title,
         message: notification.message,
         type: notification.type,
-        data: JSON.stringify(notification.data),
-        timestamp: new Date().toISOString(),
-        isRead: false,
-        status: 'sent'
-      };
+        data: notification.data
+      });
       
-      console.log('📝 Notification stored:', notificationData);
+      console.log(`✅ Notification added to bridge for provider ${providerId}`);
       return true;
     } catch (error) {
-      console.error('❌ Failed to store notification in database:', error);
+      console.error('❌ Failed to store notification in bridge:', error);
       return false;
     }
   }
