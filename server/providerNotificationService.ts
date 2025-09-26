@@ -263,26 +263,58 @@ class ProviderNotificationService {
     }
   }
 
-  // Send push notification if FCM tokens available
+  // Send push notification via external service (simulated)
   private async sendPushNotificationIfAvailable(
     providerId: number, 
     notification: NotificationPayload
   ): Promise<boolean> {
     try {
-      // Check if provider has FCM tokens in database
-      // For now, we'll simulate this
-      console.log(`🚀 Checking for FCM tokens for provider ${providerId}`);
+      console.log(`🚀 Sending external push notification to provider ${providerId}`);
       
-      // In real implementation, you would:
-      // 1. Query database for provider's FCM tokens
-      // 2. Send push notification via Firebase Admin SDK
-      // 3. Handle token refresh if needed
+      // Send push notification via external service (e.g., Firebase Admin, OneSignal, etc.)
+      const pushResult = await this.sendExternalPushNotification(providerId, notification);
       
-      console.log('📱 Push notification would be sent via FCM here');
-      return true;
+      if (pushResult.success) {
+        console.log(`✅ External push notification sent to provider ${providerId}`);
+        return true;
+      } else {
+        console.log(`⚠️ External push failed for provider ${providerId}: ${pushResult.error}`);
+        return false;
+      }
     } catch (error) {
-      console.error('❌ Failed to send push notification:', error);
+      console.error('❌ Failed to send external push notification:', error);
       return false;
+    }
+  }
+
+  // Send push notification via OneSignal (works when app is closed!)
+  private async sendExternalPushNotification(
+    providerId: number, 
+    notification: NotificationPayload
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`🚀 Sending REAL push notification from SERVER to provider ${providerId}`);
+      
+      // Use OneSignal service to send real push notifications
+      const { oneSignalAdminService } = await import('./oneSignalAdminService');
+      
+      const pushResult = await oneSignalAdminService.sendToProvider(providerId, {
+        title: notification.title,
+        message: notification.message,
+        data: notification.data
+      });
+
+      if (pushResult.success) {
+        console.log(`✅ SERVER push notification sent to provider ${providerId} via OneSignal`);
+        return { success: true };
+      } else {
+        console.log(`❌ SERVER push failed: ${pushResult.error}`);
+        return { success: false, error: pushResult.error };
+      }
+      
+    } catch (error) {
+      console.error('❌ Error sending SERVER push notification:', error);
+      return { success: false, error: error.message };
     }
   }
 }
