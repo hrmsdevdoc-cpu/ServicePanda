@@ -1,5 +1,5 @@
 // OneSignal API service for sending push notifications from server
-import fetch from 'node-fetch';
+// Using built-in fetch (Node.js 18+) or polyfill
 
 interface OneSignalNotification {
   title: string;
@@ -23,14 +23,19 @@ class OneSignalAdminService {
     try {
       console.log(`📤 Sending OneSignal push notification to provider ${providerId}`);
 
+      // Try multiple targeting methods to ensure delivery
       const payload = {
         app_id: this.appId,
-        include_external_user_ids: [providerId.toString()], // Use provider ID as external user ID
+        // Method 1: Target by external user ID (provider ID)
+        include_external_user_ids: [providerId.toString()],
+        // Method 2: ALSO target all subscribed users as fallback
+        included_segments: ["Subscribed Users"],
+        
         headings: { en: notification.title },
         contents: { en: notification.message },
         data: notification.data || {},
         
-        // Android specific settings (remove channel_id for now)
+        // Android specific settings
         priority: 10,
         android_sound: "default",
         android_vibration_pattern: [1000, 1000],

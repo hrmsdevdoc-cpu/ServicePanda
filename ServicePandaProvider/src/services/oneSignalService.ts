@@ -1,4 +1,4 @@
-// import OneSignal from 'react-native-onesignal'; // Commented out to avoid native linking issues
+// import OneSignal from 'react-native-onesignal'; // Temporarily disabled
 import { AppState, AppStateStatus } from 'react-native';
 import localNotificationService from './localNotificationService';
 import androidNotificationService from './androidNotificationService';
@@ -19,34 +19,70 @@ class OneSignalService {
   private readonly POLLING_INTERVAL = 30000; // 30 seconds
   private notificationCallbacks: Array<(notification: NotificationPayload) => void> = [];
 
-  // Initialize notification service (without OneSignal for now)
-  // async initialize(appId: string) {
-  //   if (this.isInitialized) return;
+  // Initialize OneSignal notification service with REAL SDK
+  async initialize(appId: string) {
+    if (this.isInitialized) return;
 
-  //   try {
-  //     console.log('Initializing notification service with App ID:', appId);
+    try {
+      console.log('🔔 Initializing REAL OneSignal with App ID:', appId);
       
-  //     // Initialize Android notification service
-  //     androidNotificationService.initialize();
+      // Import OneSignal React Native SDK
+      const OneSignal = require('react-native-onesignal').default;
       
-  //     // Setup app state monitoring for background polling
-  //     this.setupAppStateMonitoring();
+      // Initialize OneSignal with your app ID
+      OneSignal.setAppId(appId);
+      
+      // Set up external user ID (provider ID)
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const providerId = await AsyncStorage.getItem('providerId') || '1';
+      OneSignal.setExternalUserId(providerId);
+      
+      console.log(`✅ OneSignal initialized! Provider ID: ${providerId}`);
+      
+      // Check device registration status
+      OneSignal.getDeviceState().then(deviceState => {
+        console.log("📱 OneSignal Device Status:");
+        console.log("   - Is Subscribed:", deviceState.isSubscribed);
+        console.log("   - Player ID:", deviceState.userId);
+        console.log("   - Push Token:", deviceState.pushToken);
+        console.log("   - Email Address:", deviceState.emailAddress);
+        
+        if (deviceState.isSubscribed && deviceState.userId) {
+          console.log('🎉 Device successfully registered with OneSignal!');
+          console.log(`📨 Device can receive push notifications for provider ${providerId}`);
+        } else {
+          console.log('⚠️ Device NOT registered with OneSignal');
+          console.log('💡 Notifications will not work until device is registered');
+        }
+      }).catch(error => {
+        console.log('❌ Error checking OneSignal device state:', error);
+      });
+      
+      // Setup notification handlers
+      OneSignal.setNotificationWillShowInForegroundHandler(notificationReceivedEvent => {
+        console.log('📱 OneSignal notification received:', notificationReceivedEvent);
+        let notification = notificationReceivedEvent.getNotification();
+        
+        // Show the notification
+        notificationReceivedEvent.complete(notification);
+      });
 
-  //     this.isInitialized = true;
-  //     console.log('Notification service initialized successfully');
+      OneSignal.setNotificationOpenedHandler(notification => {
+        console.log('📱 OneSignal notification opened:', notification);
+      });
       
-  //     // Send a welcome notification to test the system
-  //     setTimeout(() => {
-  //       this.sendTimeBasedNotification(
-  //         'ServicePanda Provider Ready',
-  //         'Real-time customer notifications are now active!',
-  //         'system'
-  //       );
-  //     }, 3000);
-  //   } catch (error) {
-  //     console.error('Failed to initialize notification service:', error);
-  //   }
-  // }
+      // Setup app state monitoring for background polling
+      this.setupAppStateMonitoring();
+
+      this.isInitialized = true;
+      console.log('🎉 REAL OneSignal notification service ready!');
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize OneSignal service:', error);
+      // Continue without OneSignal
+      this.isInitialized = true;
+    }
+  }
 
   // Setup background polling when app goes to background
   private setupAppStateMonitoring() {
@@ -167,6 +203,32 @@ class OneSignalService {
     return () => {
       this.notificationCallbacks = this.notificationCallbacks.filter(cb => cb !== callback);
     };
+  }
+
+  // Check device registration status
+  async checkDeviceStatus() {
+    try {
+      const OneSignal = require('react-native-onesignal').default;
+      const deviceState = await OneSignal.getDeviceState();
+      
+      console.log("🔍 OneSignal Device Check:");
+      console.log("   - Is Subscribed:", deviceState.isSubscribed);
+      console.log("   - Player ID:", deviceState.userId);
+      console.log("   - Push Token:", deviceState.pushToken ? 'Present' : 'Missing');
+      
+      return {
+        isRegistered: deviceState.isSubscribed && deviceState.userId,
+        playerId: deviceState.userId,
+        isSubscribed: deviceState.isSubscribed,
+        pushToken: deviceState.pushToken
+      };
+    } catch (error) {
+      console.log('❌ Error checking device status:', error);
+      return {
+        isRegistered: false,
+        error: error.message
+      };
+    }
   }
 
   // Get device ID for targeting specific users (simulated)

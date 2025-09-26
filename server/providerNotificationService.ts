@@ -32,28 +32,27 @@ class ProviderNotificationService {
     try {
       console.log(`🔔 Sending REAL notification to provider ${providerId}:`, notification.title);
 
-      // Send real notification using multiple methods for better delivery
-      const results = await Promise.allSettled([
-        // Method 1: Send in-app notification (immediate)
-        this.sendInAppNotification(providerId, notification),
-        
-        // Method 2: Store notification in database for polling
-        this.storeNotificationInDatabase(providerId, notification),
-        
-        // Method 3: Send push notification if FCM tokens available (future)
-        this.sendPushNotificationIfAvailable(providerId, notification)
-      ]);
+      // PRIORITY 1: Send real push notification via OneSignal (works when app closed!)
+      console.log(`🚀 FORCING OneSignal API call for provider ${providerId}`);
+      const pushResult = await this.sendPushNotificationIfAvailable(providerId, notification);
+      
+      // PRIORITY 2: Store for polling (backup for when app is open)
+      const storeResult = await this.storeNotificationInDatabase(providerId, notification);
+      
+      // PRIORITY 3: In-app notification (only when app is open)
+      const inAppResult = await this.sendInAppNotification(providerId, notification);
 
-      // Check if at least one method succeeded
-      const anySuccess = results.some(result => 
-        result.status === 'fulfilled' && result.value === true
-      );
+      console.log(`📊 Notification results for provider ${providerId}:`);
+      console.log(`   - OneSignal Push: ${pushResult ? '✅' : '❌'}`);
+      console.log(`   - Stored for polling: ${storeResult ? '✅' : '❌'}`);
+      console.log(`   - In-app: ${inAppResult ? '✅' : '❌'}`);
 
-      if (anySuccess) {
-        console.log(`✅ Notification sent successfully to provider ${providerId} via multiple channels`);
+      // Return success if at least push or storage worked
+      if (pushResult || storeResult) {
+        console.log(`✅ Notification sent successfully to provider ${providerId}`);
         return true;
       } else {
-        console.error(`❌ All notification methods failed for provider ${providerId}`);
+        console.error(`❌ Both push and storage failed for provider ${providerId}`);
         return false;
       }
     } catch (error) {
@@ -293,27 +292,32 @@ class ProviderNotificationService {
     notification: NotificationPayload
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log(`🚀 Sending REAL push notification from SERVER to provider ${providerId}`);
+      console.log(`🚀 SENDING REAL ONESIGNAL PUSH NOTIFICATION to provider ${providerId}`);
+      console.log(`📋 Title: ${notification.title}`);
+      console.log(`📋 Message: ${notification.message}`);
       
-      // Use OneSignal service to send real push notifications
+      // Import OneSignal service and FORCE the API call
       const { oneSignalAdminService } = await import('./oneSignalAdminService');
       
+      console.log(`🔥 Calling OneSignal API directly...`);
       const pushResult = await oneSignalAdminService.sendToProvider(providerId, {
         title: notification.title,
         message: notification.message,
         data: notification.data
       });
 
+      console.log(`📡 OneSignal API Response:`, pushResult);
+
       if (pushResult.success) {
-        console.log(`✅ SERVER push notification sent to provider ${providerId} via OneSignal`);
+        console.log(`✅ ONESIGNAL PUSH SENT! ID: ${pushResult.id}`);
         return { success: true };
       } else {
-        console.log(`❌ SERVER push failed: ${pushResult.error}`);
+        console.log(`❌ ONESIGNAL PUSH FAILED: ${pushResult.error}`);
         return { success: false, error: pushResult.error };
       }
       
     } catch (error) {
-      console.error('❌ Error sending SERVER push notification:', error);
+      console.error('❌ CRITICAL ERROR in OneSignal push:', error);
       return { success: false, error: error.message };
     }
   }
