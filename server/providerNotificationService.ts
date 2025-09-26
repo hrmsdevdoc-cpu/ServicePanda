@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+// Using built-in fetch (Node.js 18+)
 
 interface NotificationPayload {
   title: string;
