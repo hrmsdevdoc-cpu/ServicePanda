@@ -1,5 +1,6 @@
 import { Platform, AppState } from 'react-native';
 import nativeAndroidNotificationService from './nativeAndroidNotificationService';
+import realSystemNotificationService from './realSystemNotificationService';
 
 interface IncomingNotification {
   title: string;
@@ -56,7 +57,7 @@ class NotificationApiService {
 
   // Start polling for notifications from server
   private startNotificationPolling() {
-    // Poll every 30 seconds for new notifications (works in background too)
+    // Poll every 30 seconds for new notifications
     setInterval(async () => {
       try {
         // Always check for notifications - even in background
@@ -68,7 +69,18 @@ class NotificationApiService {
       }
     }, 30000); // 30 seconds
     
-    console.log('📡 Background notification polling started - will continue even when app is minimized');
+    // Also set up more frequent polling for immediate notifications
+    setInterval(async () => {
+      try {
+        if (this.backgroundPolling) {
+          await this.checkForNewNotifications();
+        }
+      } catch (error) {
+        console.error('Error in fast polling:', error);
+      }
+    }, 10000); // Every 10 seconds for faster response
+    
+    console.log('📡 Background notification polling started (30s + 10s intervals)');
   }
 
   // Check server for new notifications
@@ -92,17 +104,31 @@ class NotificationApiService {
     console.log('📱 Received notification from server:', notification.title);
 
     try {
-      // Send to native Android notification system
+      // Send to REAL system notification service (works in background)
       if (Platform.OS === 'android') {
-        await nativeAndroidNotificationService.sendSystemNotification(
+        console.log('🔔 Sending to Android system notification bar...');
+        
+        // Use the real system notification service that shows in notification bar
+        await realSystemNotificationService.sendSystemNotification(
           notification.title,
           notification.message,
           notification.data
         );
+        
+        // Also try the native service as backup
+        try {
+          await nativeAndroidNotificationService.sendSystemNotification(
+            notification.title,
+            notification.message,
+            notification.data
+          );
+        } catch (backupError) {
+          console.log('Backup notification service failed (not critical)');
+        }
       }
 
       // Log the notification
-      console.log('✅ Notification processed successfully');
+      console.log('✅ Notification sent to Android notification bar');
     } catch (error) {
       console.error('❌ Error processing notification:', error);
     }
