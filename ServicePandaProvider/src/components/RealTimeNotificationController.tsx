@@ -88,6 +88,15 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
         console.log('⚠️ API notification service failed, continuing...');
       }
 
+      try {
+        // Register device for push notifications
+        const deviceRegistrationService = await import('../services/deviceRegistrationService');
+        await deviceRegistrationService.default.registerDeviceForNotifications();
+        console.log('✅ Device registered for push notifications');
+      } catch (error) {
+        console.log('⚠️ Device registration failed, continuing...');
+      }
+
       await oneSignalService.initialize(oneSignalAppId);
 
       // Setup notification listeners

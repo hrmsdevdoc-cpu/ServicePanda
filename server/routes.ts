@@ -2594,6 +2594,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin test endpoint for push notifications
+  app.post("/api/admin/test-push-notification", async (req: any, res) => {
+    try {
+      const token = req.headers['x-admin-token'];
+      if (!token) {
+        return res.status(401).json({ message: "Admin token required" });
+      }
+
+      const { providerId, title, message } = req.body;
+
+      if (!providerId) {
+        return res.status(400).json({ message: "Provider ID required" });
+      }
+
+      console.log(`🧪 Admin test: Sending push notification to provider ${providerId}`);
+
+      // Import and use the notification service
+      const { providerNotificationService } = await import('./providerNotificationService');
+      
+      const result = await providerNotificationService.sendNotificationToProvider(parseInt(providerId), {
+        title: title || "Test Notification from Admin",
+        message: message || `Test push notification sent at ${new Date().toLocaleTimeString()}`,
+        type: 'system',
+        data: {
+          test: true,
+          timestamp: new Date().toISOString(),
+          adminTriggered: true
+        }
+      });
+
+      if (result) {
+        res.json({ 
+          message: `Push notification sent to provider ${providerId}`,
+          success: true 
+        });
+      } else {
+        res.status(500).json({ 
+          message: "Failed to send push notification",
+          success: false 
+        });
+      }
+
+    } catch (error) {
+      console.error("Error in test push notification:", error);
+      res.status(500).json({ message: "Failed to send test notification" });
+    }
+  });
+
   // Admin department management endpoints
   app.get('/api/admin/departments', isAdminAuthenticated, async (req, res) => {
     try {
