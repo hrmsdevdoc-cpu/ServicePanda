@@ -10,6 +10,7 @@ import {
 import CurrentTimeNotification from './CurrentTimeNotification';
 import realTimeNotificationService from '../services/realTimeNotificationService';
 import oneSignalService, { NotificationPayload } from '../services/oneSignalService';
+import simpleNotificationService from '../services/simpleNotificationService';
 
 interface RealTimeNotificationControllerProps {
   children: React.ReactNode;
@@ -80,6 +81,14 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
       }
       
       try {
+        // Initialize simple notification service (no SDK dependencies)
+        await simpleNotificationService.initialize();
+        console.log('✅ Simple notification service initialized');
+      } catch (error) {
+        console.log('⚠️ Simple notification service failed, continuing...');
+      }
+
+      try {
         // Initialize notification API service for server polling
         const notificationApiService = await import('../services/notificationApiService');
         notificationApiService.default.initialize();
@@ -98,6 +107,20 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
       }
 
       await oneSignalService.initialize(oneSignalAppId);
+
+      // Check device registration status after initialization
+      setTimeout(async () => {
+        try {
+          const deviceStatus = await oneSignalService.checkDeviceStatus();
+          if (deviceStatus.isRegistered) {
+            console.log('🎉 Device is registered and ready for push notifications!');
+          } else {
+            console.log('⚠️ Device not registered with OneSignal - push notifications will not work');
+          }
+        } catch (error) {
+          console.log('Could not check device status');
+        }
+      }, 3000);
 
       // Setup notification listeners
       const unsubscribeOneSignal = oneSignalService.onNotificationReceived(handleNotificationReceived);

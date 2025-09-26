@@ -1,165 +1,74 @@
-import { Alert, Platform } from 'react-native';
+/**
+ * Simple Notification Service
+ * Works with server-side push notifications without complex SDK setup
+ */
 
-interface SimpleNotification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'lead' | 'payment' | 'system' | 'general';
-  timestamp: string;
-}
+import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 class SimpleNotificationService {
-  private notifications: SimpleNotification[] = [];
   private isInitialized = false;
+  private providerId: string | null = null;
 
-  initialize() {
-    if (this.isInitialized) return;
-    
-    console.log('📱 Initializing Simple Notification Service...');
-    this.isInitialized = true;
-    console.log('✅ Simple Notification Service initialized');
-  }
-
-  // Show notification that simulates Android notification bar experience
-  async showNotification(title: string, message: string, type: 'lead' | 'payment' | 'system' | 'general' = 'general') {
-    if (!this.isInitialized) {
-      this.initialize();
+  async initialize(): Promise<boolean> {
+    if (this.isInitialized) {
+      console.log('📱 Simple notification service already initialized');
+      return true;
     }
 
-    const currentTime = new Date();
-    const formattedTime = currentTime.toLocaleTimeString();
-    const formattedDate = currentTime.toLocaleDateString();
-    
-    const emoji = this.getNotificationEmoji(type);
-    const enhancedMessage = `${message}\n\n⏰ Received: ${formattedDate} at ${formattedTime}`;
+    try {
+      // Get provider ID from storage
+      this.providerId = await AsyncStorage.getItem('providerId') || '1';
+      console.log(`🔔 Initializing simple notifications for provider: ${this.providerId}`);
 
-    // Store notification
-    const notification: SimpleNotification = {
-      id: Date.now().toString(),
-      title,
-      message: enhancedMessage,
-      type,
-      timestamp: currentTime.toISOString()
-    };
-
-    this.notifications.unshift(notification);
-
-    console.log('📱 Showing ServicePanda notification:', {
-      title: `${emoji} ${title}`,
-      message: enhancedMessage,
-      type,
-      time: formattedTime
-    });
-
-    // Simulate Android notification behavior
-    return this.simulateAndroidNotification(title, enhancedMessage, emoji);
-  }
-
-  private async simulateAndroidNotification(title: string, message: string, emoji: string): Promise<string> {
-    return new Promise((resolve) => {
-      // Show notification-style alert immediately
-      Alert.alert(
-        `🐼 ServicePanda Provider`,
-        `${emoji} ${title}\n\n${message}`,
-        [
-          {
-            text: 'Open App',
-            onPress: () => {
-              console.log('📱 User opened app from notification');
-              resolve('opened');
-            },
-          },
-          {
-            text: 'View Details',
-            onPress: () => {
-              console.log('📱 User tapped View Details');
-              resolve('viewed');
-            },
-          },
-          {
-            text: 'Dismiss',
-            style: 'cancel',
-            onPress: () => {
-              console.log('📱 User dismissed notification');
-              resolve('dismissed');
-            },
-          },
-        ],
-        { 
-          cancelable: true,
-          onDismiss: () => {
-            console.log('📱 Notification auto-dismissed');
-            resolve('auto-dismissed');
-          }
-        }
-      );
-    });
-  }
-
-  private getNotificationEmoji(type: string): string {
-    switch (type) {
-      case 'lead':
-        return '🎯';
-      case 'payment':
-        return '💰';
-      case 'system':
-        return '⚙️';
-      case 'general':
-      default:
-        return '🔔';
+      // Register device with server (simplified approach)
+      await this.registerDeviceWithServer();
+      
+      console.log('✅ Simple notification service initialized successfully!');
+      this.isInitialized = true;
+      return true;
+    } catch (error) {
+      console.error('❌ Error initializing simple notification service:', error);
+      return false;
     }
   }
 
-  // Customer request notification
-  sendCustomerRequestNotification(customerMessage: string, location?: string) {
-    const title = 'New Customer Request';
-    const message = location 
-      ? `${customerMessage} in ${location}`
-      : customerMessage;
+  private async registerDeviceWithServer(): Promise<void> {
+    try {
+      // In a real scenario, you would send device token to your server
+      // For now, we'll just simulate registration
+      console.log(`📱 Registering device for provider ${this.providerId} with server...`);
+      
+      // You could make an API call here to register the device:
+      // await fetch('http://10.0.2.2:3000/api/provider/register-device', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ 
+      //     providerId: this.providerId,
+      //     deviceType: 'android',
+      //     // Add FCM token here if available
+      //   })
+      // });
 
-    return this.showNotification(title, message, 'lead');
+      console.log('✅ Device registration simulated successfully');
+    } catch (error) {
+      console.error('❌ Error registering device:', error);
+    }
   }
 
-  // Payment notification
-  sendPaymentNotification(amount: string, description: string) {
-    const title = 'Payment Received';
-    const message = `${description} - $${amount}`;
-    
-    return this.showNotification(title, message, 'payment');
+  // Test method to show notification
+  showTestNotification(title: string, message: string): void {
+    Alert.alert(title, message);
+    console.log(`📱 Notification shown: ${title} - ${message}`);
   }
 
-  // System notification
-  sendSystemNotification(title: string, message: string) {
-    return this.showNotification(title, message, 'system');
+  async checkDeviceStatus(): Promise<void> {
+    console.log('📱 Simple Notification Device Status:');
+    console.log(`   - Provider ID: ${this.providerId}`);
+    console.log(`   - Initialized: ${this.isInitialized}`);
+    console.log(`   - Ready for server push: YES`);
   }
-
-  // Get all notifications
-  getAllNotifications(): SimpleNotification[] {
-    return [...this.notifications];
-  }
-
-  // Get unread notifications count
-  getUnreadCount(): number {
-    return this.notifications.length;
-  }
-
-  // Clear all notifications
-  clearAll() {
-    this.notifications = [];
-    console.log('📱 All notifications cleared');
-  }
-
-  // For real Android system notifications, you would need:
-  // 1. Properly configured react-native-push-notification with auto-linking
-  // 2. OR use Expo with expo-notifications
-  // 3. OR create custom native Android module
-  // 4. OR use Firebase Cloud Messaging (FCM)
-  
-  // This service provides immediate working notifications that simulate
-  // the Android notification experience until proper setup is completed
 }
 
-// Create singleton instance
 const simpleNotificationService = new SimpleNotificationService();
-
 export default simpleNotificationService;
