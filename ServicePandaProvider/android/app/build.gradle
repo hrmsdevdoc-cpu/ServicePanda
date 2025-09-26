@@ -85,6 +85,7 @@ dependencies {
     implementation("com.facebook.react:hermes-android")
     implementation project(':@react-native-async-storage_async-storage')
     implementation project(':react-native-image-crop-picker')
+    // OneSignal auto-links via React Native CLI
     implementation 'androidx.multidex:multidex:2.0.1'
     
     // Fix for react-native-image-picker resource conflicts
