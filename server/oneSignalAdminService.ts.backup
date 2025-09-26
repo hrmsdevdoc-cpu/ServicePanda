@@ -1,6 +1,5 @@
 // OneSignal API service for sending push notifications from server
-// Import fetch polyfill to ensure compatibility
-import './fetchPolyfill';
+// Using built-in fetch (Node.js 18+) or polyfill
 
 interface OneSignalNotification {
   title: string;
@@ -66,7 +65,7 @@ class OneSignalAdminService {
 
       console.log(`🔔 OneSignal payload:`, JSON.stringify(payload, null, 2));
 
-      // Real OneSignal API call with fetch polyfill
+      // Real OneSignal API call with actual REST API key
       console.log(`🔑 Using OneSignal REST API key: ${this.restApiKey.substring(0, 20)}...`);
 
       const response = await fetch(this.apiUrl, {
@@ -97,18 +96,38 @@ class OneSignalAdminService {
   async sendToMultipleProviders(
     providerIds: number[], 
     notification: OneSignalNotification
-  ): Promise<OneSignalResult[]> {
-    const results = await Promise.all(
-      providerIds.map(providerId => this.sendToProvider(providerId, notification))
-    );
-    
-    console.log(`📊 Sent notifications to ${providerIds.length} providers:`, 
-      results.filter(r => r.success).length + ' successful'
-    );
-    
-    return results;
+  ): Promise<{ successful: number; failed: number }> {
+    let successful = 0;
+    let failed = 0;
+
+    console.log(`📤 Sending OneSignal push to ${providerIds.length} providers`);
+
+    for (const providerId of providerIds) {
+      const result = await this.sendToProvider(providerId, notification);
+      if (result.success) {
+        successful++;
+      } else {
+        failed++;
+      }
+    }
+
+    console.log(`✅ OneSignal results: ${successful} successful, ${failed} failed`);
+    return { successful, failed };
+  }
+
+  // Test notification method
+  async sendTestNotification(providerId: number): Promise<OneSignalResult> {
+    return await this.sendToProvider(providerId, {
+      title: "Test Notification from Server",
+      message: `This is a test push notification sent directly from the server at ${new Date().toLocaleTimeString()}`,
+      data: {
+        test: true,
+        timestamp: new Date().toISOString()
+      }
+    });
   }
 }
 
-const oneSignalAdminService = new OneSignalAdminService();
+// Export singleton instance
+export const oneSignalAdminService = new OneSignalAdminService();
 export default oneSignalAdminService;

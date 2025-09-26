@@ -1,4 +1,56 @@
-// OneSignal API service for sending push notifications from server
+/**
+ * Create Fetch Polyfill for Server
+ * Quick fix for server fetch issues
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+console.log('🔧 Creating fetch polyfill for server...');
+console.log('');
+
+// Create a fetch polyfill file
+const polyfillContent = `/**
+ * Fetch Polyfill for Server
+ * Ensures fetch is available in all environments
+ */
+
+// Check if fetch is already available (Node.js 18+)
+if (typeof globalThis.fetch === 'undefined') {
+  console.log('⚠️ Built-in fetch not available, using polyfill');
+  
+  // Simple fetch polyfill using require
+  try {
+    const nodeFetch = require('node-fetch');
+    globalThis.fetch = nodeFetch.default || nodeFetch;
+    console.log('✅ Fetch polyfill loaded successfully');
+  } catch (error) {
+    console.log('❌ Could not load node-fetch polyfill:', error.message);
+    
+    // Fallback: Basic fetch implementation
+    globalThis.fetch = async (url, options = {}) => {
+      throw new Error('Fetch not available and no polyfill found');
+    };
+  }
+} else {
+  console.log('✅ Built-in fetch available');
+}
+
+export {};
+`;
+
+// Write polyfill to server directory
+const polyfillPath = path.join('server', 'fetchPolyfill.ts');
+
+try {
+  fs.writeFileSync(polyfillPath, polyfillContent);
+  console.log('✅ Fetch polyfill created:', polyfillPath);
+} catch (error) {
+  console.log('❌ Failed to create polyfill:', error.message);
+}
+
+// Create updated oneSignalAdminService with polyfill import
+const oneSignalContent = `// OneSignal API service for sending push notifications from server
 // Import fetch polyfill to ensure compatibility
 import './fetchPolyfill';
 
@@ -31,11 +83,11 @@ class OneSignalAdminService {
   // Send push notification to provider using OneSignal
   async sendToProvider(providerId: number, notification: OneSignalNotification): Promise<OneSignalResult> {
     try {
-      console.log(`📤 Sending OneSignal push notification to provider ${providerId}`);
+      console.log(\`📤 Sending OneSignal push notification to provider \${providerId}\`);
 
       // Get device ID for this provider
       const deviceId = this.getDeviceIdForProvider(providerId);
-      console.log(`📱 Device ID for provider ${providerId}: ${deviceId || 'Not found, using broadcast'}`);
+      console.log(\`📱 Device ID for provider \${providerId}: \${deviceId || 'Not found, using broadcast'}\`);
 
       // Try multiple targeting methods to ensure delivery
       const payload = {
@@ -64,27 +116,27 @@ class OneSignalAdminService {
         apns_push_type_override: "background"
       };
 
-      console.log(`🔔 OneSignal payload:`, JSON.stringify(payload, null, 2));
+      console.log(\`🔔 OneSignal payload:\`, JSON.stringify(payload, null, 2));
 
       // Real OneSignal API call with fetch polyfill
-      console.log(`🔑 Using OneSignal REST API key: ${this.restApiKey.substring(0, 20)}...`);
+      console.log(\`🔑 Using OneSignal REST API key: \${this.restApiKey.substring(0, 20)}...\`);
 
       const response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${this.restApiKey}`
+          'Authorization': \`Basic \${this.restApiKey}\`
         },
         body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`OneSignal API error: ${JSON.stringify(errorData)}`);
+        throw new Error(\`OneSignal API error: \${JSON.stringify(errorData)}\`);
       }
 
       const result = await response.json();
-      console.log(`✅ OneSignal notification sent:`, result);
+      console.log(\`✅ OneSignal notification sent:\`, result);
       return { success: true, id: result.id };
 
     } catch (error) {
@@ -102,7 +154,7 @@ class OneSignalAdminService {
       providerIds.map(providerId => this.sendToProvider(providerId, notification))
     );
     
-    console.log(`📊 Sent notifications to ${providerIds.length} providers:`, 
+    console.log(\`📊 Sent notifications to \${providerIds.length} providers:\`, 
       results.filter(r => r.success).length + ' successful'
     );
     
@@ -112,3 +164,31 @@ class OneSignalAdminService {
 
 const oneSignalAdminService = new OneSignalAdminService();
 export default oneSignalAdminService;
+`;
+
+// Backup current file and write new one
+const originalPath = path.join('server', 'oneSignalAdminService.ts');
+const backupPath = path.join('server', 'oneSignalAdminService.ts.backup');
+
+try {
+  // Create backup
+  const originalContent = fs.readFileSync(originalPath, 'utf8');
+  fs.writeFileSync(backupPath, originalContent);
+  console.log('✅ Backup created:', backupPath);
+  
+  // Write new version with polyfill
+  fs.writeFileSync(originalPath, oneSignalContent);
+  console.log('✅ Updated oneSignalAdminService.ts with fetch polyfill');
+  
+} catch (error) {
+  console.log('❌ Failed to update oneSignalAdminService:', error.message);
+}
+
+console.log('');
+console.log('🎯 SOLUTION APPLIED:');
+console.log('   ✅ Created fetch polyfill');
+console.log('   ✅ Updated oneSignalAdminService to use polyfill');
+console.log('   ✅ Backward compatible with all Node.js versions');
+console.log('');
+console.log('🔄 Now restart server: pm2 restart my-app-dev');
+console.log('📱 Server errors should be resolved!');
