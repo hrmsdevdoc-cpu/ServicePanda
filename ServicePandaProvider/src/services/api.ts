@@ -87,7 +87,7 @@ class ApiService {
       }
 
       const result = await response.json();
-      console.log('✅ API Response data:', result);
+      // console.log('✅ API Response data:', result);
       return result;
     } catch (error: any) {
       console.error('💥 API Request failed:', error);

@@ -2,9 +2,14 @@
 
 // enableScreens();
 
+console.log('🚨🚨🚨 APP.TSX LOADING - IMMEDIATE TEST 🚨🚨🚨');
+
 const React = require('react');
 const { useState, useRef, useEffect } = require('react');
 const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
+
+console.log('🔥 App.tsx: After React imports - still loading...');
+
 const { AuthProvider, useAuth } = require('./src/contexts/AuthContext');
 // Onboarding screens
 const OnboardingFlow = require('./src/screens/onboarding/OnboardingFlow');
@@ -142,6 +147,20 @@ const LoadingScreen = () => {
 const AppContent = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState('login');
+
+  // Simple test - just check if App.tsx useEffect runs
+  useEffect(() => {
+    console.log('🔥🔥🔥 App.tsx: AppContent useEffect DEFINITELY running!');
+    console.log('🎯 App.tsx: Testing if this shows up in logs...');
+    
+    // Skip OneSignal completely - use server-side notifications only
+    console.log('🎯 App.tsx: Skipping OneSignal - using pure server notifications');
+    console.log('✅ App.tsx: Server-side notifications working when app open');
+    console.log('📱 App.tsx: Background notifications will be handled by server');
+    
+    console.log('✅ App.tsx: useEffect finished - this should definitely show!');
+  }, []);
+
   const [currentSubScreen, setCurrentSubScreen] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [navigationHistory, setNavigationHistory] = useState(['login']);
