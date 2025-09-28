@@ -177,6 +177,15 @@ export default function AdminPotentialProviders() {
     assignedTo: "",
   });
 
+  // Fetch admin users for task assignment
+  const { data: adminUsers = [] } = useQuery({
+    queryKey: ['/api/admin/users'],
+    queryFn: async () => {
+      const response = await adminApiRequest('GET', '/api/admin/users');
+      return response.json();
+    },
+  });
+
   const [emailData, setEmailData] = useState({
     subject: "",
     content: "",
@@ -905,7 +914,7 @@ export default function AdminPotentialProviders() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
       setIsTaskDialogOpen(false);
       setTaskData({
-        taskType: "call",
+        taskType: "",
         title: "",
         description: "",
         scheduledDate: "",
@@ -1169,7 +1178,7 @@ export default function AdminPotentialProviders() {
                 }`}
               >
                 <Users className="h-4 w-4" />
-                <span className="font-medium">Member List ({newProviders.length})</span>
+                <span className="font-medium">New Members (New) ({newProviders.length})</span>
               </Button>
               <Button
                 variant={viewMode === 'list' ? 'default' : 'ghost'}
@@ -1346,10 +1355,10 @@ export default function AdminPotentialProviders() {
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                         <Users className="h-5 w-5 text-blue-600 mr-2" />
-                        Member List ({filteredProviders.length})
+                        New Members (New) ({filteredProviders.length})
                       </h2>
                       <p className="text-sm text-gray-500 mt-1">
-                        Review and approve new potential providers
+                        Review new potential providers and create tasks for follow-up
                       </p>
                     </div>
                     <div className="p-6">
@@ -1407,6 +1416,24 @@ export default function AdminPotentialProviders() {
                                 </div>
                                 
                                 <div className="flex flex-col space-y-2 ml-4">
+                                  <Button
+                                    onClick={() => {
+                                      setSelectedProvider(provider);
+                                      setTaskData({
+                                        taskType: "follow_up",
+                                        title: `Follow up with ${provider.firstName} ${provider.lastName}`,
+                                        description: `Contact ${provider.firstName} ${provider.lastName} regarding their potential provider application.`,
+                                        scheduledDate: "",
+                                        assignedTo: "",
+                                      });
+                                      setIsTaskDialogOpen(true);
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    size="sm"
+                                  >
+                                    <Calendar className="h-4 w-4 mr-1" />
+                                    Create Task
+                                  </Button>
                                   <Button
                                     onClick={() => handleStatusChange(provider.id, 'first_call')}
                                     className="bg-green-600 hover:bg-green-700 text-white"
@@ -2077,7 +2104,7 @@ export default function AdminPotentialProviders() {
               <label className="text-sm font-medium">Task Type</label>
               <Select value={taskData.taskType} onValueChange={(value) => setTaskData({...taskData, taskType: value})}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select task type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="call">Call</SelectItem>
@@ -2115,11 +2142,18 @@ export default function AdminPotentialProviders() {
             </div>
             <div>
               <label className="text-sm font-medium">Assigned To</label>
-              <Input
-                value={taskData.assignedTo}
-                onChange={(e) => setTaskData({...taskData, assignedTo: e.target.value})}
-                placeholder="Admin username"
-              />
+              <Select value={taskData.assignedTo} onValueChange={(value) => setTaskData({...taskData, assignedTo: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select admin user" />
+                </SelectTrigger>
+                <SelectContent>
+                  {adminUsers.map((user: any) => (
+                    <SelectItem key={user.id} value={user.username}>
+                      {user.firstName} {user.lastName} ({user.username}) - {user.role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
