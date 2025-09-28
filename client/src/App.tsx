@@ -101,6 +101,8 @@ function Router() {
       <Route path="/admin/leads" component={AdminLeads} />
       <Route path="/admin/vouchers" component={AdminVoucherManagement} />
       <Route path="/admin/potential-customers" component={AdminPotentialCustomers} />
+      <Route path="/admin/potential-customers/imports" component={AdminPotentialCustomers} />
+      <Route path="/admin/potential-customers/sms" component={AdminPotentialCustomers} />
       <Route path="/admin/potential-providers" component={AdminPotentialProviders} />
       <Route path="/admin/lead-settings" component={AdminLeadSettings} />
               <Route path="/admin/service-type" component={AdminLeadManagement} />

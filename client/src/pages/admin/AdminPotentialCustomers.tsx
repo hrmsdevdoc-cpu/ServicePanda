@@ -66,6 +66,35 @@ interface ImportGroup {
   smsDeliveryStatus: string;
 }
 
+interface AustralianRegion {
+  id: number;
+  name: string;
+  code: string;
+  stateId: number;
+}
+
+interface AustralianState {
+  id: number;
+  name: string;
+  abbreviation: string;
+}
+
+interface SMSCampaign {
+  id: number;
+  name: string;
+  message: string;
+  voucherCode?: string;
+  voucherAmount?: number;
+  selectedStates: string[];
+  selectedRegions: number[];
+  selectedStatuses: string[];
+  scheduledAt?: string;
+  status: 'draft' | 'scheduled' | 'sent' | 'failed';
+  totalSent: number;
+  createdAt: string;
+  sentAt?: string;
+}
+
 export default function AdminPotentialCustomers() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
@@ -82,16 +111,55 @@ export default function AdminPotentialCustomers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedImportId, setSelectedImportId] = useState<string>("all");
   const [selectedState, setSelectedState] = useState<string>("all");
+  const [selectedCustomerStatus, setSelectedCustomerStatus] = useState<string>("all");
+  const [selectedRegionId, setSelectedRegionId] = useState<string>("all");
   
   // State for SMS sending
   const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
   const [selectedCustomersForSms, setSelectedCustomersForSms] = useState<PotentialCustomer[]>([]);
+  
+  // State for SMS Campaigns
+  const [isCampaignDialogOpen, setIsCampaignDialogOpen] = useState(false);
+  const [isEditCampaignDialogOpen, setIsEditCampaignDialogOpen] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<SMSCampaign | null>(null);
+  const [campaigns, setCampaigns] = useState<SMSCampaign[]>([]);
+  const [newCampaign, setNewCampaign] = useState({
+    name: '',
+    message: '',
+    voucherCode: '',
+    voucherAmount: 0,
+    selectedStates: [] as string[],
+    selectedRegions: [] as number[],
+    selectedStatuses: [] as string[],
+    scheduledAt: '',
+  });
   
   // State for pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [viewMode, setViewMode] = useState<'pagination' | 'loadMore'>('pagination');
   const [loadedCount, setLoadedCount] = useState(10);
+
+  // Local status state per customer (UI only for now)
+  const [customerStatusMap, setCustomerStatusMap] = useState<Record<number, string>>({});
+
+  const setCustomerStatus = (customerId: number, status: string) => {
+    setCustomerStatusMap(prev => ({ ...prev, [customerId]: status }));
+  };
+
+  // List/Kanban toggle for customer list
+  const [customerListView, setCustomerListView] = useState<'list' | 'kanban'>('list');
+
+  const CUSTOMER_STATUSES: { id: string; title: string; color: string }[] = [
+    { id: 'New', title: 'New', color: 'bg-gray-100' },
+    { id: 'Added to Campaign', title: 'Added to Campaign', color: 'bg-blue-100' },
+    { id: 'SMS Sent', title: 'SMS Sent', color: 'bg-indigo-100' },
+    { id: '2nd SMS', title: '2nd SMS', color: 'bg-yellow-100' },
+    { id: '3rd Sent', title: '3rd Sent', color: 'bg-purple-100' },
+    { id: 'Lost', title: 'Lost', color: 'bg-red-100' },
+    { id: 'Won', title: 'Won', color: 'bg-green-100' },
+    { id: 'Unsubscribe', title: 'Unsubscribe', color: 'bg-slate-200' },
+  ];
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -115,6 +183,37 @@ export default function AdminPotentialCustomers() {
       return response.json();
     },
   });
+
+  // Derived unique states for filter dropdown
+  const uniqueStates = React.useMemo(() => {
+    return Array.from(new Set(potentialCustomers.map((c: PotentialCustomer) => c.state))) as string[];
+  }, [potentialCustomers]);
+
+  // Fetch Australian states (master list)
+  const { data: allStates = [] } = useQuery<AustralianState[]>({
+    queryKey: ['/api/australian-states'],
+    queryFn: async () => {
+      const resp = await adminApiRequest('GET', '/api/australian-states');
+      return resp.json();
+    },
+  });
+
+  // Fetch Australian regions (SA4)
+  const { data: allRegions = [] } = useQuery<AustralianRegion[]>({
+    queryKey: ['/api/regions'],
+    queryFn: async () => {
+      const resp = await adminApiRequest('GET', '/api/regions');
+      return resp.json();
+    },
+  });
+
+  // Regions filtered by selected state (if selected)
+  const displayRegions = React.useMemo(() => {
+    if (selectedState === 'all') return allRegions as AustralianRegion[];
+    const stateRecord = (allStates as AustralianState[]).find(s => s.name === selectedState || s.abbreviation === selectedState);
+    if (!stateRecord) return allRegions as AustralianRegion[];
+    return (allRegions as AustralianRegion[]).filter(r => r.stateId === stateRecord.id);
+  }, [allRegions, allStates, selectedState]);
 
   // Import customers mutation
   const importCustomersMutation = useMutation({
@@ -221,6 +320,132 @@ export default function AdminPotentialCustomers() {
     await sendSmsMutation.mutateAsync(customerIds);
   };
 
+  // Campaign management functions
+  const generateVoucherCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const handleCreateCampaign = () => {
+    if (!newCampaign.name.trim() || !newCampaign.message.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in campaign name and message.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const campaign: SMSCampaign = {
+      id: Date.now(),
+      name: newCampaign.name,
+      message: newCampaign.message,
+      voucherCode: newCampaign.voucherCode || undefined,
+      voucherAmount: newCampaign.voucherAmount || undefined,
+      selectedStates: newCampaign.selectedStates,
+      selectedRegions: newCampaign.selectedRegions,
+      selectedStatuses: newCampaign.selectedStatuses,
+      scheduledAt: newCampaign.scheduledAt || undefined,
+      status: newCampaign.scheduledAt ? 'scheduled' : 'draft',
+      totalSent: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    setCampaigns(prev => [campaign, ...prev]);
+    setNewCampaign({
+      name: '',
+      message: '',
+      voucherCode: '',
+      voucherAmount: 0,
+      selectedStates: [],
+      selectedRegions: [],
+      selectedStatuses: [],
+      scheduledAt: '',
+    });
+    setIsCampaignDialogOpen(false);
+    
+    toast({
+      title: "Campaign Created",
+      description: "SMS campaign has been created successfully.",
+    });
+  };
+
+  const handleEditCampaign = (campaign: SMSCampaign) => {
+    if (campaign.status === 'sent') {
+      toast({
+        title: "Cannot Edit",
+        description: "Sent campaigns cannot be edited. Create a duplicate instead.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEditingCampaign(campaign);
+    setNewCampaign({
+      name: campaign.name,
+      message: campaign.message,
+      voucherCode: campaign.voucherCode || '',
+      voucherAmount: campaign.voucherAmount || 0,
+      selectedStates: campaign.selectedStates,
+      selectedRegions: campaign.selectedRegions,
+      selectedStatuses: campaign.selectedStatuses,
+      scheduledAt: campaign.scheduledAt || '',
+    });
+    setIsEditCampaignDialogOpen(true);
+  };
+
+  const handleUpdateCampaign = () => {
+    if (!editingCampaign) return;
+
+    const updatedCampaigns = campaigns.map(c => 
+      c.id === editingCampaign.id 
+        ? {
+            ...c,
+            name: newCampaign.name,
+            message: newCampaign.message,
+            voucherCode: newCampaign.voucherCode || undefined,
+            voucherAmount: newCampaign.voucherAmount || undefined,
+            selectedStates: newCampaign.selectedStates,
+            selectedRegions: newCampaign.selectedRegions,
+            selectedStatuses: newCampaign.selectedStatuses,
+            scheduledAt: newCampaign.scheduledAt || undefined,
+            status: newCampaign.scheduledAt ? 'scheduled' as const : 'draft' as const,
+          }
+        : c
+    );
+    
+    setCampaigns(updatedCampaigns);
+    setIsEditCampaignDialogOpen(false);
+    setEditingCampaign(null);
+    
+    toast({
+      title: "Campaign Updated",
+      description: "SMS campaign has been updated successfully.",
+    });
+  };
+
+  const handleDuplicateCampaign = (campaign: SMSCampaign) => {
+    const duplicatedCampaign: SMSCampaign = {
+      ...campaign,
+      id: Date.now(),
+      name: `${campaign.name} (Copy)`,
+      status: 'draft',
+      totalSent: 0,
+      createdAt: new Date().toISOString(),
+      sentAt: undefined,
+    };
+    
+    setCampaigns(prev => [duplicatedCampaign, ...prev]);
+    
+    toast({
+      title: "Campaign Duplicated",
+      description: "SMS campaign has been duplicated successfully.",
+    });
+  };
+
 
 
   const getSmsStatusBadge = (status: string) => {
@@ -242,8 +467,10 @@ export default function AdminPotentialCustomers() {
                          customer.phone.includes(searchTerm);
     const matchesImportId = selectedImportId === "all" || customer.importId === selectedImportId;
     const matchesState = selectedState === "all" || customer.state === selectedState;
+    const currentStatus = customerStatusMap[customer.id] ?? 'New';
+    const matchesCustomerStatus = selectedCustomerStatus === 'all' || currentStatus === selectedCustomerStatus;
     
-    return matchesSearch && matchesImportId && matchesState;
+    return matchesSearch && matchesImportId && matchesState && matchesCustomerStatus;
   });
 
   // Pagination logic
@@ -261,7 +488,20 @@ export default function AdminPotentialCustomers() {
   React.useEffect(() => {
     setCurrentPage(1);
     setLoadedCount(10);
-  }, [searchTerm, selectedImportId, selectedState]);
+  }, [searchTerm, selectedImportId, selectedState, selectedCustomerStatus]);
+
+  // Sync tabs with route
+  const currentTab: 'list' | 'imports' | 'sms' = React.useMemo(() => {
+    if (location.startsWith('/admin/potential-customers/imports')) return 'imports';
+    if (location.startsWith('/admin/potential-customers/sms')) return 'sms';
+    return 'list';
+  }, [location]);
+
+  const handleTabChange = (value: string) => {
+    if (value === 'imports') setLocation('/admin/potential-customers/imports');
+    else if (value === 'sms') setLocation('/admin/potential-customers/sms');
+    else setLocation('/admin/potential-customers');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
@@ -286,10 +526,7 @@ export default function AdminPotentialCustomers() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => setIsImportDialogOpen(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import Customers
-                </Button>
+                {/* Move Import button into Imports page; keep header clean */}
               </div>
             </div>
           </div>
@@ -297,12 +534,8 @@ export default function AdminPotentialCustomers() {
 
         {/* Content */}
         <div className="p-8">
-          <Tabs defaultValue="list" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="list">Customer List</TabsTrigger>
-              <TabsTrigger value="imports">Import Groups</TabsTrigger>
-              <TabsTrigger value="sms">SMS Campaigns</TabsTrigger>
-            </TabsList>
+          <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-6">
+            {/* Tabs are now hidden - navigation via sidebar */}
 
             <TabsContent value="list" className="space-y-6">
               {/* Filters */}
@@ -311,7 +544,7 @@ export default function AdminPotentialCustomers() {
                   <CardTitle>Filters</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                     <div>
                       <Label htmlFor="search">Search</Label>
                       <Input
@@ -345,9 +578,42 @@ export default function AdminPotentialCustomers() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All states</SelectItem>
-                          {Array.from(new Set(potentialCustomers.map((c: PotentialCustomer) => c.state))).map((state) => (
+                          {uniqueStates.map((state: string) => (
                             <SelectItem key={state} value={state}>{state}</SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="region">Region</Label>
+                      <Select value={selectedRegionId} onValueChange={setSelectedRegionId} disabled={selectedState === 'all'}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All regions" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All regions</SelectItem>
+                          {displayRegions.map((r: AustralianRegion) => (
+                            <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="customer-status">Customer Status</Label>
+                      <Select value={selectedCustomerStatus} onValueChange={setSelectedCustomerStatus}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All statuses</SelectItem>
+                          <SelectItem value="New">New</SelectItem>
+                          <SelectItem value="Added to Campaign">Added to Campaign</SelectItem>
+                          <SelectItem value="SMS Sent">SMS Sent</SelectItem>
+                          <SelectItem value="2nd SMS">2nd SMS</SelectItem>
+                          <SelectItem value="3rd Sent">3rd Sent</SelectItem>
+                          <SelectItem value="Lost">Lost</SelectItem>
+                          <SelectItem value="Won">Won</SelectItem>
+                          <SelectItem value="Unsubscribe">Unsubscribe</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -358,6 +624,8 @@ export default function AdminPotentialCustomers() {
                           setSearchTerm("");
                           setSelectedImportId("all");
                           setSelectedState("all");
+                          setSelectedCustomerStatus("all");
+                          setSelectedRegionId("all");
                         }}
                       >
                         <RefreshCw className="h-4 w-4 mr-2" />
@@ -368,10 +636,24 @@ export default function AdminPotentialCustomers() {
                 </CardContent>
               </Card>
 
-              {/* Customer List */}
+              {/* Customer List / Kanban */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Potential Customers ({filteredCustomers.length})</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Potential Customers ({filteredCustomers.length})</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm">View:</Label>
+                      <Select value={customerListView} onValueChange={(v) => setCustomerListView(v as 'list' | 'kanban')}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="list">List</SelectItem>
+                          <SelectItem value="kanban">Kanban</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                   <CardDescription>
                     Imported customer data with SMS delivery status
                   </CardDescription>
@@ -389,167 +671,244 @@ export default function AdminPotentialCustomers() {
                       <p className="text-gray-500">Import customer data to get started.</p>
                     </div>
                   ) : (
-                    <>
-                      <div className="space-y-4">
-                        {displayedCustomers.map((customer: PotentialCustomer) => (
-                          <div key={customer.id} className="border rounded-lg p-4 bg-white">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="font-semibold text-lg">{customer.name}</h3>
-                                  {getSmsStatusBadge(customer.smsDeliveryStatus)}
+                    <div>
+                      {customerListView === 'list' ? (
+                        <>
+                          <div className="space-y-4">
+                            {displayedCustomers.map((customer: PotentialCustomer) => (
+                              <div key={customer.id} className="border rounded-lg p-4 bg-white">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <h3 className="font-semibold text-lg">{customer.name}</h3>
+                                      {getSmsStatusBadge(customer.smsDeliveryStatus)}
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                                      <div className="flex items-center gap-2">
+                                        <Mail className="h-4 w-4" />
+                                        <span>{customer.email}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4" />
+                                        <span>{customer.phone}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <MapPin className="h-4 w-4" />
+                                        <span>{customer.city}, {customer.state}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Database className="h-4 w-4" />
+                                        <span>{customer.importName}</span>
+                                      </div>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                      Imported: {new Date(customer.createdAt).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                      <Label className="text-sm whitespace-nowrap">Customer Status</Label>
+                                      <Select
+                                        value={customerStatusMap[customer.id] ?? 'New'}
+                                        onValueChange={(value) => setCustomerStatus(customer.id, value)}
+                                      >
+                                        <SelectTrigger className="w-56">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="New">New</SelectItem>
+                                          <SelectItem value="Added to Campaign">Added to Campaign</SelectItem>
+                                          <SelectItem value="SMS Sent">SMS Sent</SelectItem>
+                                          <SelectItem value="2nd SMS">2nd SMS</SelectItem>
+                                          <SelectItem value="3rd Sent">3rd Sent</SelectItem>
+                                          <SelectItem value="Lost">Lost</SelectItem>
+                                          <SelectItem value="Won">Won</SelectItem>
+                                          <SelectItem value="Unsubscribe">Unsubscribe</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setSelectedCustomersForSms([customer]);
+                                        setIsSmsDialogOpen(true);
+                                      }}
+                                      disabled={customer.smsDeliveryStatus === '2nd_sent'}
+                                    >
+                                      <Send className="h-4 w-4 mr-2" />
+                                      Send SMS
+                                    </Button>
+                                  </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
-                                  <div className="flex items-center gap-2">
-                                    <Mail className="h-4 w-4" />
-                                    <span>{customer.email}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4" />
-                                    <span>{customer.phone}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <MapPin className="h-4 w-4" />
-                                    <span>{customer.city}, {customer.state}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Database className="h-4 w-4" />
-                                    <span>{customer.importName}</span>
-                                  </div>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-2">
-                                  Imported: {new Date(customer.createdAt).toLocaleDateString()}
-                                </p>
                               </div>
+                            ))}
+                          </div>
+                          
+                          {/* View Mode Toggle */}
+                          <div className="flex items-center justify-between mt-6">
+                            <div className="flex items-center gap-2">
+                              <Label className="text-sm">View Mode:</Label>
+                              <Select value={viewMode} onValueChange={(value: 'pagination' | 'loadMore') => {
+                                setViewMode(value);
+                                setCurrentPage(1);
+                                setLoadedCount(10);
+                              }}>
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pagination">Pagination</SelectItem>
+                                  <SelectItem value="loadMore">Load More</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <span>
+                                Showing {viewMode === 'pagination' 
+                                  ? `${startIndex + 1}-${Math.min(endIndex, totalCustomers)}` 
+                                  : `1-${Math.min(loadedCount, totalCustomers)}`
+                                } of {totalCustomers} customers
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Pagination Controls */}
+                          {viewMode === 'pagination' && totalPages > 1 && (
+                            <div className="flex items-center justify-between mt-4">
                               <div className="flex items-center gap-2">
                                 <Button
-                                  size="sm"
                                   variant="outline"
-                                  onClick={() => {
-                                    setSelectedCustomersForSms([customer]);
-                                    setIsSmsDialogOpen(true);
-                                  }}
-                                  disabled={customer.smsDeliveryStatus === '2nd_sent'}
+                                  size="sm"
+                                  onClick={() => setCurrentPage(currentPage - 1)}
+                                  disabled={currentPage === 1}
                                 >
-                                  <Send className="h-4 w-4 mr-2" />
-                                  Send SMS
+                                  <ChevronLeft className="h-4 w-4 mr-1" />
+                                  Previous
+                                </Button>
+                                <div className="flex items-center gap-1">
+                                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    let pageNum;
+                                    if (totalPages <= 5) {
+                                      pageNum = i + 1;
+                                    } else if (currentPage <= 3) {
+                                      pageNum = i + 1;
+                                    } else if (currentPage >= totalPages - 2) {
+                                      pageNum = totalPages - 4 + i;
+                                    } else {
+                                      pageNum = currentPage - 2 + i;
+                                    }
+                                    
+                                    return (
+                                      <Button
+                                        key={pageNum}
+                                        variant={currentPage === pageNum ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className="w-8 h-8 p-0"
+                                      >
+                                        {pageNum}
+                                      </Button>
+                                    );
+                                  })}
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setCurrentPage(currentPage + 1)}
+                                  disabled={currentPage === totalPages}
+                                >
+                                  Next
+                                  <ChevronRight className="h-4 w-4 ml-1" />
                                 </Button>
                               </div>
+                              <div className="flex items-center gap-2">
+                                <Label htmlFor="page-size" className="text-sm">Show:</Label>
+                                <Select value={pageSize.toString()} onValueChange={(value) => {
+                                  setPageSize(parseInt(value));
+                                  setCurrentPage(1);
+                                }}>
+                                  <SelectTrigger className="w-20">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="20">20</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {/* View Mode Toggle */}
-                      <div className="flex items-center justify-between mt-6">
-                        <div className="flex items-center gap-2">
-                          <Label className="text-sm">View Mode:</Label>
-                          <Select value={viewMode} onValueChange={(value: 'pagination' | 'loadMore') => {
-                            setViewMode(value);
-                            setCurrentPage(1);
-                            setLoadedCount(10);
-                          }}>
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pagination">Pagination</SelectItem>
-                              <SelectItem value="loadMore">Load More</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>
-                            Showing {viewMode === 'pagination' 
-                              ? `${startIndex + 1}-${Math.min(endIndex, totalCustomers)}` 
-                              : `1-${Math.min(loadedCount, totalCustomers)}`
-                            } of {totalCustomers} customers
-                          </span>
-                        </div>
-                      </div>
+                          )}
 
-                      {/* Pagination Controls */}
-                      {viewMode === 'pagination' && totalPages > 1 && (
-                        <div className="flex items-center justify-between mt-4">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setCurrentPage(currentPage - 1)}
-                              disabled={currentPage === 1}
-                            >
-                              <ChevronLeft className="h-4 w-4 mr-1" />
-                              Previous
-                            </Button>
-                            <div className="flex items-center gap-1">
-                              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                let pageNum;
-                                if (totalPages <= 5) {
-                                  pageNum = i + 1;
-                                } else if (currentPage <= 3) {
-                                  pageNum = i + 1;
-                                } else if (currentPage >= totalPages - 2) {
-                                  pageNum = totalPages - 4 + i;
-                                } else {
-                                  pageNum = currentPage - 2 + i;
-                                }
-                                
-                                return (
-                                  <Button
-                                    key={pageNum}
-                                    variant={currentPage === pageNum ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setCurrentPage(pageNum)}
-                                    className="w-8 h-8 p-0"
+                          {/* Load More Controls */}
+                          {viewMode === 'loadMore' && loadedCount < totalCustomers && (
+                            <div className="flex items-center justify-center mt-4">
+                              <Button
+                                variant="outline"
+                                onClick={() => setLoadedCount(prev => Math.min(prev + 10, totalCustomers))}
+                              >
+                                Load More ({Math.min(10, totalCustomers - loadedCount)} more)
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <div className="flex gap-6 min-w-max pr-2">
+                            {(CUSTOMER_STATUSES).map((column) => {
+                              const columnCustomers = filteredCustomers.filter((c: PotentialCustomer) => (customerStatusMap[c.id] ?? 'New') === column.id);
+                              return (
+                                <div key={column.id} className="space-y-3 w-80 flex-shrink-0">
+                                  <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-semibold">{column.title}</h3>
+                                    <Badge variant="secondary">{columnCustomers.length}</Badge>
+                                  </div>
+                                  <div
+                                    className={"min-h-[400px] max-h-[600px] p-3 rounded-xl " + column.color + " border border-gray-200 overflow-hidden"}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      const idStr = e.dataTransfer.getData('text/plain');
+                                      const cid = parseInt(idStr);
+                                      if (!isNaN(cid)) {
+                                        setCustomerStatus(cid, column.id);
+                                      }
+                                    }}
                                   >
-                                    {pageNum}
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setCurrentPage(currentPage + 1)}
-                              disabled={currentPage === totalPages}
-                            >
-                              Next
-                              <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Label htmlFor="page-size" className="text-sm">Show:</Label>
-                            <Select value={pageSize.toString()} onValueChange={(value) => {
-                              setPageSize(parseInt(value));
-                              setCurrentPage(1);
-                            }}>
-                              <SelectTrigger className="w-20">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="5">5</SelectItem>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="20">20</SelectItem>
-                                <SelectItem value="50">50</SelectItem>
-                              </SelectContent>
-                            </Select>
+                                    <div className="space-y-3 max-h-[560px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f1f5f9' }}>
+                                      {columnCustomers.map((customer: PotentialCustomer) => (
+                                        <div
+                                          key={customer.id}
+                                          className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition cursor-move"
+                                          draggable
+                                          onDragStart={(e) => {
+                                            e.dataTransfer.setData('text/plain', customer.id.toString());
+                                          }}
+                                        >
+                                          <div className="flex items-start justify-between">
+                                            <div className="min-w-0">
+                                              <h4 className="font-semibold text-gray-900 truncate">{customer.name}</h4>
+                                              <div className="mt-1 text-sm text-gray-600 space-y-1">
+                                                <div className="flex items-center gap-2"><Mail className="h-4 w-4" /><span className="truncate">{customer.email}</span></div>
+                                                <div className="flex items-center gap-2"><Phone className="h-4 w-4" /><span>{customer.phone}</span></div>
+                                                <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /><span>{customer.city}, {customer.state}</span></div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
-
-                      {/* Load More Controls */}
-                      {viewMode === 'loadMore' && loadedCount < totalCustomers && (
-                        <div className="flex items-center justify-center mt-4">
-                          <Button
-                            variant="outline"
-                            onClick={() => setLoadedCount(prev => Math.min(prev + 10, totalCustomers))}
-                          >
-                            Load More ({Math.min(10, totalCustomers - loadedCount)} more)
-                          </Button>
-                        </div>
-                      )}
-                    </>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -558,10 +917,20 @@ export default function AdminPotentialCustomers() {
             <TabsContent value="imports" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Import Groups</CardTitle>
-                  <CardDescription>
-                    Overview of imported customer batches
-                  </CardDescription>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <CardTitle>Import Groups</CardTitle>
+                      <CardDescription>
+                        Overview of imported customer batches
+                      </CardDescription>
+                    </div>
+                    <div className="mt-2">
+                      <Button onClick={() => setIsImportDialogOpen(true)} className="whitespace-nowrap">
+                        <Upload className="h-4 w-4 mr-2" />
+                        Import Customers
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {importGroups.length === 0 ? (
@@ -607,45 +976,141 @@ export default function AdminPotentialCustomers() {
             </TabsContent>
 
             <TabsContent value="sms" className="space-y-6">
+              {/* SMS Campaigns Overview */}
               <Card>
                 <CardHeader>
-                  <CardTitle>SMS Campaigns</CardTitle>
-                  <CardDescription>
-                    Manage SMS campaigns for potential customers
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>SMS Campaigns</CardTitle>
+                      <CardDescription>
+                        Create and manage SMS campaigns for potential customers
+                      </CardDescription>
+                    </div>
+                    <Button onClick={() => setIsCampaignDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add New Campaign
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div className="border rounded-lg p-4 bg-white">
                       <div className="flex items-center gap-2 mb-2">
                         <Clock className="h-5 w-5 text-yellow-600" />
-                        <h3 className="font-semibold">Not Sent</h3>
+                        <h3 className="font-semibold">Draft</h3>
                       </div>
                       <p className="text-2xl font-bold text-yellow-600">
-                        {potentialCustomers.filter((c: PotentialCustomer) => c.smsDeliveryStatus === 'not_sent').length}
+                        {campaigns.filter(c => c.status === 'draft').length}
                       </p>
-                      <p className="text-sm text-gray-500">Customers</p>
+                      <p className="text-sm text-gray-500">Campaigns</p>
                     </div>
                     <div className="border rounded-lg p-4 bg-white">
                       <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle className="h-5 w-5 text-blue-600" />
-                        <h3 className="font-semibold">1st SMS Sent</h3>
+                        <Calendar className="h-5 w-5 text-blue-600" />
+                        <h3 className="font-semibold">Scheduled</h3>
                       </div>
                       <p className="text-2xl font-bold text-blue-600">
-                        {potentialCustomers.filter((c: PotentialCustomer) => c.smsDeliveryStatus === '1st_sent').length}
+                        {campaigns.filter(c => c.status === 'scheduled').length}
                       </p>
-                      <p className="text-sm text-gray-500">Customers</p>
+                      <p className="text-sm text-gray-500">Campaigns</p>
                     </div>
                     <div className="border rounded-lg p-4 bg-white">
                       <div className="flex items-center gap-2 mb-2">
                         <CheckCircle className="h-5 w-5 text-green-600" />
-                        <h3 className="font-semibold">2nd SMS Sent</h3>
+                        <h3 className="font-semibold">Sent</h3>
                       </div>
                       <p className="text-2xl font-bold text-green-600">
-                        {potentialCustomers.filter((c: PotentialCustomer) => c.smsDeliveryStatus === '2nd_sent').length}
+                        {campaigns.filter(c => c.status === 'sent').length}
                       </p>
-                      <p className="text-sm text-gray-500">Customers</p>
+                      <p className="text-sm text-gray-500">Campaigns</p>
                     </div>
+                    <div className="border rounded-lg p-4 bg-white">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="h-5 w-5 text-red-600" />
+                        <h3 className="font-semibold">Failed</h3>
+                      </div>
+                      <p className="text-2xl font-bold text-red-600">
+                        {campaigns.filter(c => c.status === 'failed').length}
+                      </p>
+                      <p className="text-sm text-gray-500">Campaigns</p>
+                    </div>
+                  </div>
+
+                  {/* View Campaigns Table */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">View Campaigns</h3>
+                    {campaigns.length === 0 ? (
+                      <div className="text-center py-8">
+                        <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Campaigns</h3>
+                        <p className="text-gray-500">Create your first SMS campaign to get started.</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse border border-gray-200">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="border border-gray-200 px-4 py-2 text-left">Campaign Name</th>
+                              <th className="border border-gray-200 px-4 py-2 text-left">Date Created</th>
+                              <th className="border border-gray-200 px-4 py-2 text-left">Total Sent</th>
+                              <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
+                              <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {campaigns.map((campaign) => (
+                              <tr key={campaign.id}>
+                                <td className="border border-gray-200 px-4 py-2">
+                                  <div>
+                                    <div className="font-medium">{campaign.name}</div>
+                                    <div className="text-sm text-gray-500 truncate max-w-xs">
+                                      {campaign.message.substring(0, 50)}...
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="border border-gray-200 px-4 py-2">
+                                  {new Date(campaign.createdAt).toLocaleDateString()}
+                                </td>
+                                <td className="border border-gray-200 px-4 py-2">
+                                  {campaign.totalSent}
+                                </td>
+                                <td className="border border-gray-200 px-4 py-2">
+                                  <Badge 
+                                    variant={
+                                      campaign.status === 'sent' ? 'default' :
+                                      campaign.status === 'scheduled' ? 'secondary' :
+                                      campaign.status === 'failed' ? 'destructive' : 'outline'
+                                    }
+                                  >
+                                    {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                                  </Badge>
+                                </td>
+                                <td className="border border-gray-200 px-4 py-2">
+                                  <div className="flex gap-2">
+                                    {campaign.status !== 'sent' ? (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleEditCampaign(campaign)}
+                                      >
+                                        Edit
+                                      </Button>
+                                    ) : null}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDuplicateCampaign(campaign)}
+                                    >
+                                      Duplicate
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -723,6 +1188,357 @@ export default function AdminPotentialCustomers() {
                 {sendSmsMutation.isPending ? "Sending..." : "Send SMS"}
               </Button>
               <Button variant="outline" onClick={() => setIsSmsDialogOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Campaign Dialog */}
+      <Dialog open={isCampaignDialogOpen} onOpenChange={setIsCampaignDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Campaign</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="campaign-name">Campaign Name</Label>
+                <Input
+                  id="campaign-name"
+                  placeholder="e.g., QLD Launch Campaign"
+                  value={newCampaign.name}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="scheduled-at">Schedule Date & Time (Optional)</Label>
+                <Input
+                  id="scheduled-at"
+                  type="datetime-local"
+                  value={newCampaign.scheduledAt}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, scheduledAt: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="campaign-message">SMS Message</Label>
+              <textarea
+                id="campaign-message"
+                className="w-full p-3 border border-gray-300 rounded-md resize-none"
+                rows={4}
+                placeholder="Hello Welcome to ServicePanda your friendly Service Provider app, click here to download the app https://tinurl/123 as per our first launch, here is a $30 voucher for your first job with us. Voucher 'XYZ123'. If you do not wish to receive any sms, please reply STOP"
+                value={newCampaign.message}
+                onChange={(e) => setNewCampaign(prev => ({ ...prev, message: e.target.value }))}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Include "reply STOP" to unsubscribe option
+              </p>
+            </div>
+
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h4 className="font-medium mb-3">Voucher Settings (Optional)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="voucher-code">Voucher Code</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="voucher-code"
+                      placeholder="XYZ123"
+                      value={newCampaign.voucherCode}
+                      onChange={(e) => setNewCampaign(prev => ({ ...prev, voucherCode: e.target.value }))}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setNewCampaign(prev => ({ ...prev, voucherCode: generateVoucherCode() }))}
+                    >
+                      Generate
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="voucher-amount">Voucher Amount ($)</Label>
+                  <Input
+                    id="voucher-amount"
+                    type="number"
+                    placeholder="30"
+                    value={newCampaign.voucherAmount}
+                    onChange={(e) => setNewCampaign(prev => ({ ...prev, voucherAmount: parseInt(e.target.value) || 0 }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="font-medium">Target Audience</h4>
+              
+              <div>
+                <Label>States (Multi-select)</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
+                  {uniqueStates.map((state) => (
+                    <label key={state} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={newCampaign.selectedStates.includes(state)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedStates: [...prev.selectedStates, state]
+                            }));
+                          } else {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedStates: prev.selectedStates.filter(s => s !== state)
+                            }));
+                          }
+                        }}
+                      />
+                      <span className="text-sm">{state}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label>Regions (Multi-select)</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
+                  {displayRegions.map((region) => (
+                    <label key={region.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={newCampaign.selectedRegions.includes(region.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedRegions: [...prev.selectedRegions, region.id]
+                            }));
+                          } else {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedRegions: prev.selectedRegions.filter(r => r !== region.id)
+                            }));
+                          }
+                        }}
+                      />
+                      <span className="text-sm">{region.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label>Customer Status (Multi-select)</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
+                  {CUSTOMER_STATUSES.map((status) => (
+                    <label key={status.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={newCampaign.selectedStatuses.includes(status.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedStatuses: [...prev.selectedStatuses, status.id]
+                            }));
+                          } else {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedStatuses: prev.selectedStatuses.filter(s => s !== status.id)
+                            }));
+                          }
+                        }}
+                      />
+                      <span className="text-sm">{status.title}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleCreateCampaign}>
+                Create Campaign
+              </Button>
+              <Button variant="outline" onClick={() => setIsCampaignDialogOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Campaign Dialog */}
+      <Dialog open={isEditCampaignDialogOpen} onOpenChange={setIsEditCampaignDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Campaign</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-campaign-name">Campaign Name</Label>
+                <Input
+                  id="edit-campaign-name"
+                  placeholder="e.g., QLD Launch Campaign"
+                  value={newCampaign.name}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-scheduled-at">Schedule Date & Time (Optional)</Label>
+                <Input
+                  id="edit-scheduled-at"
+                  type="datetime-local"
+                  value={newCampaign.scheduledAt}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, scheduledAt: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="edit-campaign-message">SMS Message</Label>
+              <textarea
+                id="edit-campaign-message"
+                className="w-full p-3 border border-gray-300 rounded-md resize-none"
+                rows={4}
+                placeholder="Hello Welcome to ServicePanda your friendly Service Provider app..."
+                value={newCampaign.message}
+                onChange={(e) => setNewCampaign(prev => ({ ...prev, message: e.target.value }))}
+              />
+            </div>
+
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h4 className="font-medium mb-3">Voucher Settings (Optional)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-voucher-code">Voucher Code</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="edit-voucher-code"
+                      placeholder="XYZ123"
+                      value={newCampaign.voucherCode}
+                      onChange={(e) => setNewCampaign(prev => ({ ...prev, voucherCode: e.target.value }))}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setNewCampaign(prev => ({ ...prev, voucherCode: generateVoucherCode() }))}
+                    >
+                      Generate
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="edit-voucher-amount">Voucher Amount ($)</Label>
+                  <Input
+                    id="edit-voucher-amount"
+                    type="number"
+                    placeholder="30"
+                    value={newCampaign.voucherAmount}
+                    onChange={(e) => setNewCampaign(prev => ({ ...prev, voucherAmount: parseInt(e.target.value) || 0 }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="font-medium">Target Audience</h4>
+              
+              <div>
+                <Label>States (Multi-select)</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
+                  {uniqueStates.map((state) => (
+                    <label key={state} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={newCampaign.selectedStates.includes(state)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedStates: [...prev.selectedStates, state]
+                            }));
+                          } else {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedStates: prev.selectedStates.filter(s => s !== state)
+                            }));
+                          }
+                        }}
+                      />
+                      <span className="text-sm">{state}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label>Regions (Multi-select)</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
+                  {displayRegions.map((region) => (
+                    <label key={region.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={newCampaign.selectedRegions.includes(region.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedRegions: [...prev.selectedRegions, region.id]
+                            }));
+                          } else {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedRegions: prev.selectedRegions.filter(r => r !== region.id)
+                            }));
+                          }
+                        }}
+                      />
+                      <span className="text-sm">{region.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label>Customer Status (Multi-select)</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
+                  {CUSTOMER_STATUSES.map((status) => (
+                    <label key={status.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={newCampaign.selectedStatuses.includes(status.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedStatuses: [...prev.selectedStatuses, status.id]
+                            }));
+                          } else {
+                            setNewCampaign(prev => ({
+                              ...prev,
+                              selectedStatuses: prev.selectedStatuses.filter(s => s !== status.id)
+                            }));
+                          }
+                        }}
+                      />
+                      <span className="text-sm">{status.title}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleUpdateCampaign}>
+                Update Campaign
+              </Button>
+              <Button variant="outline" onClick={() => setIsEditCampaignDialogOpen(false)}>
                 Cancel
               </Button>
             </div>

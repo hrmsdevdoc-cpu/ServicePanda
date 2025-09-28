@@ -72,7 +72,11 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       icon: UserPlus,
       label: "Potential Customers",
       href: "/admin/potential-customers",
-      subItems: [],
+      subItems: [
+        { label: "Customer List", href: "/admin/potential-customers" },
+        { label: "Import Groups", href: "/admin/potential-customers/imports" },
+        { label: "SMS Campaigns", href: "/admin/potential-customers/sms" },
+      ],
     },
     {
       icon: UserSearch,
