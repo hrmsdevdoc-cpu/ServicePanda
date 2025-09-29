@@ -390,8 +390,12 @@ class OneSignalService {
       const deviceId = this.generateDeviceId();
       console.log('📱 Generated Device ID:', deviceId);
       
-      // Generate unique external user ID
-      const uniqueExternalId = `provider-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      // Get consistent provider ID from storage
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const providerId = await AsyncStorage.getItem('providerId') || '1';
+      
+      // Generate consistent external user ID that matches server expectations
+      const uniqueExternalId = `provider-${providerId}`;
       
       // Manual registration payload
       const registrationPayload = {
