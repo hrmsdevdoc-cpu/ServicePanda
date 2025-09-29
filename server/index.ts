@@ -156,12 +156,24 @@ app.use((req, res, next) => {
     }
   }, 300000); // Check every 5 minutes instead of every minute
 
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
-    log('Lead and offer expiration checker started - checking every minute');
-  });
+  // Windows-compatible server configuration
+  const isWindows = process.platform === 'win32';
+  
+  if (isWindows) {
+    // On Windows, use localhost instead of 0.0.0.0 and remove reusePort
+    server.listen(port, 'localhost', () => {
+      log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
+      log('Lead and offer expiration checker started - checking every 5 minutes');
+    });
+  } else {
+    // On Unix systems, use the original configuration
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
+      log('Lead and offer expiration checker started - checking every 5 minutes');
+    });
+  }
 })();

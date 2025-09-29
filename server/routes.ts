@@ -1011,6 +1011,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Provider Report API endpoint with ratings and status data
+  app.get('/api/admin/providers/report', isAdminAuthenticated, async (req, res) => {
+    console.log('🚀 API route /api/admin/providers/report called');
+    try {
+      const status = req.query.status as string;
+      const rating = req.query.rating as string;
+      console.log('📊 Calling getServiceProvidersForReport with:', { status, rating });
+      const providers = await storage.getServiceProvidersForReport(status, rating);
+      console.log('✅ Got providers:', providers.length);
+      res.json(providers);
+    } catch (error) {
+      console.error('❌ Error fetching provider report data:', error);
+      res.status(500).json({ message: 'Failed to fetch provider report data' });
+    }
+  });
+
   app.post('/api/admin/providers/:id/approve', isAdminAuthenticated, async (req, res) => {
     try {
       const providerId = parseInt(req.params.id);
@@ -4228,6 +4244,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating read state:', error);
       res.status(500).json({ message: 'Failed to update read state' });
+    }
+  });
+
+  // ============================================================================
+  // TEAM TASK MANAGEMENT API ROUTES
+  // ============================================================================
+
+  // Get all team tasks with optional filters
+  app.get('/api/admin/team-tasks', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { status, priority, customerType, assignedTo, adminId } = req.query;
+      const filters = {
+        status: status as string,
+        priority: priority as string,
+        customerType: customerType as string,
+        assignedTo: assignedTo as string,
+        adminId: adminId as string,
+      };
+      
+      const tasks = await storage.getTeamTasks(filters);
+      res.json(tasks);
+    } catch (error) {
+      console.error('Error fetching team tasks:', error);
+      res.status(500).json({ message: 'Failed to fetch team tasks' });
+    }
+  });
+
+  // Get team tasks for Kanban view
+  app.get('/api/admin/team-tasks/kanban', isAdminAuthenticated, async (req, res) => {
+    try {
+      const showAll = req.query.all === 'true';
+      const assignedTo = req.query.assignedTo === 'true';
+      const adminInfo = (req as any).admin;
+      
+      let filterBy = adminInfo.username; // Default: show only current admin's tasks
+      
+      if (showAll && adminInfo.role === 'administrator') {
+        // Super admin can see all tasks
+        filterBy = null;
+      } else if (assignedTo && adminInfo.role === 'manager') {
+        // Manager sees tasks assigned to them (by assignedTo field)
+        filterBy = 'assignedTo:' + adminInfo.username;
+      }
+      
+      const kanbanData = await storage.getTeamTasksForKanban(filterBy);
+      res.json(kanbanData);
+    } catch (error) {
+      console.error('Error fetching team tasks for kanban:', error);
+      res.status(500).json({ message: 'Failed to fetch kanban data' });
+    }
+  });
+
+  // Get single team task
+  app.get('/api/admin/team-tasks/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const task = await storage.getTeamTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ message: 'Task not found' });
+      }
+      
+      res.json(task);
+    } catch (error) {
+      console.error('Error fetching team task:', error);
+      res.status(500).json({ message: 'Failed to fetch team task' });
+    }
+  });
+
+  // Create new team task
+  app.post('/api/admin/team-tasks', isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskData = req.body;
+      console.log('Received task data:', taskData);
+      
+      // Validate required fields
+      if (!taskData.title || !taskData.dueDate || !taskData.adminId) {
+        console.log('Missing required fields:', {
+          title: taskData.title,
+          dueDate: taskData.dueDate,
+          adminId: taskData.adminId
+        });
+        return res.status(400).json({ 
+          message: 'Missing required fields: title, dueDate, adminId' 
+        });
+      }
+
+      // Ensure only one customer type is set
+      const customerTypes = [
+        taskData.potentialProviderId,
+        taskData.providerId,
+        taskData.customerId
+      ].filter(Boolean);
+      
+      if (customerTypes.length > 1) {
+        return res.status(400).json({ 
+          message: 'Only one customer type can be set per task' 
+        });
+      }
+
+      // Convert dueDate to proper format for database
+      const taskDataForDb = {
+        ...taskData,
+        dueDate: new Date(taskData.dueDate)
+      };
+      
+      console.log('Task data for database:', taskDataForDb);
+      const newTask = await storage.createTeamTask(taskDataForDb);
+      res.status(201).json(newTask);
+    } catch (error) {
+      console.error('Error creating team task:', error);
+      res.status(500).json({ message: 'Failed to create team task' });
+    }
+  });
+
+  // Update team task
+  app.put('/api/admin/team-tasks/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const updates = req.body;
+      
+      // Remove fields that shouldn't be updated directly
+      delete updates.id;
+      delete updates.createdAt;
+      delete updates.updatedAt;
+
+      const updatedTask = await storage.updateTeamTask(taskId, updates);
+      res.json(updatedTask);
+    } catch (error) {
+      console.error('Error updating team task:', error);
+      res.status(500).json({ message: 'Failed to update team task' });
+    }
+  });
+
+  // Delete team task
+  app.delete('/api/admin/team-tasks/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      await storage.deleteTeamTask(taskId);
+      res.json({ message: 'Task deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting team task:', error);
+      res.status(500).json({ message: 'Failed to delete team task' });
     }
   });
 

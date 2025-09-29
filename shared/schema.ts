@@ -1158,3 +1158,55 @@ export const insertProviderNotificationSchema = createInsertSchema(providerNotif
 // Types for notifications
 export type ProviderNotification = typeof providerNotifications.$inferSelect;
 export type InsertProviderNotification = z.infer<typeof insertProviderNotificationSchema>;
+
+// ============================================================================
+// TEAM TASK MANAGEMENT SYSTEM
+// ============================================================================
+
+// Team tasks table - for managing tasks across different customer types
+export const teamTasks = pgTable("team_tasks", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, in_progress, completed, cancelled
+  priority: varchar("priority", { length: 10 }).notNull().default("P3"), // P1, P2, P3, P4, P5
+  dueDate: timestamp("due_date").notNull(),
+  completedAt: timestamp("completed_at"),
+  // Foreign key references (only one should be set)
+  potentialProviderId: integer("potential_provider_id").references(() => potentialProviders.id),
+  providerId: integer("provider_id").references(() => serviceProviders.id),
+  customerId: varchar("customer_id").references(() => users.id),
+  // Admin who created/assigned the task
+  adminId: varchar("admin_id").notNull(), // Admin username
+  assignedTo: varchar("assigned_to"), // Team member username
+  comments: text("comments"),
+  // Task metadata
+  taskType: varchar("task_type", { length: 50 }).notNull().default("general"), // follow_up, call, email, meeting, etc.
+  tags: jsonb("tags"), // Array of tags for categorization
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  // Indexes for performance
+  index("idx_team_tasks_status").on(table.status),
+  index("idx_team_tasks_priority").on(table.priority),
+  index("idx_team_tasks_due_date").on(table.dueDate),
+  index("idx_team_tasks_admin_id").on(table.adminId),
+  index("idx_team_tasks_assigned_to").on(table.assignedTo),
+  index("idx_team_tasks_potential_provider").on(table.potentialProviderId),
+  index("idx_team_tasks_provider").on(table.providerId),
+  index("idx_team_tasks_customer").on(table.customerId),
+  // Composite indexes for common queries
+  index("idx_team_tasks_status_due_date").on(table.status, table.dueDate),
+  index("idx_team_tasks_priority_due_date").on(table.priority, table.dueDate),
+]);
+
+// Insert schema for team tasks
+export const insertTeamTaskSchema = createInsertSchema(teamTasks).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+// Types for team tasks
+export type TeamTask = typeof teamTasks.$inferSelect;
+export type InsertTeamTask = z.infer<typeof insertTeamTaskSchema>;
