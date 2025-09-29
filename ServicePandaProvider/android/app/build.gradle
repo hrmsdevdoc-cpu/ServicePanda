@@ -1,5 +1,6 @@
 apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
+apply plugin: 'com.google.gms.google-services'
 
 
 android {
@@ -85,7 +86,9 @@ dependencies {
     implementation("com.facebook.react:hermes-android")
     implementation project(':@react-native-async-storage_async-storage')
     implementation project(':react-native-image-crop-picker')
-    // OneSignal auto-links via React Native CLI
+    
+    // OneSignal SDK
+    implementation 'com.onesignal:OneSignal:[5.0.0, 5.99.99]'
     implementation 'androidx.multidex:multidex:2.0.1'
     
     // Fix for react-native-image-picker resource conflicts

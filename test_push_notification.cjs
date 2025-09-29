@@ -5,7 +5,7 @@ async function testPushNotification() {
   console.log('🧪 Testing OneSignal Push Notification System...\n');
 
   const oneSignalData = {
-    app_id: "f64bf04a-b174-4862-a7b4-62b8d93f159b",
+    app_id: "a3f5070d-9c46-44cd-8b0a-259df155ae94",
     include_external_user_ids: ["1"], // Provider ID 1
     headings: { en: "🧪 Test from Server" },
     contents: { en: "This is a test push notification sent directly from the server!" },

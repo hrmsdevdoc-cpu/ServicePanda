@@ -56,8 +56,6 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       body: formData.toString()
     });
 
-    console.log('Mailgun API response status:', response.status);
-    console.log('Mailgun API response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();

@@ -14,6 +14,10 @@ class WorkingAndroidNotificationService {
     console.log('🔔 Initializing Working Android Notification Service...');
 
     try {
+      // Check if PushNotification is available
+      if (!PushNotification || typeof PushNotification.configure !== 'function') {
+        throw new Error('PushNotification module is not properly linked. Please run: cd android && ./gradlew clean && cd .. && npx react-native run-android');
+      }
       // Configure PushNotification with error handling
       PushNotification.configure({
       // Called when token is generated (optional)

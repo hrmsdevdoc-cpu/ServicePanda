@@ -74,19 +74,19 @@ class NotificationService {
       if (activities.status === 'fulfilled' && activities.value) {
         const activityNotifications = this.convertActivitiesToNotifications(activities.value);
         allNotifications.push(...activityNotifications);
-        console.log(`📊 Found ${activityNotifications.length} activity-based notifications`);
+        // console.log(`📊 Found ${activityNotifications.length} activity-based notifications`);
       }
 
       // Process server notifications (new requests)
       if (serverNotifications.status === 'fulfilled' && serverNotifications.value) {
         allNotifications.push(...serverNotifications.value);
-        console.log(`📡 Found ${serverNotifications.value.length} server notifications`);
+        // console.log(`📡 Found ${serverNotifications.value.length} server notifications`);
       }
 
       // Sort by timestamp (newest first)
       allNotifications.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-      console.log(`🔔 Total notifications: ${allNotifications.length}`);
+      // console.log(`🔔 Total notifications: ${allNotifications.length}`);
       return allNotifications;
 
     } catch (error) {
@@ -132,7 +132,7 @@ class NotificationService {
       }));
 
     } catch (error) {
-      console.log('📄 Server notifications not available yet');
+      // console.log('📄 Server notifications not available yet');
       return [];
     }
   }
@@ -186,17 +186,14 @@ class NotificationService {
 
   async markAllAsRead(): Promise<boolean> {
     try {
-      console.log('NotificationService: Starting markAllAsRead');
 
       // Get current notifications to mark them all as read locally
       const notifications = await this.getNotifications();
-      console.log('NotificationService: Current notifications before marking:', notifications.map(n => ({ id: n.id, isRead: n.isRead })));
 
       notifications.forEach(notification => {
         this.readNotificationIds.add(notification.id);
       });
 
-      console.log('NotificationService: Read notification IDs after adding:', Array.from(this.readNotificationIds));
 
       // Save to persistent storage
       await this.saveReadNotifications();
@@ -209,7 +206,6 @@ class NotificationService {
         console.log('Server mark all as read failed, using local tracking only');
       }
 
-      console.log('NotificationService: markAllAsRead completed successfully');
       return true;
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -239,8 +235,6 @@ class NotificationService {
   }
 
   private convertActivitiesToNotifications(activities: any[]): Notification[] {
-    console.log('NotificationService: Converting activities to notifications');
-    console.log('NotificationService: Read notification IDs:', Array.from(this.readNotificationIds));
 
     // Include all activities in the notification list
     const filteredActivities = activities;
@@ -249,7 +243,6 @@ class NotificationService {
       const notificationId = activity.id || index + 1000;
       const isRead = this.readNotificationIds.has(notificationId);
 
-      console.log(`NotificationService: Activity ${notificationId} -> isRead: ${isRead}`);
 
       return {
         id: notificationId,
@@ -267,7 +260,6 @@ class NotificationService {
       };
     }).filter(notification => notification.title && notification.message); // Filter out empty notifications
 
-    console.log('NotificationService: Converted notifications:', notifications.map(n => ({ id: n.id, isRead: n.isRead })));
     return notifications;
   }
 

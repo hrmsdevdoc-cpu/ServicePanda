@@ -452,7 +452,7 @@ const AppContent = () => {
   };
 
   return (
-    <RealTimeNotificationController oneSignalAppId="f64bf04a-b174-4862-a7b4-62b8d93f159b">
+    <RealTimeNotificationController oneSignalAppId="a3f5070d-9c46-44cd-8b0a-259df155ae94">
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
         {currentScreen !== 'dashboard' && (

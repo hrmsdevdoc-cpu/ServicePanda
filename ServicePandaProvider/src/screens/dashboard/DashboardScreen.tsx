@@ -322,10 +322,7 @@ function DashboardScreen({ onNavigate }) {
   // Listen for real-time notifications for system overlay
   React.useEffect(() => {
     try {
-      console.log('📱 Setting up notification listener...');
-      console.log('📱 realTimeNotificationService:', realTimeNotificationService);
-      console.log('📱 addListener function:', realTimeNotificationService?.addListener);
-      
+
       if (realTimeNotificationService && typeof realTimeNotificationService.addListener === 'function') {
         const unsubscribe = realTimeNotificationService.addListener((notification) => {
           console.log('📱 Dashboard received system notification:', notification.title);
