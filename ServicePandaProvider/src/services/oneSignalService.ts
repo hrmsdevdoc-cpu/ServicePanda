@@ -36,7 +36,32 @@ class OneSignalService {
       console.log('📱 App ID:', appId);
       console.log('🔧 ServicePandaProvider Bundle: com.servicepandaprovider');
       
-      // FIRST: Try manual registration regardless of native module status
+      // FIRST: Request notification permissions (CRITICAL for Android 13+)
+      console.log('🔔 Requesting notification permissions...');
+      const { Platform, PermissionsAndroid } = require('react-native');
+      
+      if (Platform.OS === 'android' && Platform.Version >= 33) {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          {
+            title: 'ServicePanda Notifications',
+            message: 'Allow ServicePanda to send you important notifications about your service requests.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+        console.log('📱 POST_NOTIFICATIONS permission result:', granted);
+        
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('❌ Notification permission denied by user!');
+          console.log('💡 User needs to manually enable notifications in app settings');
+        } else {
+          console.log('✅ Notification permission granted!');
+        }
+      }
+      
+      // SECOND: Try manual registration regardless of native module status
       console.log('🚀 ATTEMPTING MANUAL DEVICE REGISTRATION FIRST...');
       const playerId = await this.forceDeviceRegistration(appId);
       
@@ -384,11 +409,39 @@ class OneSignalService {
   // FORCE device registration via direct HTTP calls to OneSignal
   private async forceDeviceRegistration(appId: string) {
     try {
-      console.log('🚀 MANUAL DEVICE REGISTRATION - Bypassing native module');
+      console.log('🚀 MANUAL DEVICE REGISTRATION - Getting REAL push token');
       
-      // Generate a unique device ID
-      const deviceId = this.generateDeviceId();
-      console.log('📱 Generated Device ID:', deviceId);
+      // Get REAL push token from Firebase/Google
+      let realPushToken = null;
+      try {
+        // Try to get Firebase token
+        const messaging = require('@react-native-firebase/messaging').default;
+        realPushToken = await messaging().getToken();
+        console.log('✅ Got real Firebase push token:', realPushToken?.substring(0, 20) + '...');
+      } catch (firebaseError) {
+        console.log('⚠️ Firebase not available, trying alternative...');
+        
+        // Fallback: Try react-native-push-notification
+        try {
+          const PushNotification = require('react-native-push-notification').default;
+          
+          realPushToken = await new Promise((resolve) => {
+            PushNotification.configure({
+              onRegister: function (token) {
+                console.log('✅ Got push token from react-native-push-notification:', token);
+                resolve(token.token);
+              },
+              onRegistrationError: function (err) {
+                console.error('❌ Push token registration error:', err);
+                resolve(null);
+              },
+              requestPermissions: false, // Don't request permissions, just get token
+            });
+          });
+        } catch (pushError) {
+          console.log('⚠️ react-native-push-notification also not available');
+        }
+      }
       
       // Get consistent provider ID from storage
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
@@ -397,18 +450,28 @@ class OneSignalService {
       // Generate consistent external user ID that matches server expectations
       const uniqueExternalId = `provider-${providerId}`;
       
-      // Manual registration payload
+      // If no real push token, generate a placeholder but mark as test device
+      if (!realPushToken) {
+        console.log('⚠️ No real push token available - creating test device');
+        realPushToken = this.generateDeviceId(); // Use fake ID as last resort
+      }
+      
+      console.log('📱 Using push token/identifier:', realPushToken?.substring(0, 20) + '...');
+      
+      // Manual registration payload with REAL push token
       const registrationPayload = {
         app_id: appId,
         device_type: 1, // Android
-        identifier: deviceId,
+        identifier: realPushToken, // REAL push token (critical for notifications!)
         device_model: 'ServicePandaProvider',
         device_os: '13.0',
         timezone_id: 'Asia/Karachi',
         language: 'en',
         sdk: '050213',
         notification_types: 1, // Subscribed
-        external_user_id: uniqueExternalId // Unique ID to avoid blocking
+        external_user_id: uniqueExternalId, // Consistent external ID
+        // Add additional fields for better compatibility
+        test_type: realPushToken?.startsWith('sp-') ? 1 : null, // Mark test devices
       };
       
       console.log('🆔 Using unique external ID:', uniqueExternalId);
@@ -441,7 +504,40 @@ class OneSignalService {
       }
       
     } catch (error) {
-      console.log('❌ Force registration error:', error.message);
+        console.log('❌ Force registration error:', error.message);
+    }
+  }
+  
+  // Force subscription status to true for existing device
+  async forceSubscription(playerId: string) {
+    try {
+      console.log('🔔 Forcing subscription status for player:', playerId);
+      
+      const updatePayload = {
+        notification_types: 1 // 1 = subscribed, -2 = unsubscribed
+      };
+      
+      const response = await fetch(`https://onesignal.com/api/v1/players/${playerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatePayload)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Player subscription updated successfully!');
+        console.log('📱 Player should now be able to receive notifications');
+        return true;
+      } else {
+        const error = await response.text();
+        console.log('❌ Failed to update subscription:', error);
+        return false;
+      }
+    } catch (error) {
+      console.log('❌ Subscription update error:', error.message);
+      return false;
     }
   }
   

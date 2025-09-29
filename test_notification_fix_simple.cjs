@@ -8,7 +8,7 @@ console.log('⏰ Time:', new Date().toLocaleString());
 console.log('');
 
 const ONESIGNAL_APP_ID = 'a3f5070d-9c46-44cd-8b0a-259df155ae94';
-const ONESIGNAL_REST_API_KEY = 'os_v2_app_6zf7asvroregfj5umk4nspyvtoi4yl4hrd3u7suvnwraxsu43zmjjgzlysqusuxf7gjgfkjzgwpunhz4m3yflqr4fz7kfitlcxxsexy';
+const ONESIGNAL_REST_API_KEY = 'os_v2_app_up2qodm4izcm3cykewo7cvnosrtodbs2i5ce3r5zeusbxh5utqy7iys7bhaffdnt65vsy4ql6p5beykzl62ahn2jdgifjshulo2hkky';
 
 async function testNotificationFix() {
   console.log('🎯 TESTING FIXED NOTIFICATION TARGETING');
