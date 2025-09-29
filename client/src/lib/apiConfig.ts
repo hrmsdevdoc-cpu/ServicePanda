@@ -1,5 +1,5 @@
-// API Configuration - Static Live URL
-const API_BASE_URL = 'https://api.servicepanda.com.au';
+// API Configuration - Development Localhost
+const API_BASE_URL = 'http://localhost:3000';
 
 export const getApiUrl = (endpoint: string): string => {
   // Remove leading slash if present to avoid double slashes

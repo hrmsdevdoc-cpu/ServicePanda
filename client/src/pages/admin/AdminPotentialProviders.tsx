@@ -64,6 +64,9 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
+  User,
+  Tag,
+  Crown,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -95,11 +98,32 @@ interface PotentialProvider {
   updatedAt: string;
 }
 
+interface TeamTask {
+  id: number;
+  title: string;
+  description?: string;
+  status: string;
+  priority: string;
+  dueDate: string;
+  completedAt?: string;
+  potentialProviderId?: number;
+  providerId?: number;
+  customerId?: string;
+  adminId: string;
+  assignedTo?: string;
+  comments?: string;
+  taskType: string;
+  tags?: any[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface KanbanColumn {
   id: string;
   title: string;
   color: string;
   providers: PotentialProvider[];
+  tasks: TeamTask[];
 }
 
 interface PendingImport {
@@ -110,15 +134,14 @@ interface PendingImport {
 }
 
 const KANBAN_COLUMNS: KanbanColumn[] = [
-  { id: "new", title: "New", color: "bg-gray-100", providers: [] },
-  { id: "first_call", title: "First Call", color: "bg-blue-100", providers: [] },
-  { id: "follow_up", title: "Follow Up", color: "bg-yellow-100", providers: [] },
-  { id: "email", title: "Email", color: "bg-purple-100", providers: [] },
-  { id: "won", title: "Won", color: "bg-green-100", providers: [] },
-  { id: "lost", title: "Lost", color: "bg-red-100", providers: [] },
+  { id: "overdue24h", title: "Overdue + 24h", color: "bg-red-200", providers: [], tasks: [] },
+  { id: "overdue", title: "Overdue", color: "bg-red-100", providers: [], tasks: [] },
+  { id: "today", title: "Today", color: "bg-blue-100", providers: [], tasks: [] },
+  { id: "tomorrow", title: "Tomorrow", color: "bg-yellow-100", providers: [], tasks: [] },
+  { id: "upcoming", title: "Upcoming", color: "bg-green-100", providers: [], tasks: [] },
 ];
 
-type ViewMode = 'member-list' | 'list' | 'kanban' | 'completed';
+type ViewMode = 'member-list' | 'list' | 'kanban' | 'completed' | 'new-member-list';
 
 export default function AdminPotentialProviders() {
   const [, navigate] = useLocation();
@@ -139,6 +162,15 @@ export default function AdminPotentialProviders() {
   const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
   const [isConvertDialogOpen, setIsConvertDialogOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<PotentialProvider | null>(null);
+  
+  // Team task state
+  const [teamTasks, setTeamTasks] = useState<TeamTask[]>([]);
+  const [selectedTask, setSelectedTask] = useState<TeamTask | null>(null);
+  const [taskPriorityFilter, setTaskPriorityFilter] = useState("all");
+  const [taskCustomerTypeFilter, setTaskCustomerTypeFilter] = useState("all");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isManager, setIsManager] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState('admin');
 
   // New state for member confirmation and pagination
   const [pendingImports, setPendingImports] = useState<PendingImport[]>([]);
@@ -170,11 +202,15 @@ export default function AdminPotentialProviders() {
   });
 
   const [taskData, setTaskData] = useState({
-    taskType: "",
+    taskType: "general",
     title: "",
     description: "",
     scheduledDate: "",
     assignedTo: "",
+    priority: "P3",
+    customerType: "all",
+    comments: "",
+    taskOwner: "admin", // Default to current admin
   });
 
   // Fetch admin users for task assignment
@@ -195,11 +231,26 @@ export default function AdminPotentialProviders() {
     content: "",
   });
 
-  // Check admin authentication
+  // Check admin authentication and role
   useEffect(() => {
     const adminToken = localStorage.getItem('adminToken');
     if (!adminToken) {
       navigate('/admin-login');
+      return;
+    }
+
+    // Decode token to check role
+    try {
+      const tokenPayload = JSON.parse(atob(adminToken.split('.')[1]));
+      const role = tokenPayload.role;
+      setCurrentUserRole(role);
+      setIsSuperAdmin(role === 'administrator');
+      setIsManager(role === 'manager');
+    } catch (error) {
+      console.error('Error decoding admin token:', error);
+      setIsSuperAdmin(false);
+      setIsManager(false);
+      setCurrentUserRole('admin');
     }
   }, [navigate]);
 
@@ -804,6 +855,38 @@ export default function AdminPotentialProviders() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch team tasks for Kanban view
+  const { data: kanbanTasks, isLoading: tasksLoading } = useQuery({
+    queryKey: ['/api/admin/team-tasks/kanban', isSuperAdmin, currentUserRole],
+    queryFn: async () => {
+      try {
+        let url = '/api/admin/team-tasks/kanban';
+        
+        // If super admin, fetch all tasks
+        if (isSuperAdmin) {
+          url += '?all=true';
+        } else if (isManager) {
+          // For managers, fetch tasks assigned to them
+          url += '?assignedTo=true';
+        }
+        // For regular admins, fetch only their own tasks (default behavior)
+        
+        const response = await adminApiRequest('GET', url);
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching team tasks:', error);
+        return {
+          overdue24h: [],
+          overdue: [],
+          today: [],
+          tomorrow: [],
+          upcoming: []
+        };
+      }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+
   // Create potential provider mutation
   const createProviderMutation = useMutation({
     mutationFn: async (providerData: any) => {
@@ -880,16 +963,6 @@ export default function AdminPotentialProviders() {
     },
   });
 
-  // Update provider status mutation
-  const updateProviderStatusMutation = useMutation({
-    mutationFn: async ({ providerId, status }: { providerId: number; status: string }) => {
-      const response = await adminApiRequest('PATCH', `/api/admin/potential-providers/${providerId}`, { status });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
-    },
-  });
 
   // Convert to actual provider mutation
   const convertToProviderMutation = useMutation({
@@ -914,11 +987,15 @@ export default function AdminPotentialProviders() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
       setIsTaskDialogOpen(false);
       setTaskData({
-        taskType: "",
+        taskType: "general",
         title: "",
         description: "",
         scheduledDate: "",
         assignedTo: "",
+        priority: "P3",
+        customerType: "all",
+        comments: "",
+        taskOwner: "admin"
       });
     },
   });
@@ -944,6 +1021,41 @@ export default function AdminPotentialProviders() {
     onSuccess: () => {
       setIsSmsDialogOpen(false);
       setSmsData({ content: "" });
+    },
+  });
+
+  // Create team task mutation
+  const createTeamTaskMutation = useMutation({
+    mutationFn: async (taskData: any) => {
+      console.log('Mutation called with data:', taskData);
+      const response = await adminApiRequest('POST', '/api/admin/team-tasks', taskData);
+      const result = await response.json();
+      console.log('Mutation response:', result);
+      return result;
+    },
+    onSuccess: (data) => {
+      console.log('Task created successfully:', data);
+      // Invalidate all queries that start with the kanban key
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          return query.queryKey[0] === '/api/admin/team-tasks/kanban';
+        }
+      });
+      setIsTaskDialogOpen(false);
+      setTaskData({
+        taskType: "general",
+        title: "",
+        description: "",
+        scheduledDate: "",
+        assignedTo: "",
+        priority: "P3",
+        customerType: "all",
+        comments: "",
+        taskOwner: "admin"
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Error creating team task:', error);
     },
   });
 
@@ -977,15 +1089,6 @@ export default function AdminPotentialProviders() {
   }, [potentialProviders, searchTerm, statusFilter, priorityFilter, assignedToFilter, sourceFilter]);
 
   // Handle drag and drop
-  const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
-
-    const { source, destination, draggableId } = result;
-    const providerId = parseInt(draggableId);
-    const newStatus = destination.droppableId;
-
-    updateProviderStatusMutation.mutate({ providerId, status: newStatus });
-  };
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -1056,9 +1159,70 @@ export default function AdminPotentialProviders() {
     }
   };
 
-  const handleStatusChange = (providerId: number, newStatus: string) => {
-    updateProviderStatusMutation.mutate({ providerId, status: newStatus });
+  const handleCreateTeamTask = () => {
+    // Validate required fields
+    if (!taskData.title || !taskData.scheduledDate) {
+      alert('Please fill in all required fields (Title and Due Date)');
+      return;
+    }
+
+    // Prepare task data for API
+    const teamTaskData = {
+      title: taskData.title,
+      description: taskData.description || '',
+      priority: taskData.priority || 'P3',
+      dueDate: new Date(taskData.scheduledDate).toISOString(), // Convert to ISO string
+      adminId: taskData.taskOwner || 'admin', // Use selected task owner or default to admin
+      assignedTo: taskData.assignedTo || null,
+      taskType: taskData.taskType || 'general',
+      comments: taskData.comments || '',
+      status: 'pending',
+      // Set customer type based on selection
+      ...(taskData.customerType === 'potential_provider' && { potentialProviderId: null }),
+      ...(taskData.customerType === 'provider' && { providerId: null }),
+      ...(taskData.customerType === 'customer' && { customerId: null }),
+    };
+
+    console.log('Creating team task with data:', teamTaskData);
+    createTeamTaskMutation.mutate(teamTaskData);
   };
+
+  const handleTaskMove = async (taskId: number, fromColumn: string, toColumn: string) => {
+    if (fromColumn === toColumn) return;
+
+    try {
+      // Update task status based on the new column
+      let newStatus = 'pending';
+      switch (toColumn) {
+        case 'overdue24h':
+        case 'overdue':
+          newStatus = 'overdue';
+          break;
+        case 'today':
+          newStatus = 'today';
+          break;
+        case 'tomorrow':
+          newStatus = 'tomorrow';
+          break;
+        case 'upcoming':
+          newStatus = 'upcoming';
+          break;
+        default:
+          newStatus = 'pending';
+      }
+
+      // Call API to update task status
+      await adminApiRequest('PUT', `/api/admin/team-tasks/${taskId}`, {
+        status: newStatus
+      });
+
+      // Refresh the kanban data
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/team-tasks/kanban'] });
+    } catch (error) {
+      console.error('Error moving task:', error);
+    }
+  };
+
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -1206,7 +1370,44 @@ export default function AdminPotentialProviders() {
                 <Kanban className="h-4 w-4" />
                 <span className="font-medium">Kanban View</span>
               </Button>
+              
+              {/* New Member List - only show for managers */}
+              {isManager && (
+                <Button
+                  variant={viewMode === 'new-member-list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('new-member-list')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
+                    viewMode === 'new-member-list' 
+                      ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="font-medium">New Member List</span>
+                </Button>
+              )}
             </div>
+            
+            {/* Create Task Button - only show in Kanban view */}
+            {viewMode === 'kanban' && (
+              <div className="flex items-center space-x-3">
+                <Button
+                  onClick={() => setIsTaskDialogOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  size="sm"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Create Task
+                </Button>
+                {isSuperAdmin && (
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                    <Crown className="h-3 w-3 mr-1" />
+                    Super Admin - All Tasks
+                  </Badge>
+                )}
+              </div>
+            )}
             
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
@@ -1284,6 +1485,37 @@ export default function AdminPotentialProviders() {
                   <SelectItem value="referral">Referral</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* Task-specific filters for Kanban view */}
+              {viewMode === 'kanban' && (
+                <>
+                  <Select value={taskPriorityFilter} onValueChange={setTaskPriorityFilter}>
+                    <SelectTrigger className="w-36 h-10">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priority</SelectItem>
+                      <SelectItem value="P1">P1</SelectItem>
+                      <SelectItem value="P2">P2</SelectItem>
+                      <SelectItem value="P3">P3</SelectItem>
+                      <SelectItem value="P4">P4</SelectItem>
+                      <SelectItem value="P5">P5</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={taskCustomerTypeFilter} onValueChange={setTaskCustomerTypeFilter}>
+                    <SelectTrigger className="w-40 h-10">
+                      <SelectValue placeholder="Customer Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="potential_provider">Potential Provider</SelectItem>
+                      <SelectItem value="provider">Provider</SelectItem>
+                      <SelectItem value="customer">Customer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
             </div>
 
             {/* Counts */}
@@ -1425,6 +1657,10 @@ export default function AdminPotentialProviders() {
                                         description: `Contact ${provider.firstName} ${provider.lastName} regarding their potential provider application.`,
                                         scheduledDate: "",
                                         assignedTo: "",
+                                        priority: "P3",
+                                        customerType: "potential_provider",
+                                        comments: "",
+                                        taskOwner: "admin"
                                       });
                                       setIsTaskDialogOpen(true);
                                     }}
@@ -1433,22 +1669,6 @@ export default function AdminPotentialProviders() {
                                   >
                                     <Calendar className="h-4 w-4 mr-1" />
                                     Create Task
-                                  </Button>
-                                  <Button
-                                    onClick={() => handleStatusChange(provider.id, 'first_call')}
-                                    className="bg-green-600 hover:bg-green-700 text-white"
-                                    size="sm"
-                                  >
-                                    <Check className="h-4 w-4 mr-1" />
-                                    Yes
-                                  </Button>
-                                  <Button
-                                    onClick={() => handleStatusChange(provider.id, 'lost')}
-                                    variant="destructive"
-                                    size="sm"
-                                  >
-                                    <X className="h-4 w-4 mr-1" />
-                                    No
                                   </Button>
                                 </div>
                               </div>
@@ -1552,7 +1772,7 @@ export default function AdminPotentialProviders() {
                           <TableCell>
                             <Select 
                               value={provider.status} 
-                              onValueChange={(value) => handleStatusChange(provider.id, value)}
+                              onValueChange={() => {}}
                             >
                               <SelectTrigger className="w-32">
                                 <SelectValue />
@@ -1675,145 +1895,110 @@ export default function AdminPotentialProviders() {
               )}
 
               {viewMode === 'kanban' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-8">
-                  {kanbanColumns.filter(col => col.id !== 'won' && col.id !== 'lost').map((column) => (
-                    <div key={column.id} className="space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {column.title}
-                        </h3>
-                        <Badge variant="secondary" className="ml-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                          {column.providers.length}
-                        </Badge>
-                      </div>
-                      
-                      <div className={`min-h-[500px] max-h-[600px] p-4 rounded-xl ${column.color} dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden`}>
-                        {column.providers.length === 0 ? (
-                          <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400">
-                            <p className="text-sm">No providers in this stage</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f1f5f9' }}>
-                            {column.providers.map((provider) => (
-                              <div
-                                key={provider.id}
-                                className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200 cursor-move group"
-                                draggable
-                                onDragStart={(e) => {
-                                  e.dataTransfer.setData('text/plain', provider.id.toString());
-                                }}
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  const providerId = parseInt(e.dataTransfer.getData('text/plain'));
-                                  if (providerId !== provider.id) {
-                                    handleStatusChange(providerId, column.id);
-                                  }
-                                }}
-                              >
-                                <div className="flex items-start justify-between mb-3">
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-gray-900 dark:text-white truncate">
-                                      {provider.firstName} {provider.lastName}
-                                    </h4>
-                                    {provider.businessName && (
-                                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                                        {provider.businessName}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                      >
-                                        <MoreHorizontal className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedProvider(provider);
-                                        setIsTaskDialogOpen(true);
-                                      }}>
-                                        <Calendar className="h-4 w-4 mr-2" />
-                                        Add Task
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedProvider(provider);
-                                        setIsEmailDialogOpen(true);
-                                      }}>
-                                        <Mail className="h-4 w-4 mr-2" />
-                                        Send Email
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedProvider(provider);
-                                        setIsSmsDialogOpen(true);
-                                      }}>
-                                        <MessageSquare className="h-4 w-4 mr-2" />
-                                        Send SMS
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedProvider(provider);
-                                        setIsConvertDialogOpen(true);
-                                      }}>
-                                        <UserPlus className="h-4 w-4 mr-2" />
-                                        Convert to Provider
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem>
-                                        <Eye className="h-4 w-4 mr-2" />
-                                        View Details
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem>
-                                        <Edit className="h-4 w-4 mr-2" />
-                                        Edit
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                    <Mail className="h-3 w-3 mr-2 flex-shrink-0" />
-                                    <span className="truncate">{provider.email}</span>
-                                  </div>
-                                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                    <Phone className="h-3 w-3 mr-2 flex-shrink-0" />
-                                    <span className="truncate">{provider.phone}</span>
-                                  </div>
-                                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                    <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
-                                    <span className="truncate">{provider.city}, {provider.state}</span>
-                                  </div>
-                                  
-                                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 dark:border-gray-600">
-                                    <Badge 
-                                      className={`${getPriorityColor(provider.priority)} text-white text-xs font-medium`}
-                                    >
-                                      {provider.priority}
-                                    </Badge>
-                                    {provider.assignedTo && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {provider.assignedTo}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  
-                                  {provider.nextFollowUpDate && (
-                                    <div className="flex items-center text-xs text-gray-500 mt-2">
-                                      <Clock className="h-3 w-3 mr-1" />
-                                      Follow up: {new Date(provider.nextFollowUpDate).toLocaleDateString()}
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                  {kanbanColumns.map((column) => {
+                    const tasks = kanbanTasks?.[column.id as keyof typeof kanbanTasks] || [];
+                    return (
+                      <div key={column.id} className="space-y-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {column.title}
+                          </h3>
+                          <Badge variant="secondary" className="ml-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                            {tasks.length}
+                          </Badge>
+                        </div>
+                        
+                        <div 
+                          className={`min-h-[500px] max-h-[600px] p-4 rounded-xl ${column.color} dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden`}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                            handleTaskMove(data.taskId, data.currentColumn, column.id);
+                          }}
+                        >
+                          {tasks.length === 0 ? (
+                            <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400">
+                              <p className="text-sm">No tasks in this stage</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f1f5f9' }}>
+                              {tasks.map((task: TeamTask) => (
+                                <div
+                                  key={task.id}
+                                  className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200 group cursor-move"
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                                      taskId: task.id,
+                                      currentColumn: column.id
+                                    }));
+                                  }}
+                                >
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-gray-900 dark:text-white truncate">
+                                        {task.title}
+                                      </h4>
+                                      {task.description && (
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate mt-1">
+                                          {task.description}
+                                        </p>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
+                                    <Badge 
+                                      className={`${getPriorityColor(task.priority)} text-white text-xs font-medium`}
+                                    >
+                                      {task.priority}
+                                    </Badge>
+                                  </div>
+                                  
+                                  <div className="space-y-2">
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                      <Calendar className="h-3 w-3 mr-2 flex-shrink-0" />
+                                      <span className="truncate">
+                                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    
+                                    {task.assignedTo && (
+                                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                        <User className="h-3 w-3 mr-2 flex-shrink-0" />
+                                        <span className="truncate">{task.assignedTo}</span>
+                                      </div>
+                                    )}
+                                    
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                      <Tag className="h-3 w-3 mr-2 flex-shrink-0" />
+                                      <span className="truncate capitalize">{task.taskType}</span>
+                                    </div>
+                                    
+                                    {isSuperAdmin && (
+                                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                                        <User className="h-3 w-3 mr-2 flex-shrink-0" />
+                                        <span className="truncate text-xs">By: {task.adminId}</span>
+                                      </div>
+                                    )}
+                                    
+                                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 dark:border-gray-600">
+                                      <Badge variant="outline" className="text-xs">
+                                        {task.status}
+                                      </Badge>
+                                      <div className="flex items-center text-xs text-gray-500">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        {new Date(task.createdAt).toLocaleDateString()}
+                                      </div>
+                                    </div>
+                                  </div>
                               </div>
                             ))}
                           </div>
                         )}
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               )}
 
@@ -1909,6 +2094,160 @@ export default function AdminPotentialProviders() {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* New Member List View - for managers */}
+              {viewMode === 'new-member-list' && (
+                <div className="space-y-6">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                    <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+                        <Users className="h-5 w-5 text-blue-600 mr-2" />
+                        New Member List - My Tasks
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Tasks assigned to you as a manager
+                      </p>
+                    </div>
+                    
+                    {/* Task filters for managers */}
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex items-center space-x-2">
+                          <label className="text-sm font-medium">Priority:</label>
+                          <Select value={taskPriorityFilter} onValueChange={setTaskPriorityFilter}>
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All</SelectItem>
+                              <SelectItem value="P1">P1</SelectItem>
+                              <SelectItem value="P2">P2</SelectItem>
+                              <SelectItem value="P3">P3</SelectItem>
+                              <SelectItem value="P4">P4</SelectItem>
+                              <SelectItem value="P5">P5</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <label className="text-sm font-medium">Status:</label>
+                          <Select value={taskCustomerTypeFilter} onValueChange={setTaskCustomerTypeFilter}>
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All</SelectItem>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tasks list */}
+                    <div className="p-6">
+                      {tasksLoading ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                          <p className="text-gray-500 mt-2">Loading tasks...</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {kanbanTasks && Object.values(kanbanTasks).flat().length > 0 ? (
+                            (Object.values(kanbanTasks).flat() as TeamTask[])
+                              .filter((task: TeamTask) => {
+                                const matchesPriority = taskPriorityFilter === "all" || task.priority === taskPriorityFilter;
+                                const matchesStatus = taskCustomerTypeFilter === "all" || task.status === taskCustomerTypeFilter;
+                                return matchesPriority && matchesStatus;
+                              })
+                              .map((task: TeamTask) => (
+                                <div key={task.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-3 mb-2">
+                                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                                          {task.title}
+                                        </h3>
+                                        <Badge 
+                                          className={`${getPriorityColor(task.priority)} text-white text-xs`}
+                                        >
+                                          {task.priority}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs">
+                                          {task.status}
+                                        </Badge>
+                                      </div>
+                                      
+                                      {task.description && (
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                          {task.description}
+                                        </p>
+                                      )}
+                                      
+                                      <div className="flex items-center space-x-6 text-sm text-gray-500">
+                                        <div className="flex items-center space-x-1">
+                                          <Calendar className="h-4 w-4" />
+                                          <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                                        </div>
+                                        <div className="flex items-center space-x-1">
+                                          <Tag className="h-4 w-4" />
+                                          <span className="capitalize">{task.taskType}</span>
+                                        </div>
+                                        {task.assignedTo && (
+                                          <div className="flex items-center space-x-1">
+                                            <User className="h-4 w-4" />
+                                            <span>Assigned to: {task.assignedTo}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      {task.comments && (
+                                        <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-700 rounded text-sm">
+                                          <span className="font-medium">Comments:</span> {task.comments}
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center space-x-2 ml-4">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          // Mark as in progress
+                                          handleTaskMove(task.id, 'pending', 'in_progress');
+                                        }}
+                                      >
+                                        Start
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          // Mark as completed
+                                          handleTaskMove(task.id, task.status, 'completed');
+                                        }}
+                                      >
+                                        Complete
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                          ) : (
+                            <div className="text-center py-12">
+                              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No tasks assigned</h3>
+                              <p className="text-gray-500">You don't have any tasks assigned to you yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -2090,78 +2429,147 @@ export default function AdminPotentialProviders() {
         </DialogContent>
       </Dialog>
 
-      {/* Task Dialog */}
+      {/* Team Task Dialog */}
       <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create Task</DialogTitle>
+            <DialogTitle>Create Team Task</DialogTitle>
             <DialogDescription>
-              Create a new task for {selectedProvider?.firstName} {selectedProvider?.lastName}
+              Create a new task for team management
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Task Type</label>
-              <Select value={taskData.taskType} onValueChange={(value) => setTaskData({...taskData, taskType: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select task type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="call">Call</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
-                  <SelectItem value="follow_up">Follow Up</SelectItem>
-                  <SelectItem value="note">Note</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Task Title *</label>
+                <Input
+                  value={taskData.title}
+                  onChange={(e) => setTaskData({...taskData, title: e.target.value})}
+                  placeholder="Enter task title"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Priority *</label>
+                <Select value={taskData.priority || "P3"} onValueChange={(value) => setTaskData({...taskData, priority: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="P1">P1 - Critical</SelectItem>
+                    <SelectItem value="P2">P2 - High</SelectItem>
+                    <SelectItem value="P3">P3 - Medium</SelectItem>
+                    <SelectItem value="P4">P4 - Low</SelectItem>
+                    <SelectItem value="P5">P5 - Very Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium">Title</label>
-              <Input
-                value={taskData.title}
-                onChange={(e) => setTaskData({...taskData, title: e.target.value})}
-                placeholder="Task title"
-              />
-            </div>
+            
             <div>
               <label className="text-sm font-medium">Description</label>
               <Textarea
                 value={taskData.description}
                 onChange={(e) => setTaskData({...taskData, description: e.target.value})}
-                placeholder="Task description"
+                placeholder="Enter task description"
                 rows={3}
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Scheduled Date</label>
-              <Input
-                type="datetime-local"
-                value={taskData.scheduledDate}
-                onChange={(e) => setTaskData({...taskData, scheduledDate: e.target.value})}
-              />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Due Date *</label>
+                <Input
+                  type="datetime-local"
+                  value={taskData.scheduledDate}
+                  onChange={(e) => setTaskData({...taskData, scheduledDate: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Task Type</label>
+                <Select value={taskData.taskType} onValueChange={(value) => setTaskData({...taskData, taskType: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select task type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="follow_up">Follow Up</SelectItem>
+                    <SelectItem value="call">Call</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="meeting">Meeting</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Customer Type</label>
+                <Select value={taskData.customerType || "all"} onValueChange={(value) => setTaskData({...taskData, customerType: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select customer type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="potential_provider">Potential Provider</SelectItem>
+                    <SelectItem value="provider">Provider</SelectItem>
+                    <SelectItem value="customer">Customer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Assigned To</label>
+                <Select value={taskData.assignedTo} onValueChange={(value) => setTaskData({...taskData, assignedTo: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select team member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {adminUsers.map((user: any) => (
+                      <SelectItem key={user.id} value={user.username}>
+                        {user.firstName} {user.lastName} ({user.username})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {/* Super Admin: Task Owner Selection */}
+            {isSuperAdmin && (
+              <div>
+                <label className="text-sm font-medium">Task Owner (Admin)</label>
+                <Select value={taskData.taskOwner || "admin"} onValueChange={(value) => setTaskData({...taskData, taskOwner: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select task owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {adminUsers.map((user: any) => (
+                      <SelectItem key={user.id} value={user.username}>
+                        {user.firstName} {user.lastName} ({user.username}) - {user.role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">Super Admin can assign tasks to any admin</p>
+              </div>
+            )}
+            
             <div>
-              <label className="text-sm font-medium">Assigned To</label>
-              <Select value={taskData.assignedTo} onValueChange={(value) => setTaskData({...taskData, assignedTo: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select admin user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {adminUsers.map((user: any) => (
-                    <SelectItem key={user.id} value={user.username}>
-                      {user.firstName} {user.lastName} ({user.username}) - {user.role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium">Comments</label>
+              <Textarea
+                value={taskData.comments || ""}
+                onChange={(e) => setTaskData({...taskData, comments: e.target.value})}
+                placeholder="Add any additional comments or notes"
+                rows={2}
+              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateTask} disabled={createTaskMutation.isPending}>
-              {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+            <Button onClick={handleCreateTeamTask} disabled={createTeamTaskMutation.isPending}>
+              {createTeamTaskMutation.isPending ? "Creating..." : "Create Task"}
             </Button>
           </DialogFooter>
         </DialogContent>

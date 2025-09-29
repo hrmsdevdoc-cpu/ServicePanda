@@ -34,6 +34,7 @@ import AdminLeads from "@/pages/AdminLeads";
 import AdminLeadSettings from "@/pages/AdminLeadSettings";
 import AdminUserReports from "@/pages/admin/AdminUserReports";
 import AdminProviderReports from "@/pages/admin/AdminProviderReports";
+import AdminProviderReport from "@/pages/admin/AdminProviderReport";
 import AdminDailyReports from "@/pages/admin/AdminDailyReports";
 import AdminStripeSettings from "@/pages/admin/AdminStripeSettings";
 import AdminMailgunSettings from "@/pages/admin/AdminMailgunSettings";
@@ -91,6 +92,7 @@ function Router() {
       {/* New Admin Routes with Sidebar Layout */}
       <Route path="/admin/providers/pending" component={AdminPendingProviders} />
       <Route path="/admin/providers" component={AdminViewProviders} />
+      <Route path="/admin/providers/report" component={AdminProviderReport} />
       <Route path="/admin/users" component={AdminViewUsers} />
       <Route path="/admin/admin-users" component={AdminUsers} />
       <Route path="/admin-users" component={AdminUsers} />

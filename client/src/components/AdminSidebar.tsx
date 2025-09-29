@@ -59,6 +59,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       subItems: [
         { label: "Pending Applications", href: "/admin/providers/pending" },
         { label: "All Providers", href: "/admin/providers" },
+        { label: "Provider Report", href: "/admin/providers/report" },
       ],
     },
 

@@ -151,6 +151,10 @@ import {
   type InsertPotentialProviderTask,
   type PotentialProviderCommunication,
   type InsertPotentialProviderCommunication,
+  // Team tasks imports
+  teamTasks,
+  type TeamTask,
+  type InsertTeamTask,
 } from "@shared/schema";
 
 // Import Group interface
@@ -162,7 +166,7 @@ interface ImportGroup {
   smsDeliveryStatus: string;
 }
 import { db, pool } from "./db";
-import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql, ne, gt, gte, like, lte } from "drizzle-orm";
+import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql, ne, gt, gte, like, lte, lt } from "drizzle-orm";
 import crypto from "crypto";
 
 // Helper function to handle MySQL insert without returning
@@ -301,6 +305,7 @@ export interface IStorage {
   getUserCount(): Promise<number>;
   getServiceRequestCount(status?: string): Promise<number>;
   getServiceProvidersForAdmin(status?: string): Promise<ServiceProvider[]>;
+  getServiceProvidersForReport(status?: string, rating?: string): Promise<any[]>;
   updateServiceProviderStatus(id: number, status: string): Promise<void>;
   getAllServiceRequestsForAdmin(): Promise<ServiceRequest[]>;
   getProviderDetailsForAdmin(providerId: number): Promise<any>;
@@ -508,6 +513,26 @@ export interface IStorage {
       pending: number;
       rejected: number;
     }>;
+  }>;
+
+  // Team task operations
+  createTeamTask(task: InsertTeamTask): Promise<TeamTask>;
+  getTeamTasks(filters?: {
+    status?: string;
+    priority?: string;
+    customerType?: string;
+    assignedTo?: string;
+    adminId?: string;
+  }): Promise<TeamTask[]>;
+  getTeamTask(id: number): Promise<TeamTask | undefined>;
+  updateTeamTask(id: number, updates: Partial<TeamTask>): Promise<TeamTask>;
+  deleteTeamTask(id: number): Promise<void>;
+  getTeamTasksForKanban(): Promise<{
+    overdue24h: TeamTask[];
+    overdue: TeamTask[];
+    today: TeamTask[];
+    tomorrow: TeamTask[];
+    upcoming: TeamTask[];
   }>;
 }
 
@@ -1565,6 +1590,49 @@ export class DatabaseStorage implements IStorage {
     );
 
     return providersWithServices;
+  }
+
+  async getServiceProvidersForReport(status?: string, rating?: string): Promise<any[]> {
+    console.log('🔥 getServiceProvidersForReport called with status:', status, 'rating:', rating);
+    
+    try {
+      // Get providers with services (same as getServiceProvidersForAdmin)
+      const providersWithServices = await this.getServiceProvidersForAdmin(status);
+      
+      // Add service areas for each provider
+      const providersWithAreas = await Promise.all(
+        providersWithServices.map(async (provider) => {
+          try {
+            const serviceAreas = await db
+              .select({
+                id: providerServiceAreas.id,
+                centerAddress: providerServiceAreas.centerAddress,
+                radiusKm: providerServiceAreas.radiusKm,
+                areaName: providerServiceAreas.areaName,
+              })
+              .from(providerServiceAreas)
+              .where(eq(providerServiceAreas.providerId, provider.id));
+
+            return {
+              ...provider,
+              serviceAreas: serviceAreas || [],
+            };
+          } catch (areaError) {
+            console.log('No service areas for provider', provider.id);
+            return {
+              ...provider,
+              serviceAreas: [],
+            };
+          }
+        })
+      );
+      
+      return providersWithAreas;
+    } catch (error) {
+      console.error('Error in getServiceProvidersForReport:', error);
+      // Return empty array on error
+      return [];
+    }
   }
 
   async updateServiceProviderStatus(id: number, status: string): Promise<void> {
@@ -6365,6 +6433,192 @@ export class DatabaseStorage implements IStorage {
       console.log('Migration executed successfully');
     } catch (error) {
       console.error('Error executing migration:', error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // TEAM TASK MANAGEMENT METHODS
+  // ============================================================================
+
+  async createTeamTask(task: InsertTeamTask): Promise<TeamTask> {
+    try {
+      console.log('Creating team task in database:', task);
+      const [newTask] = await db.insert(teamTasks).values(task).returning();
+      console.log('Team task created successfully:', newTask);
+      return newTask;
+    } catch (error) {
+      console.error('Error creating team task:', error);
+      throw error;
+    }
+  }
+
+  async getTeamTasks(filters?: {
+    status?: string;
+    priority?: string;
+    customerType?: string;
+    assignedTo?: string;
+    adminId?: string;
+  }): Promise<TeamTask[]> {
+    try {
+      let query = db.select().from(teamTasks);
+
+      if (filters) {
+        const conditions = [];
+        
+        if (filters.status) {
+          conditions.push(eq(teamTasks.status, filters.status));
+        }
+        if (filters.priority) {
+          conditions.push(eq(teamTasks.priority, filters.priority));
+        }
+        if (filters.assignedTo) {
+          conditions.push(eq(teamTasks.assignedTo, filters.assignedTo));
+        }
+        if (filters.adminId) {
+          conditions.push(eq(teamTasks.adminId, filters.adminId));
+        }
+        if (filters.customerType) {
+          switch (filters.customerType) {
+            case 'potential_provider':
+              conditions.push(isNotNull(teamTasks.potentialProviderId));
+              break;
+            case 'provider':
+              conditions.push(isNotNull(teamTasks.providerId));
+              break;
+            case 'customer':
+              conditions.push(isNotNull(teamTasks.customerId));
+              break;
+          }
+        }
+
+        if (conditions.length > 0) {
+          query = query.where(and(...conditions));
+        }
+      }
+
+      return await query.orderBy(desc(teamTasks.dueDate));
+    } catch (error) {
+      console.error('Error fetching team tasks:', error);
+      throw error;
+    }
+  }
+
+  async getTeamTask(id: number): Promise<TeamTask | undefined> {
+    try {
+      const [task] = await db.select().from(teamTasks).where(eq(teamTasks.id, id));
+      return task;
+    } catch (error) {
+      console.error('Error fetching team task:', error);
+      throw error;
+    }
+  }
+
+  async updateTeamTask(id: number, updates: Partial<TeamTask>): Promise<TeamTask> {
+    try {
+      const [updatedTask] = await db
+        .update(teamTasks)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(eq(teamTasks.id, id))
+        .returning();
+
+      if (!updatedTask) {
+        throw new Error('Team task not found');
+      }
+
+      return updatedTask;
+    } catch (error) {
+      console.error('Error updating team task:', error);
+      throw error;
+    }
+  }
+
+  async deleteTeamTask(id: number): Promise<void> {
+    try {
+      await db.delete(teamTasks).where(eq(teamTasks.id, id));
+    } catch (error) {
+      console.error('Error deleting team task:', error);
+      throw error;
+    }
+  }
+
+  async getTeamTasksForKanban(filterBy?: string | null): Promise<{
+    overdue24h: TeamTask[];
+    overdue: TeamTask[];
+    today: TeamTask[];
+    tomorrow: TeamTask[];
+    upcoming: TeamTask[];
+  }> {
+    try {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dayAfterTomorrow = new Date(tomorrow);
+      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const dayBeforeYesterday = new Date(yesterday);
+      dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 1);
+
+      // Get all incomplete tasks (filtered by admin if specified)
+      let whereConditions = [
+        ne(teamTasks.status, 'completed'),
+        ne(teamTasks.status, 'cancelled')
+      ];
+
+      // Apply filters based on filterBy parameter
+      if (filterBy) {
+        if (filterBy.startsWith('assignedTo:')) {
+          // Filter by assignedTo field for managers
+          const assignedToUser = filterBy.replace('assignedTo:', '');
+          whereConditions.push(eq(teamTasks.assignedTo, assignedToUser));
+        } else {
+          // Filter by adminId for regular admins
+          whereConditions.push(eq(teamTasks.adminId, filterBy));
+        }
+      }
+      // If filterBy is null, show all tasks (for super admin)
+
+      const allTasks = await db
+        .select()
+        .from(teamTasks)
+        .where(and(...whereConditions))
+        .orderBy(asc(teamTasks.dueDate));
+
+      // Categorize tasks
+      const overdue24h = allTasks.filter(task => 
+        task.dueDate < dayBeforeYesterday
+      );
+      
+      const overdue = allTasks.filter(task => 
+        task.dueDate >= dayBeforeYesterday && task.dueDate < today
+      );
+      
+      const todayTasks = allTasks.filter(task => 
+        task.dueDate >= today && task.dueDate < tomorrow
+      );
+      
+      const tomorrowTasks = allTasks.filter(task => 
+        task.dueDate >= tomorrow && task.dueDate < dayAfterTomorrow
+      );
+      
+      const upcoming = allTasks.filter(task => 
+        task.dueDate >= dayAfterTomorrow
+      );
+
+      return {
+        overdue24h,
+        overdue,
+        today: todayTasks,
+        tomorrow: tomorrowTasks,
+        upcoming,
+      };
+    } catch (error) {
+      console.error('Error fetching team tasks for kanban:', error);
       throw error;
     }
   }
