@@ -24,8 +24,10 @@ class OneSignalAdminService {
   // Manual device mapping for testing (replace with database lookup in production)
   private getDeviceIdForProvider(providerId: number): string | null {
     const deviceMapping: Record<number, string> = {
-      1: '0a21c9be-2a45-40bf-b9a3-b2b70d78da27', // OneSignal ID from dashboard
-      2: '0e88a6e5-4efc-4317-8902-bc9629d83d1b', // Second OneSignal ID from dashboard
+      1: '3e08404b-8fd6-4b71-af49-f6f207b79243', // Latest OneSignal ID with provider-1
+      2: '3bb2d266-4fbe-459a-8216-739b28db0a91', // Latest OneSignal ID 
+      3: '0a21c9be-2a45-40bf-b9a3-b2b70d78da27', // Older OneSignal ID
+      4: '0e88a6e5-4efc-4317-8902-bc9629d83d1b', // Older OneSignal ID
       // Add more providers as they register their devices
     };
     
@@ -41,13 +43,32 @@ class OneSignalAdminService {
 
   // Get external user IDs for dynamic targeting
   private getExternalUserIds(providerId: number): string[] {
-    // Known external user IDs from OneSignal dashboard
+    // Handle both old random IDs (from dashboard) and new consistent IDs
     const externalUserIdMapping: Record<number, string[]> = {
-      1: ['provider-1759142062541-y7p5z', `provider-${providerId}`],
-      2: ['provider-1759141887918-7tqdv', `provider-${providerId}`],
+      1: [
+        'provider-1',                    // New consistent ID (working!)
+        `provider-${providerId}`,        // Alternative format
+      ],
+      2: [
+        'provider-17591447767118-8arad', // Current ID from dashboard
+        `provider-${providerId}`,        // Alternative format
+        `provider-2`                     // Consistent format
+      ],
+      3: [
+        'provider-1759142062541-y7p5z', // Old random ID from dashboard
+        `provider-${providerId}`,        // Alternative format
+      ],
+      4: [
+        'provider-1759141887918-7tqdv', // Old random ID from dashboard  
+        `provider-${providerId}`,        // Alternative format
+      ],
     };
     
-    const externalIds = externalUserIdMapping[providerId] || [`provider-${providerId}`];
+    const externalIds = externalUserIdMapping[providerId] || [
+      `provider-${providerId}`,
+      `provider-${providerId}`
+    ];
+    
     console.log(`👤 External user IDs for provider ${providerId}:`, externalIds);
     return externalIds;
   }
