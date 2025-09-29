@@ -14,6 +14,12 @@ class RealSystemNotificationService {
     console.log('🔔 Initializing REAL Android System Notification Service...');
 
     try {
+      // Check if PushNotification is available
+      if (!PushNotification || typeof PushNotification.configure !== 'function') {
+        console.log('⚠️ PushNotification module not available - using fallback');
+        this.isInitialized = true; // Mark as initialized to prevent further attempts
+        return; // Skip PushNotification initialization but continue with app
+      }
       // Request notification permission for Android 13+
       if (Platform.Version >= 33) {
         const granted = await PermissionsAndroid.request(
@@ -59,21 +65,25 @@ class RealSystemNotificationService {
       });
 
       // Create notification channel for Android (REQUIRED for system notifications)
-      PushNotification.createChannel(
-        {
-          channelId: 'servicepanda-system', // UNIQUE channel ID
-          channelName: 'ServicePanda Notifications', 
-          channelDescription: 'Customer requests, payments, and updates',
-          importance: 4, // HIGH importance for system notifications
-          vibrate: true,
-          vibration: 300,
-          playSound: true,
-          soundName: 'default',
-        },
-        (created) => {
-          console.log(`📱 Notification channel created: ${created}`);
-        }
-      );
+      if (PushNotification && typeof PushNotification.createChannel === 'function') {
+        PushNotification.createChannel(
+          {
+            channelId: 'servicepanda-system', // UNIQUE channel ID
+            channelName: 'ServicePanda Notifications', 
+            channelDescription: 'Customer requests, payments, and updates',
+            importance: 4, // HIGH importance for system notifications
+            vibrate: true,
+            vibration: 300,
+            playSound: true,
+            soundName: 'default',
+          },
+          (created) => {
+            console.log(`📱 Notification channel created: ${created}`);
+          }
+        );
+      } else {
+        console.log('⚠️ PushNotification.createChannel not available, skipping channel creation');
+      }
 
       this.isInitialized = true;
       console.log('✅ REAL Android System Notification Service ready!');
@@ -97,6 +107,12 @@ class RealSystemNotificationService {
     console.log('🔔 Sending REAL system notification...');
 
     try {
+      // Check if PushNotification is available for sending notifications
+      if (!PushNotification || typeof PushNotification.localNotification !== 'function') {
+        console.log('⚠️ PushNotification.localNotification not available - skipping');
+        return;
+      }
+
       const notificationId = Math.floor(Math.random() * 1000000);
       
       PushNotification.localNotification({

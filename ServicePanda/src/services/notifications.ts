@@ -106,17 +106,14 @@ class NotificationService {
 
   async markAllAsRead(): Promise<boolean> {
     try {
-      console.log('NotificationService: Starting markAllAsRead');
       
       // Get current notifications to mark them all as read locally
       const notifications = await this.getNotifications();
-      console.log('NotificationService: Current notifications before marking:', notifications.map(n => ({ id: n.id, isRead: n.isRead })));
       
       notifications.forEach(notification => {
         this.readNotificationIds.add(notification.id);
       });
       
-      console.log('NotificationService: Read notification IDs after adding:', Array.from(this.readNotificationIds));
       
       // Save to persistent storage
       await this.saveReadNotifications();
@@ -126,10 +123,8 @@ class NotificationService {
         await apiService.put('/api/provider/notifications/read-all');
       } catch (serverError) {
         // If server call fails, we still mark them as read locally
-        console.log('Server mark all as read failed, using local tracking only');
       }
       
-      console.log('NotificationService: markAllAsRead completed successfully');
       return true;
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -159,14 +154,11 @@ class NotificationService {
   }
 
   private convertActivitiesToNotifications(serviceRequests: any[]): Notification[] {
-    console.log('NotificationService: Converting service requests to notifications');
-    console.log('NotificationService: Read notification IDs:', Array.from(this.readNotificationIds));
-    
+
     const notifications = serviceRequests.slice(0, 10).map((request, index) => {
       const notificationId = request.id || index + 1000;
       const isRead = this.readNotificationIds.has(notificationId);
       
-      console.log(`NotificationService: Request ${notificationId} -> isRead: ${isRead}`);
       
       return {
         id: notificationId,
@@ -184,7 +176,6 @@ class NotificationService {
       };
     });
     
-    console.log('NotificationService: Converted notifications:', notifications.map(n => ({ id: n.id, isRead: n.isRead })));
     return notifications;
   }
 

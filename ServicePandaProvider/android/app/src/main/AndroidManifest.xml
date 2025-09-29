@@ -46,6 +46,15 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg" />
+        
+        <!-- OneSignal Configuration -->
+        <meta-data
+            android:name="onesignal_app_id"
+            android:value="a3f5070d-9c46-44cd-8b0a-259df155ae94" />
+        
+        <meta-data
+            android:name="onesignal_google_project_number"
+            android:value="str:REMOTE" />
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
@@ -102,6 +111,20 @@
 
         <!-- Background Notification Service -->
         <service android:name="com.facebook.react.HeadlessJsTaskService" />
+        
+        <!-- OneSignal Services -->
+        <service
+            android:name="com.onesignal.OSFocusHandler"
+            android:exported="false" />
+            
+        <service
+            android:name="com.onesignal.GCMIntentService"
+            android:exported="false" />
+            
+        <service
+            android:name="com.onesignal.syncjobs.SyncJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         
     </application>
 

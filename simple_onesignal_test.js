@@ -4,7 +4,7 @@
 async function testPushNotification() {
   console.log('🚀 Testing OneSignal push notification...');
   
-  const appId = 'f64bf04a-b174-4862-a7b4-62b8d93f159b';
+  const appId = 'a3f5070d-9c46-44cd-8b0a-259df155ae94';
   const restApiKey = 'os_v2_app_6zf7asvroregfj5umk4nspyvtoi4yl4hrd3u7suvnwraxsu43zmjjgzlysqusuxf7gjgfkjzgwpunhz4m3yflqr4fz7kfitlcxxsexy';
   
   const payload = {

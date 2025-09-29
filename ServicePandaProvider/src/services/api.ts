@@ -39,7 +39,7 @@ class ApiService {
 
 
     const headers: Record<string, string> = await this.getHeaders();
-    console.log('📋 Request Headers:', headers);
+    // console.log('📋 Request Headers:', headers);
 
     const config: RequestInit = {
       method,
@@ -59,26 +59,20 @@ class ApiService {
       config.body = body;
     }
 
-    console.log('📤 Sending request with config:', config);
-    console.log('📤 Request body stringified:', config.body);
-
     try {
       // Test network connectivity first
-      console.log('🔍 Testing network connectivity...');
       const testResponse = await fetch(`${API_BASE_URL}/api/health`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       }).catch(() => null);
 
       if (testResponse) {
-        console.log('✅ Network connectivity test passed');
+        // console.log('✅ Network connectivity test passed');
       } else {
         console.log('⚠️ Network connectivity test failed - trying main request anyway');
       }
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response headers:', response.headers);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

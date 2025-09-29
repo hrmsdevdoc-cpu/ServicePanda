@@ -5,7 +5,7 @@
 ### Step 1: OneSignal SDK Initialization
 ```javascript
 // App startup (automatic)
-OneSignal.setAppId('f64bf04a-b174-4862-a7b4-62b8d93f159b');
+OneSignal.setAppId('a3f5070d-9c46-44cd-8b0a-259df155ae94');
 ```
 
 ### Step 2: Device Registration

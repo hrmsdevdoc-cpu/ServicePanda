@@ -484,8 +484,6 @@ export default function AdminEmail() {
           template: composeData.template
         });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (response.ok) {
         const result = await response.json();

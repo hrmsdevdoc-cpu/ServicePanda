@@ -25,7 +25,7 @@ interface ActiveNotification {
 
 const RealTimeNotificationController: React.FC<RealTimeNotificationControllerProps> = ({
   children,
-  oneSignalAppId = 'your-onesignal-app-id', // Replace with actual OneSignal App ID
+  oneSignalAppId = 'a3f5070d-9c46-44cd-8b0a-259df155ae94', // ServicePandaProvider OneSignal App ID
 }) => {
   const [activeNotifications, setActiveNotifications] = useState<ActiveNotification[]>([]);
   const [isServiceRunning, setIsServiceRunning] = useState(false);
@@ -61,46 +61,57 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
       // Initialize notification service
       console.log('🔄 Initializing notification services...');
       
-      // Initialize all notification services for maximum coverage
-      // Firebase disabled - module not installed, using OneSignal instead
-      console.log('🔥 Firebase disabled, using OneSignal for push notifications');
+      // Primary notification system: OneSignal (most reliable)
+      console.log('🔔 Primary: OneSignal push notifications');
+      console.log('💡 Secondary: Local notification services (if available)');
 
+      // Try to initialize OneSignal first (main notification system)
       try {
-        // Initialize real system notification service  
+        await oneSignalService.initialize(oneSignalAppId);
+        console.log('✅ OneSignal service initialized (primary)');
+      } catch (error) {
+        console.log('⚠️ OneSignal failed, but continuing with fallbacks...');
+      }
+
+      // Secondary: Try local notification services (optional)
+      try {
+        // Initialize simple notification service (no native dependencies)
+        await simpleNotificationService.initialize();
+        console.log('✅ Simple notification service initialized (secondary)');
+      } catch (error) {
+        console.log('⚠️ Simple notification service failed, skipping...');
+      }
+
+      // Tertiary: Try system notifications if available
+      try {
+        // Initialize real system notification service (requires proper linking)
         const realSystemNotificationService = await import('../services/realSystemNotificationService');
         await realSystemNotificationService.default.initialize();
-        console.log('✅ Real system notifications initialized');
+        console.log('✅ Real system notifications initialized (tertiary)');
       } catch (error) {
-        console.log('⚠️ Real system notifications failed, continuing...');
-      }
-      
-      try {
-        // Initialize simple notification service (no SDK dependencies)
-        await simpleNotificationService.initialize();
-        console.log('✅ Simple notification service initialized');
-      } catch (error) {
-        console.log('⚠️ Simple notification service failed, continuing...');
+        console.log('⚠️ System notifications unavailable:', error.message || 'Linking issue');
+        console.log('💡 Run: npx react-native run-android to fix linking');
       }
 
+      // Quaternary: API polling service
       try {
         // Initialize notification API service for server polling
         const notificationApiService = await import('../services/notificationApiService');
         notificationApiService.default.initialize();
-        console.log('✅ API notification service initialized');
+        console.log('✅ API notification service initialized (quaternary)');
       } catch (error) {
-        console.log('⚠️ API notification service failed, continuing...');
+        console.log('⚠️ API notification service failed, skipping...');
       }
 
+      // Quinary: Device registration (best effort)
       try {
         // Register device for push notifications
         const deviceRegistrationService = await import('../services/deviceRegistrationService');
         await deviceRegistrationService.default.registerDeviceForNotifications();
-        console.log('✅ Device registered for push notifications');
+        console.log('✅ Device registered for push notifications (quinary)');
       } catch (error) {
-        console.log('⚠️ Device registration failed, continuing...');
+        console.log('⚠️ Device registration failed, skipping...');
       }
-
-      await oneSignalService.initialize(oneSignalAppId);
 
       // Check device registration status after initialization
       setTimeout(async () => {

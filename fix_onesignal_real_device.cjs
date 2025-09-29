@@ -34,7 +34,7 @@ class OneSignalService {
   private readonly POLLING_INTERVAL = 30000; // 30 seconds
   private notificationCallbacks: Array<(notification: NotificationPayload) => void> = [];
 
-  async initialize(appId: string = 'f64bf04a-b174-4862-a7b4-62b8d93f159b') {
+  async initialize(appId: string = 'a3f5070d-9c46-44cd-8b0a-259df155ae94') {
     if (this.isInitialized) return;
 
     try {

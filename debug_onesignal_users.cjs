@@ -7,7 +7,7 @@ console.log('🔍 OneSignal Users Debug kar rahe hain...');
 console.log('');
 
 async function checkOneSignalUsers() {
-  const ONESIGNAL_APP_ID = 'f64bf04a-b174-4862-a7b4-62b8d93f159b';
+  const ONESIGNAL_APP_ID = 'a3f5070d-9c46-44cd-8b0a-259df155ae94';
   const ONESIGNAL_REST_API_KEY = 'os_v2_app_6zf7asvroregfj5umk4nspyvtoi4yl4hrd3u7suvnwraxsu43zmjjgzlysqusuxf7gjgfkjzgwpunhz4m3yflqr4fz7kfitlcxxsexy';
 
   try {
@@ -90,7 +90,7 @@ async function sendTestToActiveUsers() {
   console.log('\n3. Testing direct notification to active users...');
   
   const payload = {
-    app_id: 'f64bf04a-b174-4862-a7b4-62b8d93f159b',
+    app_id: 'a3f5070d-9c46-44cd-8b0a-259df155ae94',
     headings: { en: '🔥 DIRECT TEST!' },
     contents: { 
       en: `Debug notification direct bheja hai!\n\nTime: ${new Date().toLocaleTimeString()}\n\nAgar ye aa gaya to system working hai!`
