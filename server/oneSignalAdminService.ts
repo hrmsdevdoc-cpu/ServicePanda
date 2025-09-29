@@ -18,16 +18,17 @@ interface OneSignalResult {
 
 class OneSignalAdminService {
   private appId = "a3f5070d-9c46-44cd-8b0a-259df155ae94"; // Your OneSignal App ID
-  private restApiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_6zf7asvroregfj5umk4nspyvtoi4yl4hrd3u7suvnwraxsu43zmjjgzlysqusuxf7gjgfkjzgwpunhz4m3yflqr4fz7kfitlcxxsexy";
+  private restApiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_up2qodm4izcm3cykewo7cvnosrtodbs2i5ce3r5zeusbxh5utqy7iys7bhaffdnt65vsy4ql6p5beykzl62ahn2jdgifjshulo2hkky";
   private apiUrl = "https://onesignal.com/api/v1/notifications";
 
   // Manual device mapping for testing (replace with database lookup in production)
   private getDeviceIdForProvider(providerId: number): string | null {
     const deviceMapping: Record<number, string> = {
-      1: '3e08404b-8fd6-4b71-af49-f6f207b79243', // Latest OneSignal ID with provider-1
-      2: '3bb2d266-4fbe-459a-8216-739b28db0a91', // Latest OneSignal ID 
-      3: '0a21c9be-2a45-40bf-b9a3-b2b70d78da27', // Older OneSignal ID
-      4: '0e88a6e5-4efc-4317-8902-bc9629d83d1b', // Older OneSignal ID
+      1: 'bf78a978-b759-48b9-a4b2-94d4b7647d02', // LATEST WORKING OneSignal ID (from dashboard - provider-1)
+      2: '3bb2d266-4fbe-459a-8216-739b28db0a91', // Previous OneSignal ID 
+      3: '3e08404b-8fd6-4b71-af49-f6f207b79243', // Older OneSignal ID
+      4: '0a21c9be-2a45-40bf-b9a3-b2b70d78da27', // Older OneSignal ID
+      5: '0e88a6e5-4efc-4317-8902-bc9629d83d1b', // Oldest OneSignal ID
       // Add more providers as they register their devices
     };
     
