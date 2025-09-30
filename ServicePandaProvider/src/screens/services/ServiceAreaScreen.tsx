@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Keyboard,
 } from 'react-native';
 import {
   Text,
@@ -16,10 +17,13 @@ import {
   IconButton,
   Divider,
   Surface,
+  ActivityIndicator,
 } from 'react-native-paper';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import CustomAddressAutocomplete from '../../components/CustomAddressAutocomplete';
 import SimpleAddressInput from '../../components/SimpleAddressInput';
 import ServiceAreaMapFallback from '../../components/ServiceAreaMapFallback';
+const apiService = require('../../services/api');
 
 // Use the fallback map component since ServiceAreaMap doesn't exist
 const ServiceAreaMap = ServiceAreaMapFallback;
@@ -48,22 +52,73 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
   const [showRadiusDropdown, setShowRadiusDropdown] = useState(false);
   const [useSimpleInput, setUseSimpleInput] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
-  const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([
-    {
-      id: '1',
-      address: 'BRISBANE, 4000',
-      radius: '25km radius',
-      areaName: 'brisbane',
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  
+  const queryClient = useQueryClient();
+
+  // Get provider ID for API calls
+  const [providerId, setProviderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getProviderId = async () => {
+      const id = await apiService.getProviderId();
+      setProviderId(id);
+    };
+    getProviderId();
+  }, []);
+
+  // Keyboard visibility listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
+
+  // Fetch service areas using React Query
+  const { data: serviceAreas = [], isLoading: loading, error, refetch } = useQuery({
+    queryKey: ['service-areas', providerId],
+    queryFn: () => providerId ? apiService.getServiceAreas(providerId) : Promise.resolve([]),
+    enabled: !!providerId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Add service area mutation
+  const addServiceAreaMutation = useMutation({
+    mutationFn: (data: any) => apiService.addServiceArea(providerId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service-areas', providerId] });
+      Alert.alert('Success', 'Service area added successfully!');
+      // Clear form
+      setAddress('');
+      setAddressDetails(null);
+      setAreaName('');
+      setRadius('25 km radius');
+      setSelectedLocation(null);
     },
-    {
-      id: '2',
-      address: 'BRISBANE, 4000',
-      radius: '50km radius',
-      areaName: '4000',
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to add service area');
     },
-  ]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  });
+
+  // Delete service area mutation
+  const deleteServiceAreaMutation = useMutation({
+    mutationFn: (areaId: string) => apiService.deleteServiceArea(providerId, areaId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service-areas', providerId] });
+      Alert.alert('Success', 'Service area deleted successfully!');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to delete service area');
+    },
+  });
 
   const radiusOptions = [
     '10 km radius',
@@ -77,60 +132,6 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
     '100 km radius',
   ];
 
-  // Fetch service areas from API
-  const fetchServiceAreas = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Use API configuration for consistent URL
-      const { API_BASE_URL } = require('../../config/api');
-      const response = await fetch(`${API_BASE_URL}/api/service-areas`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          // Add authentication headers if needed
-          // 'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setServiceAreas(data.serviceAreas || []);
-    } catch (err) {
-      console.error('Error fetching service areas:', err);
-      
-      // Show sample data instead of error message
-      setServiceAreas([
-        {
-          id: '1',
-          address: 'BRISBANE, 4000',
-          radius: '25km radius',
-          areaName: 'brisbane',
-        },
-        {
-          id: '2',
-          address: 'BRISBANE, 4000',
-          radius: '50km radius',
-          areaName: '4000',
-        },
-        {
-          id: '3',
-          address: 'GOLD COAST, 4215',
-          radius: '30km radius',
-          areaName: 'gold-coast',
-        },
-      ]);
-      
-      // Don't show error message, just use sample data
-      setError(null);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAddServiceArea = () => {
     if (!address.trim()) {
@@ -138,19 +139,23 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
       return;
     }
 
-    const newServiceArea: ServiceArea = {
-      id: Date.now().toString(),
-      address: address.trim().toUpperCase(),
-      radius: radius,
+    if (!providerId) {
+      Alert.alert('Error', 'Provider ID not found. Please try logging in again.');
+      return;
+    }
+
+    const serviceAreaData = {
+      centerAddress: address.trim(),
+      radiusKm: parseInt(radius.split(' ')[0]), // Extract number from "25 km radius"
       areaName: areaName.trim() || address.trim().split(',')[0],
+      // Include coordinates if available
+      ...(selectedLocation && {
+        centerLat: selectedLocation.lat.toString(),
+        centerLng: selectedLocation.lng.toString(),
+      }),
     };
 
-    setServiceAreas([...serviceAreas, newServiceArea]);
-    setAddress('');
-    setAddressDetails(null);
-    setAreaName('');
-    setRadius('25 km radius');
-    setSelectedLocation(null);
+    addServiceAreaMutation.mutate(serviceAreaData);
   };
 
   const handleDeleteServiceArea = (id: string) => {
@@ -163,7 +168,7 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            setServiceAreas(serviceAreas.filter(area => area.id !== id));
+            deleteServiceAreaMutation.mutate(id);
           },
         },
       ]
@@ -193,13 +198,22 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
   };
 
   const handleEditServiceArea = (id: string) => {
-    const areaToEdit = serviceAreas.find(area => area.id === id);
+    const areaToEdit = serviceAreas.find((area: any) => area.id === id);
     if (areaToEdit) {
-      setAddress(areaToEdit.address);
-      setRadius(areaToEdit.radius);
-      setAreaName(areaToEdit.areaName);
-      // Optionally, set a flag to indicate editing mode
-      // For now, we'll just show the edit form
+      setAddress(areaToEdit.centerAddress || '');
+      setRadius(areaToEdit.radiusKm ? `${areaToEdit.radiusKm} km radius` : '25 km radius');
+      setAreaName(areaToEdit.areaName || '');
+      
+      // If coordinates are available, set selected location
+      if (areaToEdit.centerLat && areaToEdit.centerLng) {
+        setSelectedLocation({
+          lat: parseFloat(areaToEdit.centerLat),
+          lng: parseFloat(areaToEdit.centerLng),
+          address: areaToEdit.centerAddress || ''
+        });
+      }
+      
+      Alert.alert('Edit Mode', 'Service area details loaded for editing. Make your changes and tap "Add Service Area" to update.');
     }
   };
 
@@ -208,7 +222,13 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={() => Keyboard.dismiss()}
+        contentContainerStyle={styles.scrollViewContent}
+      >
         {/* Header */}
         {/* <View style={styles.header}>
           <IconButton
@@ -261,12 +281,12 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                 <View style={styles.addressInputContainer}>
                   {useSimpleInput ? (
                     <SimpleAddressInput
-                  value={address}
+                      value={address}
                       onChange={setAddress}
-                  placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                      placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
                       label="Service Location Address"
                       required={true}
-                  style={styles.addressInput}
+                      style={styles.addressInput}
                     />
                   ) : (
                     <CustomAddressAutocomplete
@@ -274,10 +294,23 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                       onChange={(newAddress, details) => {
                         setAddress(newAddress);
                         setAddressDetails(details);
-                        // Clear selected location when typing new address
-                        if (newAddress !== address) {
-                          setSelectedLocation(null);
+                        
+                        // If address is selected from suggestions (details available), dismiss keyboard
+                        if (details && details.geometry) {
+                          Keyboard.dismiss();
+                          // Auto-populate selected location for map preview
+                          setSelectedLocation({
+                            lat: details.geometry.location.lat,
+                            lng: details.geometry.location.lng,
+                            address: newAddress
+                          });
+                        } else {
+                          // Clear selected location when typing new address
+                          if (newAddress !== address) {
+                            setSelectedLocation(null);
+                          }
                         }
+                        
                         // If there's an error, switch to simple input
                         if (details === null && newAddress && newAddress.length > 3) {
                           setUseSimpleInput(true);
@@ -300,8 +333,8 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
               </View>
               <Text variant="bodySmall" style={styles.helperText}>
                 {useSimpleInput 
-                  ? "Enter the full address manually. Tap 'Switch to Autocomplete' if available."
-                  : "Start typing an Australian address to see suggestions, or use 'Locate' to find manually entered addresses"
+                  ? "Enter the full address manually. Tap 'Done' on keyboard when finished."
+                  : "Start typing an Australian address to see suggestions. Keyboard will hide automatically when you select an address."
                 }
               </Text>
               
@@ -368,6 +401,8 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                 placeholder="e.g., Gold Coast North, Brisbane CBD"
                 mode="outlined"
                 style={styles.areaNameInput}
+                onSubmitEditing={() => Keyboard.dismiss()}
+                returnKeyType="done"
               />
               <Text variant="bodySmall" style={styles.helperText}>
                 Give this service area a friendly name for easy identification
@@ -379,8 +414,10 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                 onPress={handleAddServiceArea}
                 style={styles.addButton}
                 contentStyle={styles.addButtonContent}
+                loading={addServiceAreaMutation.isPending}
+                disabled={addServiceAreaMutation.isPending}
               >
-                Add Service Area
+                {addServiceAreaMutation.isPending ? 'Adding...' : 'Add Service Area'}
               </Button>
 
               {/* Info Message */}
@@ -443,7 +480,7 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
         </Card>
 
         {/* Your Service Areas */}
-        <Card style={styles.card}>
+        <Card style={[styles.card, styles.lastCard]}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
               Your Service Areas ({serviceAreas.length})
@@ -452,7 +489,25 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
               Areas where you provide services
             </Text>
             
-            {serviceAreas.map((area, index) => (
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.loadingText}>Loading service areas...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Failed to load service areas</Text>
+                <Button mode="outlined" onPress={() => refetch()} style={styles.retryButton}>
+                  Retry
+                </Button>
+              </View>
+            ) : serviceAreas.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No service areas configured yet</Text>
+                <Text style={styles.emptySubtext}>Add your first service area above to get started</Text>
+              </View>
+            ) : (
+              serviceAreas.map((area: any, index: number) => (
               <View key={area.id}>
                 <View style={styles.serviceAreaItem}>
                   <View style={styles.serviceAreaInfo}>
@@ -461,13 +516,13 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                     </View>
                     <View style={styles.serviceAreaDetails}>
                       <Text variant="bodyMedium" style={styles.serviceAreaAddress}>
-                        {area.address}
+                        {area.centerAddress || area.address || 'Address not available'}
                       </Text>
                       <Text variant="bodySmall" style={styles.serviceAreaRadius}>
-                        {area.radius}
+                        🎯 {area.radiusKm ? `${area.radiusKm} km radius` : '25 km radius'}
                       </Text>
                       <Text variant="bodySmall" style={styles.serviceAreaName}>
-                        {area.areaName}
+                        📍 {area.areaName || area.centerAddress?.split(',')[0] || 'Service Area'}
                       </Text>
                     </View>
                   </View>
@@ -489,10 +544,24 @@ const ServiceAreaScreen = ({ navigation, onNavigate, onBack }: ServiceAreaScreen
                 </View>
                 {index < serviceAreas.length - 1 && <Divider style={styles.itemDivider} />}
               </View>
-            ))}
+              ))
+            )}
           </Card.Content>
         </Card>
       </ScrollView>
+      
+      {/* Floating Done Button - appears when keyboard is visible */}
+      {keyboardVisible && (
+        <View style={styles.floatingButtonContainer}>
+          <TouchableOpacity
+            style={styles.floatingDoneButton}
+            onPress={() => Keyboard.dismiss()}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.floatingDoneButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 };
@@ -504,6 +573,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
+    paddingBottom: 100, // Extra space at bottom to prevent content from being hidden
   },
   header: {
     flexDirection: 'row',
@@ -527,6 +599,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     elevation: 2,
     backgroundColor: colors.surface,
+  },
+  lastCard: {
+    marginBottom: 32, // Extra margin for the last card
   },
   sectionHeader: {
     marginBottom: 16,
@@ -732,7 +807,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    backgroundColor: 'transparent',
+    minHeight: 80,
   },
   serviceAreaInfo: {
     flexDirection: 'row',
@@ -749,18 +827,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   serviceAreaAddress: {
-    fontWeight: '500',
-    color: colors.text,
+    fontWeight: '600',
+    color: colors.text || '#1a1a1a',
+    fontSize: 16,
+    marginBottom: 4,
   },
   serviceAreaName: {
-    color: colors.textSecondary,
-    marginTop: 2,
+    color: colors.textSecondary || '#666666',
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '500',
+    backgroundColor: 'transparent',
   },
   serviceAreaRadius: {
-    color: colors.primary,
+    color: colors.primary || '#007AFF',
     marginTop: 2,
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
+    backgroundColor: 'transparent',
   },
   serviceAreaActions: {
     flexDirection: 'row',
@@ -773,6 +857,68 @@ const styles = StyleSheet.create({
   },
   itemDivider: {
     marginLeft: 48,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    color: colors.textSecondary,
+    fontSize: 16,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 16,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    borderColor: colors.primary,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    color: colors.textTertiary,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  floatingButtonContainer: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    zIndex: 1000,
+  },
+  floatingDoneButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  floatingDoneButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
