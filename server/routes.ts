@@ -695,9 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/service-requests/my-requests', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      console.log(`Fetching service requests for user: ${userId}, email: ${req.user.email}`);
       const requests = await storage.getCustomerServiceRequestsWithOffers(userId);
-      console.log(`Found ${requests.length} service requests for user ${userId}`);
       res.json(requests);
     } catch (error) {
       console.error("Error fetching service requests:", error);
