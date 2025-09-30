@@ -105,15 +105,7 @@ class OneSignalAdminService {
         // Remove apns_push_type_override - let OneSignal handle it automatically
       };
 
-      // Enhanced logging for debugging targeting strategy
-      console.log(`🎯 FIXED Targeting Strategy for Provider ${providerId}:`);
-      console.log(`   ✅ Using EXTERNAL USER ID targeting: ${payload.include_external_user_ids.join(', ')}`);
-      console.log(`   📱 This targets devices registered with provider-${providerId} external ID`);
-      
-      console.log(`🔔 OneSignal payload:`, JSON.stringify(payload, null, 2));
 
-      // Real OneSignal API call with fetch polyfill
-      console.log(`🔑 Using OneSignal REST API key: ${this.restApiKey.substring(0, 20)}...`);
 
       const response = await fetch(this.apiUrl, {
         method: 'POST',
