@@ -143,18 +143,14 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
   // Fetch trending service categories
   const fetchTrendingServices = async () => {
     try {
-      console.log('🔥 Dashboard: Fetching trending service categories...');
       const trendingCategories = await apiService.getTrendingServiceCategories();
-      console.log('📡 Dashboard: API Response for trending categories:', trendingCategories);
       
       if (!trendingCategories || !Array.isArray(trendingCategories)) {
-        console.warn('⚠️ Trending categories is not an array:', trendingCategories);
         throw new Error('Invalid trending categories data');
       }
       
       // Map API data to trending services format
       const mappedTrendingServices = trendingCategories.map((category, index) => {
-        console.log('🔄 Processing trending category:', category);
         
         // Simple service name extraction - just use what's in the database
         const serviceName = category.name || category.title || category.categoryName || `Service ${index + 1}`;
@@ -697,10 +693,6 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       );
     }
 
-    console.log('🔍 Dashboard serviceCategories:', serviceCategories);
-    console.log('🔍 serviceCategories.length:', serviceCategories.length);
-    console.log('🔍 categoriesLoading:', categoriesLoading);
-    
     const allCategories = serviceCategories.length > 0 ? serviceCategories : [
       { 
         id: 1, 
@@ -1023,7 +1015,6 @@ const CustomerDashboardScreen = ({ onNavigate, onLogout }: { onNavigate: any, on
       }
     ];
 
-    console.log('Rendering activities:', activities);
 
     return (
       <Animated.View 

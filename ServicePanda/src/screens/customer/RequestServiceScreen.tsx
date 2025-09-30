@@ -242,14 +242,24 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
 
       console.log('Submitting form data:', formData);
 
-      // Make API call
-      const response = await apiService.post('/api/service-requests', formData);
+      // Make API call using the proper method
+      console.log('🚀 Calling createServiceRequest API...');
+      const response = await apiService.createServiceRequest(formData);
       
+      console.log('✅ Service request created successfully:', response);
+      console.log('📡 Server should now be sending notifications to providers...');
       
       Alert.alert(
         'Service Request Submitted! 🎉', 
-        'Your service request has been submitted successfully. You will receive quotes from providers soon.',
+        'Your service request has been submitted successfully. Providers in your area will be notified and you will receive quotes soon.',
         [
+          {
+            text: 'Track Request',
+            onPress: () => {
+              // Navigate to track request screen
+              onNavigate('TrackRequest', { requestId: response.request?.id });
+            }
+          },
           {
             text: 'OK',
             onPress: () => onBack()
@@ -257,8 +267,21 @@ const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
         ]
       );
     } catch (error) {
-      console.error('Form submission error:', error);
-      Alert.alert('Error', 'Failed to submit request. Please try again.');
+      console.error('❌ Form submission error:', error);
+      console.error('❌ Error details:', error.message);
+      console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+      
+      let errorMessage = 'Failed to submit request. Please try again.';
+      
+      if (error.message?.includes('Network')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        errorMessage = 'Please log in again to submit a service request.';
+      } else if (error.message?.includes('400') || error.message?.includes('validation')) {
+        errorMessage = 'Please check your information and try again.';
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsSubmitting(false);
     }
