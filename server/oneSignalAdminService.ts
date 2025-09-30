@@ -18,7 +18,7 @@ interface OneSignalResult {
 
 class OneSignalAdminService {
   private appId = "a3f5070d-9c46-44cd-8b0a-259df155ae94"; // Your OneSignal App ID
-  private restApiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_up2qodm4izcm3cykewo7cvnosrsd36rvce4eflmycu4fn43i6oojl4ogz4actqkqx3z5vnrrflsxoluzqxjdod7qhzxgrsfj7ec7h6a";
+  private restApiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_up2qodm4izcm3cykewo7cvnoss7meugoxnle72fl6wcvybtzinwui7gk5yljoirurcfl7ywua4oqbzsbjftd7yxjtf3e4wx6zvpqyxy";
   private apiUrl = "https://onesignal.com/api/v1/notifications";
 
   // Manual device mapping for testing (replace with database lookup in production)
