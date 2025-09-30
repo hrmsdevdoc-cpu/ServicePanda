@@ -101,8 +101,8 @@ class OneSignalAdminService {
         android_vibration_pattern: [1000, 1000],
         
         // Make sure it works when app is closed
-        content_available: true,
-        apns_push_type_override: "background"
+        content_available: true
+        // Remove apns_push_type_override - let OneSignal handle it automatically
       };
 
       // Enhanced logging for debugging targeting strategy
