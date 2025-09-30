@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import CurrentTimeNotification from './CurrentTimeNotification';
 import realTimeNotificationService from '../services/realTimeNotificationService';
-import oneSignalService, { NotificationPayload } from '../services/oneSignalService';
+import fixedOneSignalService, { NotificationPayload } from '../services/fixedOneSignalService';
+import fallbackOneSignalService from '../services/fallbackOneSignalService';
 import simpleNotificationService from '../services/simpleNotificationService';
 
 interface RealTimeNotificationControllerProps {
@@ -67,10 +68,16 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
 
       // Try to initialize OneSignal first (main notification system)
       try {
-        await oneSignalService.initialize(oneSignalAppId);
+        await fixedOneSignalService.initialize();
         console.log('✅ OneSignal service initialized (primary)');
       } catch (error) {
-        console.log('⚠️ OneSignal failed, but continuing with fallbacks...');
+        console.log('⚠️ OneSignal native module failed, trying fallback...');
+        try {
+          await fallbackOneSignalService.initialize();
+          console.log('✅ Fallback OneSignal service initialized');
+        } catch (fallbackError) {
+          console.log('❌ Both OneSignal services failed, continuing with other services...');
+        }
       }
 
       // Secondary: Try local notification services (optional)
@@ -89,7 +96,8 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
         await realSystemNotificationService.default.initialize();
         console.log('✅ Real system notifications initialized (tertiary)');
       } catch (error) {
-        console.log('⚠️ System notifications unavailable:', error.message || 'Linking issue');
+        const errorMessage = error instanceof Error ? error.message : 'Linking issue';
+        console.log('⚠️ System notifications unavailable:', errorMessage);
         console.log('💡 Run: npx react-native run-android to fix linking');
       }
 
@@ -116,7 +124,7 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
       // Check device registration status after initialization
       setTimeout(async () => {
         try {
-          const deviceStatus = await oneSignalService.checkDeviceStatus();
+          const deviceStatus = await fixedOneSignalService.getRegistrationStatus();
           if (deviceStatus.isRegistered) {
             console.log('🎉 Device is registered and ready for push notifications!');
           } else {
@@ -127,13 +135,15 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
         }
       }, 3000);
 
-      // Setup notification listeners
-      const unsubscribeOneSignal = oneSignalService.onNotificationReceived(handleNotificationReceived);
-      const unsubscribeRealTime = realTimeNotificationService.addListener(handleNotificationReceived);
+      // Setup notification listeners - ONLY OneSignal now
+      const unsubscribeOneSignal = fixedOneSignalService.onNotificationReceived(handleNotificationReceived);
+      // OLD POLLING SYSTEM DISABLED
+      // const unsubscribeRealTime = realTimeNotificationService.addListener(handleNotificationReceived);
 
-      // Start real-time service
-      realTimeNotificationService.start();
-      setIsServiceRunning(true);
+      // OLD POLLING SYSTEM DISABLED - OneSignal handles all notifications now
+      console.log('⚠️ Old polling system disabled - OneSignal handles all notifications');
+      // realTimeNotificationService.start(); // DISABLED
+      setIsServiceRunning(false); // Keep it stopped
 
       console.log('✅ All notification services initialized successfully');
 
@@ -157,11 +167,9 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
   const handleAppStateChange = (nextAppState: AppStateStatus) => {
     if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
       console.log('📱 App has come to the foreground');
-      // App came to foreground - restart services if needed
-      if (!isServiceRunning) {
-        realTimeNotificationService.start();
-        setIsServiceRunning(true);
-      }
+      // App came to foreground - OLD POLLING SYSTEM DISABLED
+      console.log('📱 App active - OneSignal handles all notifications automatically');
+      // OLD: realTimeNotificationService.start(); // DISABLED
     } else if (nextAppState.match(/inactive|background/)) {
       console.log('📱 App has gone to the background');
       // App went to background - services will continue running
@@ -213,8 +221,9 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
 
   const cleanup = () => {
     console.log('🧹 Cleaning up notification services...');
-    realTimeNotificationService.stop();
-    oneSignalService.cleanup();
+    // OLD POLLING SYSTEM DISABLED
+    // realTimeNotificationService.stop(); // DISABLED
+    // Cleanup if needed - fixedOneSignalService doesn't have cleanup method
     setIsServiceRunning(false);
   };
 
@@ -234,10 +243,6 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
           onClose={() => removeNotification(notification.id)}
           showCurrentTime={true}
           autoHide={false} // Manual control for better UX
-          style={{
-            top: 60 + (index * 120), // Stack notifications vertically
-            zIndex: 1000 - index, // Ensure proper layering
-          }}
         />
       ))}
 

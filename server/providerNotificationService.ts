@@ -297,9 +297,15 @@ class ProviderNotificationService {
       console.log(`📋 Message: ${notification.message}`);
       
       // Import OneSignal service and FORCE the API call
-      const { oneSignalAdminService } = await import('./oneSignalAdminService');
+      const oneSignalAdminServiceModule = await import('./oneSignalAdminService');
+      const oneSignalAdminService = oneSignalAdminServiceModule.default;
+      
+      if (!oneSignalAdminService) {
+        throw new Error('OneSignal admin service not available');
+      }
       
       console.log(`🔥 Calling OneSignal API directly...`);
+      console.log(`🔧 OneSignal service loaded:`, typeof oneSignalAdminService);
       const pushResult = await oneSignalAdminService.sendToProvider(providerId, {
         title: notification.title,
         message: notification.message,

@@ -906,8 +906,6 @@ export class DatabaseStorage implements IStorage {
       .from(serviceCategories)
       .where(eq(serviceCategories.trending, true))
       .orderBy(asc(serviceCategories.name));
-    console.log('Storage: Found trending service categories:', result.length);
-    console.log('Storage: Trending categories:', result);
     return result;
   }
 

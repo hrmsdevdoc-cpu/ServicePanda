@@ -11,7 +11,8 @@ import com.facebook.soloader.SoLoader;
 import com.reactnativecommunity.asyncstorage.AsyncStoragePackage;
 import com.reactnative.ivpusic.imagepicker.PickerPackage;
 import com.servicepandaprovider.AndroidNotificationPackage;
-// OneSignal auto-links via React Native CLI, no manual import needed
+// OneSignal manual import for React Native 0.74.7
+import com.onesignal.rnonesignalandroid.ReactNativeOneSignalPackage;
 import java.util.List;
 import java.util.Arrays;
 
@@ -30,8 +31,8 @@ public class MainApplication extends Application implements ReactApplication {
               new MainReactPackage(),
               new AsyncStoragePackage(),
               new PickerPackage(),
-              new AndroidNotificationPackage() // Custom Android notification module
-              // OneSignal auto-links via React Native CLI
+              new AndroidNotificationPackage(), // Custom Android notification module
+              new ReactNativeOneSignalPackage() // OneSignal package - manually added for RN 0.74.7
               // react-native-push-notification will auto-link
               // Add other packages here
           );

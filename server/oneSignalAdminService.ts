@@ -18,7 +18,7 @@ interface OneSignalResult {
 
 class OneSignalAdminService {
   private appId = "a3f5070d-9c46-44cd-8b0a-259df155ae94"; // Your OneSignal App ID
-  private restApiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_up2qodm4izcm3cykewo7cvnosrtodbs2i5ce3r5zeusbxh5utqy7iys7bhaffdnt65vsy4ql6p5beykzl62ahn2jdgifjshulo2hkky";
+  private restApiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_up2qodm4izcm3cykewo7cvnosrsd36rvce4eflmycu4fn43i6oojl4ogz4actqkqx3z5vnrrflsxoluzqxjdod7qhzxgrsfj7ec7h6a";
   private apiUrl = "https://onesignal.com/api/v1/notifications";
 
   // Manual device mapping for testing (replace with database lookup in production)
@@ -79,24 +79,17 @@ class OneSignalAdminService {
     try {
       console.log(`📤 Sending OneSignal push notification to provider ${providerId}`);
 
-      // Get device ID and external user IDs for this provider
-      const deviceId = this.getDeviceIdForProvider(providerId);
+      // FIXED: Use ONLY external user IDs (new dynamic registration system)
       const externalUserIds = this.getExternalUserIds(providerId);
-      console.log(`📱 Device ID for provider ${providerId}: ${deviceId || 'Not found'}`);
-      console.log(`👤 External User IDs for provider ${providerId}:`, externalUserIds);
+      console.log(`👤 Using ONLY external user IDs for provider ${providerId}:`, externalUserIds);
+      console.log(`⚠️ OLD device ID mapping DISABLED - using dynamic external user IDs only`);
 
-      // Create payload with multiple targeting strategies
+      // Create payload with ONLY external user ID targeting (most reliable now)
       const payload = {
         app_id: this.appId,
         
-        // STRATEGY 1: Target by specific OneSignal player ID (most reliable)
-        ...(deviceId ? { include_player_ids: [deviceId] } : {}),
-        
-        // STRATEGY 2: Target by external user IDs (includes dynamic IDs from dashboard)
-        ...(!deviceId ? { include_external_user_ids: externalUserIds } : {}),
-        
-        // STRATEGY 3: Fallback to all subscribed users if no specific targeting
-        ...(!deviceId && (!externalUserIds || externalUserIds.length === 0) ? { included_segments: ["Subscribed Users"] } : {}),
+        // ONLY STRATEGY: Target by external user IDs (provider-1, provider-2, etc.)
+        include_external_user_ids: externalUserIds,
         
         headings: { en: notification.title },
         contents: { en: notification.message },
@@ -113,14 +106,9 @@ class OneSignalAdminService {
       };
 
       // Enhanced logging for debugging targeting strategy
-      console.log(`🎯 Targeting Strategy for Provider ${providerId}:`);
-      if (payload.include_player_ids) {
-        console.log(`   ✅ Using PLAYER ID targeting: ${payload.include_player_ids.join(', ')}`);
-      } else if (payload.include_external_user_ids) {
-        console.log(`   ✅ Using EXTERNAL USER ID targeting: ${payload.include_external_user_ids.join(', ')}`);
-      } else if (payload.included_segments) {
-        console.log(`   ✅ Using SEGMENT targeting: ${payload.included_segments.join(', ')}`);
-      }
+      console.log(`🎯 FIXED Targeting Strategy for Provider ${providerId}:`);
+      console.log(`   ✅ Using EXTERNAL USER ID targeting: ${payload.include_external_user_ids.join(', ')}`);
+      console.log(`   📱 This targets devices registered with provider-${providerId} external ID`);
       
       console.log(`🔔 OneSignal payload:`, JSON.stringify(payload, null, 2));
 
