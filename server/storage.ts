@@ -1160,7 +1160,6 @@ export class DatabaseStorage implements IStorage {
         let finalCategoryIcon = request.category_icon;
         
         if (!finalCategoryName && request.category_id) {
-          console.log(`🔍 Category name missing for ID ${request.category_id}, fetching manually...`);
           try {
             const categoryResult = await pool.query(
               'SELECT name, icon FROM service_categories WHERE id = $1',
@@ -1169,7 +1168,6 @@ export class DatabaseStorage implements IStorage {
             if (categoryResult.rows.length > 0) {
               finalCategoryName = categoryResult.rows[0].name;
               finalCategoryIcon = categoryResult.rows[0].icon;
-              console.log(`🔍 Found category: ${finalCategoryName} with icon: ${finalCategoryIcon}`);
             }
           } catch (error) {
             console.error('Error fetching category:', error);
@@ -1200,14 +1198,7 @@ export class DatabaseStorage implements IStorage {
             professionalCount: parseInt(offerMetrics.professional_count) || 0
           }
         };
-        
-        // Debug: Log the final result for this request
-        console.log(`🔍 Final result for request ${request.id}:`, {
-          categoryId: finalResult.categoryId,
-          categoryName: finalResult.categoryName,
-          categoryIcon: finalResult.categoryIcon
-        });
-        
+      
         return finalResult;
       }));
 
@@ -1309,9 +1300,6 @@ export class DatabaseStorage implements IStorage {
          ORDER BY lo.created_at DESC`,
         [requestId]
       );
-
-      console.log(`Found ${result.rows.length} accepted professionals for request ${requestId}`);
-      console.log("Raw professional data:", result.rows);
 
       return result.rows.map((prof: any) => ({
         providerId: prof.providerid,
@@ -1577,7 +1565,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getServiceProvidersForReport(status?: string, rating?: string): Promise<any[]> {
-    console.log('🔥 getServiceProvidersForReport called with status:', status, 'rating:', rating);
     
     try {
       // Get providers with services (same as getServiceProvidersForAdmin)
@@ -1789,9 +1776,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateAdminSetting(key: string, value: string): Promise<void> {
-    console.log(`[updateAdminSetting] Setting ${key} with value length: ${value.length}`);
     const encryptedValue = this.encrypt(value);
-    console.log(`[updateAdminSetting] Encrypted value length: ${encryptedValue.length}`);
 
     const result = await db
       .insert(systemSettings)
@@ -1810,7 +1795,6 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
 
-    console.log(`[updateAdminSetting] Database result for ${key}:`, result.length > 0 ? 'Success' : 'Failed');
   }
 
   async getDecryptedSetting(key: string): Promise<string | null> {
@@ -2228,7 +2212,6 @@ export class DatabaseStorage implements IStorage {
           request.description,
           eligibleProviders
         );
-        console.log(`📱 Notifications sent to ${eligibleProviders.length} providers for request ${requestId}`);
       } catch (notificationError) {
         console.error('Error sending notifications to providers:', notificationError);
         // Don't fail the lead distribution if notifications fail
@@ -2244,7 +2227,6 @@ export class DatabaseStorage implements IStorage {
 
   async getEligibleProviders(categoryId: number, postcode: string): Promise<Array<{ providerId: number, rating: number, firstName: string, lastName: string }>> {
     try {
-      console.log(`Finding eligible providers for category ${categoryId}, postcode ${postcode}`);
 
       // Method 1: Check providers with explicit postcode coverage (existing system)
       let postcodeCoverageProviders: any[] = [];
@@ -2279,7 +2261,6 @@ export class DatabaseStorage implements IStorage {
         console.error('Error fetching postcode coverage providers:', error);
       }
 
-      console.log(`Found ${postcodeCoverageProviders.length} providers via postcode coverage`);
 
       // Method 2: Check providers with location-based (radius) service areas
       let locationBasedProviders: any[] = [];
@@ -2300,7 +2281,6 @@ export class DatabaseStorage implements IStorage {
 
         if (targetSuburb.length > 0 && targetSuburb[0].latitude && targetSuburb[0].longitude) {
           const target = targetSuburb[0];
-          console.log(`Target location: ${target.suburb} (${target.latitude}, ${target.longitude})`);
 
           // Get all approved providers for this category
           const eligibleProviders = await db
@@ -2351,10 +2331,8 @@ export class DatabaseStorage implements IStorage {
                 parseFloat(area.centerLng)
               );
 
-              console.log(`Provider ${provider.firstName} ${provider.lastName} (${area.centerAddress}): ${distance.toFixed(2)}km away, radius: ${area.radiusKm}km`);
 
               if (distance <= parseInt(area.radiusKm.toString())) {
-                console.log(`✓ Provider ${provider.firstName} ${provider.lastName} is within service area`);
                 locationBasedProviders.push({
                   providerId: provider.providerId,
                   rating: 5.0, // Default rating, will fetch from ratings table if needed
@@ -2392,7 +2370,6 @@ export class DatabaseStorage implements IStorage {
       // Sort by rating
       uniqueProviders.sort((a, b) => b.rating - a.rating);
 
-      console.log(`Total eligible providers found: ${uniqueProviders.length} (${postcodeCoverageProviders.length} via postcode, ${locationBasedProviders.length} via distance)`);
       return uniqueProviders;
 
     } catch (error) {
@@ -2428,12 +2405,10 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
 
       if (!serviceArea.length || !serviceArea[0].centerAddress) {
-        console.log(`Service area ${serviceAreaId} not found or no center address`);
         return;
       }
 
       const area = serviceArea[0];
-      console.log(`Calculating postcode coverage for provider ${area.providerId}, service area ${serviceAreaId}`);
 
       // For now, use a simplified approach - get all postcodes in Australia
       // and check if they're within the radius (this would be replaced with actual Google API calls)
@@ -2463,7 +2438,6 @@ export class DatabaseStorage implements IStorage {
         });
       }
 
-      console.log(`Stored coverage for ${coveredPostcodes.length} postcodes for service area ${serviceAreaId}`);
     } catch (error) {
       console.error('Error calculating service area coverage:', error);
     }
@@ -2570,7 +2544,6 @@ export class DatabaseStorage implements IStorage {
           )
         );
 
-      console.log(`Activated unique offer for provider ${nextOffer.providerId}, expires at ${offerEndTime}`);
     } catch (error) {
       console.error('Error activating next unique offer:', error);
       throw error;
@@ -2622,7 +2595,6 @@ export class DatabaseStorage implements IStorage {
       // Send price drop notifications to all eligible providers
       if (providerIds.length > 0) {
         try {
-          console.log(`🔔 Sending price drop notifications to providers: ${providerIds.join(', ')}`);
           const { providerNotificationService } = await import('./providerNotificationService');
           await providerNotificationService.sendNotificationToProviders(providerIds, {
             title: 'Price Drop Alert! 💸',
@@ -2635,7 +2607,6 @@ export class DatabaseStorage implements IStorage {
               priceDropEvent: true
             }
           });
-          console.log(`✅ Price drop notifications sent to ${providerIds.length} providers for request ${requestId}`);
         } catch (error) {
           console.error('Failed to send price drop notifications:', error);
         }
@@ -2659,7 +2630,6 @@ export class DatabaseStorage implements IStorage {
           )
         );
 
-      console.log(`Started shared phase for request ${requestId}`);
     } catch (error) {
       console.error('Error starting shared phase:', error);
       throw error;
@@ -2846,7 +2816,6 @@ export class DatabaseStorage implements IStorage {
           )
         );
 
-      console.log(`Ended lead distribution for request ${requestId}`);
     } catch (error) {
       console.error('Error ending lead distribution:', error);
       throw error;
@@ -2888,7 +2857,6 @@ export class DatabaseStorage implements IStorage {
   // Dynamic lead matching for service updates and new providers
   async processDynamicLeadMatching(): Promise<void> {
     try {
-      console.log('Processing dynamic lead matching...');
 
       // Get all active/in-progress leads
       const activeLeads = await db
@@ -2911,7 +2879,6 @@ export class DatabaseStorage implements IStorage {
         return;
       }
 
-      console.log(`Found ${activeLeads.length} active/in-progress leads for dynamic matching`);
 
       // For each active lead, check for new eligible providers
       for (const lead of activeLeads) {
@@ -2946,7 +2913,6 @@ export class DatabaseStorage implements IStorage {
         return; // No new providers found
       }
 
-      console.log(`Found ${newProviders.length} new eligible providers for lead ${requestId}`);
 
       // Check current lead status to determine offer type
       const [currentLead] = await db
@@ -2979,7 +2945,6 @@ export class DatabaseStorage implements IStorage {
         if (isInSharedPhase) {
           // Add as shared offer if lead is already in shared phase
           await this.createSharedOffer(requestId, provider.providerId, leadSettings);
-          console.log(`Added provider ${provider.firstName} ${provider.lastName} to shared phase for lead ${requestId}`);
         } else {
           // Add to unique offer queue
           const totalUniqueOffers = await db
@@ -2995,7 +2960,6 @@ export class DatabaseStorage implements IStorage {
           const nextSortOrder = (totalUniqueOffers[0]?.count || 0) + 1;
 
           await this.createUniqueOffer(requestId, provider.providerId, nextSortOrder, leadSettings);
-          console.log(`Added provider ${provider.firstName} ${provider.lastName} to unique queue (position ${nextSortOrder}) for lead ${requestId}`);
         }
       }
 
@@ -3074,9 +3038,7 @@ export class DatabaseStorage implements IStorage {
 
       for (const lead of uninitializedLeads) {
         try {
-          console.log(`Processing uninitialized lead ${lead.id}`);
           await this.initializeLeadDistribution(lead.id);
-          console.log(`Successfully initialized lead distribution for lead ${lead.id}`);
         } catch (error) {
           console.error(`Failed to initialize lead distribution for lead ${lead.id}:`, error);
         }
@@ -3110,7 +3072,6 @@ export class DatabaseStorage implements IStorage {
         );
 
       for (const expiredOffer of expiredOffers) {
-        console.log(`Processing expired offer ${expiredOffer.id} for request ${expiredOffer.requestId}`);
 
         // Send notification to provider about expired offer
         try {
@@ -3126,7 +3087,6 @@ export class DatabaseStorage implements IStorage {
               expired: true
             }
           });
-          console.log(`✅ Expired offer notification sent to provider ${expiredOffer.providerId}`);
         } catch (error) {
           console.error('Failed to send expired offer notification:', error);
         }
@@ -3170,7 +3130,6 @@ export class DatabaseStorage implements IStorage {
         .groupBy(leadOffers.requestId);
 
       for (const expired of expiredByJobDate) {
-        console.log(`Expiring shared offers for request ${expired.requestId} due to job date proximity`);
 
         // Mark all pending shared offers for this request as expired
         await db
@@ -3231,7 +3190,6 @@ export class DatabaseStorage implements IStorage {
         description,
       });
 
-      console.log(`Added $${amount} credit to provider ${providerId}. New balance: $${newBalance}`);
     } catch (error) {
       console.error('Error adding provider credit:', error);
       throw error;
@@ -3266,7 +3224,6 @@ export class DatabaseStorage implements IStorage {
         leadOfferId,
       });
 
-      console.log(`Deducted $${amount} credit from provider ${providerId}. New balance: $${newBalance}`);
       return true;
     } catch (error) {
       console.error('Error deducting provider credit:', error);
@@ -4088,7 +4045,6 @@ export class DatabaseStorage implements IStorage {
   async logProviderLeadInteraction(interaction: InsertProviderLeadInteraction): Promise<void> {
     try {
       await db.insert(providerLeadInteractions).values(interaction);
-      console.log(`Logged provider interaction: ${interaction.interactionType} for lead ${interaction.leadId} by provider ${interaction.providerId}`);
     } catch (error) {
       console.error('Error logging provider lead interaction:', error);
       throw error;
@@ -4678,7 +4634,6 @@ export class DatabaseStorage implements IStorage {
           })
           .where(eq(providerRatings.providerId, providerId));
 
-        console.log(`Updated rating for provider ${providerId}: ${stats.averageRating} (${stats.totalReviews} reviews)`);
       }
     } catch (error) {
       console.error('Error updating provider rating:', error);
@@ -4976,16 +4931,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateServiceCategoryImage(id: number, imageUrl: string): Promise<ServiceCategory> {
-    console.log('updateServiceCategoryImage called with:', { id, imageUrl });
 
     try {
       // Use raw SQL query to update the image_url column
-      console.log('Updating image_url with raw SQL...');
       const result = await db.execute(sql`UPDATE service_categories SET image_url = ${imageUrl}, updated_at = NOW() WHERE id = ${id} RETURNING *`);
-      console.log('Raw SQL result:', result);
 
       if (result.rows && result.rows.length > 0) {
-        console.log('Image URL updated successfully');
         return result.rows[0];
       } else {
         throw new Error('Service category not found');
@@ -5396,7 +5347,6 @@ export class DatabaseStorage implements IStorage {
           return;
         }
 
-        console.log('Processing file:', file.name, 'at path:', file.tempFilePath);
 
         // Check if we have temp file or data buffer
         if (file.tempFilePath && file.tempFilePath !== '') {
@@ -5449,7 +5399,6 @@ export class DatabaseStorage implements IStorage {
             });
         } else if (file.data) {
           // Use data buffer directly
-          console.log('Using file data buffer, size:', file.data.length);
 
           const csvString = file.data.toString('utf8');
           const lines = csvString.split('\n');
@@ -5558,7 +5507,6 @@ export class DatabaseStorage implements IStorage {
             continue;
           }
 
-          console.log(`[SMS] Preparing send -> id=${customer.id} name=${customer.name} phone=${customer.phone} currentStatus=${customer.smsDeliveryStatus}`);
 
           // Normalize AU phone number to E.164 (+61...) format
           const normalizedPhone = (() => {
@@ -5710,7 +5658,7 @@ export class DatabaseStorage implements IStorage {
     }>;
   }> {
     try {
-      console.log('Getting provider reports...');
+
       const startTime = Date.now();
 
       // Get all provider stats in a single optimized query
@@ -5728,8 +5676,8 @@ export class DatabaseStorage implements IStorage {
       const pendingProviders = providerStats[0]?.pending || 0;
       const rejectedProviders = providerStats[0]?.rejected || 0;
 
-      console.log('Provider stats:', { totalProviders, approvedProviders, pendingProviders, rejectedProviders });
 
+      
       // Get new providers this month in a single query
       const currentDate = new Date();
       const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -5743,7 +5691,6 @@ export class DatabaseStorage implements IStorage {
           )
         );
 
-      console.log('New providers this month:', newProvidersThisMonth[0]?.count || 0);
 
       // Get monthly join data for ALL providers (not just last 12 months)
       const monthlyData = await db
@@ -5777,14 +5724,12 @@ export class DatabaseStorage implements IStorage {
       });
 
       // Fill in the actual data
-      console.log('Raw monthly data from database:', monthlyData);
       monthlyData.forEach(row => {
         const monthKey = row.month;
         const monthData = monthMap.get(monthKey);
         if (monthData) {
           // Convert string counts to numbers
           const count = parseInt(row.count.toString()) || 0;
-          console.log(`Processing ${monthKey}: count=${row.count} (${typeof row.count}), parsed=${count}`);
           monthData.count += count;
           if (row.status === 'approved') monthData.approved = parseInt(row.count.toString()) || 0;
           if (row.status === 'pending') monthData.pending = parseInt(row.count.toString()) || 0;
@@ -5795,7 +5740,6 @@ export class DatabaseStorage implements IStorage {
       // Convert to array and sort by month
       monthlyJoins.push(...Array.from(monthMap.values()));
 
-      console.log('Monthly joins:', monthlyJoins);
 
       // Get top service categories in a single query
       const topServiceCategories = await db
@@ -5809,7 +5753,6 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(sql<number>`count(distinct ${providerServices.providerId})`))
         .limit(5);
 
-      console.log('Top service categories:', topServiceCategories);
 
       // Calculate real average approval time based on actual data
       const approvalTimeData = await db
@@ -5892,8 +5835,7 @@ export class DatabaseStorage implements IStorage {
       };
 
       const endTime = Date.now();
-      console.log(`Provider reports generated in ${endTime - startTime}ms`);
-      console.log('Provider reports result:', result);
+
       return result;
     } catch (error) {
       console.error('Error getting provider reports:', error);
@@ -5943,7 +5885,6 @@ export class DatabaseStorage implements IStorage {
 
   async importPotentialProviders(csvData: string, importName: string): Promise<{ count: number, providers: any[] }> {
     try {
-      console.log('Importing potential providers:', importName);
 
       // Parse CSV data
       const lines = csvData.trim().split('\n');
