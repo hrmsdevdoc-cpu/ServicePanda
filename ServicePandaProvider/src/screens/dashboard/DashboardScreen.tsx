@@ -34,7 +34,6 @@ const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
 const NotificationIcon = require('../../components/NotificationIcon');
 const NotificationList = require('../../components/NotificationList');
-import NotificationTestPanel from '../../components/NotificationTestPanel';
 const notificationService = require('../../services/notifications');
 import realTimeNotificationService from '../../services/realTimeNotificationService';
 // Import vector icons like customer app
@@ -69,6 +68,11 @@ function DashboardScreen({ onNavigate }) {
   const { data: leads = [], isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
     queryKey: ['/api/provider/leads'],
     queryFn: () => apiService.getLeads(),
+    staleTime: 0, // Always consider data stale - refetch immediately
+    refetchInterval: 30 * 1000, // Auto-refetch every 30 seconds
+    refetchIntervalInBackground: true, // Continue refetching in background
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnMount: true, // Refetch when component mounts
   });
 
   const { data: profile, isLoading: profileLoading } = useQuery({
@@ -142,8 +146,18 @@ function DashboardScreen({ onNavigate }) {
     return leadStatuses[leadId] || 'new';
   };
 
+  // Filter leads based on offer status - 'pending' means available for purchase (new leads)
   const newLeadsCount = leads.filter(l => l.status === 'pending').length;
   const activeLeadsCount = leads.filter(l => l.status === 'purchased' && getLeadStatus(l.requestId) !== 'closed').length;
+
+  // Debug logging to see what leads we're getting
+  React.useEffect(() => {
+    console.log('🔍 DASHBOARD LEADS DEBUG:');
+    console.log(`  Total leads: ${leads.length}`);
+    console.log(`  New leads count: ${newLeadsCount}`);
+    console.log(`  Active leads count: ${activeLeadsCount}`);
+    console.log('  Lead statuses:', leads.map(l => ({ id: l.requestId, status: l.status, category: l.categoryName })));
+  }, [leads, newLeadsCount, activeLeadsCount]);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -300,13 +314,57 @@ function DashboardScreen({ onNavigate }) {
     }
   };
 
+  // Debug method to reset notifications (for testing)
+  const handleResetNotifications = async () => {
+    try {
+      console.log('🔄 FORCE RESETTING EVERYTHING...');
+      
+      // Reset read notifications
+      await notificationService.resetReadNotifications();
+      
+      // Clear old read notifications
+      await notificationService.clearOldReadNotifications();
+      
+      // Mark ALL expired offers as read (aggressive cleanup)
+      await notificationService.markAllExpiredOffersAsRead();
+      
+      // Debug notification counts
+      await notificationService.debugNotificationCounts();
+      
+      // Force refresh notifications (bypass cache)
+      console.log('🔄 Force fetching fresh notifications...');
+      const freshNotifications = await notificationService.getNotifications();
+      console.log('📋 Fresh notifications received:', freshNotifications.length);
+      
+      setNotifications(freshNotifications);
+      
+      // Force re-render by updating state
+      setNotificationsLoading(false);
+      
+      console.log('✅ FORCE RESET COMPLETE - Check the bell icon now!');
+    } catch (error) {
+      console.error('Error resetting notifications:', error);
+    }
+  };
+
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
+  
+  // Debug logging to see what's happening
+  React.useEffect(() => {
+    console.log('🔍 NOTIFICATION DEBUG:');
+    console.log(`  Total notifications: ${notifications.length}`);
+    console.log(`  Unread count: ${unreadNotificationsCount}`);
+    console.log(`  Notifications:`, notifications.map(n => ({ id: n.id, title: n.title, isRead: n.isRead })));
+  }, [notifications, unreadNotificationsCount]);
 
   // Fetch notifications on component mount and when activities change
   React.useEffect(() => {
     const fetchNotifications = async () => {
       setNotificationsLoading(true);
       try {
+        // Auto-mark old expired offers as read first
+        await notificationService.autoMarkOldExpiredOffersAsRead();
+        
         const fetchedNotifications = await notificationService.getNotifications();
         setNotifications(fetchedNotifications);
       } catch (error) {
@@ -971,8 +1029,6 @@ function DashboardScreen({ onNavigate }) {
             </View>
           )}
 
-          {/* Notification Test Panel */}
-          <NotificationTestPanel />
 
         </View>
         </Animated.View>
@@ -986,6 +1042,7 @@ function DashboardScreen({ onNavigate }) {
         onClose={() => setNotificationsVisible(false)}
         onNotificationPress={handleNotificationPress}
         onMarkAllAsRead={handleMarkAllAsRead}
+        onResetNotifications={handleResetNotifications}
       />
 
       {/* Removed notification control panel and system overlay */}
@@ -1491,9 +1548,11 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
+    paddingBottom: 150, // More space from bottom navigation
   },
   animatedContainer: {
     flex: 1,
+    paddingBottom: 20, // Additional spacing
   },
   // Enhanced Welcome Section
   welcomeSection: {

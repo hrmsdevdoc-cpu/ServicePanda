@@ -68,13 +68,13 @@ class NotificationBridge {
     }
     this.activeConnections.get(providerId)!.push(res);
 
-    // Set timeout for long polling (30 seconds)
+    // Set timeout for long polling (10 seconds for faster updates)
     const timeout = setTimeout(() => {
       this.removeConnection(providerId, res);
       if (!res.headersSent) {
         res.json({ notifications: [] });
       }
-    }, 30000);
+    }, 10000);
 
     // Handle client disconnect
     res.on('close', () => {

@@ -1,6 +1,6 @@
 const React = require('react');
 const { useState } = require('react');
-const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl, Alert, Animated } = require('react-native');
+const { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl, Alert, Animated, AppState } = require('react-native');
 const { Title, Paragraph, Card, Button, Chip, Searchbar, Badge, ActivityIndicator } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 const { useQuery, useMutation } = require('@tanstack/react-query');
@@ -20,7 +20,11 @@ function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: 
   const { data: leads, isLoading: leadsLoading, error: leadsError, refetch } = useQuery({
     queryKey: ['provider-leads'],
     queryFn: () => apiService.getLeads(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0, // Always consider data stale - refetch immediately
+    refetchInterval: 30 * 1000, // Auto-refetch every 30 seconds
+    refetchIntervalInBackground: true, // Continue refetching in background
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnMount: true, // Refetch when component mounts
   });
 
   // Fetch credit balance and profile for payment method determination
@@ -34,8 +38,41 @@ function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: 
     queryFn: () => apiService.getProfile(),
   });
 
-  // Filter for new/pending leads only
+  // Filter for new/pending leads only - 'pending' status means available for purchase
   const newLeads = leads?.filter((lead: any) => lead.status === 'pending') || [];
+
+  // Debug logging to see what leads we're getting
+  React.useEffect(() => {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`🔍 [${timestamp}] NEW LEADS SCREEN DEBUG:`);
+    console.log(`  Total leads: ${leads?.length || 0}`);
+    console.log(`  New leads count: ${newLeads.length}`);
+    console.log('  All lead statuses:', leads?.map(l => ({ id: l.requestId, status: l.status, category: l.categoryName })) || []);
+    console.log('  New leads:', newLeads.map(l => ({ id: l.requestId, status: l.status, category: l.categoryName })));
+    console.log('  React Query staleTime: 0 (always refetch)');
+    console.log('  React Query refetchInterval: 30 seconds');
+  }, [leads, newLeads]);
+
+  // Auto-refetch when app comes to foreground
+  React.useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'active') {
+        console.log('🔄 App came to foreground - refetching leads');
+        refetch();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, [refetch]);
+
+  // Manual refresh function for testing
+  const handleManualRefresh = () => {
+    console.log('🔄 Manual refresh triggered');
+    refetch();
+  };
+
+  // React Query handles automatic refetching - no need for manual polling
 
   const filters = [
     { key: 'all', label: 'All Leads', count: newLeads.length },
@@ -208,8 +245,13 @@ function NewLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params?: 
             <Text style={styles.modernTitle}>New Leads</Text>
             <Text style={styles.modernSubtitle}>Available leads in your service area</Text>
           </View>
-          <View style={styles.headerIcon}>
-            <Text style={styles.headerEmoji}>🆕</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={handleManualRefresh} style={styles.refreshButton}>
+              <Text style={styles.refreshButtonText}>🔄</Text>
+            </TouchableOpacity>
+            <View style={styles.headerIcon}>
+              <Text style={styles.headerEmoji}>🆕</Text>
+            </View>
           </View>
         </View>
 
@@ -696,6 +738,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  // Refresh button styles
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  refreshButtonText: {
+    fontSize: 18,
   },
 });
 

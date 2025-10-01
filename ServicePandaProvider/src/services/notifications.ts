@@ -86,7 +86,10 @@ class NotificationService {
       // Sort by timestamp (newest first)
       allNotifications.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-      // console.log(`🔔 Total notifications: ${allNotifications.length}`);
+      console.log(`🔔 NOTIFICATION SERVICE DEBUG:`);
+      console.log(`  Total notifications: ${allNotifications.length}`);
+      console.log(`  Unread notifications: ${allNotifications.filter(n => !n.isRead).length}`);
+      console.log(`  Read notification IDs: ${Array.from(this.readNotificationIds).length}`);
       return allNotifications;
 
     } catch (error) {
@@ -228,18 +231,105 @@ class NotificationService {
     try {
       this.readNotificationIds.clear();
       await storage.removeItem(this.READ_NOTIFICATIONS_KEY);
-      console.log('All read notifications have been reset');
+      console.log('✅ All read notifications have been reset');
     } catch (error) {
       console.error('Error resetting read notifications:', error);
     }
   }
 
+  // Method to clear old read notifications more aggressively
+  async clearOldReadNotifications(): Promise<void> {
+    try {
+      // Keep only the last 20 read notification IDs
+      const readIds = Array.from(this.readNotificationIds);
+      if (readIds.length > 20) {
+        const recentIds = readIds.slice(-20);
+        this.readNotificationIds = new Set(recentIds);
+        await this.saveReadNotifications();
+        console.log(`🧹 Cleared ${readIds.length - 20} old read notifications`);
+      }
+    } catch (error) {
+      console.error('Error clearing old read notifications:', error);
+    }
+  }
+
+  // Debug method to check notification counts
+  async debugNotificationCounts(): Promise<void> {
+    try {
+      const notifications = await this.getNotifications();
+      const unreadCount = notifications.filter(n => !n.isRead).length;
+      const totalCount = notifications.length;
+      const readIdsCount = this.readNotificationIds.size;
+      
+      console.log('🔍 Notification Debug Info:');
+      console.log(`  Total notifications: ${totalCount}`);
+      console.log(`  Unread notifications: ${unreadCount}`);
+      console.log(`  Read notifications: ${totalCount - unreadCount}`);
+      console.log(`  Stored read IDs: ${readIdsCount}`);
+      console.log(`  Read IDs: [${Array.from(this.readNotificationIds).join(', ')}]`);
+    } catch (error) {
+      console.error('Error debugging notification counts:', error);
+    }
+  }
+
+  // Auto-mark old expired offers as read (older than 2 hours)
+  async autoMarkOldExpiredOffersAsRead(): Promise<void> {
+    try {
+      const notifications = await this.getNotifications();
+      const twoHoursAgo = new Date();
+      twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
+      
+      let markedCount = 0;
+      notifications.forEach(notification => {
+        // Mark old expired offers as read automatically (after 2 hours)
+        if (notification.metadata?.activityType === 'offer_expired' && 
+            new Date(notification.timestamp) < twoHoursAgo &&
+            !notification.isRead) {
+          this.readNotificationIds.add(notification.id);
+          markedCount++;
+        }
+      });
+      
+      if (markedCount > 0) {
+        await this.saveReadNotifications();
+        console.log(`🧹 Auto-marked ${markedCount} old expired offers as read`);
+      }
+    } catch (error) {
+      console.error('Error auto-marking old expired offers:', error);
+    }
+  }
+
+  // Mark ALL expired offers as read (for cleanup)
+  async markAllExpiredOffersAsRead(): Promise<void> {
+    try {
+      const notifications = await this.getNotifications();
+      
+      let markedCount = 0;
+      notifications.forEach(notification => {
+        // Mark ALL expired offers as read
+        if (notification.metadata?.activityType === 'offer_expired' && !notification.isRead) {
+          this.readNotificationIds.add(notification.id);
+          markedCount++;
+        }
+      });
+      
+      if (markedCount > 0) {
+        await this.saveReadNotifications();
+        console.log(`🧹 Marked ALL ${markedCount} expired offers as read`);
+      }
+    } catch (error) {
+      console.error('Error marking all expired offers as read:', error);
+    }
+  }
+
   private convertActivitiesToNotifications(activities: any[]): Notification[] {
+    // Include all activities in the notification list, but limit to recent ones for performance
+    // Sort by timestamp (newest first) and take the most recent 50 activities
+    const sortedActivities = activities
+      .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime())
+      .slice(0, 50); // Reasonable limit for performance
 
-    // Include all activities in the notification list
-    const filteredActivities = activities;
-
-    const notifications = filteredActivities.slice(0, 10).map((activity, index) => {
+    const notifications = sortedActivities.map((activity, index) => {
       const notificationId = activity.id || index + 1000;
       const isRead = this.readNotificationIds.has(notificationId);
 
@@ -260,6 +350,11 @@ class NotificationService {
       };
     }).filter(notification => notification.title && notification.message); // Filter out empty notifications
 
+    console.log(`📊 ACTIVITY CONVERSION DEBUG:`);
+    console.log(`  Input activities: ${sortedActivities.length}`);
+    console.log(`  Output notifications: ${notifications.length}`);
+    console.log(`  Unread in output: ${notifications.filter(n => !n.isRead).length}`);
+    
     return notifications;
   }
 

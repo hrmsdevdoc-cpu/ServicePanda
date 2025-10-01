@@ -154,7 +154,7 @@ app.use((req, res, next) => {
       console.error('Error in expired lead checker:', error);
       // Don't let errors crash the interval
     }
-  }, 300000); // Check every 5 minutes instead of every minute
+  }, 60000); // Check every 1 minute for faster updates
 
   // Windows-compatible server configuration
   const isWindows = process.platform === 'win32';
