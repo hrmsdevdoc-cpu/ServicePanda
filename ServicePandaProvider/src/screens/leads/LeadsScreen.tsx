@@ -7,6 +7,146 @@ const { colors } = require('../../utils/theme');
 // Import vector icons
 const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
+// Helper functions for activity formatting
+const getActivityIcon = (type: string) => {
+  switch (type) {
+    case 'new_lead':
+    case 'lead_available':
+      return 'fiber-new';
+    case 'lead_purchased':
+    case 'lead_bought':
+      return 'shopping-cart';
+    case 'lead_completed':
+    case 'job_completed':
+      return 'check-circle';
+    case 'lead_expired':
+      return 'schedule';
+    case 'price_drop':
+      return 'trending-down';
+    case 'payment_received':
+      return 'payment';
+    case 'credit_added':
+      return 'add-circle';
+    default:
+      return 'info';
+  }
+};
+
+const getActivityColor = (type: string) => {
+  switch (type) {
+    case 'new_lead':
+    case 'lead_available':
+    case 'new_offer':
+      return colors.primary;
+    case 'lead_purchased':
+    case 'lead_bought':
+      return colors.success;
+    case 'lead_completed':
+    case 'job_completed':
+      return colors.success;
+    case 'lead_expired':
+    case 'offer_expired':
+      return colors.warning;
+    case 'price_drop':
+      return colors.primary;
+    case 'payment_received':
+      return colors.success;
+    case 'credit_added':
+      return colors.success;
+    case 'lead_lost':
+      return colors.error;
+    default:
+      return colors.textSecondary;
+  }
+};
+
+const getActivityIconColor = (type: string) => {
+  switch (type) {
+    case 'lead_purchased':
+    case 'lead_bought':
+      return '#10B981';
+    case 'lead_lost':
+      return '#EF4444';
+    case 'offer_expired':
+    case 'lead_expired':
+      return '#F59E0B';
+    case 'new_offer':
+    case 'new_lead':
+    case 'lead_available':
+      return '#3B82F6';
+    case 'price_drop':
+      return '#8B5CF6';
+    case 'lead_completed':
+    case 'job_completed':
+      return '#10B981';
+    case 'payment_received':
+      return '#10B981';
+    case 'credit_added':
+      return '#10B981';
+    default:
+      return '#6B7280';
+  }
+};
+
+const getActivityTitle = (type: string) => {
+  switch (type) {
+    case 'new_lead':
+    case 'lead_available':
+      return 'New lead available';
+    case 'lead_purchased':
+    case 'lead_bought':
+      return 'Lead purchased';
+    case 'lead_completed':
+    case 'job_completed':
+      return 'Lead completed';
+    case 'lead_expired':
+      return 'Lead expired';
+    case 'price_drop':
+      return 'Price dropped';
+    case 'payment_received':
+      return 'Payment received';
+    case 'credit_added':
+      return 'Credits added';
+    default:
+      return 'Activity update';
+  }
+};
+
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'completed':
+    case 'done':
+      return '#10B981';
+    case 'pending':
+    case 'in_progress':
+      return '#F59E0B';
+    case 'expired':
+    case 'cancelled':
+      return '#EF4444';
+    default:
+      return '#6B7280';
+  }
+};
+
+const formatActivityTime = (timestamp: string) => {
+  if (!timestamp) return 'Just now';
+  
+  const now = new Date();
+  const activityTime = new Date(timestamp);
+  const diffInMinutes = Math.floor((now.getTime() - activityTime.getTime()) / (1000 * 60));
+  
+  if (diffInMinutes < 1) return 'Just now';
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) return `${diffInDays}d ago`;
+  
+  return activityTime.toLocaleDateString();
+};
+
 function LeadsScreen({ onNavigate, onBack }) {
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -25,6 +165,15 @@ function LeadsScreen({ onNavigate, onBack }) {
     queryKey: ['/api/provider/leads/closed'],
     queryFn: () => apiService.getClosedLeads(),
     retry: false,
+  });
+
+  // Fetch recent activity data
+  const { data: recentActivity = [], isLoading: activityLoading } = useQuery({
+    queryKey: ['/api/provider/activity'],
+    queryFn: () => apiService.getActivity(),
+    retry: false,
+    staleTime: 0,
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds
   });
 
   // Fetch lead statuses for accurate filtering
@@ -65,11 +214,35 @@ function LeadsScreen({ onNavigate, onBack }) {
 
   // Calculate dynamic counts with proper filtering
   const newLeadsCount = allLeads.filter(lead => lead.status === 'pending').length;
-  const activeLeadsCount = allLeads.filter(lead => lead.status === 'purchased' && getLeadStatus(lead.requestId) !== 'closed').length;
+  const activeLeadsCount = allLeads.filter(lead => lead.status === 'purchased').length; // Remove async filtering to prevent count issues
   const completedLeadsCount = closedLeads.length;
 
+  // Debug logging to see what leads we're getting
+  React.useEffect(() => {
+    console.log('🔍 LEADS SCREEN DEBUG:');
+    console.log(`  Total leads: ${allLeads.length}`);
+    console.log(`  New leads count: ${newLeadsCount}`);
+    console.log(`  Active leads count: ${activeLeadsCount}`);
+    console.log(`  Completed leads count: ${completedLeadsCount}`);
+    console.log('  All lead statuses:', allLeads.map(l => ({ id: l.requestId, status: l.status, category: l.categoryName })));
+  }, [allLeads, newLeadsCount, activeLeadsCount, completedLeadsCount]);
+
+  // Debug logging for recent activity
+  React.useEffect(() => {
+    console.log('🔍 RECENT ACTIVITY DEBUG:');
+    console.log(`  Activity loading: ${activityLoading}`);
+    console.log(`  Activity count: ${recentActivity.length}`);
+    console.log('  Recent activities:', recentActivity.map(a => ({ 
+      id: a.id, 
+      type: a.type || a.activityType, 
+      title: a.title, 
+      description: a.description || a.message,
+      timestamp: a.createdAt || a.timestamp || a.date
+    })));
+  }, [recentActivity, activityLoading]);
+
   // Loading state
-  const isLoading = leadsLoading || closedLeadsLoading;
+  const isLoading = leadsLoading || closedLeadsLoading || activityLoading;
 
   // Animation effects on mount
   React.useEffect(() => {
@@ -258,50 +431,80 @@ function LeadsScreen({ onNavigate, onBack }) {
           </View>
         </View>
 
-        {/* Modern Recent Activity */}
-        <View style={styles.modernActivityContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <Text style={styles.sectionSubtitle}>Your latest lead activities</Text>
-          </View>
-          
-          <View style={styles.activityCards}>
-            <View style={styles.modernActivityCard}>
-              <View style={styles.activityItemLeft}>
-                <View style={styles.activityIconContainer}>
-                  <Icon name="fiber-new" size={16} color="#3B82F6" style={styles.activityIcon} />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={styles.modernActivityTitle}>New lead available</Text>
-                  <Text style={styles.modernActivityDescription}>Kitchen remodeling in Downtown area</Text>
-                  <Text style={styles.modernActivityTime}>2 hours ago</Text>
-                </View>
+        {/* Modern Activity Section - Same as Dashboard */}
+        <View style={styles.modernActivitySection}>
+          <View style={styles.modernActivityHeader}>
+            <View style={styles.activityHeaderLeft}>
+              <View style={styles.activityIconContainer}>
+                <Icon name="notifications" size={20} color="#3B82F6" style={styles.activityIcon} />
               </View>
-              <View style={styles.activityItemRight}>
-                <View style={styles.costBadge}>
-                  <Text style={styles.costText}>$25</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.modernActivityCard}>
-              <View style={styles.activityItemLeft}>
-                <View style={styles.activityIconContainer}>
-                  <Icon name="check-circle" size={16} color="#10B981" style={styles.activityIcon} />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={styles.modernActivityTitle}>Lead completed</Text>
-                  <Text style={styles.modernActivityDescription}>Bathroom renovation project</Text>
-                  <Text style={styles.modernActivityTime}>1 day ago</Text>
-                </View>
-              </View>
-              <View style={styles.activityItemRight}>
-                <View style={styles.completedBadge}>
-                  <Text style={styles.completedText}>Completed</Text>
-                </View>
+              <View>
+                <Text style={styles.modernActivityTitle}>Recent Activity</Text>
+                <Text style={styles.modernActivitySubtitle}>Stay updated with your latest activities</Text>
               </View>
             </View>
           </View>
+            
+          {activityLoading ? (
+            <View style={styles.modernLoadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.modernLoadingText}>Loading recent activity...</Text>
+            </View>
+          ) : recentActivity.length === 0 ? (
+            <View style={styles.modernEmptyContainer}>
+              <View style={styles.emptyIconContainer}>
+                <Icon name="notifications-none" size={32} color="#9CA3AF" style={styles.emptyIcon} />
+              </View>
+              <Text style={styles.modernEmptyTitle}>No recent activity</Text>
+              <Text style={styles.modernEmptyDescription}>
+                Your lead activity and notifications will appear here.
+              </Text>
+              <TouchableOpacity 
+                style={styles.exploreButton}
+                onPress={() => onNavigate('newLeads')}
+              >
+                <Text style={styles.exploreButtonText}>Explore Leads</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.modernActivitiesContainer}>
+              {recentActivity.slice(0, 5).map((activity: any, index: number) => (
+                <View key={activity.id || index} style={styles.modernActivityItem}>
+                  <View style={styles.activityItemLeft}>
+                    <View style={[styles.activityTypeIcon, { backgroundColor: getActivityColor(activity.type || activity.activityType) + '20' }]}>
+                      <Icon name={getActivityIcon(activity.type || activity.activityType)} size={16} color={getActivityIconColor(activity.type || activity.activityType)} style={styles.activityTypeEmoji} />
+                    </View>
+                    <View style={styles.activityContent}>
+                      <Text style={styles.modernActivityMessage} numberOfLines={2}>
+                        {activity.description || activity.message || activity.title || 'Activity update'}
+                      </Text>
+                      {activity.description && activity.message && activity.description !== activity.message && (
+                        <Text style={styles.modernActivityDescription} numberOfLines={1}>
+                          {activity.description}
+                        </Text>
+                      )}
+                      <Text style={styles.modernActivityTime}>
+                        {formatActivityTime(activity.createdAt || activity.timestamp || activity.date)}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.activityItemRight}>
+                    <View style={[styles.activityTypeBadge, { backgroundColor: getActivityColor(activity.type || activity.activityType) }]}>
+                      <Text style={styles.activityTypeText}>
+                        {(activity.type || activity.activityType || 'activity').replace('_', ' ').toUpperCase()}
+                      </Text>
+                    </View>
+                    {activity.amount && (
+                      <View style={styles.costBadge}>
+                        <Text style={styles.costText}>${activity.amount}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </Animated.View>
     </ScrollView>
@@ -614,6 +817,147 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: colors.warning,
+  },
+  // Modern Activity Section - Same as Dashboard
+  modernActivitySection: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  modernActivityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  activityHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  modernActivityTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  modernActivitySubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  modernLoadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  modernLoadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  modernEmptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.textSecondary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyIcon: {
+    fontSize: 32,
+  },
+  modernEmptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  modernEmptyDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  exploreButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  exploreButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modernActivitiesContainer: {
+    gap: 12,
+  },
+  modernActivityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  activityTypeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  activityTypeEmoji: {
+    fontSize: 16,
+  },
+  modernActivityMessage: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    lineHeight: 20,
+    flex: 1,
+  },
+  modernActivityDescription: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  modernActivityTime: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  activityTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  activityTypeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.5,
   },
 });
 

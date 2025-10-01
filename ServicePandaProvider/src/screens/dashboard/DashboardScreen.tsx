@@ -148,7 +148,7 @@ function DashboardScreen({ onNavigate }) {
 
   // Filter leads based on offer status - 'pending' means available for purchase (new leads)
   const newLeadsCount = leads.filter(l => l.status === 'pending').length;
-  const activeLeadsCount = leads.filter(l => l.status === 'purchased' && getLeadStatus(l.requestId) !== 'closed').length;
+  const activeLeadsCount = leads.filter(l => l.status === 'purchased').length;
 
   // Debug logging to see what leads we're getting
   React.useEffect(() => {
@@ -867,7 +867,7 @@ function DashboardScreen({ onNavigate }) {
                 <Text style={styles.modernMetricLabel}>Active Leads</Text>
                 <View style={styles.metricTrendContainer}>
                   <Icon name="local-fire-department" size={16} color="#F59E0B" style={styles.trendIcon} />
-                  <Text style={styles.trendText}>3 in progress</Text>
+                  <Text style={styles.trendText}>{activeLeadsCount} in progress</Text>
                 </View>
                 <View style={styles.metricCardPattern} />
               </LinearGradient>

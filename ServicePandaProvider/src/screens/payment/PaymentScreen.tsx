@@ -64,6 +64,11 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onNavigate, onBack }) => 
 
   const newLeadsCount = leads.filter((l: Lead) => l.status === 'pending').length;
 
+  // Calculate remaining free leads
+  const freeLeadsUsed = providerData?.firstLeadsFreeUsed || 0;
+  const freeLeadsRemaining = Math.max(0, 3 - freeLeadsUsed);
+  
+
   // Set primary payment method mutation
   const setPrimaryMutation = useMutation({
     mutationFn: (paymentMethodId: string) => apiService.setPrimaryPaymentMethod(providerData?.id, paymentMethodId),
@@ -252,7 +257,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onNavigate, onBack }) => 
                 <Text style={styles.freeLeadsBadgeText}>FREE</Text>
               </View>
             </View>
-            <Text style={styles.freeLeadsNumber}>3</Text>
+            <Text style={styles.freeLeadsNumber}>{freeLeadsRemaining}</Text>
             <Text style={styles.freeLeadsLabel}>Free Leads Remaining</Text>
           </View>
 
@@ -366,7 +371,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onNavigate, onBack }) => 
         <Text style={styles.modernInfoCardTitle}>How Billing Works</Text>
       </View>
       <View style={styles.modernInfoList}>
-        <Text style={styles.modernInfoListItem}>• Your first 3 leads are completely FREE</Text>
+        <Text style={styles.modernInfoListItem}>• Your first 3 leads are completely FREE ({freeLeadsRemaining} remaining)</Text>
         <Text style={styles.modernInfoListItem}>• After that, you're charged only when you accept a lead</Text>
         <Text style={styles.modernInfoListItem}>• Pricing varies by service category and location</Text>
         <Text style={styles.modernInfoListItem}>• Charges are processed using your primary payment method</Text>

@@ -104,8 +104,17 @@ function ActiveLeadsScreen({ onNavigate }: { onNavigate: (screen: string, params
     return leadStatuses[leadId] || 'new';
   };
 
-  // Filter active leads (status === 'purchased' AND not closed by provider)
-  const purchasedLeads = activeLeads.filter((lead: any) => lead.status === 'purchased' && getLeadStatus(lead.requestId) !== 'closed');
+  // Filter active leads (status === 'purchased' only - avoid async filtering that causes count issues)
+  const purchasedLeads = activeLeads.filter((lead: any) => lead.status === 'purchased');
+
+  // Debug logging to see what leads we're getting
+  React.useEffect(() => {
+    console.log('🔍 ACTIVE LEADS SCREEN DEBUG:');
+    console.log(`  Total leads: ${activeLeads.length}`);
+    console.log(`  Purchased leads: ${purchasedLeads.length}`);
+    console.log('  All lead statuses:', activeLeads.map(l => ({ id: l.requestId, status: l.status, category: l.categoryName })));
+    console.log('  Purchased leads:', purchasedLeads.map(l => ({ id: l.requestId, status: l.status, category: l.categoryName })));
+  }, [activeLeads, purchasedLeads]);
 
   // Animation effects on mount
   React.useEffect(() => {
