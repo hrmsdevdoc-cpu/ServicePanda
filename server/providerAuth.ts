@@ -267,6 +267,16 @@ export function setupProviderAuth(app: Express) {
 
       // Return provider profile without password but with rating data
       const { password, ...providerProfile } = provider;
+      
+      // Debug logging
+      console.log('🔍 Provider profile data:', {
+        id: provider.id,
+        firstName: provider.firstName,
+        lastName: provider.lastName,
+        firstLeadsFreeUsed: provider.firstLeadsFreeUsed,
+        leadsPurchasedCount: provider.leadsPurchasedCount
+      });
+      
       res.json({
         ...providerProfile,
         rating: ratingData?.rating || '5.0',

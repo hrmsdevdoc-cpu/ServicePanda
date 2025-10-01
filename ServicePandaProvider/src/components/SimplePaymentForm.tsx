@@ -47,21 +47,14 @@ const SimplePaymentForm: React.FC<SimplePaymentFormProps> = ({ onSuccess, onCanc
         console.log('🔍 Creating payment method with data:', paymentData);
         console.log('🔍 Provider ID:', providerData?.id);
         
-        // Create payment method data for API
-        const paymentMethodData = {
-          cardholderName: paymentData.cardholderName,
-          cardNumber: paymentData.cardNumber.replace(/\s/g, ''),
-          expiryMonth: paymentData.expiryMonth,
-          expiryYear: paymentData.expiryYear,
-          cvv: paymentData.cvv,
-          cardLastFour: paymentData.cardNumber.slice(-4),
-          cardBrand: getCardBrand(paymentData.cardNumber),
-        };
-
-        console.log('🔍 Calling API with payment method data:', paymentMethodData);
+        // For now, let's use a test payment method ID that works with Stripe
+        // In a real app, you'd use Stripe Elements to create this securely
+        const testPaymentMethodId = 'pm_card_visa'; // This is a test payment method ID
         
-        // Call the API service to add payment method
-        const result = await apiService.addPaymentMethod(providerData?.id, paymentMethodData);
+        console.log('🔍 Using test payment method ID:', testPaymentMethodId);
+        
+        // Call the secure API endpoint that just attaches the payment method
+        const result = await apiService.addPaymentMethod(providerData?.id, testPaymentMethodId);
         console.log('✅ API response:', result);
         
         return result;
@@ -270,6 +263,13 @@ const SimplePaymentForm: React.FC<SimplePaymentFormProps> = ({ onSuccess, onCanc
 
 
 
+      {/* Test Mode Notice */}
+      <View style={styles.testModeNotice}>
+        <Text style={styles.testModeText}>
+          🧪 Test Mode: This will add a test Visa card for development purposes
+        </Text>
+      </View>
+
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
@@ -285,7 +285,7 @@ const SimplePaymentForm: React.FC<SimplePaymentFormProps> = ({ onSuccess, onCanc
           disabled={isProcessing}
         >
           <Text style={styles.submitButtonText}>
-            {isProcessing ? 'Adding...' : 'Add Payment Method'}
+            {isProcessing ? 'Adding...' : 'Add Test Payment Method'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -361,6 +361,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  testModeNotice: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  testModeText: {
+    fontSize: 12,
+    color: '#92400e',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   // Debug styles
   debugSection: {
