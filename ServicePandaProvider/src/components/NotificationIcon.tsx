@@ -162,7 +162,7 @@ function NotificationIcon({ unreadCount, onPress, size = 20, latestNotification 
             ]}
           >
             <Text style={styles.badgeText}>
-              {unreadCount > 99 ? '99+' : unreadCount}
+              {__DEV__ ? unreadCount : (unreadCount > 99 ? '99+' : unreadCount)}
             </Text>
           </Animated.View>
         )}

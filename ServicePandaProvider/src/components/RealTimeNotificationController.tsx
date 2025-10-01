@@ -246,8 +246,8 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
         />
       ))}
 
-      {/* Debug info (remove in production) */}
-      {__DEV__ && (
+      {/* Debug info (hidden) */}
+      {false && __DEV__ && (
         <View style={styles.debugContainer}>
           <View style={styles.debugInfo}>
             <View style={styles.debugRow}>

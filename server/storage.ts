@@ -3729,8 +3729,11 @@ export class DatabaseStorage implements IStorage {
           if (purchasedCount[0]?.count < 3) {
             filteredLeads.push(lead);
           }
-        } else {
-          // Include unique offers and purchased offers
+        } else if (lead.offerType === 'unique' && lead.status === 'pending') {
+          // Include all pending unique offers (regardless of is_current_offer)
+          filteredLeads.push(lead);
+        } else if (lead.status === 'purchased') {
+          // Include all purchased offers
           filteredLeads.push(lead);
         }
       }
@@ -3778,23 +3781,18 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(leadOffers.providerId, providerId),
+            or(
+              // Show all pending offers (both unique and shared)
+              eq(leadOffers.status, 'pending'),
+              // Show purchased offers (for activity history)
+              eq(leadOffers.status, 'purchased')
+            ),
+          // Only show leads that haven't expired based on job date (2 hours before)
+          // Allow leads with null preferred dates or dates more than 2 hours in the future
           or(
-            // Show current unique offers that are pending and active
-            and(
-              eq(leadOffers.status, 'pending'),
-              eq(leadOffers.isCurrentOffer, true),
-              eq(leadOffers.offerType, 'unique')
-            ),
-            // Show shared offers that are pending (not purchased by this provider yet)
-            and(
-              eq(leadOffers.status, 'pending'),
-              eq(leadOffers.offerType, 'shared')
-            ),
-            // Show purchased offers (for activity history)
-            eq(leadOffers.status, 'purchased')
-          ),
-          // Only show leads that haven't expired based on job date (24 hours before)
-          sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '24 hours')`
+            isNull(serviceRequests.preferredDate),
+            sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '2 hours')`
+          )
         )
       )
       .orderBy(desc(serviceRequests.createdAt));
@@ -3885,8 +3883,12 @@ export class DatabaseStorage implements IStorage {
               // Purchased offers (for activity history)
               eq(leadOffers.status, 'purchased')
             ),
-            // Only show leads that haven't expired based on job date (24 hours before)
-            sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '24 hours')`
+            // Only show leads that haven't expired based on job date (2 hours before)
+            // Allow leads with null preferred dates or dates more than 2 hours in the future
+            or(
+              isNull(serviceRequests.preferredDate),
+              sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '2 hours')`
+            )
           )
         )
         .orderBy(desc(serviceRequests.createdAt));
@@ -3976,6 +3978,7 @@ export class DatabaseStorage implements IStorage {
   async getProviderActivityHistory(providerId: number): Promise<any[]> {
     try {
       // Get basic activity history for this provider's offers
+      console.log(`🔍 Fetching activities for provider ${providerId}...`);
       const activities = await db
         .select({
           id: leadOffers.id,
@@ -3998,7 +4001,9 @@ export class DatabaseStorage implements IStorage {
         .innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id))
         .where(eq(leadOffers.providerId, providerId))
         .orderBy(desc(leadOffers.createdAt))
-        .limit(20);
+        .limit(50); // Increased limit to show more activities
+      
+      console.log(`📊 Raw activities from DB: ${activities.length}`);
 
       // Transform activities with proper messages
       const processedActivities = activities.map(activity => {
@@ -4010,17 +4015,28 @@ export class DatabaseStorage implements IStorage {
           message = `Lead purchased - ${activity.categoryName} in ${activity.suburb}`;
           activityType = 'lead_purchased';
           variant = 'default';
-        } else if (activity.status === 'expired' && activity.offerType === 'unique') {
+        } else if (activity.status === 'expired') {
           message = `Offer expired - ${activity.categoryName} lead in ${activity.suburb} (was $${activity.leadCost})`;
           activityType = 'offer_expired';
           variant = 'secondary';
-        } else if (activity.status === 'pending' && activity.isCurrentOffer && activity.offerType === 'unique') {
-          message = `New offer - ${activity.categoryName} lead in ${activity.suburb} ($${activity.leadCost})`;
-          activityType = 'new_offer';
-          variant = 'outline';
+        } else if (activity.status === 'pending' && activity.offerType === 'unique') {
+          if (activity.isCurrentOffer) {
+            message = `New offer - ${activity.categoryName} lead in ${activity.suburb} ($${activity.leadCost})`;
+            activityType = 'new_offer';
+            variant = 'outline';
+          } else {
+            message = `Offer pending - ${activity.categoryName} lead in ${activity.suburb} ($${activity.leadCost})`;
+            activityType = 'offer_pending';
+            variant = 'secondary';
+          }
         } else if (activity.status === 'pending' && activity.offerType === 'shared') {
           message = `Price DROP - ${activity.categoryName} lead in ${activity.suburb} now $${activity.leadCost}`;
           activityType = 'price_drop';
+          variant = 'secondary';
+        } else {
+          // Catch-all for any other activity types
+          message = `${activity.status} - ${activity.categoryName} lead in ${activity.suburb} ($${activity.leadCost})`;
+          activityType = activity.status || 'unknown';
           variant = 'secondary';
         }
 
@@ -4034,7 +4050,9 @@ export class DatabaseStorage implements IStorage {
         };
       });
 
-      return processedActivities.filter(activity => activity.message); // Only return activities with messages
+      const finalActivities = processedActivities.filter(activity => activity.message); // Only return activities with messages
+      console.log(`📋 Final activities after filtering: ${finalActivities.length}`);
+      return finalActivities;
     } catch (error) {
       console.error('Error getting provider activity history:', error);
       return [];

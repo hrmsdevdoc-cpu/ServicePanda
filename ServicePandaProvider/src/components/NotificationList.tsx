@@ -31,6 +31,7 @@ interface NotificationListProps {
   onClose: () => void;
   onNotificationPress: (notification: Notification) => void;
   onMarkAllAsRead: () => void;
+  onResetNotifications?: () => void; // Optional debug function
 }
 
 function NotificationList({ 
@@ -38,7 +39,8 @@ function NotificationList({
   notifications, 
   onClose, 
   onNotificationPress, 
-  onMarkAllAsRead 
+  onMarkAllAsRead,
+  onResetNotifications
 }: NotificationListProps) {
   const [isMarkingAllRead, setIsMarkingAllRead] = React.useState(false);
   const [markingAsReadIds, setMarkingAsReadIds] = React.useState(new Set());
@@ -216,6 +218,16 @@ function NotificationList({
                   </Text>
                 </TouchableOpacity>
               )}
+              
+              {/* Debug Reset Button - only show in development */}
+              {__DEV__ && onResetNotifications && (
+                <TouchableOpacity 
+                  style={styles.debugResetButton} 
+                  onPress={onResetNotifications}
+                >
+                  <Text style={styles.debugResetText}>🔄 Reset</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -351,6 +363,17 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '500',
+  },
+  debugResetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 16,
+  },
+  debugResetText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   notificationsList: {
     flex: 1,
