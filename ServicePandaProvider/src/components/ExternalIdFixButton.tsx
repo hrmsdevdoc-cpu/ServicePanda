@@ -27,8 +27,8 @@ const ExternalIdFixButton = () => {
       // Import and use the fixed OneSignal service
       const { fixedOneSignalService } = require('../services/fixedOneSignalService');
       
-      // Force update the external user ID (will create new device)
-      const result = await fixedOneSignalService.forceUpdateExternalUserId(providerId);
+      // Force update the external user ID (will find and update subscribed device)
+      const result = await fixedOneSignalService.updateExternalUserId(providerId);
       
       if (result.success) {
         const method = result.result.method || 'unknown';
