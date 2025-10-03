@@ -63,6 +63,10 @@ class OneSignalAdminService {
         'provider-1759141887918-7tqdv', // Old random ID from dashboard  
         `provider-${providerId}`,        // Alternative format
       ],
+      6: [
+        'provider-6',                    // New consistent ID (working!)
+        `provider-${providerId}`,        // Alternative format
+      ],
     };
     
     const externalIds = externalUserIdMapping[providerId] || [
@@ -84,12 +88,12 @@ class OneSignalAdminService {
       console.log(`👤 Using ONLY external user IDs for provider ${providerId}:`, externalUserIds);
       console.log(`⚠️ OLD device ID mapping DISABLED - using dynamic external user IDs only`);
 
-      // Create payload with ONLY external user ID targeting (most reliable now)
+      // Create payload with TARGETED delivery (works with external ID)
       const payload = {
         app_id: this.appId,
         
-        // ONLY STRATEGY: Target by external user IDs (provider-1, provider-2, etc.)
-        include_external_user_ids: externalUserIds,
+        // TARGETED STRATEGY: Use external user ID for reliable delivery
+        include_external_user_ids: [`provider-${providerId}`],
         
         headings: { en: notification.title },
         contents: { en: notification.message },
@@ -101,7 +105,12 @@ class OneSignalAdminService {
         android_vibration_pattern: [1000, 1000],
         
         // Make sure it works when app is closed
-        content_available: true
+        content_available: true,
+        
+        // Additional settings to ensure delivery
+        send_after: new Date().toISOString(),
+        ttl: 3600, // 1 hour TTL
+        
         // Remove apns_push_type_override - let OneSignal handle it automatically
       };
 

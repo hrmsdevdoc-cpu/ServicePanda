@@ -8,15 +8,11 @@ async function setExternalUserIDs() {
   const appId = "a3f5070d-9c46-44cd-8b0a-259df155ae94";
   const restApiKey = "os_v2_app_up2qodm4izcm3cykewo7cvnosrsd36rvce4eflmycu4fn43i6oojl4ogz4actqkqx3z5vnrrflsxoluzqxjdod7qhzxgrsfj7ec7h6a";
   
-  // Device IDs from your OneSignal dashboard
+  // Device IDs from your OneSignal dashboard - UPDATED WITH YOUR ACTUAL DEVICE ID
   const devices = [
     {
-      id: "0cdbc9df-2c70-4caf-9410-fc9684a4e3cd",
-      externalUserId: "provider-1"
-    },
-    {
-      id: "91779456-5f0a-435c-a406-d3d3a9ce8875", 
-      externalUserId: "provider-2"
+      id: "b1144ca4-1563-4e87-a003-c497f985ee83", // YOUR ACTUAL DEVICE (the one WITHOUT external ID)
+      externalUserId: "provider-3"
     }
   ];
   

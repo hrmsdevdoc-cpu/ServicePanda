@@ -5,7 +5,7 @@ const apiService = require('../services/api');
 
 const AuthContext = createContext();
 
-const AuthProvider = ({ children }) => {
+const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [providerData, setProviderData] = useState(null);
@@ -33,6 +33,20 @@ const AuthProvider = ({ children }) => {
           
           setProviderData(profile);
           setIsAuthenticated(true);
+          
+          // Initialize OneSignal with the stored provider ID
+          try {
+            const { fixedOneSignalService } = require('../services/fixedOneSignalService');
+            console.log('🔄 Initializing OneSignal with stored provider ID:', providerId);
+            await fixedOneSignalService.initialize();
+            console.log('✅ OneSignal initialized successfully on app startup');
+            
+            // Ensure external user ID is set on startup
+            await fixedOneSignalService.updateExternalUserId(providerId);
+            console.log('✅ External user ID updated on startup');
+          } catch (oneSignalError) {
+            console.error('⚠️ OneSignal initialization failed on startup:', oneSignalError);
+          }
         } catch (error) {
           console.log('❌ Token is invalid, clearing stored data');
           // Token is invalid, clear stored data
@@ -55,7 +69,7 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (email, password, rememberMe = false) => {
+  const login = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
       console.log('🔐 Attempting login...');
       const provider = await apiService.login(email, password);
@@ -69,6 +83,50 @@ const AuthProvider = ({ children }) => {
       
       setProviderData(provider);
       setIsAuthenticated(true);
+      
+      // Initialize OneSignal with correct provider ID after login
+      try {
+        const { fixedOneSignalService } = require('../services/fixedOneSignalService');
+        console.log('🔄 Initializing OneSignal with provider ID:', provider.id);
+        console.log('🔍 Provider object:', JSON.stringify(provider, null, 2));
+        
+        // Double check provider ID is stored
+        const storedProviderId = await AsyncStorage.getItem('providerId');
+        console.log('🔍 Stored provider ID check:', storedProviderId);
+        console.log('🔍 Provider ID type:', typeof provider.id);
+        console.log('🔍 Provider ID toString:', provider.id.toString());
+        
+        if (!storedProviderId || storedProviderId === '1') {
+          console.log('❌ Provider ID not properly stored, retrying...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          // Try to store again
+          await AsyncStorage.setItem('providerId', provider.id.toString());
+          console.log('🔄 Provider ID stored again:', provider.id.toString());
+        }
+        
+        await fixedOneSignalService.initialize();
+        console.log('✅ OneSignal initialized successfully with provider ID');
+        
+        // Wait a bit for OneSignal to be fully ready
+        console.log('⏳ Waiting for OneSignal to be fully ready...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log('⏳ Wait completed, proceeding with external user ID update...');
+        
+        // Ensure external user ID is set after login
+        console.log('🔄 About to call updateExternalUserId with:', provider.id.toString());
+        console.log('🔄 Provider ID type:', typeof provider.id);
+        console.log('🔄 Provider ID value:', provider.id);
+        
+        try {
+          await fixedOneSignalService.updateExternalUserId(provider.id.toString());
+          console.log('✅ External user ID updated after login');
+        } catch (updateError) {
+          console.error('❌ Error updating external user ID:', updateError);
+        }
+      } catch (oneSignalError) {
+        console.error('⚠️ OneSignal initialization failed:', oneSignalError);
+        // Don't fail login if OneSignal fails
+      }
       
       console.log('✅ Login successful - isAuthenticated set to true');
       console.log('✅ Provider data set:', provider);

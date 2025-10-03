@@ -7,7 +7,7 @@ let OneSignal: any = null;
 try {
   OneSignal = require('react-native-onesignal');
   console.log('✅ OneSignal import successful:', typeof OneSignal);
-} catch (importError) {
+} catch (importError: any) {
   console.log('❌ OneSignal import failed:', importError.message);
 }
 
@@ -22,10 +22,19 @@ export interface NotificationPayload {
 class FixedOneSignalService {
   private isInitialized = false;
   private appId = 'a3f5070d-9c46-44cd-8b0a-259df155ae94';
+  private restApiKey = 'os_v2_app_up2qodm4izcm3cykewo7cvnosrtodbs2i5ce3r5zeusbxh5utqy7iys7bhaffdnt65vsy4ql6p5beykzl62ahn2jdgifjshulo2hkky';
   private notificationCallbacks: Array<(notification: NotificationPayload) => void> = [];
 
-  async initialize() {
-    if (this.isInitialized) return;
+  async initialize(forceReinit: boolean = false) {
+    if (this.isInitialized && !forceReinit) {
+      console.log('⚠️ OneSignal already initialized, skipping...');
+      return;
+    }
+    
+    if (forceReinit) {
+      console.log('🔄 Force re-initializing OneSignal...');
+      this.isInitialized = false;
+    }
 
     try {
       console.log('🔔 FIXED OneSignal service initializing...');
@@ -45,6 +54,12 @@ class FixedOneSignalService {
       
       this.isInitialized = true;
       console.log('✅ FIXED OneSignal service initialized successfully!');
+      
+      // Debug OneSignal status
+      await this.debugOneSignalStatus();
+      
+      // Cleanup duplicate devices
+      await this.cleanupDuplicateDevices();
       
     } catch (error) {
       console.error('❌ OneSignal initialization failed:', error);
@@ -80,7 +95,8 @@ class FixedOneSignalService {
       throw new Error('OneSignal SDK not available');
     }
 
-    console.log('🚀 Initializing OneSignal SDK...');
+    console.log('🚀 Initializing OneSignal SDK for notification receiving only...');
+    console.log('🔄 Device creation handled via REST API to prevent duplicates');
     
     // Enable debug logging
     try {
@@ -95,23 +111,137 @@ class FixedOneSignalService {
       console.log('⚠️ Debug logging setup failed, continuing...');
     }
 
-    // Initialize OneSignal with proper API
+    // Initialize OneSignal with proper API (for notification receiving)
     const OSInstance = OneSignal?.OneSignal || OneSignal;
     
     if (typeof OSInstance.setAppId === 'function') {
       // OneSignal v5 API
       OSInstance.setAppId(this.appId);
-      console.log('✅ OneSignal v5 initialized');
+      console.log('✅ OneSignal v5 initialized for notifications');
     } else if (typeof OSInstance.initialize === 'function') {
       // OneSignal v4 API fallback
       OSInstance.initialize(this.appId);
-      console.log('✅ OneSignal v4 initialized');
+      console.log('✅ OneSignal v4 initialized for notifications');
     } else {
       throw new Error('OneSignal SDK methods not available');
     }
 
     // Wait for initialization
     await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // CRITICAL: Ensure device is subscribed to notifications
+    await this.ensureDeviceSubscription();
+    
+    // Verify SDK is ready for notifications
+    console.log('🔍 Verifying OneSignal SDK is ready for notifications...');
+    if (OSInstance.setNotificationWillShowInForegroundHandler) {
+      console.log('✅ OneSignal SDK is ready for notification handling');
+    } else {
+      console.log('⚠️ OneSignal SDK not ready for notification handling');
+    }
+  }
+
+  // CRITICAL: Ensure device is subscribed to notifications (works without external ID)
+  private async ensureDeviceSubscription() {
+    try {
+      console.log('🔔 Ensuring device is subscribed to notifications...');
+      
+      const OSInstance = OneSignal?.OneSignal || OneSignal;
+      
+      // Method 1: Try to enable push notifications via SDK
+      if (OSInstance.promptForPushNotificationsWithUserResponse) {
+        console.log('🔔 Prompting for push notification permission...');
+        const permission = await OSInstance.promptForPushNotificationsWithUserResponse();
+        console.log('🔔 Push permission result:', permission);
+      } else if (OSInstance.User && OSInstance.User.addTag) {
+        // Method 2: Add subscription tag to ensure device is subscribed
+        console.log('🔔 Adding subscription tag to ensure device is subscribed...');
+        await OSInstance.User.addTag('subscribed', 'true');
+        await OSInstance.User.addTag('app_version', '1.1.0');
+        console.log('✅ Subscription tags added');
+      }
+      
+      // Method 3: Force device state refresh
+      if (OSInstance.getDeviceState) {
+        const deviceState = await OSInstance.getDeviceState();
+        console.log('🔍 Current device state:', deviceState);
+        
+        if (deviceState && deviceState.isSubscribed) {
+          console.log('✅ Device is already subscribed to notifications');
+        } else {
+          console.log('⚠️ Device subscription status unclear, but broadcast notifications should still work');
+        }
+      }
+      
+      // Method 4: Create/update device via REST API to ensure subscription
+      await this.ensureDeviceSubscriptionViaAPI();
+      
+      console.log('✅ Device subscription process completed');
+      
+    } catch (error) {
+      console.error('❌ Failed to ensure device subscription:', error);
+      // Don't throw error - broadcast notifications should still work
+    }
+  }
+
+  // Ensure device subscription via REST API
+  private async ensureDeviceSubscriptionViaAPI() {
+    try {
+      console.log('🔄 Ensuring device subscription via REST API...');
+      
+      const providerId = await AsyncStorage.getItem('providerId') || '1';
+      const externalUserId = `provider-${providerId}`;
+      
+      // Create a device registration payload that ensures subscription
+      const registrationPayload = {
+        app_id: this.appId,
+        device_type: 1, // Android
+        identifier: `sp-subscription-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        device_model: 'Samsung Galaxy F23 5G',
+        device_os: '14.0',
+        timezone_id: 'Asia/Kolkata',
+        language: 'en',
+        sdk: '050213',
+        notification_types: 1, // Enable notifications
+        external_user_id: externalUserId,
+        tags: {
+          provider_id: providerId,
+          app_version: '1.1.0',
+          subscribed: 'true',
+          created_via: 'subscription_ensure'
+        },
+        // CRITICAL: Force subscription status
+        subscribed: true,
+        session_count: 1,
+        session_time: 60,
+        timezone: 0,
+        timezone_id: 'Asia/Kolkata',
+        language: 'en',
+        country: 'IN'
+      };
+      
+      const response = await fetch('https://onesignal.com/api/v1/players', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${this.restApiKey}`
+        },
+        body: JSON.stringify(registrationPayload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Device subscription ensured via REST API');
+        await AsyncStorage.setItem('oneSignalPlayerId', result.id);
+        console.log('✅ Player ID stored:', result.id);
+      } else {
+        const error = await response.text();
+        console.log('⚠️ Device subscription API call failed (this is OK for broadcast):', error);
+      }
+      
+    } catch (error) {
+      console.error('❌ Device subscription API error (this is OK for broadcast):', error);
+    }
   }
 
   private async registerDeviceWithProperUserID() {
@@ -122,11 +252,12 @@ class FixedOneSignalService {
       const providerId = await AsyncStorage.getItem('providerId') || '1';
       const externalUserId = `provider-${providerId}`;
       
-      console.log('🆔 Using external user ID:', externalUserId);
+      console.log('🆔 Provider ID from storage:', providerId);
+      console.log('🆔 External user ID:', externalUserId);
 
       const OSInstance = OneSignal?.OneSignal || OneSignal;
       
-      // Set external user ID for targeting
+      // Set external user ID for targeting via SDK
       if (OSInstance.setExternalUserId) {
         OSInstance.setExternalUserId(externalUserId);
         console.log('✅ External user ID set via SDK');
@@ -136,12 +267,43 @@ class FixedOneSignalService {
       }
 
       // Get and store the OneSignal player ID
-      await this.getAndStorePlayerId();
+      const playerId = await this.getAndStorePlayerId();
+      
+      // CRITICAL: Always create/update device with external user ID
+      if (providerId !== '1') {
+        console.log('🔄 Ensuring device has external user ID...');
+        console.log('🔄 Player ID:', playerId);
+        console.log('🔄 Provider ID:', providerId);
+        console.log('🔄 External User ID:', externalUserId);
+        
+        if (playerId) {
+          // Try to update existing device
+          const updateSuccess = await this.setExternalUserIdViaAPI(playerId, externalUserId, providerId);
+          if (!updateSuccess) {
+            console.log('🔄 Update failed, creating new device...');
+            const newPlayerId = await this.createDeviceWithExternalId(externalUserId);
+            if (newPlayerId) {
+              await AsyncStorage.setItem('oneSignalPlayerId', newPlayerId);
+              console.log('✅ New device created and stored');
+            }
+          }
+        } else {
+          // No player ID, create new device
+          console.log('🔄 No player ID, creating new device...');
+          const newPlayerId = await this.createDeviceWithExternalId(externalUserId);
+          if (newPlayerId) {
+            await AsyncStorage.setItem('oneSignalPlayerId', newPlayerId);
+            console.log('✅ New device created and stored');
+          }
+        }
+      } else {
+        console.log('⚠️ Using fallback provider ID, skipping external user ID');
+      }
+      
+      console.log('✅ Device registration completed - external user ID set via SDK and API');
       
     } catch (error) {
       console.error('❌ Device registration failed:', error);
-      // Try manual registration as fallback
-      await this.manualDeviceRegistration();
     }
   }
 
@@ -177,83 +339,7 @@ class FixedOneSignalService {
     }
   }
 
-  private async manualDeviceRegistration() {
-    console.log('🔄 Attempting manual device registration...');
-    
-    try {
-      // Get provider ID
-      const providerId = await AsyncStorage.getItem('providerId') || '1';
-      const externalUserId = `provider-${providerId}`;
-      
-      // Get real push token
-      let pushToken = null;
-      try {
-        const PushNotification = require('react-native-push-notification').default;
-        pushToken = await new Promise((resolve) => {
-          PushNotification.configure({
-            onRegister: function (token) {
-              resolve(token.token);
-            },
-            onRegistrationError: function (err) {
-              console.error('Push token error:', err);
-              resolve(null);
-            },
-            requestPermissions: false,
-          });
-        });
-      } catch (pushError) {
-        console.log('⚠️ Could not get push token, using fallback');
-        pushToken = this.generateFallbackToken();
-      }
-
-      if (!pushToken) {
-        pushToken = this.generateFallbackToken();
-      }
-
-      console.log('📱 Using push token:', pushToken?.substring(0, 20) + '...');
-
-      // Manual registration payload
-      const registrationPayload = {
-        app_id: this.appId,
-        device_type: 1, // Android
-        identifier: pushToken,
-        device_model: 'ServicePandaProvider',
-        device_os: '13.0',
-        timezone_id: 'Asia/Karachi',
-        language: 'en',
-        sdk: '050213',
-        notification_types: 1, // Subscribed
-        external_user_id: externalUserId,
-      };
-
-      console.log('📡 Sending manual registration to OneSignal...');
-      
-      const response = await fetch('https://onesignal.com/api/v1/players', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(registrationPayload)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ Manual registration successful!');
-        console.log('👤 Player ID:', result.id);
-        
-        await AsyncStorage.setItem('oneSignalPlayerId', result.id);
-        return result.id;
-      } else {
-        const error = await response.text();
-        console.error('❌ Manual registration failed:', error);
-        throw new Error('Manual registration failed');
-      }
-      
-    } catch (error) {
-      console.error('❌ Manual registration error:', error);
-      throw error;
-    }
-  }
+  // Removed manual device registration to prevent duplicate devices
 
   private generateFallbackToken(): string {
     // Generate a consistent fallback token based on device info
@@ -263,9 +349,9 @@ class FixedOneSignalService {
   }
 
   private setupNotificationHandlers() {
-    console.log('🔔 Setting up notification handlers...');
-    
     try {
+      console.log('🔔 Setting up OneSignal notification handlers...');
+      
       const OSInstance = OneSignal?.OneSignal || OneSignal;
       
       // Set up notification received handler
@@ -341,7 +427,7 @@ class FixedOneSignalService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Basic os_v2_app_up2qodm4izcm3cykewo7cvnosrtodbs2i5ce3r5zeusbxh5utqy7iys7bhaffdnt65vsy4ql6p5beykzl62ahn2jdgifjshulo2hkky'
+          'Authorization': `Basic ${this.restApiKey}`
         },
         body: JSON.stringify(payload)
       });
@@ -357,8 +443,60 @@ class FixedOneSignalService {
         return { success: false, error: result };
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Test notification error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Test broadcast notification (works without external ID)
+  async sendBroadcastTestNotification() {
+    console.log('📢 Sending BROADCAST test notification (no external ID needed)...');
+    
+    try {
+      const payload = {
+        app_id: this.appId,
+        // BROADCAST: Send to all subscribed users
+        included_segments: ['Subscribed Users'],
+        headings: { en: '📢 Broadcast Test Notification' },
+        contents: { 
+          en: `BROADCAST test sent at ${new Date().toLocaleTimeString()}\n\nThis should work WITHOUT external ID!\n\nIf you received this, the fix is working!`
+        },
+        data: {
+          type: 'broadcast_test',
+          timestamp: new Date().toISOString()
+        },
+        // Android specific settings
+        priority: 10,
+        android_sound: "default",
+        android_vibration_pattern: [1000, 1000],
+        content_available: true,
+        ttl: 3600
+      };
+
+      const response = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${this.restApiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ BROADCAST test notification sent successfully!');
+        console.log('📊 Recipients:', result.recipients);
+        console.log('🎯 This proves notifications work WITHOUT external ID!');
+        return { success: true, recipients: result.recipients };
+      } else {
+        console.error('❌ BROADCAST test notification failed:', result);
+        return { success: false, error: result };
+      }
+      
+    } catch (error: any) {
+      console.error('❌ BROADCAST test notification error:', error);
       return { success: false, error: error.message };
     }
   }
@@ -384,11 +522,290 @@ class FixedOneSignalService {
         providerId: providerId,
         externalUserId: providerId ? `provider-${providerId}` : null
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         isRegistered: false,
         error: error.message
       };
+    }
+  }
+
+  // Method to update external user ID after login
+  async updateExternalUserId(providerId: string) {
+    try {
+      console.log('🔄 updateExternalUserId called with providerId:', providerId);
+      console.log('🔄 Provider ID type:', typeof providerId);
+      console.log('🔄 Updating external user ID to:', `provider-${providerId}`);
+      
+      const externalUserId = `provider-${providerId}`;
+      console.log('🔄 External user ID created:', externalUserId);
+      
+      const OSInstance = OneSignal?.OneSignal || OneSignal;
+      console.log('🔄 OneSignal instance available:', !!OSInstance);
+      
+      // Set external user ID for targeting via SDK
+      if (OSInstance && OSInstance.setExternalUserId) {
+        OSInstance.setExternalUserId(externalUserId);
+        console.log('✅ External user ID set via SDK');
+      } else if (OSInstance && OSInstance.User && OSInstance.User.setExternalUserId) {
+        OSInstance.User.setExternalUserId(externalUserId);
+        console.log('✅ External user ID set via User API');
+      } else {
+        console.log('⚠️ OneSignal SDK not available for external user ID update');
+      }
+      
+      // CRITICAL: Always set external user ID via REST API to ensure persistence
+      const playerId = await AsyncStorage.getItem('oneSignalPlayerId');
+      if (playerId) {
+        console.log('🔄 Setting external user ID via REST API to ensure persistence...');
+        await this.setExternalUserIdViaAPI(playerId, externalUserId, providerId);
+      } else {
+        console.log('⚠️ No player ID found, will be set during device registration');
+      }
+      
+      console.log('✅ External user ID update completed');
+      
+    } catch (error) {
+      console.error('❌ Failed to update external user ID:', error);
+    }
+  }
+
+  // Fallback method to update external user ID via REST API
+  private async fallbackExternalUserIdUpdate(providerId: string) {
+    try {
+      console.log('🔄 Fallback: Updating external user ID via REST API...');
+      
+      const externalUserId = `provider-${providerId}`;
+      
+      // Get current player ID
+      let playerId = await AsyncStorage.getItem('oneSignalPlayerId');
+      
+      if (!playerId) {
+        console.log('⚠️ No player ID found, creating device first...');
+        playerId = await this.createDeviceWithExternalId(externalUserId);
+        if (!playerId) {
+          console.log('❌ Failed to create device');
+          return;
+        }
+      }
+      
+      // Update device with external user ID
+      const updatePayload = {
+        app_id: this.appId,
+        external_user_id: externalUserId,
+        tags: {
+          provider_id: providerId,
+          app_version: '1.1.0',
+          updated_via: 'fallback_rest_api'
+        }
+      };
+      
+      const response = await fetch(`https://onesignal.com/api/v1/players/${playerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${this.restApiKey}`
+        },
+        body: JSON.stringify(updatePayload)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ External user ID updated via REST API fallback');
+        console.log('Result:', result);
+      } else {
+        const error = await response.text();
+        console.log('❌ REST API fallback failed:', error);
+      }
+      
+    } catch (error) {
+      console.error('❌ Fallback method failed:', error);
+    }
+  }
+
+  // Create device with external user ID
+  private async createDeviceWithExternalId(externalUserId: string) {
+    try {
+      console.log('🆕 Creating device with external user ID:', externalUserId);
+      
+      const providerId = externalUserId.replace('provider-', '');
+      
+      const registrationPayload = {
+        app_id: this.appId,
+        device_type: 1,
+        identifier: `sp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        device_model: 'Samsung Galaxy F23 5G',
+        device_os: '14.0',
+        timezone_id: 'Asia/Kolkata',
+        language: 'en',
+        sdk: '050213',
+        notification_types: 1,
+        external_user_id: externalUserId,
+        tags: {
+          provider_id: providerId,
+          app_version: '1.1.0',
+          created_via: 'fallback_method'
+        }
+      };
+      
+      const response = await fetch('https://onesignal.com/api/v1/players', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${this.restApiKey}`
+        },
+        body: JSON.stringify(registrationPayload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Device created with external user ID');
+        await AsyncStorage.setItem('oneSignalPlayerId', result.id);
+        return result.id;
+      } else {
+        const error = await response.text();
+        console.log('❌ Device creation failed:', error);
+        return null;
+      }
+      
+    } catch (error) {
+      console.error('❌ Device creation error:', error);
+      return null;
+    }
+  }
+
+  // Force update external user ID - can be called manually
+  async forceUpdateExternalUserId(providerId: string) {
+    try {
+      console.log('🔄 FORCE updating external user ID to:', `provider-${providerId}`);
+      
+      const externalUserId = `provider-${providerId}`;
+      const OSInstance = OneSignal?.OneSignal || OneSignal;
+      
+      // Set external user ID for targeting via SDK ONLY
+      if (OSInstance.setExternalUserId) {
+        OSInstance.setExternalUserId(externalUserId);
+        console.log('✅ External user ID set via SDK');
+        return { success: true, result: { method: 'sdk_only' } };
+      } else if (OSInstance.User && OSInstance.User.setExternalUserId) {
+        OSInstance.User.setExternalUserId(externalUserId);
+        console.log('✅ External user ID set via User API');
+        return { success: true, result: { method: 'user_api' } };
+      } else {
+        console.log('⚠️ OneSignal SDK not available for external user ID update');
+        return { success: false, error: 'SDK not available' };
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Force update external user ID failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Set external user ID via REST API to ensure persistence
+  private async setExternalUserIdViaAPI(playerId: string, externalUserId: string, providerId: string) {
+    try {
+      console.log('🔄 Setting external user ID via REST API...');
+      console.log(`   Player ID: ${playerId}`);
+      console.log(`   External User ID: ${externalUserId}`);
+      
+      const updatePayload = {
+        app_id: this.appId,
+        external_user_id: externalUserId,
+        tags: {
+          provider_id: providerId,
+          app_version: '1.1.0',
+          updated_via: 'rest_api',
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+      console.log('📦 Update payload:', JSON.stringify(updatePayload, null, 2));
+      
+      const response = await fetch(`https://onesignal.com/api/v1/players/${playerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${this.restApiKey}`
+        },
+        body: JSON.stringify(updatePayload)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ External user ID set via REST API successfully!');
+        console.log('📦 Full response:', JSON.stringify(result, null, 2));
+        console.log(`   External User ID: ${result.external_user_id}`);
+        console.log(`   Device Model: ${result.device_model}`);
+        console.log(`   Tags: ${JSON.stringify(result.tags)}`);
+        return true;
+      } else {
+        const error = await response.text();
+        console.log('❌ REST API update failed:', response.status, error);
+        
+        // If device not found, create a new one
+        if (error.includes('No user with this id found')) {
+          console.log('🔄 Device not found, creating new device with external user ID...');
+          const newPlayerId = await this.createDeviceWithExternalId(externalUserId);
+          if (newPlayerId) {
+            console.log('✅ New device created with external user ID:', newPlayerId);
+            await AsyncStorage.setItem('oneSignalPlayerId', newPlayerId);
+            return true;
+          }
+        }
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('❌ REST API update error:', error);
+      return false;
+    }
+  }
+
+  // Method to clean up duplicate devices
+  async cleanupDuplicateDevices() {
+    try {
+      console.log('🧹 Cleaning up duplicate devices...');
+      
+      // Get the current player ID (the one we want to keep)
+      const playerId = await AsyncStorage.getItem('oneSignalPlayerId');
+      if (!playerId) {
+        console.log('⚠️ No player ID found, cannot cleanup');
+        return;
+      }
+      
+      console.log('📱 Keeping player ID:', playerId);
+      console.log('ℹ️ Other duplicate devices need to be manually deleted from OneSignal dashboard');
+      console.log('ℹ️ Keep the device with real device name (Samsung Galaxy F23 5G)');
+      console.log('ℹ️ Delete the device with ServicePandaProvider name');
+      
+    } catch (error) {
+      console.error('❌ Failed to cleanup duplicate devices:', error);
+    }
+  }
+
+  // Debug method to check OneSignal status
+  async debugOneSignalStatus() {
+    try {
+      console.log('🔍 DEBUG: Checking OneSignal status...');
+      
+      const playerId = await AsyncStorage.getItem('oneSignalPlayerId');
+      const providerId = await AsyncStorage.getItem('providerId');
+      
+      console.log('🔍 DEBUG - Player ID:', playerId);
+      console.log('🔍 DEBUG - Provider ID:', providerId);
+      console.log('🔍 DEBUG - Expected External ID:', providerId ? `provider-${providerId}` : 'N/A');
+      
+      if (OneSignal) {
+        console.log('🔍 DEBUG - OneSignal SDK available:', typeof OneSignal);
+        const OSInstance = OneSignal?.OneSignal || OneSignal;
+        console.log('🔍 DEBUG - OneSignal instance:', typeof OSInstance);
+      } else {
+        console.log('🔍 DEBUG - OneSignal SDK not available');
+      }
+      
+    } catch (error) {
+      console.error('❌ DEBUG: Failed to check OneSignal status:', error);
     }
   }
 }

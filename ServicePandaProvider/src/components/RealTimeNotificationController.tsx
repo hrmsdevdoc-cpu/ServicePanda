@@ -66,19 +66,9 @@ const RealTimeNotificationController: React.FC<RealTimeNotificationControllerPro
       console.log('🔔 Primary: OneSignal push notifications');
       console.log('💡 Secondary: Local notification services (if available)');
 
-      // Try to initialize OneSignal first (main notification system)
-      try {
-        await fixedOneSignalService.initialize();
-        console.log('✅ OneSignal service initialized (primary)');
-      } catch (error) {
-        console.log('⚠️ OneSignal native module failed, trying fallback...');
-        try {
-          await fallbackOneSignalService.initialize();
-          console.log('✅ Fallback OneSignal service initialized');
-        } catch (fallbackError) {
-          console.log('❌ Both OneSignal services failed, continuing with other services...');
-        }
-      }
+      // Don't initialize OneSignal here - wait for user login
+      // OneSignal will be initialized after login with the correct provider ID
+      console.log('⏳ OneSignal initialization deferred until user login');
 
       // Secondary: Try local notification services (optional)
       try {
