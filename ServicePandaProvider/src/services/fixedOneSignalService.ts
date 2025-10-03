@@ -554,19 +554,26 @@ class FixedOneSignalService {
         console.log('⚠️ OneSignal SDK not available for external user ID update');
       }
       
-      // CRITICAL: Always set external user ID via REST API to ensure persistence
+      // CRITICAL: Find and update the SUBSCRIBED device with external user ID
       const playerId = await AsyncStorage.getItem('oneSignalPlayerId');
       if (playerId) {
         console.log('🔄 Setting external user ID via REST API to ensure persistence...');
-        await this.setExternalUserIdViaAPI(playerId, externalUserId, providerId);
+        const success = await this.setExternalUserIdViaAPI(playerId, externalUserId, providerId);
+        
+        if (!success) {
+          console.log('🔄 Primary device update failed, trying to find subscribed device...');
+          await this.findAndUpdateSubscribedDevice(externalUserId, providerId);
+        }
       } else {
         console.log('⚠️ No player ID found, will be set during device registration');
       }
       
       console.log('✅ External user ID update completed');
+      return { success: true, result: { method: 'dynamic_update' } };
       
     } catch (error) {
       console.error('❌ Failed to update external user ID:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -671,6 +678,83 @@ class FixedOneSignalService {
     } catch (error) {
       console.error('❌ Device creation error:', error);
       return null;
+    }
+  }
+
+  // Find and update the subscribed device with external user ID
+  private async findAndUpdateSubscribedDevice(externalUserId: string, providerId: string) {
+    try {
+      console.log('🔍 Finding and updating subscribed device...');
+      
+      // Get all devices for this app and find the one with subscribed: true
+      const response = await fetch(`https://onesignal.com/api/v1/players?app_id=${this.appId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${this.restApiKey}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('📱 Found devices:', result.players?.length || 0);
+        
+        // Find device with subscribed: true tag and no external user ID
+        const subscribedDevice = result.players?.find((device: any) => 
+          device.tags?.subscribed === 'true' && 
+          !device.external_user_id &&
+          device.device_type === 1 // Android
+        );
+        
+        if (subscribedDevice) {
+          console.log('✅ Found subscribed device without external ID:', subscribedDevice.id);
+          
+          // Update this device with external user ID (keep only essential tags)
+          const updatePayload = {
+            app_id: this.appId,
+            external_user_id: externalUserId,
+            tags: {
+              subscribed: 'true',
+              provider_id: providerId,
+              app_version: '1.1.0'
+            }
+          };
+          
+          const updateResponse = await fetch(`https://onesignal.com/api/v1/players/${subscribedDevice.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Basic ${this.restApiKey}`
+            },
+            body: JSON.stringify(updatePayload)
+          });
+
+          if (updateResponse.ok) {
+            const updateResult = await updateResponse.json();
+            console.log('✅ Successfully updated subscribed device with external ID!');
+            console.log('📱 Device ID:', subscribedDevice.id);
+            console.log('👤 External ID:', updateResult.external_user_id);
+            
+            // Store this as the active player ID
+            await AsyncStorage.setItem('oneSignalPlayerId', subscribedDevice.id);
+            console.log('✅ Updated stored player ID');
+            
+            return true;
+          } else {
+            const error = await updateResponse.text();
+            console.log('❌ Failed to update subscribed device:', error);
+          }
+        } else {
+          console.log('⚠️ No subscribed device without external ID found');
+        }
+      } else {
+        console.log('❌ Failed to fetch devices:', await response.text());
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ Error finding subscribed device:', error);
+      return false;
     }
   }
 
