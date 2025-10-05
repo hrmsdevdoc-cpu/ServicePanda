@@ -254,603 +254,16 @@ export default function AdminPotentialProviders() {
     }
   }, [navigate]);
 
-  // Dummy data for development/testing
-  const dummyProviders: PotentialProvider[] = [
-    // New providers (for member list)
-    {
-      id: 1,
-      firstName: "John",
-      lastName: "Smith",
-      email: "john.smith@example.com",
-      phone: "0412 345 678",
-      businessName: "Smith Plumbing Services",
-      businessAbn: "12 345 678 901",
-      address: "123 Main Street",
-      state: "NSW",
-      city: "Sydney",
-      postcode: "2000",
-      serviceCategories: "Plumbing, Emergency Repairs",
-      source: "Website",
-      status: "new",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "Interested in emergency plumbing services. Has 10 years experience.",
-      nextFollowUpDate: "2024-01-15",
-      lastContactDate: "2024-01-10",
-      lastContactType: "email",
-      createdAt: "2024-01-08T10:00:00Z",
-      updatedAt: "2024-01-10T14:30:00Z"
-    },
-    {
-      id: 2,
-      firstName: "Maria",
-      lastName: "Garcia",
-      email: "maria.garcia@example.com",
-      phone: "0423 456 789",
-      businessName: "Garcia Electrical",
-      businessAbn: "23 456 789 012",
-      address: "456 Oak Avenue",
-      state: "VIC",
-      city: "Melbourne",
-      postcode: "3000",
-      serviceCategories: "Electrical, Installation",
-      source: "Referral",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Specializes in residential electrical work. Licensed electrician.",
-      nextFollowUpDate: "2024-01-16",
-      lastContactDate: "2024-01-11",
-      lastContactType: "phone",
-      createdAt: "2024-01-09T09:15:00Z",
-      updatedAt: "2024-01-11T16:45:00Z"
-    },
-    {
-      id: 3,
-      firstName: "David",
-      lastName: "Wilson",
-      email: "david.wilson@example.com",
-      phone: "0434 567 890",
-      businessName: "Wilson Cleaning Services",
-      businessAbn: "34 567 890 123",
-      address: "789 Pine Road",
-      state: "QLD",
-      city: "Brisbane",
-      postcode: "4000",
-      serviceCategories: "Cleaning, Commercial",
-      source: "Social Media",
-      status: "new",
-      priority: "low",
-      assignedTo: "Lisa Wang",
-      notes: "Focuses on commercial cleaning. Has 5 employees.",
-      nextFollowUpDate: "2024-01-18",
-      lastContactDate: "2024-01-12",
-      lastContactType: "email",
-      createdAt: "2024-01-10T11:30:00Z",
-      updatedAt: "2024-01-12T10:20:00Z"
-    },
-    {
-      id: 4,
-      firstName: "Emma",
-      lastName: "Thompson",
-      email: "emma.thompson@example.com",
-      phone: "0445 678 901",
-      businessName: "Thompson Gardening",
-      businessAbn: "45 678 901 234",
-      address: "321 Garden Street",
-      state: "WA",
-      city: "Perth",
-      postcode: "6000",
-      serviceCategories: "Gardening, Landscaping",
-      source: "Website",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Tom Anderson",
-      notes: "Specializes in sustainable gardening. Certified horticulturist.",
-      nextFollowUpDate: "2024-01-17",
-      lastContactDate: "2024-01-13",
-      lastContactType: "phone",
-      createdAt: "2024-01-11T13:45:00Z",
-      updatedAt: "2024-01-13T15:10:00Z"
-    },
-    {
-      id: 5,
-      firstName: "James",
-      lastName: "Brown",
-      email: "james.brown@example.com",
-      phone: "0456 789 012",
-      businessName: "Brown Carpentry",
-      businessAbn: "56 789 012 345",
-      address: "654 Wood Lane",
-      state: "SA",
-      city: "Adelaide",
-      postcode: "5000",
-      serviceCategories: "Carpentry, Renovations",
-      source: "Referral",
-      status: "new",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "Expert in custom furniture and home renovations. 15 years experience.",
-      nextFollowUpDate: "2024-01-14",
-      lastContactDate: "2024-01-12",
-      lastContactType: "email",
-      createdAt: "2024-01-12T08:20:00Z",
-      updatedAt: "2024-01-12T17:30:00Z"
-    },
-    {
-      id: 6,
-      firstName: "Sophie",
-      lastName: "Davis",
-      email: "sophie.davis@example.com",
-      phone: "0467 890 123",
-      businessName: "Davis Painting Co",
-      businessAbn: "67 890 123 456",
-      address: "987 Color Street",
-      state: "TAS",
-      city: "Hobart",
-      postcode: "7000",
-      serviceCategories: "Painting, Interior Design",
-      source: "Social Media",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Specializes in interior and exterior painting. Uses eco-friendly paints.",
-      nextFollowUpDate: "2024-01-19",
-      lastContactDate: "2024-01-14",
-      lastContactType: "phone",
-      createdAt: "2024-01-13T10:15:00Z",
-      updatedAt: "2024-01-14T11:45:00Z"
-    },
-    {
-      id: 7,
-      firstName: "Michael",
-      lastName: "Johnson",
-      email: "michael.johnson@example.com",
-      phone: "0478 901 234",
-      businessName: "Johnson Security",
-      businessAbn: "78 901 234 567",
-      address: "147 Security Blvd",
-      state: "NT",
-      city: "Darwin",
-      postcode: "0800",
-      serviceCategories: "Security, CCTV Installation",
-      source: "Website",
-      status: "new",
-      priority: "high",
-      assignedTo: "Lisa Wang",
-      notes: "Provides security systems for homes and businesses. Licensed security provider.",
-      nextFollowUpDate: "2024-01-15",
-      lastContactDate: "2024-01-13",
-      lastContactType: "email",
-      createdAt: "2024-01-14T09:30:00Z",
-      updatedAt: "2024-01-13T14:20:00Z"
-    },
-    {
-      id: 8,
-      firstName: "Amanda",
-      lastName: "Lee",
-      email: "amanda.lee@example.com",
-      phone: "0489 012 345",
-      businessName: "Lee Photography",
-      businessAbn: "89 012 345 678",
-      address: "258 Camera Road",
-      state: "ACT",
-      city: "Canberra",
-      postcode: "2600",
-      serviceCategories: "Photography, Events",
-      source: "Referral",
-      status: "new",
-      priority: "low",
-      assignedTo: "Tom Anderson",
-      notes: "Specializes in wedding and event photography. Professional equipment.",
-      nextFollowUpDate: "2024-01-20",
-      lastContactDate: "2024-01-15",
-      lastContactType: "phone",
-      createdAt: "2024-01-15T12:00:00Z",
-      updatedAt: "2024-01-15T16:30:00Z"
-    },
-    // First call status providers
-    {
-      id: 9,
-      firstName: "Robert",
-      lastName: "Taylor",
-      email: "robert.taylor@example.com",
-      phone: "0490 123 456",
-      businessName: "Taylor HVAC",
-      businessAbn: "90 123 456 789",
-      address: "369 Air Street",
-      state: "NSW",
-      city: "Newcastle",
-      postcode: "2300",
-      serviceCategories: "HVAC, Air Conditioning",
-      source: "Website",
-      status: "first_call",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "Specializes in commercial HVAC systems. Available for emergency calls.",
-      nextFollowUpDate: "2024-01-16",
-      lastContactDate: "2024-01-14",
-      lastContactType: "phone",
-      createdAt: "2024-01-13T14:20:00Z",
-      updatedAt: "2024-01-14T09:15:00Z"
-    },
-    {
-      id: 10,
-      firstName: "Jennifer",
-      lastName: "White",
-      email: "jennifer.white@example.com",
-      phone: "0491 234 567",
-      businessName: "White Landscaping",
-      businessAbn: "91 234 567 890",
-      address: "741 Nature Way",
-      state: "VIC",
-      city: "Geelong",
-      postcode: "3220",
-      serviceCategories: "Landscaping, Garden Design",
-      source: "Referral",
-      status: "first_call",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Creates beautiful outdoor spaces. Uses sustainable materials.",
-      nextFollowUpDate: "2024-01-17",
-      lastContactDate: "2024-01-15",
-      lastContactType: "email",
-      createdAt: "2024-01-14T11:30:00Z",
-      updatedAt: "2024-01-15T16:45:00Z"
-    },
-    // Follow up status providers
-    {
-      id: 11,
-      firstName: "Christopher",
-      lastName: "Anderson",
-      email: "christopher.anderson@example.com",
-      phone: "0492 345 678",
-      businessName: "Anderson Roofing",
-      businessAbn: "92 345 678 901",
-      address: "852 Roof Road",
-      state: "QLD",
-      city: "Gold Coast",
-      postcode: "4215",
-      serviceCategories: "Roofing, Repairs",
-      source: "Social Media",
-      status: "follow_up",
-      priority: "high",
-      assignedTo: "Lisa Wang",
-      notes: "Expert in all types of roofing. Licensed and insured.",
-      nextFollowUpDate: "2024-01-18",
-      lastContactDate: "2024-01-16",
-      lastContactType: "phone",
-      createdAt: "2024-01-15T09:45:00Z",
-      updatedAt: "2024-01-16T14:20:00Z"
-    },
-    {
-      id: 12,
-      firstName: "Nicole",
-      lastName: "Martinez",
-      email: "nicole.martinez@example.com",
-      phone: "0493 456 789",
-      businessName: "Martinez Cleaning",
-      businessAbn: "93 456 789 012",
-      address: "963 Clean Street",
-      state: "WA",
-      city: "Fremantle",
-      postcode: "6160",
-      serviceCategories: "Cleaning, Domestic",
-      source: "Website",
-      status: "follow_up",
-      priority: "medium",
-      assignedTo: "Tom Anderson",
-      notes: "Provides regular cleaning services. Uses eco-friendly products.",
-      nextFollowUpDate: "2024-01-19",
-      lastContactDate: "2024-01-17",
-      lastContactType: "email",
-      createdAt: "2024-01-16T13:15:00Z",
-      updatedAt: "2024-01-17T10:30:00Z"
-    },
-    // Email status providers
-    {
-      id: 13,
-      firstName: "Daniel",
-      lastName: "Clark",
-      email: "daniel.clark@example.com",
-      phone: "0494 567 890",
-      businessName: "Clark Plumbing",
-      businessAbn: "94 567 890 123",
-      address: "147 Pipe Lane",
-      state: "SA",
-      city: "Mount Gambier",
-      postcode: "5290",
-      serviceCategories: "Plumbing, Emergency",
-      source: "Referral",
-      status: "email",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "24/7 emergency plumbing services. Licensed plumber.",
-      nextFollowUpDate: "2024-01-20",
-      lastContactDate: "2024-01-18",
-      lastContactType: "email",
-      createdAt: "2024-01-17T08:30:00Z",
-      updatedAt: "2024-01-18T15:45:00Z"
-    },
-    {
-      id: 14,
-      firstName: "Rachel",
-      lastName: "Gonzalez",
-      email: "rachel.gonzalez@example.com",
-      phone: "0495 678 901",
-      businessName: "Gonzalez Electrical",
-      businessAbn: "95 678 901 234",
-      address: "258 Wire Street",
-      state: "TAS",
-      city: "Launceston",
-      postcode: "7250",
-      serviceCategories: "Electrical, Commercial",
-      source: "Social Media",
-      status: "email",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Specializes in commercial electrical work. Certified electrician.",
-      nextFollowUpDate: "2024-01-21",
-      lastContactDate: "2024-01-19",
-      lastContactType: "email",
-      createdAt: "2024-01-18T12:00:00Z",
-      updatedAt: "2024-01-19T11:20:00Z"
-    },
-    // Won status providers
-    {
-      id: 15,
-      firstName: "Steven",
-      lastName: "Rodriguez",
-      email: "steven.rodriguez@example.com",
-      phone: "0496 789 012",
-      businessName: "Rodriguez Construction",
-      businessAbn: "96 789 012 345",
-      address: "369 Build Street",
-      state: "NT",
-      city: "Alice Springs",
-      postcode: "0870",
-      serviceCategories: "Construction, Renovations",
-      source: "Website",
-      status: "won",
-      priority: "high",
-      assignedTo: "Lisa Wang",
-      notes: "Full-service construction company. Licensed builder.",
-      nextFollowUpDate: "2024-01-22",
-      lastContactDate: "2024-01-20",
-      lastContactType: "phone",
-      createdAt: "2024-01-19T10:15:00Z",
-      updatedAt: "2024-01-20T13:30:00Z"
-    },
-    {
-      id: 16,
-      firstName: "Melissa",
-      lastName: "Turner",
-      email: "melissa.turner@example.com",
-      phone: "0497 890 123",
-      businessName: "Turner Photography",
-      businessAbn: "97 890 123 456",
-      address: "741 Photo Lane",
-      state: "ACT",
-      city: "Belconnen",
-      postcode: "2617",
-      serviceCategories: "Photography, Portraits",
-      source: "Referral",
-      status: "won",
-      priority: "medium",
-      assignedTo: "Tom Anderson",
-      notes: "Professional portrait photographer. Studio available.",
-      nextFollowUpDate: "2024-01-23",
-      lastContactDate: "2024-01-21",
-      lastContactType: "email",
-      createdAt: "2024-01-20T14:45:00Z",
-      updatedAt: "2024-01-21T09:15:00Z"
-    },
-    {
-      id: 1,
-      firstName: "John",
-      lastName: "Smith",
-      email: "john.smith@example.com",
-      phone: "0412 345 678",
-      businessName: "Smith Plumbing Services",
-      businessAbn: "12 345 678 901",
-      address: "123 Main Street",
-      state: "NSW",
-      city: "Sydney",
-      postcode: "2000",
-      serviceCategories: "Plumbing, Emergency Repairs",
-      source: "Website",
-      status: "new",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "Interested in emergency plumbing services. Has 10 years experience.",
-      nextFollowUpDate: "2024-01-15",
-      lastContactDate: "2024-01-10",
-      lastContactType: "email",
-      createdAt: "2024-01-08T10:00:00Z",
-      updatedAt: "2024-01-10T14:30:00Z"
-    },
-    {
-      id: 2,
-      firstName: "Maria",
-      lastName: "Garcia",
-      email: "maria.garcia@example.com",
-      phone: "0423 456 789",
-      businessName: "Garcia Electrical",
-      businessAbn: "23 456 789 012",
-      address: "456 Oak Avenue",
-      state: "VIC",
-      city: "Melbourne",
-      postcode: "3000",
-      serviceCategories: "Electrical, Installation",
-      source: "Referral",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Specializes in residential electrical work. Licensed electrician.",
-      nextFollowUpDate: "2024-01-16",
-      lastContactDate: "2024-01-11",
-      lastContactType: "phone",
-      createdAt: "2024-01-09T09:15:00Z",
-      updatedAt: "2024-01-11T16:45:00Z"
-    },
-    {
-      id: 3,
-      firstName: "David",
-      lastName: "Wilson",
-      email: "david.wilson@example.com",
-      phone: "0434 567 890",
-      businessName: "Wilson Cleaning Services",
-      businessAbn: "34 567 890 123",
-      address: "789 Pine Road",
-      state: "QLD",
-      city: "Brisbane",
-      postcode: "4000",
-      serviceCategories: "Cleaning, Commercial",
-      source: "Social Media",
-      status: "new",
-      priority: "low",
-      assignedTo: "Lisa Wang",
-      notes: "Focuses on commercial cleaning. Has 5 employees.",
-      nextFollowUpDate: "2024-01-18",
-      lastContactDate: "2024-01-12",
-      lastContactType: "email",
-      createdAt: "2024-01-10T11:30:00Z",
-      updatedAt: "2024-01-12T10:20:00Z"
-    },
-    {
-      id: 4,
-      firstName: "Emma",
-      lastName: "Thompson",
-      email: "emma.thompson@example.com",
-      phone: "0445 678 901",
-      businessName: "Thompson Gardening",
-      businessAbn: "45 678 901 234",
-      address: "321 Garden Street",
-      state: "WA",
-      city: "Perth",
-      postcode: "6000",
-      serviceCategories: "Gardening, Landscaping",
-      source: "Website",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Tom Anderson",
-      notes: "Specializes in sustainable gardening. Certified horticulturist.",
-      nextFollowUpDate: "2024-01-17",
-      lastContactDate: "2024-01-13",
-      lastContactType: "phone",
-      createdAt: "2024-01-11T13:45:00Z",
-      updatedAt: "2024-01-13T15:10:00Z"
-    },
-    {
-      id: 5,
-      firstName: "James",
-      lastName: "Brown",
-      email: "james.brown@example.com",
-      phone: "0456 789 012",
-      businessName: "Brown Carpentry",
-      businessAbn: "56 789 012 345",
-      address: "654 Wood Lane",
-      state: "SA",
-      city: "Adelaide",
-      postcode: "5000",
-      serviceCategories: "Carpentry, Renovations",
-      source: "Referral",
-      status: "new",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "Expert in custom furniture and home renovations. 15 years experience.",
-      nextFollowUpDate: "2024-01-14",
-      lastContactDate: "2024-01-12",
-      lastContactType: "email",
-      createdAt: "2024-01-12T08:20:00Z",
-      updatedAt: "2024-01-12T17:30:00Z"
-    },
-    {
-      id: 6,
-      firstName: "Sophie",
-      lastName: "Davis",
-      email: "sophie.davis@example.com",
-      phone: "0467 890 123",
-      businessName: "Davis Painting Co",
-      businessAbn: "67 890 123 456",
-      address: "987 Color Street",
-      state: "TAS",
-      city: "Hobart",
-      postcode: "7000",
-      serviceCategories: "Painting, Interior Design",
-      source: "Social Media",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Specializes in interior and exterior painting. Uses eco-friendly paints.",
-      nextFollowUpDate: "2024-01-19",
-      lastContactDate: "2024-01-14",
-      lastContactType: "phone",
-      createdAt: "2024-01-13T10:15:00Z",
-      updatedAt: "2024-01-14T11:45:00Z"
-    },
-    {
-      id: 7,
-      firstName: "Michael",
-      lastName: "Johnson",
-      email: "michael.johnson@example.com",
-      phone: "0478 901 234",
-      businessName: "Johnson Security",
-      businessAbn: "78 901 234 567",
-      address: "147 Security Blvd",
-      state: "NT",
-      city: "Darwin",
-      postcode: "0800",
-      serviceCategories: "Security, CCTV Installation",
-      source: "Website",
-      status: "new",
-      priority: "high",
-      assignedTo: "Lisa Wang",
-      notes: "Provides security systems for homes and businesses. Licensed security provider.",
-      nextFollowUpDate: "2024-01-15",
-      lastContactDate: "2024-01-13",
-      lastContactType: "email",
-      createdAt: "2024-01-14T09:30:00Z",
-      updatedAt: "2024-01-13T14:20:00Z"
-    },
-    {
-      id: 8,
-      firstName: "Amanda",
-      lastName: "Lee",
-      email: "amanda.lee@example.com",
-      phone: "0489 012 345",
-      businessName: "Lee Photography",
-      businessAbn: "89 012 345 678",
-      address: "258 Camera Road",
-      state: "ACT",
-      city: "Canberra",
-      postcode: "2600",
-      serviceCategories: "Photography, Events",
-      source: "Referral",
-      status: "new",
-      priority: "low",
-      assignedTo: "Tom Anderson",
-      notes: "Specializes in wedding and event photography. Professional equipment.",
-      nextFollowUpDate: "2024-01-20",
-      lastContactDate: "2024-01-15",
-      lastContactType: "phone",
-      createdAt: "2024-01-15T12:00:00Z",
-      updatedAt: "2024-01-15T16:30:00Z"
-    }
-  ];
+  // Dummy data for development/testing - DISABLED (using dynamic data from database)
+  // All dummy data has been removed to use real database data
 
   // Fetch potential providers
-  const { data: potentialProviders, isLoading } = useQuery({
+  const { data: potentialProviders = [], isLoading } = useQuery({
     queryKey: ['/api/admin/potential-providers'],
     queryFn: async () => {
-      try {
-        const response = await adminApiRequest('GET', '/api/admin/potential-providers');
-        const data = await response.json();
-        return data;
-      } catch (error) {
-        console.log('Using dummy data due to API error:', error);
-        return dummyProviders;
-      }
+      const response = await adminApiRequest('GET', '/api/admin/potential-providers');
+      const data = await response.json();
+      return data;
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -911,6 +324,20 @@ export default function AdminPotentialProviders() {
         priority: "medium",
         notes: "",
       });
+    },
+  });
+
+  // Update potential provider mutation
+  const updateProviderMutation = useMutation({
+    mutationFn: async (updateData: { id: number; status?: string; nextFollowUpDate?: string }) => {
+      const response = await adminApiRequest('PATCH', `/api/admin/potential-providers/${updateData.id}`, {
+        ...(updateData.status && { status: updateData.status }),
+        ...(updateData.nextFollowUpDate && { nextFollowUpDate: updateData.nextFollowUpDate }),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
     },
   });
 
@@ -1081,7 +508,27 @@ export default function AdminPotentialProviders() {
 
       const updatedColumns = KANBAN_COLUMNS.map(column => ({
         ...column,
-        providers: filtered.filter((provider: PotentialProvider) => provider.status === column.id)
+        providers: filtered.filter((provider: PotentialProvider) => {
+          // Organize providers by time/urgency based on their nextFollowUpDate or createdAt
+          const now = new Date();
+          const providerDate = provider.nextFollowUpDate ? new Date(provider.nextFollowUpDate) : new Date(provider.createdAt);
+          const daysDiff = Math.ceil((providerDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          
+          switch (column.id) {
+            case 'overdue24h':
+              return daysDiff < -1; // Overdue by more than 24 hours
+            case 'overdue':
+              return daysDiff >= -1 && daysDiff < 0; // Overdue but within 24 hours
+            case 'today':
+              return daysDiff === 0; // Due today
+            case 'tomorrow':
+              return daysDiff === 1; // Due tomorrow
+            case 'upcoming':
+              return daysDiff > 1; // Due in the future
+            default:
+              return false;
+          }
+        })
       }));
 
       setKanbanColumns(updatedColumns);
@@ -1133,6 +580,46 @@ export default function AdminPotentialProviders() {
         potentialProviderId: selectedProvider.id,
       });
     }
+  };
+
+  const handleProviderStatusChange = (providerId: number, newStatus: string) => {
+    // Update provider status via API
+    updateProviderMutation.mutate({
+      id: providerId,
+      status: newStatus,
+    });
+  };
+
+  const handleProviderTimeChange = (providerId: number, columnId: string) => {
+    // Calculate new follow-up date based on column
+    const now = new Date();
+    let newFollowUpDate;
+    
+    switch (columnId) {
+      case 'overdue24h':
+        newFollowUpDate = new Date(now.getTime() - (2 * 24 * 60 * 60 * 1000)); // 2 days ago
+        break;
+      case 'overdue':
+        newFollowUpDate = new Date(now.getTime() - (12 * 60 * 60 * 1000)); // 12 hours ago
+        break;
+      case 'today':
+        newFollowUpDate = new Date(now.getTime()); // Today
+        break;
+      case 'tomorrow':
+        newFollowUpDate = new Date(now.getTime() + (24 * 60 * 60 * 1000)); // Tomorrow
+        break;
+      case 'upcoming':
+        newFollowUpDate = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000)); // 3 days from now
+        break;
+      default:
+        return;
+    }
+
+    // Update provider follow-up date via API
+    updateProviderMutation.mutate({
+      id: providerId,
+      nextFollowUpDate: newFollowUpDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+    });
   };
 
   const handleSendEmail = () => {
@@ -1273,7 +760,7 @@ export default function AdminPotentialProviders() {
     }
     
     if (viewMode === 'kanban') {
-      return filtered; // Return all filtered providers for kanban view
+      return filtered.filter((p: PotentialProvider) => p.status !== 'won' && p.status !== 'lost' && p.status !== 'new');
     }
     
     return filtered.filter((p: PotentialProvider) => p.status !== 'won' && p.status !== 'lost' && p.status !== 'new');
@@ -1896,8 +1383,9 @@ export default function AdminPotentialProviders() {
 
               {viewMode === 'kanban' && (
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                  {/* Original time-based columns for providers */}
                   {kanbanColumns.map((column) => {
-                    const tasks = kanbanTasks?.[column.id as keyof typeof kanbanTasks] || [];
+                    const columnProviders = column.providers;
                     return (
                       <div key={column.id} className="space-y-4">
                         <div className="flex items-center justify-between mb-4">
@@ -1905,7 +1393,7 @@ export default function AdminPotentialProviders() {
                             {column.title}
                           </h3>
                           <Badge variant="secondary" className="ml-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                            {tasks.length}
+                            {columnProviders.length}
                           </Badge>
                         </div>
                         
@@ -1914,80 +1402,77 @@ export default function AdminPotentialProviders() {
                           onDragOver={(e) => e.preventDefault()}
                           onDrop={(e) => {
                             e.preventDefault();
-                            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                            handleTaskMove(data.taskId, data.currentColumn, column.id);
+                            const providerId = parseInt(e.dataTransfer.getData('text/plain'));
+                            handleProviderTimeChange(providerId, column.id);
                           }}
                         >
-                          {tasks.length === 0 ? (
+                          {columnProviders.length === 0 ? (
                             <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400">
-                              <p className="text-sm">No tasks in this stage</p>
+                              <p className="text-sm">No providers in this status</p>
                             </div>
                           ) : (
                             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f1f5f9' }}>
-                              {tasks.map((task: TeamTask) => (
+                              {columnProviders.map((provider: PotentialProvider) => (
                                 <div
-                                  key={task.id}
+                                  key={provider.id}
                                   className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200 group cursor-move"
                                   draggable
                                   onDragStart={(e) => {
-                                    e.dataTransfer.setData('text/plain', JSON.stringify({
-                                      taskId: task.id,
-                                      currentColumn: column.id
-                                    }));
+                                    e.dataTransfer.setData('text/plain', provider.id.toString());
                                   }}
                                 >
                                   <div className="flex items-start justify-between mb-3">
                                     <div className="flex-1 min-w-0">
                                       <h4 className="font-semibold text-gray-900 dark:text-white truncate">
-                                        {task.title}
+                                        {provider.firstName} {provider.lastName}
                                       </h4>
-                                      {task.description && (
+                                      {provider.businessName && (
                                         <p className="text-sm text-gray-600 dark:text-gray-400 truncate mt-1">
-                                          {task.description}
+                                          {provider.businessName}
                                         </p>
                                       )}
                                     </div>
                                     <Badge 
-                                      className={`${getPriorityColor(task.priority)} text-white text-xs font-medium`}
+                                      className={`${
+                                        provider.priority === 'high' ? 'bg-red-500' :
+                                        provider.priority === 'medium' ? 'bg-yellow-500' :
+                                        'bg-gray-500'
+                                      } text-white text-xs font-medium`}
                                     >
-                                      {task.priority}
+                                      {provider.priority}
                                     </Badge>
                                   </div>
                                   
                                   <div className="space-y-2">
                                     <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                      <Calendar className="h-3 w-3 mr-2 flex-shrink-0" />
-                                      <span className="truncate">
-                                        Due: {new Date(task.dueDate).toLocaleDateString()}
-                                      </span>
+                                      <Mail className="h-3 w-3 mr-2 flex-shrink-0" />
+                                      <span className="truncate">{provider.email}</span>
                                     </div>
-                                    
-                                    {task.assignedTo && (
-                                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                        <User className="h-3 w-3 mr-2 flex-shrink-0" />
-                                        <span className="truncate">{task.assignedTo}</span>
-                                      </div>
-                                    )}
                                     
                                     <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                      <Tag className="h-3 w-3 mr-2 flex-shrink-0" />
-                                      <span className="truncate capitalize">{task.taskType}</span>
+                                      <Phone className="h-3 w-3 mr-2 flex-shrink-0" />
+                                      <span className="truncate">{provider.phone}</span>
                                     </div>
                                     
-                                    {isSuperAdmin && (
-                                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                      <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
+                                      <span className="truncate">{provider.city}, {provider.state}</span>
+                                    </div>
+                                    
+                                    {provider.assignedTo && (
+                                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                                         <User className="h-3 w-3 mr-2 flex-shrink-0" />
-                                        <span className="truncate text-xs">By: {task.adminId}</span>
+                                        <span className="truncate">{provider.assignedTo}</span>
                                       </div>
                                     )}
                                     
                                     <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 dark:border-gray-600">
                                       <Badge variant="outline" className="text-xs">
-                                        {task.status}
+                                        {provider.source}
                                       </Badge>
                                       <div className="flex items-center text-xs text-gray-500">
                                         <Clock className="h-3 w-3 mr-1" />
-                                        {new Date(task.createdAt).toLocaleDateString()}
+                                        {new Date(provider.createdAt).toLocaleDateString()}
                                       </div>
                                     </div>
                                   </div>
@@ -2433,12 +1918,28 @@ export default function AdminPotentialProviders() {
       <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create Team Task</DialogTitle>
+            <DialogTitle>Create Task</DialogTitle>
             <DialogDescription>
-              Create a new task for team management
+              {selectedProvider ? 
+                `Create a task for ${selectedProvider.firstName} ${selectedProvider.lastName}` :
+                'Create a new task for team management'
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Show selected provider info */}
+            {selectedProvider && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Creating task for:</h4>
+                <div className="text-sm text-blue-800 dark:text-blue-200">
+                  <p><strong>Name:</strong> {selectedProvider.firstName} {selectedProvider.lastName}</p>
+                  <p><strong>Email:</strong> {selectedProvider.email}</p>
+                  <p><strong>Phone:</strong> {selectedProvider.phone}</p>
+                  {selectedProvider.businessName && <p><strong>Business:</strong> {selectedProvider.businessName}</p>}
+                </div>
+              </div>
+            )}
+            
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Task Title *</label>
@@ -2568,8 +2069,8 @@ export default function AdminPotentialProviders() {
             <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateTeamTask} disabled={createTeamTaskMutation.isPending}>
-              {createTeamTaskMutation.isPending ? "Creating..." : "Create Task"}
+            <Button onClick={handleCreateTask} disabled={createTaskMutation.isPending}>
+              {createTaskMutation.isPending ? "Creating..." : "Create Task"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -5981,6 +5981,7 @@ export class DatabaseStorage implements IStorage {
 
   async createPotentialProviderTask(taskData: any): Promise<PotentialProviderTask> {
     try {
+      // Create the task
       const [task] = await db.insert(potentialProviderTasks).values({
         potentialProviderId: taskData.potentialProviderId,
         taskType: taskData.taskType,
@@ -5992,6 +5993,17 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date(),
         updatedAt: new Date(),
       }).returning();
+
+      // Update provider status from 'new' to 'active' when task is created
+      await db.update(potentialProviders)
+        .set({ 
+          status: 'active',
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(potentialProviders.id, taskData.potentialProviderId),
+          eq(potentialProviders.status, 'new')
+        ));
 
       return task;
     } catch (error) {
