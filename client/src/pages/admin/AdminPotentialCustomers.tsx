@@ -112,7 +112,7 @@ export default function AdminPotentialCustomers() {
   const [selectedImportId, setSelectedImportId] = useState<string>("all");
   const [selectedState, setSelectedState] = useState<string>("all");
   const [selectedCustomerStatus, setSelectedCustomerStatus] = useState<string>("all");
-  const [selectedRegionId, setSelectedRegionId] = useState<string>("all");
+  // Region filter removed - customers don't have region data
   
   // State for SMS sending
   const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
@@ -122,7 +122,80 @@ export default function AdminPotentialCustomers() {
   const [isCampaignDialogOpen, setIsCampaignDialogOpen] = useState(false);
   const [isEditCampaignDialogOpen, setIsEditCampaignDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<SMSCampaign | null>(null);
-  const [campaigns, setCampaigns] = useState<SMSCampaign[]>([]);
+  const [campaigns, setCampaigns] = useState<SMSCampaign[]>([
+    {
+      id: 1,
+      name: "QLD Launch Campaign",
+      message: "Welcome to ServicePanda! Get 20% off your first service booking. Use code QLD20 to redeem. Book now at servicepanda.com.au",
+      voucherCode: "QLD20",
+      voucherAmount: 20,
+      selectedStates: ["Queensland"],
+      selectedRegions: [1, 2, 3],
+      selectedStatuses: ["New"],
+      scheduledAt: "2024-01-15T10:00:00",
+      status: "sent",
+      totalSent: 150,
+      createdAt: "2024-01-10T09:00:00",
+      sentAt: "2024-01-15T10:05:00"
+    },
+    {
+      id: 2,
+      name: "NSW Winter Special",
+      message: "Beat the winter blues! 30% off all home services this month. Limited time offer - book today!",
+      voucherCode: "WINTER30",
+      voucherAmount: 30,
+      selectedStates: ["New South Wales"],
+      selectedRegions: [4, 5, 6],
+      selectedStatuses: ["New", "Contacted"],
+      scheduledAt: "2024-02-01T08:00:00",
+      status: "scheduled",
+      totalSent: 0,
+      createdAt: "2024-01-25T14:30:00"
+    },
+    {
+      id: 3,
+      name: "VIC Follow-up Campaign",
+      message: "Hi! We noticed you haven't booked a service yet. Here's a special 25% discount just for you. Don't miss out!",
+      voucherCode: "VIC25",
+      voucherAmount: 25,
+      selectedStates: ["Victoria"],
+      selectedRegions: [7, 8],
+      selectedStatuses: ["New"],
+      scheduledAt: null,
+      status: "draft",
+      totalSent: 0,
+      createdAt: "2024-01-28T16:45:00"
+    },
+    {
+      id: 4,
+      name: "National Welcome Campaign",
+      message: "Welcome to ServicePanda! We're excited to help you find the perfect service provider. Get started with 15% off your first booking.",
+      voucherCode: "WELCOME15",
+      voucherAmount: 15,
+      selectedStates: ["New South Wales", "Victoria", "Queensland"],
+      selectedRegions: [1, 2, 3, 4, 5, 6, 7, 8],
+      selectedStatuses: ["New"],
+      scheduledAt: "2024-01-05T12:00:00",
+      status: "sent",
+      totalSent: 320,
+      createdAt: "2024-01-01T10:00:00",
+      sentAt: "2024-01-05T12:02:00"
+    },
+    {
+      id: 5,
+      name: "Failed Test Campaign",
+      message: "This is a test message that failed to send properly due to API issues.",
+      voucherCode: null,
+      voucherAmount: null,
+      selectedStates: ["Western Australia"],
+      selectedRegions: [9],
+      selectedStatuses: ["New"],
+      scheduledAt: "2024-01-20T15:00:00",
+      status: "failed",
+      totalSent: 0,
+      createdAt: "2024-01-18T11:20:00"
+    }
+  ]);
   const [newCampaign, setNewCampaign] = useState({
     name: '',
     message: '',
@@ -146,6 +219,7 @@ export default function AdminPotentialCustomers() {
   const setCustomerStatus = (customerId: number, status: string) => {
     setCustomerStatusMap(prev => ({ ...prev, [customerId]: status }));
   };
+
 
   // List/Kanban toggle for customer list
   const [customerListView, setCustomerListView] = useState<'list' | 'kanban'>('list');
@@ -175,6 +249,7 @@ export default function AdminPotentialCustomers() {
     },
   });
 
+
   // Fetch import groups
   const { data: importGroups = [] } = useQuery({
     queryKey: ['/api/admin/potential-customers/import-groups'],
@@ -198,7 +273,30 @@ export default function AdminPotentialCustomers() {
     },
   });
 
-  // Fetch Australian regions (SA4)
+  // Calculate target audience for campaigns
+  const getTargetAudience = React.useMemo(() => {
+    if (!potentialCustomers || newCampaign.selectedStates.length === 0) return [];
+    
+    return potentialCustomers.filter((customer: PotentialCustomer) => {
+      // Check if customer state matches selected states
+      const customerStateObj = allStates.find(state => state.abbreviation === customer.state);
+      if (!customerStateObj) return false;
+      
+      const stateMatches = newCampaign.selectedStates.includes(customerStateObj.name);
+      if (!stateMatches) return false;
+      
+      // Check customer status if specified
+      if (newCampaign.selectedStatuses.length > 0) {
+        const currentStatus = customerStatusMap[customer.id] ?? 'New';
+        const statusMatches = newCampaign.selectedStatuses.includes(currentStatus);
+        if (!statusMatches) return false;
+      }
+      
+      return true;
+    });
+  }, [potentialCustomers, newCampaign.selectedStates, newCampaign.selectedStatuses, allStates, customerStatusMap]);
+
+  // Fetch Australian regions (SA4) - needed for SMS campaigns
   const { data: allRegions = [] } = useQuery<AustralianRegion[]>({
     queryKey: ['/api/regions'],
     queryFn: async () => {
@@ -207,7 +305,7 @@ export default function AdminPotentialCustomers() {
     },
   });
 
-  // Regions filtered by selected state (if selected)
+  // Regions filtered by selected state (if selected) - for SMS campaigns only
   const displayRegions = React.useMemo(() => {
     if (selectedState === 'all') return allRegions as AustralianRegion[];
     const stateRecord = (allStates as AustralianState[]).find(s => s.name === selectedState || s.abbreviation === selectedState);
@@ -466,7 +564,17 @@ export default function AdminPotentialCustomers() {
                          customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          customer.phone.includes(searchTerm);
     const matchesImportId = selectedImportId === "all" || customer.importId === selectedImportId;
-    const matchesState = selectedState === "all" || customer.state === selectedState;
+    
+    // Fix state matching: customer.state contains abbreviations, selectedState contains full names
+    const matchesState = selectedState === "all" || (() => {
+      if (selectedState === "all") return true;
+      // Find the state object that matches the selected state name
+      const selectedStateObj = allStates.find(state => state.name === selectedState);
+      if (!selectedStateObj) return false;
+      // Compare customer state (abbreviation) with the abbreviation of selected state
+      return customer.state === selectedStateObj.abbreviation;
+    })();
+    
     const currentStatus = customerStatusMap[customer.id] ?? 'New';
     const matchesCustomerStatus = selectedCustomerStatus === 'all' || currentStatus === selectedCustomerStatus;
     
@@ -578,26 +686,13 @@ export default function AdminPotentialCustomers() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All states</SelectItem>
-                          {uniqueStates.map((state: string) => (
-                            <SelectItem key={state} value={state}>{state}</SelectItem>
+                          {allStates.map((state: AustralianState) => (
+                            <SelectItem key={state.id} value={state.name}>{state.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
-                      <Label htmlFor="region">Region</Label>
-                      <Select value={selectedRegionId} onValueChange={setSelectedRegionId} disabled={selectedState === 'all'}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All regions" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All regions</SelectItem>
-                          {displayRegions.map((r: AustralianRegion) => (
-                            <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* Region filter removed - customers don't have region data */}
                     <div>
                       <Label htmlFor="customer-status">Customer Status</Label>
                       <Select value={selectedCustomerStatus} onValueChange={setSelectedCustomerStatus}>
@@ -625,7 +720,6 @@ export default function AdminPotentialCustomers() {
                           setSelectedImportId("all");
                           setSelectedState("all");
                           setSelectedCustomerStatus("all");
-                          setSelectedRegionId("all");
                         }}
                       >
                         <RefreshCw className="h-4 w-4 mr-2" />
@@ -727,7 +821,8 @@ export default function AdminPotentialCustomers() {
                                         </SelectContent>
                                       </Select>
                                     </div>
-                                    <Button
+                                    {/* Send SMS button hidden for now */}
+                                    {/* <Button
                                       size="sm"
                                       variant="outline"
                                       onClick={() => {
@@ -738,7 +833,7 @@ export default function AdminPotentialCustomers() {
                                     >
                                       <Send className="h-4 w-4 mr-2" />
                                       Send SMS
-                                    </Button>
+                                    </Button> */}
                                   </div>
                                 </div>
                               </div>
@@ -863,43 +958,102 @@ export default function AdminPotentialCustomers() {
                               return (
                                 <div key={column.id} className="space-y-3 w-80 flex-shrink-0">
                                   <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-semibold">{column.title}</h3>
-                                    <Badge variant="secondary">{columnCustomers.length}</Badge>
+                                    <h3 className="text-lg font-semibold text-gray-800">{column.title}</h3>
+                                    <Badge variant="secondary" className="bg-white text-gray-700 border border-gray-300">
+                                      {columnCustomers.length}
+                                    </Badge>
                                   </div>
                                   <div
-                                    className={"min-h-[400px] max-h-[600px] p-3 rounded-xl " + column.color + " border border-gray-200 overflow-hidden"}
-                                    onDragOver={(e) => e.preventDefault()}
+                                    className={"min-h-[500px] max-h-[700px] p-4 rounded-xl " + column.color + " border-2 border-gray-200 overflow-hidden shadow-sm"}
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
+                                    }}
+                                    onDragLeave={(e) => {
+                                      e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+                                    }}
                                     onDrop={(e) => {
                                       e.preventDefault();
+                                      e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
                                       const idStr = e.dataTransfer.getData('text/plain');
                                       const cid = parseInt(idStr);
                                       if (!isNaN(cid)) {
                                         setCustomerStatus(cid, column.id);
+                                        toast({
+                                          title: "Status Updated",
+                                          description: `Customer moved to ${column.title}`,
+                                        });
                                       }
                                     }}
                                   >
-                                    <div className="space-y-3 max-h-[560px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f1f5f9' }}>
-                                      {columnCustomers.map((customer: PotentialCustomer) => (
-                                        <div
-                                          key={customer.id}
-                                          className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition cursor-move"
-                                          draggable
-                                          onDragStart={(e) => {
-                                            e.dataTransfer.setData('text/plain', customer.id.toString());
-                                          }}
-                                        >
-                                          <div className="flex items-start justify-between">
-                                            <div className="min-w-0">
-                                              <h4 className="font-semibold text-gray-900 truncate">{customer.name}</h4>
-                                              <div className="mt-1 text-sm text-gray-600 space-y-1">
-                                                <div className="flex items-center gap-2"><Mail className="h-4 w-4" /><span className="truncate">{customer.email}</span></div>
-                                                <div className="flex items-center gap-2"><Phone className="h-4 w-4" /><span>{customer.phone}</span></div>
-                                                <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /><span>{customer.city}, {customer.state}</span></div>
+                                    <div className="space-y-3 max-h-[660px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f1f5f9' }}>
+                                      {columnCustomers.length === 0 ? (
+                                        <div className="text-center py-8 text-gray-500">
+                                          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                          <p className="text-sm">No customers in this status</p>
+                                        </div>
+                                      ) : (
+                                        columnCustomers.map((customer: PotentialCustomer) => (
+                                          <div
+                                            key={customer.id}
+                                            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 cursor-move hover:scale-[1.02] group"
+                                            draggable
+                                            onDragStart={(e) => {
+                                              e.dataTransfer.setData('text/plain', customer.id.toString());
+                                              e.currentTarget.classList.add('opacity-50');
+                                            }}
+                                            onDragEnd={(e) => {
+                                              e.currentTarget.classList.remove('opacity-50');
+                                            }}
+                                          >
+                                            <div className="flex items-start justify-between">
+                                              <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                  <h4 className="font-semibold text-gray-900 truncate">{customer.name}</h4>
+                                                  <Badge variant="outline" className="text-xs">
+                                                    {getSmsStatusBadge(customer.smsDeliveryStatus)}
+                                                  </Badge>
+                                                </div>
+                                                <div className="space-y-2 text-sm text-gray-600">
+                                                  <div className="flex items-center gap-2">
+                                                    <Mail className="h-3 w-3 text-gray-400" />
+                                                    <span className="truncate">{customer.email}</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-2">
+                                                    <Phone className="h-3 w-3 text-gray-400" />
+                                                    <span>{customer.phone}</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-2">
+                                                    <MapPin className="h-3 w-3 text-gray-400" />
+                                                    <span>{customer.city}, {customer.state}</span>
+                                                  </div>
+                                                  {customer.importName && (
+                                                    <div className="flex items-center gap-2">
+                                                      <Calendar className="h-3 w-3 text-gray-400" />
+                                                      <span className="text-xs text-gray-500">{customer.importName}</span>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                              <div className="ml-2 flex flex-col gap-1">
+                                                {/* Send SMS button hidden for now */}
+                                                {/* <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedCustomersForSms([customer]);
+                                                    setIsSmsDialogOpen(true);
+                                                  }}
+                                                >
+                                                  <Send className="h-3 w-3" />
+                                                </Button> */}
                                               </div>
                                             </div>
                                           </div>
-                                        </div>
-                                      ))}
+                                        ))
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -952,8 +1106,10 @@ export default function AdminPotentialCustomers() {
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
-                              {getSmsStatusBadge(group.smsDeliveryStatus)}
-                              <Button
+                              {/* SMS status badge hidden for now */}
+                              {/* {getSmsStatusBadge(group.smsDeliveryStatus)} */}
+                              {/* Send SMS to Group button hidden for now */}
+                              {/* <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => {
@@ -964,7 +1120,7 @@ export default function AdminPotentialCustomers() {
                               >
                                 <Send className="h-4 w-4 mr-2" />
                                 Send SMS to Group
-                              </Button>
+                              </Button> */}
                             </div>
                           </div>
                         </div>
@@ -1278,26 +1434,26 @@ export default function AdminPotentialCustomers() {
               <div>
                 <Label>States (Multi-select)</Label>
                 <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
-                  {uniqueStates.map((state) => (
-                    <label key={state} className="flex items-center space-x-2">
+                  {allStates.map((state) => (
+                    <label key={state.id} className="flex items-center space-x-2">
                       <input
                         type="checkbox"
-                        checked={newCampaign.selectedStates.includes(state)}
+                        checked={newCampaign.selectedStates.includes(state.name)}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setNewCampaign(prev => ({
                               ...prev,
-                              selectedStates: [...prev.selectedStates, state]
+                              selectedStates: [...prev.selectedStates, state.name]
                             }));
                           } else {
                             setNewCampaign(prev => ({
                               ...prev,
-                              selectedStates: prev.selectedStates.filter(s => s !== state)
+                              selectedStates: prev.selectedStates.filter(s => s !== state.name)
                             }));
                           }
                         }}
                       />
-                      <span className="text-sm">{state}</span>
+                      <span className="text-sm">{state.name}</span>
                     </label>
                   ))}
                 </div>
@@ -1360,8 +1516,61 @@ export default function AdminPotentialCustomers() {
               </div>
             </div>
 
+            {/* Target Audience Preview */}
+            {newCampaign.selectedStates.length > 0 && (
+              <div className="space-y-4">
+                <h4 className="font-medium">Target Audience Preview</h4>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium">
+                      {getTargetAudience.length} customers will receive this campaign
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      Based on selected criteria
+                    </span>
+                  </div>
+                  
+                  {getTargetAudience.length > 0 ? (
+                    <div className="max-h-40 overflow-y-auto space-y-2">
+                      {getTargetAudience.slice(0, 10).map((customer: PotentialCustomer) => (
+                        <div key={customer.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-xs font-medium text-blue-600">
+                                {customer.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{customer.name}</p>
+                              <p className="text-xs text-gray-500">{customer.phone}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500">{customer.state}</p>
+                            <p className="text-xs text-gray-400">
+                              {customerStatusMap[customer.id] ?? 'New'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {getTargetAudience.length > 10 && (
+                        <p className="text-xs text-gray-500 text-center py-2">
+                          ... and {getTargetAudience.length - 10} more customers
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-500">No customers match the selected criteria</p>
+                      <p className="text-xs text-gray-400 mt-1">Try adjusting your state or status filters</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
-              <Button onClick={handleCreateCampaign}>
+              <Button onClick={handleCreateCampaign} disabled={getTargetAudience.length === 0}>
                 Create Campaign
               </Button>
               <Button variant="outline" onClick={() => setIsCampaignDialogOpen(false)}>
@@ -1452,26 +1661,26 @@ export default function AdminPotentialCustomers() {
               <div>
                 <Label>States (Multi-select)</Label>
                 <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
-                  {uniqueStates.map((state) => (
-                    <label key={state} className="flex items-center space-x-2">
+                  {allStates.map((state) => (
+                    <label key={state.id} className="flex items-center space-x-2">
                       <input
                         type="checkbox"
-                        checked={newCampaign.selectedStates.includes(state)}
+                        checked={newCampaign.selectedStates.includes(state.name)}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setNewCampaign(prev => ({
                               ...prev,
-                              selectedStates: [...prev.selectedStates, state]
+                              selectedStates: [...prev.selectedStates, state.name]
                             }));
                           } else {
                             setNewCampaign(prev => ({
                               ...prev,
-                              selectedStates: prev.selectedStates.filter(s => s !== state)
+                              selectedStates: prev.selectedStates.filter(s => s !== state.name)
                             }));
                           }
                         }}
                       />
-                      <span className="text-sm">{state}</span>
+                      <span className="text-sm">{state.name}</span>
                     </label>
                   ))}
                 </div>
@@ -1534,8 +1743,61 @@ export default function AdminPotentialCustomers() {
               </div>
             </div>
 
+            {/* Target Audience Preview */}
+            {newCampaign.selectedStates.length > 0 && (
+              <div className="space-y-4">
+                <h4 className="font-medium">Target Audience Preview</h4>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium">
+                      {getTargetAudience.length} customers will receive this campaign
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      Based on selected criteria
+                    </span>
+                  </div>
+                  
+                  {getTargetAudience.length > 0 ? (
+                    <div className="max-h-40 overflow-y-auto space-y-2">
+                      {getTargetAudience.slice(0, 10).map((customer: PotentialCustomer) => (
+                        <div key={customer.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-xs font-medium text-blue-600">
+                                {customer.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{customer.name}</p>
+                              <p className="text-xs text-gray-500">{customer.phone}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500">{customer.state}</p>
+                            <p className="text-xs text-gray-400">
+                              {customerStatusMap[customer.id] ?? 'New'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {getTargetAudience.length > 10 && (
+                        <p className="text-xs text-gray-500 text-center py-2">
+                          ... and {getTargetAudience.length - 10} more customers
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-500">No customers match the selected criteria</p>
+                      <p className="text-xs text-gray-400 mt-1">Try adjusting your state or status filters</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
-              <Button onClick={handleUpdateCampaign}>
+              <Button onClick={handleUpdateCampaign} disabled={getTargetAudience.length === 0}>
                 Update Campaign
               </Button>
               <Button variant="outline" onClick={() => setIsEditCampaignDialogOpen(false)}>

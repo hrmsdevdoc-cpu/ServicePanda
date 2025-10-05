@@ -74,8 +74,8 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       label: "Potential Customers",
       href: "/admin/potential-customers",
       subItems: [
-        { label: "Customer List", href: "/admin/potential-customers" },
         { label: "Import Groups", href: "/admin/potential-customers/imports" },
+        { label: "Customer List", href: "/admin/potential-customers" },
         { label: "SMS Campaigns", href: "/admin/potential-customers/sms" },
       ],
     },
