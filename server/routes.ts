@@ -121,6 +121,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all service providers (public endpoint for lead distribution)
+  app.get('/api/service-providers', async (req: any, res) => {
+    try {
+      const providers = await storage.getServiceProvidersByStatus('approved');
+      res.json(providers);
+    } catch (error) {
+      console.error("Error fetching service providers:", error);
+      res.status(500).json({ message: "Failed to fetch service providers" });
+    }
+  });
+
   // Get service provider by user ID
   app.get('/api/service-providers/me', isAuthenticated, async (req: any, res) => {
     try {

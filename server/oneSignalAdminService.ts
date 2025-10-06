@@ -43,16 +43,15 @@ class OneSignalAdminService {
     try {
       console.log(`📤 Sending OneSignal push notification to provider ${providerId}`);
 
-      // DYNAMIC: Use external user IDs for reliable targeting
-      const externalUserIds = this.getExternalUserIds(providerId);
-      console.log(`👤 Using dynamic external user IDs for provider ${providerId}:`, externalUserIds);
+      // BROADCAST: Send to all users (no external ID needed)
+      console.log(`📢 Sending broadcast notification to all users`);
 
-      // Create payload with TARGETED delivery (works with external ID)
+      // Create payload with BROADCAST delivery (no external ID needed)
       const payload = {
         app_id: this.appId,
         
-        // TARGETED STRATEGY: Use external user ID for reliable delivery
-        include_external_user_ids: [`provider-${providerId}`],
+        // BROADCAST STRATEGY: Send to all users
+        included_segments: ['All'],
         
         headings: { en: notification.title },
         contents: { en: notification.message },

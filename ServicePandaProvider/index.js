@@ -4,23 +4,14 @@ import {name as appName} from './app.json';
 
 console.log('🚀 ServicePandaProvider App Starting...');
 
-// Prevent OneSignal auto-initialization
-// OneSignal will be initialized manually after user login
+// Simple OneSignal initialization
 try {
   const OneSignal = require('react-native-onesignal');
-  console.log('✅ OneSignal imported but NOT initialized - waiting for login');
-  
-  // Completely disable OneSignal auto-initialization
-  // This prevents any automatic device creation
-  if (OneSignal && OneSignal.Debug && OneSignal.Debug.setLogLevel) {
-    OneSignal.Debug.setLogLevel(0); // Disable logging to prevent auto-init
-  }
-  
-  // Don't call any initialization methods here
-  // This prevents auto-creation of device entries
-  
+  OneSignal.setAppId('a3f5070d-9c46-44cd-8b0a-259df155ae94');
+  OneSignal.disablePush(false);
+  console.log('✅ OneSignal ready for notifications');
 } catch (error) {
-  console.log('❌ OneSignal import failed:', error);
+  console.log('❌ OneSignal failed:', error);
 }
 
 AppRegistry.registerComponent(appName, () => App);
