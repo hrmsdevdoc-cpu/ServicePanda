@@ -185,7 +185,7 @@ export default function AdminDashboard() {
   }) : [];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex">
       {/* Sidebar */}
       <AdminSidebar 
         onLogout={handleLogout} 
@@ -196,14 +196,14 @@ export default function AdminDashboard() {
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
         <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-6">
+          <div className="px-8 py-4" style={{ paddingTop: '1.7rem', paddingBottom: '1rem' }}>
             <div className="flex items-center">
               <Shield className="h-8 w-8 text-blue-600 mr-3" />
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                   Dashboard Overview
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Platform statistics and management overview
                 </p>
               </div>

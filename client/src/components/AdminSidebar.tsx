@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import ToggleButton from "./ToggleButton";
 import {
   LayoutDashboard,
   Users,
@@ -163,75 +164,67 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
   return (
     <>
       {/* Sidebar toggle button - positioned near top-left outside sidebar */}
-      <Button
-        variant="secondary"
-        size="icon"
-        aria-label={isCollapsed ? "Show sidebar" : "Hide sidebar"}
-        onClick={() => setIsCollapsed(prev => !prev)}
-        className="fixed top-4 z-50 shadow"
-        style={{ left: isCollapsed ? 8 : 268 }}
-      >
-        {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-      </Button>
 
-      <div className={`bg-white dark:bg-gray-800 flex flex-col h-screen overflow-hidden transition-all duration-300 border-r sticky left-0 top-0 ${
-        isCollapsed ? 'w-0 border-0' : 'w-64 border-gray-200 dark:border-gray-700'
+      <div className={`bg-white dark:bg-gray-800 flex flex-col h-screen overflow-hidden transition-all duration-300 border-r sticky left-0 top-0 relative ${
+        isCollapsed ? 'w-16' : 'w-64 border-gray-200 dark:border-gray-700'
       }`}>
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className={`border-b border-gray-200 dark:border-gray-700 ${isCollapsed ? 'p-3' : 'p-4'}`}>
         <div className="flex items-center">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
             <LayoutDashboard className="h-5 w-5 text-white" />
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white">ServicePanda</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Admin Panel</p>
-          </div>
+          {!isCollapsed && (
+            <div>
+              <h1 className="text-base font-bold text-gray-900 dark:text-white">ServicePanda</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Admin Panel</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <div className="space-y-2">
+      <nav className={`flex-1 overflow-y-auto ${isCollapsed ? 'p-1' : 'p-3'}`}>
+        <div className="space-y-1">
           {menuItems.map((item) => (
             <div key={item.href}>
               {item.subItems.length > 0 ? (
                 <Button
                   variant={isActiveRoute(item.href) || hasActiveSubItem(item.subItems) ? "default" : "ghost"}
-                  className={`w-full justify-start ${
+                  className={`w-full justify-start text-sm ${
                     isActiveRoute(item.href) || hasActiveSubItem(item.subItems)
                       ? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                   onClick={() => toggleMenu(item.href)}
                 >
-                  <item.icon className="h-4 w-4 mr-3" />
-                  {item.label}
-                  {isMenuExpanded(item.href) ? (
-                    <ChevronDown className="h-4 w-4 ml-auto" />
+                  <item.icon className="h-4 w-4 mr-2" />
+                  {!isCollapsed && item.label}
+                  {!isCollapsed && (isMenuExpanded(item.href) ? (
+                    <ChevronDown className="h-3 w-3 ml-auto" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 ml-auto" />
-                  )}
+                    <ChevronRight className="h-3 w-3 ml-auto" />
+                  ))}
                 </Button>
               ) : (
                 <Link href={item.href}>
                   <Button
                     variant={isActiveRoute(item.href) ? "default" : "ghost"}
-                    className={`w-full justify-start ${
+                    className={`w-full justify-start text-sm ${
                       isActiveRoute(item.href)
                         ? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
                         : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                     }`}
                   >
-                    <item.icon className="h-4 w-4 mr-3" />
-                    {item.label}
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {!isCollapsed && item.label}
                   </Button>
                 </Link>
               )}
               
               {/* Sub-items */}
-              {item.subItems.length > 0 && isMenuExpanded(item.href) && (
-                <div className="ml-4 mt-2 space-y-1">
+              {item.subItems.length > 0 && isMenuExpanded(item.href) && !isCollapsed && (
+                <div className="ml-3 mt-1 space-y-1">
                   {item.subItems.map((subItem) => (
                     <div key={subItem.href}>
                       {subItem.subItems ? (
@@ -240,7 +233,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className={`w-full justify-start text-sm ${
+                            className={`w-full justify-start text-xs ${
                               hasActiveSubItem(subItem.subItems)
                                 ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-400"
                                 : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -256,7 +249,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
                             )}
                           </Button>
                           {isMenuExpanded(subItem.href) && (
-                            <div className="ml-4 mt-1 space-y-1">
+                            <div className="ml-3 mt-1 space-y-1">
                               {subItem.subItems.map((nestedItem) => (
                                 <Link key={nestedItem.href} href={nestedItem.href}>
                                   <Button
@@ -301,37 +294,50 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 flex-1">
+      <div className={`border-t border-gray-200 dark:border-gray-700 ${isCollapsed ? 'p-2' : 'p-3'}`}>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center space-x-2">
             <User className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Admin'}
-            </span>
+            {!isCollapsed && (
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                {adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Admin'}
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/change-password" className="w-full">
-                    Change Password
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onLogout}
-              className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            {!isCollapsed && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/change-password" className="w-full">
+                      Change Password
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {!isCollapsed && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onLogout}
+                className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            )}
+            <ToggleButton 
+              isExpanded={!isCollapsed} 
+              onToggle={() => {
+                console.log('Toggle clicked, current isCollapsed:', isCollapsed);
+                setIsCollapsed(!isCollapsed);
+              }} 
+            />
           </div>
         </div>
       </div>

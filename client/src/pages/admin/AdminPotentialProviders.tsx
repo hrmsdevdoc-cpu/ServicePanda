@@ -779,23 +779,23 @@ export default function AdminPotentialProviders() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex">
       {/* Sidebar */}
       <AdminSidebar onLogout={handleLogout} />
       
       {/* Main content area */}
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-6">
+        <header className="bg-white dark:bg-gray-800 shadow-sm">
+          <div className="px-8 py-6 border-b border-gray-200 dark:border-gray-700" style={{ paddingTop: '1.7rem', paddingBottom: '1rem' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <UserSearch className="h-8 w-8 text-purple-600 mr-3" />
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                  <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                     Potential Providers
                   </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Manage potential service providers before they become actual providers
                   </p>
                 </div>
@@ -815,7 +815,7 @@ export default function AdminPotentialProviders() {
         </header>
 
         {/* View Mode Tabs */}
-        <div className="px-8 py-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="px-8 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
               <Button

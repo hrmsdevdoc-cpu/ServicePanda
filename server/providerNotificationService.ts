@@ -98,8 +98,8 @@ class ProviderNotificationService {
     console.log(`🛎️ Notifying ${eligibleProviders.length} providers of new customer request #${requestId}`);
 
     const notification: NotificationPayload = {
-      title: 'New Customer Request Available! 🛎️',
-      message: `${categoryName} needed in ${customerLocation}\n"${description.substring(0, 100)}${description.length > 100 ? '...' : ''}"`,
+      title: '🆕 NEW CUSTOMER REQUEST! 🛎️',
+      message: `📍 ${categoryName} needed in ${customerLocation}\n"${description.substring(0, 100)}${description.length > 100 ? '...' : ''}"`,
       type: 'customer_request',
       data: {
         requestId,
@@ -107,7 +107,9 @@ class ProviderNotificationService {
         customerLocation,
         description,
         timestamp: new Date().toISOString(),
-        priority: 'high'
+        priority: 'high',
+        category: 'new_request',
+        action: 'view_request'
       }
     };
 

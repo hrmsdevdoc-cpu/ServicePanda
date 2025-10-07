@@ -3326,6 +3326,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
 
+  // Execute campaign with unique vouchers
+  app.post(
+    '/api/admin/campaigns/execute',
+    isAdminAuthenticated,
+    async (req, res) => {
+      try {
+        const { 
+          campaignId, 
+          messageTemplate, 
+          voucherAmount, 
+          customerIds, 
+          adminName 
+        } = req.body;
+
+        console.log("🎯 Executing campaign with unique vouchers:", { 
+          campaignId, 
+          voucherAmount, 
+          customerCount: customerIds?.length 
+        });
+
+        if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
+          return res.status(400).json({ message: 'No customer IDs provided' });
+        }
+
+        if (!messageTemplate || !voucherAmount) {
+          return res.status(400).json({ message: 'Message template and voucher amount are required' });
+        }
+
+        const results = [];
+        let successCount = 0;
+        let failureCount = 0;
+
+        // Process each customer individually to generate unique vouchers
+        for (const customerId of customerIds) {
+          try {
+            // Get customer details
+            const [customer] = await db
+              .select()
+              .from(potentialCustomers)
+              .where(eq(potentialCustomers.id, customerId));
+
+            if (!customer) {
+              console.warn(`[Campaign] Customer not found: id=${customerId}`);
+              results.push({
+                customerId,
+                name: '',
+                phone: '',
+                status: 'skipped',
+                sent: false,
+                reason: 'not_found',
+                voucherCode: null
+              });
+              failureCount++;
+              continue;
+            }
+
+            // Normalize phone number
+            const raw = (customer.phone || '').toString();
+            const digits = raw.replace(/[^0-9+]/g, '');
+            const normalizedPhone = digits.startsWith('+61') ? digits : 
+                                  digits.startsWith('61') ? `+${digits}` : 
+                                  digits.startsWith('0') ? `+61${digits.slice(1)}` : null;
+
+            if (!normalizedPhone) {
+              console.warn(`[Campaign] Invalid phone format: id=${customer.id} phone=${customer.phone}`);
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: 'skipped',
+                sent: false,
+                reason: 'invalid_phone',
+                voucherCode: null
+              });
+              failureCount++;
+              continue;
+            }
+
+            // Send SMS with unique voucher
+            const voucherResult = await smsService.sendSmsWithVoucher(
+              normalizedPhone,
+              customer.name,
+              messageTemplate,
+              voucherAmount,
+              {
+                customerId: customer.id,
+                adminName: adminName || 'admin',
+                smsType: 'campaign'
+              }
+            );
+
+            if (voucherResult.success) {
+              // Update customer SMS status
+              await storage.updatePotentialCustomerSmsStatus(customer.id, '1st_sent');
+              
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: 'sent',
+                sent: true,
+                voucherCode: voucherResult.voucherCode,
+                message: voucherResult.message
+              });
+              successCount++;
+              
+              console.log(`[Campaign] ✅ Sent to ${customer.name} with voucher ${voucherResult.voucherCode}`);
+            } else {
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: 'failed',
+                sent: false,
+                reason: voucherResult.message || 'SMS send failed',
+                voucherCode: null
+              });
+              failureCount++;
+              
+              console.log(`[Campaign] ❌ Failed to send to ${customer.name}: ${voucherResult.message}`);
+            }
+
+          } catch (error) {
+            console.error(`[Campaign] Error processing customer ${customerId}:`, error);
+            results.push({
+              customerId,
+              name: '',
+              phone: '',
+              status: 'failed',
+              sent: false,
+              reason: 'processing_error',
+              voucherCode: null
+            });
+            failureCount++;
+          }
+        }
+
+        console.log(`[Campaign] Execution complete: ${successCount} sent, ${failureCount} failed`);
+
+        res.json({
+          success: true,
+          campaignId,
+          totalCustomers: customerIds.length,
+          sent: successCount,
+          failed: failureCount,
+          results
+        });
+
+      } catch (error) {
+        console.error("❌ Error executing campaign:", error);
+        res.status(500).json({ message: 'Failed to execute campaign' });
+      }
+    }
+  );
+
+
   // Admin User Reports endpoint
   app.post('/api/admin/reports/users', async (req, res) => {
     try {
@@ -4396,6 +4552,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting team task:', error);
       res.status(500).json({ message: 'Failed to delete team task' });
+    }
+  });
+
+  // SMS Campaigns API endpoints
+  // Get all SMS campaigns
+  app.get('/api/admin/sms/campaigns', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaigns = await storage.getSmsCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error('Error fetching SMS campaigns:', error);
+      res.status(500).json({ message: 'Failed to fetch SMS campaigns' });
+    }
+  });
+
+  // Create new SMS campaign
+  app.post('/api/admin/sms/campaigns', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignData = req.body;
+      const campaign = await storage.createSmsCampaign(campaignData);
+      res.status(201).json(campaign);
+    } catch (error) {
+      console.error('Error creating SMS campaign:', error);
+      res.status(500).json({ message: 'Failed to create SMS campaign' });
+    }
+  });
+
+  // Update SMS campaign
+  app.put('/api/admin/sms/campaigns/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaignData = req.body;
+      const campaign = await storage.updateSmsCampaign(campaignId, campaignData);
+      res.json(campaign);
+    } catch (error) {
+      console.error('Error updating SMS campaign:', error);
+      res.status(500).json({ message: 'Failed to update SMS campaign' });
+    }
+  });
+
+  // Delete SMS campaign
+  app.delete('/api/admin/sms/campaigns/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      await storage.deleteSmsCampaign(campaignId);
+      res.json({ message: 'Campaign deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting SMS campaign:', error);
+      res.status(500).json({ message: 'Failed to delete SMS campaign' });
+    }
+  });
+
+  // Send SMS campaign
+  app.post('/api/admin/sms/campaigns/:id/send', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const { customerIds, adminName } = req.body;
+      
+      const result = await storage.sendSmsCampaign(campaignId, customerIds, adminName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error sending SMS campaign:', error);
+      res.status(500).json({ message: 'Failed to send SMS campaign' });
     }
   });
 
