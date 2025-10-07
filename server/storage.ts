@@ -155,6 +155,9 @@ import {
   teamTasks,
   type TeamTask,
   type InsertTeamTask,
+  smsCampaigns,
+  type SmsCampaign,
+  type InsertSmsCampaign,
 } from "@shared/schema";
 
 // Import Group interface
@@ -6574,6 +6577,218 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('Error fetching team tasks for kanban:', error);
+      throw error;
+    }
+  }
+
+  // SMS Campaign methods
+  async getSmsCampaigns(): Promise<any[]> {
+    try {
+      const campaigns = await db
+        .select()
+        .from(smsCampaigns)
+        .orderBy(desc(smsCampaigns.createdAt));
+      return campaigns;
+    } catch (error) {
+      console.error('Error fetching SMS campaigns:', error);
+      throw error;
+    }
+  }
+
+  async createSmsCampaign(campaignData: any): Promise<any> {
+    try {
+      const [campaign] = await db
+        .insert(smsCampaigns)
+        .values({
+          name: campaignData.name,
+          message: campaignData.message,
+          voucherCode: campaignData.voucherCode || null,
+          voucherAmount: campaignData.voucherAmount || null,
+          selectedStates: campaignData.selectedStates,
+          selectedRegions: campaignData.selectedRegions || null,
+          selectedStatuses: campaignData.selectedStatuses,
+          scheduledAt: campaignData.scheduledAt || null,
+          status: campaignData.status || 'draft',
+          totalSent: 0,
+        })
+        .returning();
+      return campaign;
+    } catch (error) {
+      console.error('Error creating SMS campaign:', error);
+      throw error;
+    }
+  }
+
+  async updateSmsCampaign(campaignId: number, campaignData: any): Promise<any> {
+    try {
+      const [campaign] = await db
+        .update(smsCampaigns)
+        .set({
+          name: campaignData.name,
+          message: campaignData.message,
+          voucherCode: campaignData.voucherCode || null,
+          voucherAmount: campaignData.voucherAmount || null,
+          selectedStates: campaignData.selectedStates,
+          selectedRegions: campaignData.selectedRegions || null,
+          selectedStatuses: campaignData.selectedStatuses,
+          scheduledAt: campaignData.scheduledAt || null,
+          status: campaignData.status || 'draft',
+          updatedAt: new Date(),
+        })
+        .where(eq(smsCampaigns.id, campaignId))
+        .returning();
+      return campaign;
+    } catch (error) {
+      console.error('Error updating SMS campaign:', error);
+      throw error;
+    }
+  }
+
+  async deleteSmsCampaign(campaignId: number): Promise<void> {
+    try {
+      await db
+        .delete(smsCampaigns)
+        .where(eq(smsCampaigns.id, campaignId));
+    } catch (error) {
+      console.error('Error deleting SMS campaign:', error);
+      throw error;
+    }
+  }
+
+  async sendSmsCampaign(campaignId: number, customerIds: number[], adminName: string): Promise<any> {
+    try {
+      // Get campaign details
+      const [campaign] = await db
+        .select()
+        .from(smsCampaigns)
+        .where(eq(smsCampaigns.id, campaignId));
+
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      // Get customer details
+      const customers = await db
+        .select()
+        .from(potentialCustomers)
+        .where(inArray(potentialCustomers.id, customerIds));
+
+      // Send SMS to each customer
+      let successCount = 0;
+      let failCount = 0;
+      const results = [];
+
+      for (const customer of customers) {
+        try {
+          // Determine SMS type based on current status
+          let smsType: '1st_sent' | '2nd_sent';
+          if (customer.smsDeliveryStatus === 'not_sent' || !customer.smsDeliveryStatus) {
+            smsType = '1st_sent';
+          } else if (customer.smsDeliveryStatus === '1st_sent') {
+            smsType = '2nd_sent';
+          } else {
+            console.warn(`[Campaign][skip] Customer ${customer.id} already sent 2 SMS`);
+            continue;
+          }
+
+          // Replace placeholders in message
+          let message = campaign.message
+            .replace(/\{customerName\}/g, customer.name)
+            .replace(/\{voucherCode\}/g, campaign.voucherCode || '')
+            .replace(/\{voucherAmount\}/g, campaign.voucherAmount?.toString() || '');
+
+          // Send SMS using existing SMS service
+          const success = await smsService.sendSms(customer.phone, message, {
+            adminName,
+            customerId: customer.id,
+            smsType: smsType,
+          });
+          
+          if (success) {
+            // Update customer SMS status
+            await this.updateCustomerSmsStatus(customer.id, smsType);
+            successCount++;
+            results.push({
+              customerId: customer.id,
+              customerName: customer.name,
+              phone: customer.phone,
+              status: 'sent',
+              smsType: smsType
+            });
+            console.log(`[Campaign][success] SMS sent to ${customer.name} (${customer.phone}) - ${smsType}`);
+          } else {
+            failCount++;
+            results.push({
+              customerId: customer.id,
+              customerName: customer.name,
+              phone: customer.phone,
+              status: 'failed',
+              smsType: smsType
+            });
+            console.error(`[Campaign][failed] SMS failed to ${customer.name} (${customer.phone}) - ${smsType}`);
+          }
+        } catch (error) {
+          console.error(`[Campaign][error] Error sending SMS to customer ${customer.id}:`, error);
+          failCount++;
+          results.push({
+            customerId: customer.id,
+            customerName: customer.name,
+            phone: customer.phone,
+            status: 'error',
+            error: error.message
+          });
+        }
+      }
+
+      // Update campaign status
+      const campaignStatus = failCount === 0 ? 'sent' : (successCount > 0 ? 'sent' : 'failed');
+      const [updatedCampaign] = await db
+        .update(smsCampaigns)
+        .set({
+          status: campaignStatus,
+          totalSent: successCount,
+          sentAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(smsCampaigns.id, campaignId))
+        .returning();
+
+      console.log(`[Campaign][complete] Campaign ${campaignId} - Success: ${successCount}, Failed: ${failCount}`);
+
+      return {
+        campaign: updatedCampaign,
+        successCount,
+        failCount,
+        totalCustomers: customers.length,
+        results: results
+      };
+    } catch (error) {
+      console.error('Error sending SMS campaign:', error);
+      throw error;
+    }
+  }
+
+  async updateCustomerSmsStatus(customerId: number, smsType: '1st_sent' | '2nd_sent'): Promise<void> {
+    try {
+      const updateData: any = {
+        smsDeliveryStatus: smsType,
+        updatedAt: new Date(),
+      };
+
+      if (smsType === '1st_sent') {
+        updateData.firstSmsSentAt = new Date();
+      } else if (smsType === '2nd_sent') {
+        updateData.secondSmsSentAt = new Date();
+      }
+
+      await db
+        .update(potentialCustomers)
+        .set(updateData)
+        .where(eq(potentialCustomers.id, customerId));
+
+      console.log(`[SMS Status] Updated customer ${customerId} to ${smsType}`);
+    } catch (error) {
+      console.error(`[SMS Status] Error updating customer ${customerId}:`, error);
       throw error;
     }
   }

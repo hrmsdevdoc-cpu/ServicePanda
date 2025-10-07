@@ -547,6 +547,7 @@ export const australianSuburbsRelations = relations(australianSuburbs, ({ one, m
   providerServiceAreas: many(providerServiceAreas),
 }));
 
+
 export const providerServiceAreasRelations = relations(providerServiceAreas, ({ one }) => ({
   provider: one(serviceProviders, { fields: [providerServiceAreas.providerId], references: [serviceProviders.id] }),
   suburb: one(australianSuburbs, { fields: [providerServiceAreas.suburbId], references: [australianSuburbs.id] }),
@@ -965,6 +966,7 @@ export const potentialCustomers = pgTable("potential_customers", {
   state: varchar("state").notNull(),
   city: varchar("city").notNull(),
   address: text("address").notNull(),
+  region: varchar("region", { length: 100 }), // Region field for filtering
   importId: varchar("import_id").notNull(), // Unique identifier for batch imports
   importName: varchar("import_name").notNull(), // Label to identify imported groups
   smsDeliveryStatus: varchar("sms_delivery_status", { length: 20 }).default("not_sent"), // not_sent, 1st_sent, 2nd_sent
@@ -973,6 +975,9 @@ export const potentialCustomers = pgTable("potential_customers", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Relations for potential customers
+export const potentialCustomersRelations = relations(potentialCustomers, ({ one }) => ({}));
 
 // Terms and Conditions table
 export const termsAndConditions = pgTable("terms_and_conditions", {
@@ -1210,3 +1215,35 @@ export const insertTeamTaskSchema = createInsertSchema(teamTasks).omit({
 // Types for team tasks
 export type TeamTask = typeof teamTasks.$inferSelect;
 export type InsertTeamTask = z.infer<typeof insertTeamTaskSchema>;
+
+// SMS Campaigns table
+export const smsCampaigns = pgTable("sms_campaigns", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  message: text("message").notNull(),
+  voucherCode: varchar("voucher_code"),
+  voucherAmount: decimal("voucher_amount", { precision: 10, scale: 2 }),
+  selectedStates: jsonb("selected_states").notNull().$type<string[]>(),
+  selectedRegions: jsonb("selected_regions").$type<string[]>(),
+  selectedStatuses: jsonb("selected_statuses").notNull().$type<string[]>(),
+  scheduledAt: timestamp("scheduled_at"),
+  status: varchar("status", { length: 20 }).notNull().default("draft"), // draft, scheduled, sent, failed
+  totalSent: integer("total_sent").default(0),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_sms_campaigns_status").on(table.status),
+  index("idx_sms_campaigns_created_at").on(table.createdAt),
+]);
+
+// Insert schema for SMS campaigns
+export const insertSmsCampaignSchema = createInsertSchema(smsCampaigns).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+// Types for SMS campaigns
+export type SmsCampaign = typeof smsCampaigns.$inferSelect;
+export type InsertSmsCampaign = z.infer<typeof insertSmsCampaignSchema>;

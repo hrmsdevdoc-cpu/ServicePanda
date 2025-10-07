@@ -47,8 +47,21 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyC2WY_UbxpsA89u-cuJzAewTk5m8yKHWBg" />
         
-        <!-- OneSignal Configuration - REMOVED to prevent auto-initialization -->
-        <!-- OneSignal will be initialized manually after user login -->
+        <!-- OneSignal Configuration -->
+        <meta-data
+            android:name="onesignal_app_id"
+            android:value="a3f5070d-9c46-44cd-8b0a-259df155ae94" />
+        <meta-data
+            android:name="onesignal_google_project_number"
+            android:value="REMOTE" />
+        
+        <!-- OneSignal Notification Icon -->
+        <meta-data
+            android:name="onesignal_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+        <meta-data
+            android:name="onesignal_notification_accent_color"
+            android:resource="@color/colorAccent" />
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"

@@ -50,6 +50,7 @@ interface PotentialCustomer {
   state: string;
   city: string;
   address: string;
+  region?: string;
   importId: string;
   importName: string;
   smsDeliveryStatus: 'not_sent' | '1st_sent' | '2nd_sent';
@@ -86,7 +87,7 @@ interface SMSCampaign {
   voucherCode?: string;
   voucherAmount?: number;
   selectedStates: string[];
-  selectedRegions: number[];
+  selectedRegions?: string[];
   selectedStatuses: string[];
   scheduledAt?: string;
   status: 'draft' | 'scheduled' | 'sent' | 'failed';
@@ -122,87 +123,14 @@ export default function AdminPotentialCustomers() {
   const [isCampaignDialogOpen, setIsCampaignDialogOpen] = useState(false);
   const [isEditCampaignDialogOpen, setIsEditCampaignDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<SMSCampaign | null>(null);
-  const [campaigns, setCampaigns] = useState<SMSCampaign[]>([
-    {
-      id: 1,
-      name: "QLD Launch Campaign",
-      message: "Welcome to ServicePanda! Get 20% off your first service booking. Use code QLD20 to redeem. Book now at servicepanda.com.au",
-      voucherCode: "QLD20",
-      voucherAmount: 20,
-      selectedStates: ["Queensland"],
-      selectedRegions: [1, 2, 3],
-      selectedStatuses: ["New"],
-      scheduledAt: "2024-01-15T10:00:00",
-      status: "sent",
-      totalSent: 150,
-      createdAt: "2024-01-10T09:00:00",
-      sentAt: "2024-01-15T10:05:00"
-    },
-    {
-      id: 2,
-      name: "NSW Winter Special",
-      message: "Beat the winter blues! 30% off all home services this month. Limited time offer - book today!",
-      voucherCode: "WINTER30",
-      voucherAmount: 30,
-      selectedStates: ["New South Wales"],
-      selectedRegions: [4, 5, 6],
-      selectedStatuses: ["New", "Contacted"],
-      scheduledAt: "2024-02-01T08:00:00",
-      status: "scheduled",
-      totalSent: 0,
-      createdAt: "2024-01-25T14:30:00"
-    },
-    {
-      id: 3,
-      name: "VIC Follow-up Campaign",
-      message: "Hi! We noticed you haven't booked a service yet. Here's a special 25% discount just for you. Don't miss out!",
-      voucherCode: "VIC25",
-      voucherAmount: 25,
-      selectedStates: ["Victoria"],
-      selectedRegions: [7, 8],
-      selectedStatuses: ["New"],
-      scheduledAt: null,
-      status: "draft",
-      totalSent: 0,
-      createdAt: "2024-01-28T16:45:00"
-    },
-    {
-      id: 4,
-      name: "National Welcome Campaign",
-      message: "Welcome to ServicePanda! We're excited to help you find the perfect service provider. Get started with 15% off your first booking.",
-      voucherCode: "WELCOME15",
-      voucherAmount: 15,
-      selectedStates: ["New South Wales", "Victoria", "Queensland"],
-      selectedRegions: [1, 2, 3, 4, 5, 6, 7, 8],
-      selectedStatuses: ["New"],
-      scheduledAt: "2024-01-05T12:00:00",
-      status: "sent",
-      totalSent: 320,
-      createdAt: "2024-01-01T10:00:00",
-      sentAt: "2024-01-05T12:02:00"
-    },
-    {
-      id: 5,
-      name: "Failed Test Campaign",
-      message: "This is a test message that failed to send properly due to API issues.",
-      voucherCode: null,
-      voucherAmount: null,
-      selectedStates: ["Western Australia"],
-      selectedRegions: [9],
-      selectedStatuses: ["New"],
-      scheduledAt: "2024-01-20T15:00:00",
-      status: "failed",
-      totalSent: 0,
-      createdAt: "2024-01-18T11:20:00"
-    }
-  ]);
+  const [campaigns, setCampaigns] = useState<SMSCampaign[]>([]);
   const [newCampaign, setNewCampaign] = useState({
     name: '',
     message: '',
     voucherCode: '',
     voucherAmount: 0,
     selectedStates: [] as string[],
-    selectedRegions: [] as number[],
+    selectedRegions: [] as string[],
     selectedStatuses: [] as string[],
     scheduledAt: '',
   });
@@ -220,18 +148,102 @@ export default function AdminPotentialCustomers() {
     setCustomerStatusMap(prev => ({ ...prev, [customerId]: status }));
   };
 
-
   // List/Kanban toggle for customer list
   const [customerListView, setCustomerListView] = useState<'list' | 'kanban'>('list');
+  
+  // Auto-scroll functionality
+  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+  const kanbanRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll effect
+  React.useEffect(() => {
+    let animationId: number;
+    let scrollDirection: 'left' | 'right' | null = null;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!kanbanRef.current || customerListView !== 'kanban') return;
+      
+      const rect = kanbanRef.current.getBoundingClientRect();
+      const scrollThreshold = 80; // Distance from edge to trigger scroll
+      const scrollSpeed = 2; // Pixels per frame
+      
+      // Check if mouse is near left edge
+      if (e.clientX - rect.left < scrollThreshold && kanbanRef.current.scrollLeft > 0) {
+        scrollDirection = 'left';
+        setIsAutoScrolling(true);
+      }
+      // Check if mouse is near right edge
+      else if (rect.right - e.clientX < scrollThreshold && 
+               kanbanRef.current.scrollLeft < kanbanRef.current.scrollWidth - kanbanRef.current.clientWidth) {
+        scrollDirection = 'right';
+        setIsAutoScrolling(true);
+      }
+      else {
+        scrollDirection = null;
+        setIsAutoScrolling(false);
+      }
+    };
+
+    const animateScroll = () => {
+      if (kanbanRef.current && scrollDirection) {
+        if (scrollDirection === 'left') {
+          kanbanRef.current.scrollLeft -= 2;
+        } else if (scrollDirection === 'right') {
+          kanbanRef.current.scrollLeft += 2;
+        }
+        animationId = requestAnimationFrame(animateScroll);
+      }
+    };
+
+    if (customerListView === 'kanban') {
+      document.addEventListener('mousemove', handleMouseMove);
+      animationId = requestAnimationFrame(animateScroll);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [customerListView]);
+
+  // Keyboard shortcuts for Kanban navigation
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (customerListView !== 'kanban' || !kanbanRef.current) return;
+      
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        kanbanRef.current.scrollLeft -= 200;
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        kanbanRef.current.scrollLeft += 200;
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        kanbanRef.current.scrollLeft = 0;
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        kanbanRef.current.scrollLeft = kanbanRef.current.scrollWidth;
+      }
+    };
+
+    if (customerListView === 'kanban') {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [customerListView]);
 
   const CUSTOMER_STATUSES: { id: string; title: string; color: string }[] = [
     { id: 'New', title: 'New', color: 'bg-gray-100' },
     { id: 'Added to Campaign', title: 'Added to Campaign', color: 'bg-blue-100' },
-    { id: 'SMS Sent', title: 'SMS Sent', color: 'bg-indigo-100' },
-    { id: '2nd SMS', title: '2nd SMS', color: 'bg-yellow-100' },
-    { id: '3rd Sent', title: '3rd Sent', color: 'bg-purple-100' },
+    { id: '1st_sent', title: '1st SMS Sent', color: 'bg-indigo-100' },
+    { id: '2nd_sent', title: '2nd SMS Sent', color: 'bg-green-100' },
     { id: 'Lost', title: 'Lost', color: 'bg-red-100' },
-    { id: 'Won', title: 'Won', color: 'bg-green-100' },
+    { id: 'Won', title: 'Won', color: 'bg-emerald-100' },
     { id: 'Unsubscribe', title: 'Unsubscribe', color: 'bg-slate-200' },
   ];
 
@@ -240,12 +252,35 @@ export default function AdminPotentialCustomers() {
     setLocation('/admin-login');
   };
 
+
+
+
+
   // Fetch potential customers
   const { data: potentialCustomers = [], isLoading } = useQuery({
     queryKey: ['/api/admin/potential-customers'],
     queryFn: async () => {
       const response = await adminApiRequest('GET', '/api/admin/potential-customers');
-      return response.json();
+      const data = await response.json();
+      // Check if region field exists and log sample data
+      if (data.length > 0) {
+        console.log('🔍 API Response Check:');
+        console.log('  - Total customers:', data.length);
+        console.log('  - First customer fields:', Object.keys(data[0]));
+        console.log('  - Region field exists:', data[0].hasOwnProperty('region'));
+        console.log('  - Region value:', data[0].region);
+        
+        // Log unique regions in the data
+        const uniqueRegions = Array.from(new Set(data.map((c: any) => c.region).filter(Boolean)));
+        console.log('  - Unique regions in database:', uniqueRegions);
+        
+        if (!data[0].hasOwnProperty('region')) {
+          console.error('❌ API is not returning region field. Server needs to be restarted after schema change.');
+        } else {
+          console.log('✅ Region field is available!');
+        }
+      }
+      return data;
     },
   });
 
@@ -277,13 +312,20 @@ export default function AdminPotentialCustomers() {
   const getTargetAudience = React.useMemo(() => {
     if (!potentialCustomers || newCampaign.selectedStates.length === 0) return [];
     
-    return potentialCustomers.filter((customer: PotentialCustomer) => {
+    console.log('🎯 Calculating target audience:');
+    console.log('  - Selected states:', newCampaign.selectedStates);
+    console.log('  - Selected statuses:', newCampaign.selectedStatuses);
+    console.log('  - Total customers:', potentialCustomers.length);
+    
+    const filtered = potentialCustomers.filter((customer: PotentialCustomer) => {
       // Check if customer state matches selected states
       const customerStateObj = allStates.find(state => state.abbreviation === customer.state);
       if (!customerStateObj) return false;
       
       const stateMatches = newCampaign.selectedStates.includes(customerStateObj.name);
       if (!stateMatches) return false;
+      
+      // Region filtering disabled - using state-based filtering only
       
       // Check customer status if specified
       if (newCampaign.selectedStatuses.length > 0) {
@@ -294,7 +336,134 @@ export default function AdminPotentialCustomers() {
       
       return true;
     });
+    
+    // Remove duplicates based on phone number (most reliable unique identifier)
+    const uniqueCustomers = filtered.reduce((acc: PotentialCustomer[], current: PotentialCustomer) => {
+      const exists = acc.find(customer => customer.phone === current.phone);
+      if (!exists) {
+        acc.push(current);
+      }
+      return acc;
+    }, []);
+    
+    console.log(`  - Filtered customers: ${filtered.length}`);
+    console.log(`  - Unique customers: ${uniqueCustomers.length}`);
+    return uniqueCustomers;
   }, [potentialCustomers, newCampaign.selectedStates, newCampaign.selectedStatuses, allStates, customerStatusMap]);
+
+  // Fetch SMS campaigns
+  const { data: campaignsData = [], isLoading: campaignsLoading, refetch: refetchCampaigns } = useQuery<SMSCampaign[]>({
+    queryKey: ['/api/admin/sms/campaigns'],
+    queryFn: async () => {
+      const resp = await adminApiRequest('GET', '/api/admin/sms/campaigns');
+      return resp.json();
+    },
+  });
+
+  // Update campaigns state when data changes
+  React.useEffect(() => {
+    setCampaigns(campaignsData);
+  }, [campaignsData]);
+
+  // Campaign mutations
+  const createCampaignMutation = useMutation({
+    mutationFn: async (campaignData: any) => {
+      const resp = await adminApiRequest('POST', '/api/admin/sms/campaigns', campaignData);
+      return resp.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/sms/campaigns'] });
+      toast({
+        title: "Campaign Created",
+        description: "SMS campaign has been created successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to create campaign. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateCampaignMutation = useMutation({
+    mutationFn: async ({ id, campaignData }: { id: number; campaignData: any }) => {
+      const resp = await adminApiRequest('PUT', `/api/admin/sms/campaigns/${id}`, campaignData);
+      return resp.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/sms/campaigns'] });
+      toast({
+        title: "Campaign Updated",
+        description: "SMS campaign has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to update campaign. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteCampaignMutation = useMutation({
+    mutationFn: async (campaignId: number) => {
+      const resp = await adminApiRequest('DELETE', `/api/admin/sms/campaigns/${campaignId}`);
+      return resp.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/sms/campaigns'] });
+      toast({
+        title: "Campaign Deleted",
+        description: "SMS campaign has been deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete campaign. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const sendCampaignMutation = useMutation({
+    mutationFn: async ({ campaignId, customerIds, adminName }: { campaignId: number; customerIds: number[]; adminName: string }) => {
+      const resp = await adminApiRequest('POST', `/api/admin/sms/campaigns/${campaignId}/send`, { customerIds, adminName });
+      return resp.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/sms/campaigns'] });
+      
+      // Update customer statuses based on SMS results
+      if (data.results) {
+        data.results.forEach((result: any) => {
+          if (result.status === 'sent') {
+            // Move from "Added to Campaign" to appropriate SMS status
+            if (result.smsType === '1st_sent') {
+              setCustomerStatus(result.customerId, '1st_sent');
+            } else if (result.smsType === '2nd_sent') {
+              setCustomerStatus(result.customerId, '2nd_sent');
+            }
+          }
+        });
+      }
+      
+      toast({
+        title: "Campaign Sent",
+        description: `SMS campaign sent to ${data.successCount} customers successfully.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to send campaign. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Fetch Australian regions (SA4) - needed for SMS campaigns
   const { data: allRegions = [] } = useQuery<AustralianRegion[]>({
@@ -305,13 +474,96 @@ export default function AdminPotentialCustomers() {
     },
   });
 
-  // Regions filtered by selected state (if selected) - for SMS campaigns only
+  // Regions filtered by selected states in campaign - for SMS campaigns only
   const displayRegions = React.useMemo(() => {
-    if (selectedState === 'all') return allRegions as AustralianRegion[];
-    const stateRecord = (allStates as AustralianState[]).find(s => s.name === selectedState || s.abbreviation === selectedState);
-    if (!stateRecord) return allRegions as AustralianRegion[];
-    return (allRegions as AustralianRegion[]).filter(r => r.stateId === stateRecord.id);
-  }, [allRegions, allStates, selectedState]);
+    console.log('DisplayRegions - allRegions:', allRegions);
+    console.log('DisplayRegions - selectedStates:', newCampaign.selectedStates);
+    // If no regions are loaded from API, show sample regions for testing
+    if (!allRegions || allRegions.length === 0) {
+      const sampleRegions = [
+        { id: 1, name: 'Sydney - Inner West', code: '10101', stateId: 1 },
+        { id: 2, name: 'Sydney - Eastern Suburbs', code: '10102', stateId: 1 },
+        { id: 3, name: 'Sydney - Northern Beaches', code: '10103', stateId: 1 },
+        { id: 4, name: 'Sydney - South West', code: '10104', stateId: 1 },
+        { id: 5, name: 'Melbourne - Inner', code: '20101', stateId: 2 },
+        { id: 6, name: 'Melbourne - Inner East', code: '20102', stateId: 2 },
+        { id: 7, name: 'Melbourne - Inner South', code: '20103', stateId: 2 },
+        { id: 8, name: 'Melbourne - North East', code: '20104', stateId: 2 },
+        { id: 9, name: 'Brisbane - Inner City', code: '30101', stateId: 3 },
+        { id: 10, name: 'Brisbane - East', code: '30102', stateId: 3 },
+        { id: 11, name: 'Brisbane - North', code: '30103', stateId: 3 },
+        { id: 12, name: 'Brisbane - South', code: '30104', stateId: 3 },
+        { id: 13, name: 'Perth - Inner', code: '40101', stateId: 5 },
+        { id: 14, name: 'Perth - North East', code: '40102', stateId: 5 },
+        { id: 15, name: 'Adelaide - Central', code: '50101', stateId: 4 },
+        { id: 16, name: 'Adelaide - North', code: '50102', stateId: 4 },
+        { id: 17, name: 'Hobart', code: '60101', stateId: 6 },
+        { id: 18, name: 'Darwin', code: '70101', stateId: 7 },
+        { id: 19, name: 'Australian Capital Territory', code: '80101', stateId: 8 },
+      ];
+      
+      // Filter regions based on selected states in the campaign
+      if (newCampaign.selectedStates.length === 0) {
+        return sampleRegions; // Show all regions if no states selected
+      }
+      
+      // Use name-based filtering instead of ID-based for more reliability
+      const filteredRegions = sampleRegions.filter(region => {
+        const regionName = region.name.toLowerCase();
+        
+        // Check if any selected state matches the region
+        return newCampaign.selectedStates.some(stateName => {
+          const stateLower = stateName.toLowerCase();
+          
+          // Direct state-region mapping
+          if (stateLower.includes('queensland') && regionName.includes('brisbane')) return true;
+          if (stateLower.includes('new south wales') && regionName.includes('sydney')) return true;
+          if (stateLower.includes('victoria') && regionName.includes('melbourne')) return true;
+          if (stateLower.includes('western australia') && regionName.includes('perth')) return true;
+          if (stateLower.includes('south australia') && regionName.includes('adelaide')) return true;
+          if (stateLower.includes('tasmania') && regionName.includes('hobart')) return true;
+          if (stateLower.includes('northern territory') && regionName.includes('darwin')) return true;
+          if (stateLower.includes('australian capital territory') && regionName.includes('canberra')) return true;
+          
+          return false;
+        });
+      });
+      
+      console.log('DisplayRegions - Using sample regions, filtered by name:', filteredRegions.map(r => ({ id: r.id, name: r.name, stateId: r.stateId })));
+      return filteredRegions;
+    }
+    
+    // Filter regions based on selected states in the campaign
+    if (newCampaign.selectedStates.length === 0) {
+      console.log('DisplayRegions - No states selected, returning all regions:', allRegions);
+      return allRegions as AustralianRegion[]; // Show all regions if no states selected
+    }
+    
+    // Use name-based filtering for API regions as well
+    const filteredRegions = (allRegions as AustralianRegion[]).filter(region => {
+      const regionName = region.name.toLowerCase();
+      
+      // Check if any selected state matches the region
+      return newCampaign.selectedStates.some(stateName => {
+        const stateLower = stateName.toLowerCase();
+        
+        // Direct state-region mapping
+        if (stateLower.includes('queensland') && regionName.includes('brisbane')) return true;
+        if (stateLower.includes('new south wales') && regionName.includes('sydney')) return true;
+        if (stateLower.includes('victoria') && regionName.includes('melbourne')) return true;
+        if (stateLower.includes('western australia') && regionName.includes('perth')) return true;
+        if (stateLower.includes('south australia') && regionName.includes('adelaide')) return true;
+        if (stateLower.includes('tasmania') && regionName.includes('hobart')) return true;
+        if (stateLower.includes('northern territory') && regionName.includes('darwin')) return true;
+        if (stateLower.includes('australian capital territory') && regionName.includes('canberra')) return true;
+        
+        return false;
+      });
+    });
+    
+    console.log('DisplayRegions - Using API regions, filtered by name:', filteredRegions.map(r => ({ id: r.id, name: r.name, stateId: r.stateId })));
+    return filteredRegions;
+  }, [allRegions, allStates, newCampaign.selectedStates]);
 
   // Import customers mutation
   const importCustomersMutation = useMutation({
@@ -414,9 +666,45 @@ export default function AdminPotentialCustomers() {
       return;
     }
 
-    const customerIds = selectedCustomersForSms.map(customer => customer.id);
+    const customerIds = selectedCustomersForSms.map((customer: PotentialCustomer) => customer.id);
     await sendSmsMutation.mutateAsync(customerIds);
   };
+
+  // Execute campaign mutation
+  const executeCampaignMutation = useMutation({
+    mutationFn: async (campaignData: {
+      campaignId: number;
+      messageTemplate: string;
+      voucherAmount: number;
+      customerIds: number[];
+      adminName: string;
+    }) => {
+      console.log("Executing campaign with unique vouchers:", campaignData);
+      const response = await adminApiRequest(
+        'POST',
+        '/api/admin/campaigns/execute',
+        campaignData
+      );
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log("Campaign executed successfully:", data);
+      toast({
+        title: "Campaign Executed Successfully",
+        description: `Campaign sent to ${data.sent} customers with unique vouchers. ${data.failed} failed.`,
+      });
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-customers'] });
+    },
+    onError: (error: any) => {
+      console.error("Error executing campaign:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to execute campaign",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Campaign management functions
   const generateVoucherCode = () => {
@@ -438,22 +726,48 @@ export default function AdminPotentialCustomers() {
       return;
     }
 
-    const campaign: SMSCampaign = {
-      id: Date.now(),
+    // Get target audience for this campaign
+    const targetAudience = potentialCustomers.filter((customer: PotentialCustomer) => {
+      // Check if customer state matches selected states
+      const customerStateObj = allStates.find(state => state.abbreviation === customer.state);
+      if (!customerStateObj) return false;
+      
+      const stateMatches = newCampaign.selectedStates.length === 0 || 
+        newCampaign.selectedStates.includes(customerStateObj.name);
+      if (!stateMatches) return false;
+      
+      // Check customer status if specified
+      const matchesStatus = newCampaign.selectedStatuses.length === 0 || 
+        newCampaign.selectedStatuses.includes(customerStatusMap[customer.id] || 'New');
+      return matchesStatus;
+    });
+
+    const campaignData = {
       name: newCampaign.name,
       message: newCampaign.message,
-      voucherCode: newCampaign.voucherCode || undefined,
-      voucherAmount: newCampaign.voucherAmount || undefined,
+      voucherCode: newCampaign.voucherCode || null,
+      voucherAmount: newCampaign.voucherAmount || null,
       selectedStates: newCampaign.selectedStates,
-      selectedRegions: newCampaign.selectedRegions,
+      selectedRegions: newCampaign.selectedRegions || null,
       selectedStatuses: newCampaign.selectedStatuses,
-      scheduledAt: newCampaign.scheduledAt || undefined,
+      scheduledAt: newCampaign.scheduledAt || null,
       status: newCampaign.scheduledAt ? 'scheduled' : 'draft',
-      totalSent: 0,
-      createdAt: new Date().toISOString(),
     };
 
-    setCampaigns(prev => [campaign, ...prev]);
+    createCampaignMutation.mutate(campaignData, {
+      onSuccess: () => {
+        // Move target customers to "Added to Campaign" status
+        targetAudience.forEach((customer: PotentialCustomer) => {
+          setCustomerStatus(customer.id, 'Added to Campaign');
+        });
+        
+        toast({
+          title: "Campaign Created",
+          description: `${targetAudience.length} customers added to campaign`,
+        });
+      }
+    });
+    
     setNewCampaign({
       name: '',
       message: '',
@@ -465,11 +779,6 @@ export default function AdminPotentialCustomers() {
       scheduledAt: '',
     });
     setIsCampaignDialogOpen(false);
-    
-    toast({
-      title: "Campaign Created",
-      description: "SMS campaign has been created successfully.",
-    });
   };
 
   const handleEditCampaign = (campaign: SMSCampaign) => {
@@ -488,7 +797,7 @@ export default function AdminPotentialCustomers() {
       voucherCode: campaign.voucherCode || '',
       voucherAmount: campaign.voucherAmount || 0,
       selectedStates: campaign.selectedStates,
-      selectedRegions: campaign.selectedRegions,
+      selectedRegions: campaign.selectedRegions || [],
       selectedStatuses: campaign.selectedStatuses,
       scheduledAt: campaign.scheduledAt || '',
     });
@@ -498,50 +807,81 @@ export default function AdminPotentialCustomers() {
   const handleUpdateCampaign = () => {
     if (!editingCampaign) return;
 
-    const updatedCampaigns = campaigns.map(c => 
-      c.id === editingCampaign.id 
-        ? {
-            ...c,
+    const campaignData = {
             name: newCampaign.name,
             message: newCampaign.message,
-            voucherCode: newCampaign.voucherCode || undefined,
-            voucherAmount: newCampaign.voucherAmount || undefined,
+      voucherCode: newCampaign.voucherCode || null,
+      voucherAmount: newCampaign.voucherAmount || null,
             selectedStates: newCampaign.selectedStates,
-            selectedRegions: newCampaign.selectedRegions,
+      selectedRegions: newCampaign.selectedRegions || null,
             selectedStatuses: newCampaign.selectedStatuses,
-            scheduledAt: newCampaign.scheduledAt || undefined,
-            status: newCampaign.scheduledAt ? 'scheduled' as const : 'draft' as const,
-          }
-        : c
-    );
+      scheduledAt: newCampaign.scheduledAt || null,
+      status: newCampaign.scheduledAt ? 'scheduled' : 'draft',
+    };
+
+    updateCampaignMutation.mutate({ id: editingCampaign.id, campaignData });
     
-    setCampaigns(updatedCampaigns);
     setIsEditCampaignDialogOpen(false);
     setEditingCampaign(null);
-    
-    toast({
-      title: "Campaign Updated",
-      description: "SMS campaign has been updated successfully.",
-    });
   };
 
   const handleDuplicateCampaign = (campaign: SMSCampaign) => {
-    const duplicatedCampaign: SMSCampaign = {
-      ...campaign,
-      id: Date.now(),
+    const campaignData = {
       name: `${campaign.name} (Copy)`,
+      message: campaign.message,
+      voucherCode: campaign.voucherCode || null,
+      voucherAmount: campaign.voucherAmount || null,
+      selectedStates: campaign.selectedStates,
+      selectedRegions: campaign.selectedRegions || null,
+      selectedStatuses: campaign.selectedStatuses,
+      scheduledAt: null,
       status: 'draft',
-      totalSent: 0,
-      createdAt: new Date().toISOString(),
-      sentAt: undefined,
     };
-    
-    setCampaigns(prev => [duplicatedCampaign, ...prev]);
-    
-    toast({
-      title: "Campaign Duplicated",
-      description: "SMS campaign has been duplicated successfully.",
+
+    createCampaignMutation.mutate(campaignData);
+  };
+
+  const handleExecuteCampaign = async (campaign: SMSCampaign) => {
+    // Get target audience for this campaign
+    const targetAudience = potentialCustomers.filter((customer: PotentialCustomer) => {
+      // Check if customer state matches selected states
+      const customerStateObj = allStates.find(state => state.abbreviation === customer.state);
+      if (!customerStateObj) return false;
+      
+      const stateMatches = campaign.selectedStates.length === 0 || 
+        campaign.selectedStates.includes(customerStateObj.name);
+      if (!stateMatches) return false;
+      
+      // Region filtering disabled - using state-based filtering only
+      
+      // Check customer status if specified
+      const matchesStatus = campaign.selectedStatuses.length === 0 || 
+        campaign.selectedStatuses.includes(customerStatusMap[customer.id] || 'New');
+      return matchesStatus;
     });
+
+    if (targetAudience.length === 0) {
+      toast({
+        title: "No Target Audience",
+        description: "No customers match the campaign criteria.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const customerIds = targetAudience.map((customer: PotentialCustomer) => customer.id);
+
+    sendCampaignMutation.mutate({
+        campaignId: campaign.id,
+        customerIds,
+        adminName: 'admin', // You can get this from auth context
+      });
+  };
+
+  const handleDeleteCampaign = (campaignId: number) => {
+    if (window.confirm('Are you sure you want to delete this campaign?')) {
+      deleteCampaignMutation.mutate(campaignId);
+    }
   };
 
 
@@ -554,6 +894,8 @@ export default function AdminPotentialCustomers() {
         return <Badge className="bg-blue-100 text-blue-800"><CheckCircle className="h-3 w-3 mr-1" />1st SMS Sent</Badge>;
       case '2nd_sent':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />2nd SMS Sent</Badge>;
+      case 'unsubscribed':
+        return <Badge className="bg-red-100 text-red-800"><X className="h-3 w-3 mr-1" />Unsubscribed</Badge>;
       default:
         return <Badge variant="secondary"><AlertCircle className="h-3 w-3 mr-1" />Unknown</Badge>;
     }
@@ -581,16 +923,25 @@ export default function AdminPotentialCustomers() {
     return matchesSearch && matchesImportId && matchesState && matchesCustomerStatus;
   });
 
+  // Remove duplicates from filtered customers based on phone number
+  const uniqueFilteredCustomers = filteredCustomers.reduce((acc: PotentialCustomer[], current: PotentialCustomer) => {
+    const exists = acc.find(customer => customer.phone === current.phone);
+    if (!exists) {
+      acc.push(current);
+    }
+    return acc;
+  }, []);
+
   // Pagination logic
-  const totalCustomers = filteredCustomers.length;
+  const totalCustomers = uniqueFilteredCustomers.length;
   const totalPages = Math.ceil(totalCustomers / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   
   // Handle both pagination and load more modes
   const displayedCustomers = viewMode === 'pagination' 
-    ? filteredCustomers.slice(startIndex, endIndex)
-    : filteredCustomers.slice(0, loadedCount);
+    ? uniqueFilteredCustomers.slice(startIndex, endIndex)
+    : uniqueFilteredCustomers.slice(0, loadedCount);
 
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -612,23 +963,23 @@ export default function AdminPotentialCustomers() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex">
       {/* Sidebar */}
       <AdminSidebar onLogout={handleLogout} />
       
       {/* Main content area */}
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-6">
+        <header className="bg-white dark:bg-gray-800 shadow-sm">
+          <div className="px-8 py-6 border-b border-gray-200 dark:border-gray-700" style={{ paddingTop: '1.7rem', paddingBottom: '1rem' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <UserPlus className="h-8 w-8 text-blue-600 mr-3" />
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                  <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                     Potential Customers
                   </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Import and manage potential customer data
                   </p>
                 </div>
@@ -641,11 +992,11 @@ export default function AdminPotentialCustomers() {
         </header>
 
         {/* Content */}
-        <div className="p-8">
+        <div className="p-5">
           <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-6">
             {/* Tabs are now hidden - navigation via sidebar */}
 
-            <TabsContent value="list" className="space-y-6">
+            <TabsContent value="list" className="space-y-4">
               {/* Filters */}
               <Card>
                 <CardHeader>
@@ -734,22 +1085,40 @@ export default function AdminPotentialCustomers() {
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle>Potential Customers ({filteredCustomers.length})</CardTitle>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm">View:</Label>
-                      <Select value={customerListView} onValueChange={(v) => setCustomerListView(v as 'list' | 'kanban')}>
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="list">List</SelectItem>
-                          <SelectItem value="kanban">Kanban</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <CardTitle>Potential Customers ({uniqueFilteredCustomers.length})</CardTitle>
+                    <div className="flex items-center gap-3">
+                      <Label className="text-sm font-medium">View:</Label>
+                      <div className="flex items-center rounded-lg p-1" style={{ backgroundColor: 'rgb(231 110 110)' }}>
+                        <button
+                          onClick={() => setCustomerListView('list')}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                            customerListView === 'list'
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-white hover:text-gray-200'
+                          }`}
+                        >
+                          List
+                        </button>
+                        <button
+                          onClick={() => setCustomerListView('kanban')}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                            customerListView === 'kanban'
+                              ? 'bg-white dark:bg-red-800 text-gray-900 dark:text-white shadow-sm'
+                              : 'text-gray-600 dark:text-red-300 hover:text-gray-900 dark:hover:text-white'
+                          }`}
+                        >
+                          Kanban
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <CardDescription>
                     Imported customer data with SMS delivery status
+                    {customerListView === 'kanban' && (
+                      <span className="block text-xs text-gray-500 mt-1">
+                        💡 Move mouse to edges for auto-scroll • Use ← → keys to navigate • Home/End for start/end
+                      </span>
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -758,7 +1127,7 @@ export default function AdminPotentialCustomers() {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                       <p className="text-gray-500 mt-2">Loading customers...</p>
                     </div>
-                  ) : filteredCustomers.length === 0 ? (
+                  ) : uniqueFilteredCustomers.length === 0 ? (
                     <div className="text-center py-8">
                       <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No Customers Found</h3>
@@ -802,12 +1171,18 @@ export default function AdminPotentialCustomers() {
                                   <div className="flex items-center gap-3">
                                     <div className="flex items-center gap-2">
                                       <Label className="text-sm whitespace-nowrap">Customer Status</Label>
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${
+                                          customerStatusMap[customer.id] ? 'bg-green-500' : 'bg-gray-300'
+                                        }`}></div>
                                       <Select
                                         value={customerStatusMap[customer.id] ?? 'New'}
                                         onValueChange={(value) => setCustomerStatus(customer.id, value)}
                                       >
-                                        <SelectTrigger className="w-56">
-                                          <SelectValue />
+                                          <SelectTrigger className={`w-56 ${
+                                            customerStatusMap[customer.id] ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                                          }`}>
+                                            <SelectValue placeholder="Select status" />
                                         </SelectTrigger>
                                         <SelectContent>
                                           <SelectItem value="New">New</SelectItem>
@@ -820,6 +1195,7 @@ export default function AdminPotentialCustomers() {
                                           <SelectItem value="Unsubscribe">Unsubscribe</SelectItem>
                                         </SelectContent>
                                       </Select>
+                                      </div>
                                     </div>
                                     {/* Send SMS button hidden for now */}
                                     {/* <Button
@@ -842,21 +1218,38 @@ export default function AdminPotentialCustomers() {
                           
                           {/* View Mode Toggle */}
                           <div className="flex items-center justify-between mt-6">
-                            <div className="flex items-center gap-2">
-                              <Label className="text-sm">View Mode:</Label>
-                              <Select value={viewMode} onValueChange={(value: 'pagination' | 'loadMore') => {
-                                setViewMode(value);
+                            <div className="flex items-center gap-3">
+                              <Label className="text-sm font-medium">View Mode:</Label>
+                              <div className="flex items-center rounded-lg p-1" style={{ backgroundColor: 'rgb(231 110 110)' }}>
+                                <button
+                                  onClick={() => {
+                                    setViewMode('pagination');
                                 setCurrentPage(1);
                                 setLoadedCount(10);
-                              }}>
-                                <SelectTrigger className="w-32">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="pagination">Pagination</SelectItem>
-                                  <SelectItem value="loadMore">Load More</SelectItem>
-                                </SelectContent>
-                              </Select>
+                                  }}
+                                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                                    viewMode === 'pagination'
+                                      ? 'bg-white text-gray-900 shadow-sm'
+                                      : 'text-white hover:text-gray-200'
+                                  }`}
+                                >
+                                  Pagination
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setViewMode('loadMore');
+                                    setCurrentPage(1);
+                                    setLoadedCount(10);
+                                  }}
+                                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                                    viewMode === 'loadMore'
+                                      ? 'bg-white text-gray-900 shadow-sm'
+                                      : 'text-white hover:text-gray-200'
+                                  }`}
+                                >
+                                  Load More
+                                </button>
+                              </div>
                             </div>
                             
                             <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -951,10 +1344,48 @@ export default function AdminPotentialCustomers() {
                           )}
                         </>
                       ) : (
-                        <div className="overflow-x-auto">
+                        <div 
+                          ref={kanbanRef}
+                          className={`overflow-x-auto relative transition-all duration-200 ${
+                            isAutoScrolling ? 'shadow-lg' : ''
+                          }`}
+                          style={{
+                            scrollbarWidth: 'thin',
+                            scrollbarColor: '#cbd5e0 #f1f5f9'
+                          }}
+                        >
+                          {/* Auto-scroll indicators */}
+                          {isAutoScrolling && (
+                            <div className="absolute top-1/2 left-4 transform -translate-y-1/2 z-10">
+                              <div className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium animate-pulse">
+                                Auto-scrolling
+                              </div>
+                            </div>
+                          )}
+                          
                           <div className="flex gap-6 min-w-max pr-2">
                             {(CUSTOMER_STATUSES).map((column) => {
-                              const columnCustomers = filteredCustomers.filter((c: PotentialCustomer) => (customerStatusMap[c.id] ?? 'New') === column.id);
+                              const columnCustomers = uniqueFilteredCustomers.filter((c: PotentialCustomer) => {
+                                const smsStatus = c.smsDeliveryStatus || 'not_sent';
+                                const campaignStatus = customerStatusMap[c.id] || 'New';
+                                
+                                // For SMS status columns, use SMS status
+                                if (column.id === '1st_sent' || column.id === '2nd_sent') {
+                                  return smsStatus === column.id;
+                                }
+                                
+                                // For campaign status columns, use campaign status
+                                if (column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe') {
+                                  return campaignStatus === column.id;
+                                }
+                                
+                                // For 'New' column, show customers who haven't been added to campaigns AND haven't received SMS
+                                if (column.id === 'New') {
+                                  return campaignStatus === 'New' && smsStatus === 'not_sent';
+                                }
+                                
+                                return false;
+                              });
                               return (
                                 <div key={column.id} className="space-y-3 w-80 flex-shrink-0">
                                   <div className="flex items-center justify-between">
@@ -978,11 +1409,20 @@ export default function AdminPotentialCustomers() {
                                       const idStr = e.dataTransfer.getData('text/plain');
                                       const cid = parseInt(idStr);
                                       if (!isNaN(cid)) {
+                                        // Only allow drag and drop for campaign status columns, not SMS status
+                                        if (column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New') {
                                         setCustomerStatus(cid, column.id);
                                         toast({
                                           title: "Status Updated",
                                           description: `Customer moved to ${column.title}`,
                                         });
+                                        } else {
+                                          toast({
+                                            title: "Info",
+                                            description: "SMS status is automatically managed by the system",
+                                            variant: "default",
+                                          });
+                                        }
                                       }
                                     }}
                                   >
@@ -996,11 +1436,17 @@ export default function AdminPotentialCustomers() {
                                         columnCustomers.map((customer: PotentialCustomer) => (
                                           <div
                                             key={customer.id}
-                                            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 cursor-move hover:scale-[1.02] group"
-                                            draggable
+                                            className={`bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 group ${
+                                              (column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New') 
+                                                ? 'cursor-move hover:scale-[1.02]' 
+                                                : ''
+                                            }`}
+                                            draggable={(column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New')}
                                             onDragStart={(e) => {
+                                              if (column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New') {
                                               e.dataTransfer.setData('text/plain', customer.id.toString());
                                               e.currentTarget.classList.add('opacity-50');
+                                              }
                                             }}
                                             onDragEnd={(e) => {
                                               e.currentTarget.classList.remove('opacity-50');
@@ -1010,9 +1456,14 @@ export default function AdminPotentialCustomers() {
                                               <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2 mb-2">
                                                   <h4 className="font-semibold text-gray-900 truncate">{customer.name}</h4>
+                                                  <div className="flex gap-1">
                                                   <Badge variant="outline" className="text-xs">
                                                     {getSmsStatusBadge(customer.smsDeliveryStatus)}
                                                   </Badge>
+                                                    <Badge variant="secondary" className="text-xs">
+                                                      {customerStatusMap[customer.id] || 'New'}
+                                                    </Badge>
+                                                  </div>
                                                 </div>
                                                 <div className="space-y-2 text-sm text-gray-600">
                                                   <div className="flex items-center gap-2">
@@ -1131,14 +1582,14 @@ export default function AdminPotentialCustomers() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="sms" className="space-y-6">
+            <TabsContent value="sms" className="space-y-4">
               {/* SMS Campaigns Overview */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>SMS Campaigns</CardTitle>
-                      <CardDescription>
+                      <CardTitle className="text-lg">SMS Campaigns</CardTitle>
+                      <CardDescription className="text-sm">
                         Create and manage SMS campaigns for potential customers
                       </CardDescription>
                     </div>
@@ -1149,108 +1600,124 @@ export default function AdminPotentialCustomers() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="border rounded-lg p-4 bg-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock className="h-5 w-5 text-yellow-600" />
-                        <h3 className="font-semibold">Draft</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                    <div className="border rounded-lg p-3 bg-white">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className="h-4 w-4 text-yellow-600" />
+                        <h3 className="text-sm font-semibold">Draft</h3>
                       </div>
-                      <p className="text-2xl font-bold text-yellow-600">
+                      <p className="text-xl font-bold text-yellow-600">
                         {campaigns.filter(c => c.status === 'draft').length}
                       </p>
-                      <p className="text-sm text-gray-500">Campaigns</p>
+                      <p className="text-xs text-gray-500">Campaigns</p>
                     </div>
-                    <div className="border rounded-lg p-4 bg-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="h-5 w-5 text-blue-600" />
-                        <h3 className="font-semibold">Scheduled</h3>
+                    <div className="border rounded-lg p-3 bg-white">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Calendar className="h-4 w-4 text-blue-600" />
+                        <h3 className="text-sm font-semibold">Scheduled</h3>
                       </div>
-                      <p className="text-2xl font-bold text-blue-600">
+                      <p className="text-xl font-bold text-blue-600">
                         {campaigns.filter(c => c.status === 'scheduled').length}
                       </p>
-                      <p className="text-sm text-gray-500">Campaigns</p>
+                      <p className="text-xs text-gray-500">Campaigns</p>
                     </div>
-                    <div className="border rounded-lg p-4 bg-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                        <h3 className="font-semibold">Sent</h3>
+                    <div className="border rounded-lg p-3 bg-white">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <h3 className="text-sm font-semibold">Sent</h3>
                       </div>
-                      <p className="text-2xl font-bold text-green-600">
+                      <p className="text-xl font-bold text-green-600">
                         {campaigns.filter(c => c.status === 'sent').length}
                       </p>
-                      <p className="text-sm text-gray-500">Campaigns</p>
+                      <p className="text-xs text-gray-500">Campaigns</p>
                     </div>
-                    <div className="border rounded-lg p-4 bg-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        <AlertCircle className="h-5 w-5 text-red-600" />
-                        <h3 className="font-semibold">Failed</h3>
+                    <div className="border rounded-lg p-3 bg-white">
+                      <div className="flex items-center gap-2 mb-1">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <h3 className="text-sm font-semibold">Failed</h3>
                       </div>
-                      <p className="text-2xl font-bold text-red-600">
+                      <p className="text-xl font-bold text-red-600">
                         {campaigns.filter(c => c.status === 'failed').length}
                       </p>
-                      <p className="text-sm text-gray-500">Campaigns</p>
+                      <p className="text-xs text-gray-500">Campaigns</p>
                     </div>
                   </div>
 
                   {/* View Campaigns Table */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">View Campaigns</h3>
-                    {campaigns.length === 0 ? (
+                  <div className="space-y-3">
+                    <h3 className="text-base font-semibold">View Campaigns</h3>
+                    {campaignsLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="text-gray-500 mt-2">Loading campaigns...</p>
+                      </div>
+                    ) : campaigns.length === 0 ? (
                       <div className="text-center py-8">
                         <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Campaigns</h3>
-                        <p className="text-gray-500">Create your first SMS campaign to get started.</p>
+                        <h3 className="text-base font-medium text-gray-900 mb-2">No Campaigns</h3>
+                        <p className="text-sm text-gray-500">Create your first SMS campaign to get started.</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full border-collapse border border-gray-200">
                           <thead>
                             <tr className="bg-gray-50">
-                              <th className="border border-gray-200 px-4 py-2 text-left">Campaign Name</th>
-                              <th className="border border-gray-200 px-4 py-2 text-left">Date Created</th>
-                              <th className="border border-gray-200 px-4 py-2 text-left">Total Sent</th>
-                              <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
-                              <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-sm">Campaign Name</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-sm">Date Created</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-sm">Total Sent</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-sm">Status</th>
+                              <th className="border border-gray-200 px-3 py-2 text-left text-sm">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
                             {campaigns.map((campaign) => (
                               <tr key={campaign.id}>
-                                <td className="border border-gray-200 px-4 py-2">
+                                <td className="border border-gray-200 px-3 py-2">
                                   <div>
-                                    <div className="font-medium">{campaign.name}</div>
-                                    <div className="text-sm text-gray-500 truncate max-w-xs">
+                                    <div className="text-sm font-medium">{campaign.name}</div>
+                                    <div className="text-xs text-gray-500 truncate max-w-xs">
                                       {campaign.message.substring(0, 50)}...
                                     </div>
                                   </div>
                                 </td>
-                                <td className="border border-gray-200 px-4 py-2">
+                                <td className="border border-gray-200 px-3 py-2 text-sm">
                                   {new Date(campaign.createdAt).toLocaleDateString()}
                                 </td>
-                                <td className="border border-gray-200 px-4 py-2">
+                                <td className="border border-gray-200 px-3 py-2 text-sm">
                                   {campaign.totalSent}
                                 </td>
-                                <td className="border border-gray-200 px-4 py-2">
+                                <td className="border border-gray-200 px-3 py-2">
                                   <Badge 
                                     variant={
                                       campaign.status === 'sent' ? 'default' :
                                       campaign.status === 'scheduled' ? 'secondary' :
                                       campaign.status === 'failed' ? 'destructive' : 'outline'
                                     }
+                                    className="text-xs"
                                   >
                                     {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
                                   </Badge>
                                 </td>
-                                <td className="border border-gray-200 px-4 py-2">
+                                <td className="border border-gray-200 px-3 py-2">
                                   <div className="flex gap-2">
                                     {campaign.status !== 'sent' ? (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleEditCampaign(campaign)}
-                                      >
-                                        Edit
-                                      </Button>
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleEditCampaign(campaign)}
+                                        >
+                                          Edit
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="default"
+                                          onClick={() => handleExecuteCampaign(campaign)}
+                                          disabled={sendCampaignMutation.isPending}
+                                        >
+                                          {sendCampaignMutation.isPending ? "Sending..." : "Send Campaign"}
+                                        </Button>
+                                      </>
                                     ) : null}
                                     <Button
                                       size="sm"
@@ -1258,6 +1725,14 @@ export default function AdminPotentialCustomers() {
                                       onClick={() => handleDuplicateCampaign(campaign)}
                                     >
                                       Duplicate
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => handleDeleteCampaign(campaign.id)}
+                                      disabled={deleteCampaignMutation.isPending}
+                                    >
+                                      {deleteCampaignMutation.isPending ? "Deleting..." : "Delete"}
                                     </Button>
                                   </div>
                                 </td>
@@ -1385,20 +1860,23 @@ export default function AdminPotentialCustomers() {
                 id="campaign-message"
                 className="w-full p-3 border border-gray-300 rounded-md resize-none"
                 rows={4}
-                placeholder="Hello Welcome to ServicePanda your friendly Service Provider app, click here to download the app https://tinurl/123 as per our first launch, here is a $30 voucher for your first job with us. Voucher 'XYZ123'. If you do not wish to receive any sms, please reply STOP"
+                placeholder="Hello {customerName}! Welcome to ServicePanda your friendly Service Provider app, click here to download the app https://tinurl/123 as per our first launch, here is a ${voucherAmount} voucher for your first job with us. Voucher '{voucherCode}'. If you do not wish to receive any sms, please reply STOP"
                 value={newCampaign.message}
                 onChange={(e) => setNewCampaign(prev => ({ ...prev, message: e.target.value }))}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Include "reply STOP" to unsubscribe option
+                Use placeholders: {`{customerName}`}, {`{voucherCode}`}, {`{voucherAmount}`} - these will be replaced with unique values for each customer. Include "reply STOP" to unsubscribe option.
               </p>
             </div>
 
             <div className="border rounded-lg p-4 bg-gray-50">
               <h4 className="font-medium mb-3">Voucher Settings (Optional)</h4>
+              <p className="text-xs text-gray-600 mb-3">
+                💡 Each customer will receive a unique voucher code automatically generated for them.
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="voucher-code">Voucher Code</Label>
+                  <Label htmlFor="voucher-code">Voucher Code (Reference Only)</Label>
                   <div className="flex gap-2">
                     <Input
                       id="voucher-code"
@@ -1448,7 +1926,9 @@ export default function AdminPotentialCustomers() {
                           } else {
                             setNewCampaign(prev => ({
                               ...prev,
-                              selectedStates: prev.selectedStates.filter(s => s !== state.name)
+                              selectedStates: prev.selectedStates.filter(s => s !== state.name),
+                              // Clear regions when states change
+                              selectedRegions: []
                             }));
                           }
                         }}
@@ -1459,33 +1939,7 @@ export default function AdminPotentialCustomers() {
                 </div>
               </div>
 
-              <div>
-                <Label>Regions (Multi-select)</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
-                  {displayRegions.map((region) => (
-                    <label key={region.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={newCampaign.selectedRegions.includes(region.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setNewCampaign(prev => ({
-                              ...prev,
-                              selectedRegions: [...prev.selectedRegions, region.id]
-                            }));
-                          } else {
-                            setNewCampaign(prev => ({
-                              ...prev,
-                              selectedRegions: prev.selectedRegions.filter(r => r !== region.id)
-                            }));
-                          }
-                        }}
-                      />
-                      <span className="text-sm">{region.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              {/* Regions section hidden - using state-based filtering only */}
 
               <div>
                 <Label>Customer Status (Multi-select)</Label>
@@ -1615,17 +2069,23 @@ export default function AdminPotentialCustomers() {
                 id="edit-campaign-message"
                 className="w-full p-3 border border-gray-300 rounded-md resize-none"
                 rows={4}
-                placeholder="Hello Welcome to ServicePanda your friendly Service Provider app..."
+                placeholder="Hello {customerName}! Welcome to ServicePanda your friendly Service Provider app, click here to download the app https://tinurl/123 as per our first launch, here is a ${voucherAmount} voucher for your first job with us. Voucher '{voucherCode}'. If you do not wish to receive any sms, please reply STOP"
                 value={newCampaign.message}
                 onChange={(e) => setNewCampaign(prev => ({ ...prev, message: e.target.value }))}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Use placeholders: {`{customerName}`}, {`{voucherCode}`}, {`{voucherAmount}`} - these will be replaced with unique values for each customer. Include "reply STOP" to unsubscribe option.
+              </p>
             </div>
 
             <div className="border rounded-lg p-4 bg-gray-50">
               <h4 className="font-medium mb-3">Voucher Settings (Optional)</h4>
+              <p className="text-xs text-gray-600 mb-3">
+                💡 Each customer will receive a unique voucher code automatically generated for them.
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="edit-voucher-code">Voucher Code</Label>
+                  <Label htmlFor="edit-voucher-code">Voucher Code (Reference Only)</Label>
                   <div className="flex gap-2">
                     <Input
                       id="edit-voucher-code"
@@ -1675,7 +2135,9 @@ export default function AdminPotentialCustomers() {
                           } else {
                             setNewCampaign(prev => ({
                               ...prev,
-                              selectedStates: prev.selectedStates.filter(s => s !== state.name)
+                              selectedStates: prev.selectedStates.filter(s => s !== state.name),
+                              // Clear regions when states change
+                              selectedRegions: []
                             }));
                           }
                         }}
@@ -1686,33 +2148,7 @@ export default function AdminPotentialCustomers() {
                 </div>
               </div>
 
-              <div>
-                <Label>Regions (Multi-select)</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
-                  {displayRegions.map((region) => (
-                    <label key={region.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={newCampaign.selectedRegions.includes(region.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setNewCampaign(prev => ({
-                              ...prev,
-                              selectedRegions: [...prev.selectedRegions, region.id]
-                            }));
-                          } else {
-                            setNewCampaign(prev => ({
-                              ...prev,
-                              selectedRegions: prev.selectedRegions.filter(r => r !== region.id)
-                            }));
-                          }
-                        }}
-                      />
-                      <span className="text-sm">{region.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              {/* Regions section hidden - using state-based filtering only */}
 
               <div>
                 <Label>Customer Status (Multi-select)</Label>

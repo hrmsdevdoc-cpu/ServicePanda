@@ -28,7 +28,7 @@ export class SmsService {
     message: string;
     direction: 'inbound' | 'outbound';
     status: 'sent' | 'delivered' | 'failed' | 'read';
-    smsType?: '1st_sent' | '2nd_sent' | 'custom' | 'notification';
+    smsType?: '1st_sent' | '2nd_sent' | 'custom' | 'notification' | 'campaign';
     sentBy?: string;
     sentAt: string;
     deliveredAt?: string;
@@ -51,6 +51,25 @@ export class SmsService {
   }
 
   /**
+   * Format phone number to E164 format for Dialpad API
+   */
+  private formatPhoneNumber(phone: string): string {
+    // Remove all non-digit characters
+    let cleaned = phone.replace(/\D/g, '');
+    
+    // If it starts with 0, replace with +61 (Australia)
+    if (cleaned.startsWith('0')) {
+      cleaned = '+61' + cleaned.substring(1);
+    }
+    // If it doesn't start with +, add +61
+    else if (!cleaned.startsWith('+')) {
+      cleaned = '+61' + cleaned;
+    }
+    
+    return cleaned;
+  }
+
+  /**
    * Send SMS using Dialpad API (equivalent to sendDailPadSMS in Laravel)
    */
   private async sendDialpadSms(data: SmsData): Promise<boolean> {
@@ -58,7 +77,10 @@ export class SmsService {
       console.error('SMS API not configured');
       return false;
     }
-    console.log('[SMS] Preparing request to Dialpad. To:', data.sendTo, 'From:', this.fromNumber);
+    
+    // Format phone number to E164 format
+    const formattedPhone = this.formatPhoneNumber(data.sendTo);
+    console.log('[SMS] Preparing request to Dialpad. To:', data.sendTo, '->', formattedPhone, 'From:', this.fromNumber);
 
     try {
       const response = await axios.post(
@@ -66,7 +88,7 @@ export class SmsService {
         {
           infer_country_code: false,
           text: data.chatMessage,
-          to_numbers: [data.sendTo],
+          to_numbers: [formattedPhone],
           from_number: this.fromNumber,
         },
         {
@@ -84,6 +106,7 @@ export class SmsService {
         console.log('SMS sent successfully:', {
           id: responseData.id,
           to: data.sendTo,
+          formattedTo: formattedPhone,
           message: data.chatMessage.substring(0, 50) + '...',
         });
 
@@ -101,6 +124,7 @@ export class SmsService {
         status: error?.response?.status,
         response: error?.response?.data,
         to: data.sendTo,
+        formattedTo: formattedPhone,
         message: data.chatMessage.substring(0, 50) + '...',
       });
       return false;

@@ -61,6 +61,8 @@ class OneSignalAdminService {
         priority: 10,
         android_sound: "default",
         android_vibration_pattern: [1000, 1000],
+        android_accent_color: "FF2196F3", // Blue accent color
+        small_icon: "ic_notification", // Custom notification icon
         
         // Make sure it works when app is closed
         content_available: true,
