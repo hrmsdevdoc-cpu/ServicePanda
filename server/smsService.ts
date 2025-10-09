@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { db } from './db';
+import { smsMessages } from '@shared/schema';
 
 interface SmsData {
   sendTo: string;
@@ -54,6 +56,10 @@ export class SmsService {
    * Format phone number to E164 format for Dialpad API
    */
   private formatPhoneNumber(phone: string): string {
+    if (!phone) {
+      throw new Error('Phone number is required');
+    }
+    
     // Remove all non-digit characters
     let cleaned = phone.replace(/\D/g, '');
     
@@ -227,7 +233,7 @@ ServicePanda Team`;
   /**
    * In-memory log helpers so messages appear immediately in Admin UI
    */
-  recordOutbound(params: {
+  async recordOutbound(params: {
     recipientType: 'customer' | 'provider' | 'potential_customer' | 'potential_provider';
     recipientId?: number;
     recipientPhone: string;
@@ -252,7 +258,27 @@ ServicePanda Team`;
       sentAt: new Date().toISOString(),
       apiResponse: params.apiResponse,
     };
+    
+    // Store in memory for immediate UI updates
     this.logs.push(entry);
+    
+    // Also store in database for persistence
+    try {
+      await db.insert(smsMessages).values({
+        recipientType: params.recipientType,
+        recipientId: params.recipientId,
+        recipientPhone: params.recipientPhone,
+        recipientName: params.recipientName,
+        message: params.message,
+        direction: 'outbound',
+        status: params.status || 'sent',
+        smsType: params.smsType,
+      });
+      
+      console.log(`[SMS Service] Successfully stored outbound message in database for ${params.recipientName}`);
+    } catch (error) {
+      console.error(`[SMS Service] Failed to store outbound message in database:`, error);
+    }
   }
 
   getLogs() {

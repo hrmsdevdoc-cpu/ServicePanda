@@ -1,6 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { adminApiRequest } from "@/lib/adminAuth";
 import ToggleButton from "./ToggleButton";
 import {
   LayoutDashboard,
@@ -46,34 +48,94 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const menuItems = [
+  // Fetch current user's role and permissions
+  const { data: currentUser } = useQuery({
+    queryKey: ['adminUser'],
+    queryFn: async () => {
+      const response = await adminApiRequest("GET", "/api/admin/current-user");
+      return response.json();
+    },
+  });
+
+  // Fetch all roles to get permissions for current user's role
+  const { data: roles } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const response = await adminApiRequest("GET", "/api/admin/roles");
+      return response.json();
+    },
+  });
+
+  // Get current user's permissions
+  const getUserPermissions = () => {
+    if (!currentUser || !roles) return [];
+    
+    // Special case for super_admin - give all permissions
+    if (currentUser.role === 'super_admin') {
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]; // All permission IDs
+    }
+    
+    const userRole = roles.find((role: any) => role.name === currentUser.role);
+    return userRole ? userRole.permissions : [];
+  };
+
+  const userPermissions = getUserPermissions();
+
+  // Check if user has a specific permission
+  const hasPermission = (permissionName: string) => {
+    if (!userPermissions.length) return false;
+    
+    // Map permission names to IDs (this should match the database)
+    const permissionMap: { [key: string]: number } = {
+      'dashboard': 1,
+      'providers': 2,
+      'leads': 5,
+      'potential_customers': 7,
+      'potential_providers': 8,
+      'vouchers': 9,
+      'email': 10,
+      'sms': 11,
+      'reports': 12,
+      'settings': 14,
+      'admin_users': 15,
+      'departments': 16,
+    };
+
+    const permissionId = permissionMap[permissionName];
+    return permissionId ? userPermissions.includes(permissionId) : false;
+  };
+
+  const allMenuItems = [
     {
       icon: LayoutDashboard,
       label: "Dashboard",
       href: "/admin",
+      permission: "dashboard",
       subItems: [],
     },
     {
       icon: UserCheck,
       label: "Providers",
       href: "/admin/providers",
+      permission: "providers",
       subItems: [
         { label: "Pending Applications", href: "/admin/providers/pending" },
         { label: "All Providers", href: "/admin/providers" },
         { label: "Provider Report", href: "/admin/providers/report" },
       ],
     },
-
     {
       icon: TrendingUp,
       label: "Leads",
       href: "/admin/leads",
+      permission: "leads",
       subItems: [],
     },
     {
       icon: UserPlus,
       label: "Potential Customers",
       href: "/admin/potential-customers",
+      permission: "potential_customers",
       subItems: [
         { label: "Import Groups", href: "/admin/potential-customers/imports" },
         { label: "Customer List", href: "/admin/potential-customers" },
@@ -84,30 +146,35 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       icon: UserSearch,
       label: "Potential Providers",
       href: "/admin/potential-providers",
+      permission: "potential_providers",
       subItems: [],
     },
     {
       icon: Gift,
       label: "Vouchers",
       href: "/admin/vouchers",
+      permission: "vouchers",
       subItems: [],
     },
     {
       icon: Mail,
       label: "Email",
       href: "/admin/email",
+      permission: "email",
       subItems: [],
     },
     {
       icon: MessageSquare,
       label: "SMS",
       href: "/admin/sms",
+      permission: "sms",
       subItems: [],
     },
     {
       icon: BarChart3,
       label: "Reports",
       href: "/admin/reports",
+      permission: "reports",
       subItems: [
         { label: "User Reports", href: "/admin/reports/users" },
         { label: "Provider Reports", href: "/admin/reports/providers" },
@@ -118,20 +185,53 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       icon: Settings,
       label: "Settings",
       href: "/admin/settings",
+      permission: "settings",
       subItems: [
-        { label: "Users", href: "#", subItems: [
-          { label: "Admin Users", href: "/admin/admin-users" },
-          { label: "Departments", href: "/admin/departments" },
+        { label: "Role & Permissions", href: "/admin/settings/roles-permissions", permission: "settings" },
+        { label: "Users", href: "#", permission: "admin_users", subItems: [
+          { label: "Admin Users", href: "/admin/admin-users", permission: "admin_users" },
+          { label: "Departments", href: "/admin/departments", permission: "departments" },
         ]},
-        { label: "Change Password", href: "/admin/change-password" },
-        { label: "Stripe Settings", href: "/admin/settings/stripe" },
-        { label: "Mailgun Settings", href: "/admin/settings/mailgun" },
-        { label: "Lead Settings", href: "/admin/lead-settings" },
-                  { label: "Service Type", href: "/admin/service-type" },
-        { label: "Terms and Conditions", href: "/admin/terms-conditions" },
+        { label: "Change Password", href: "/admin/change-password", permission: "settings" },
+        { label: "Stripe Settings", href: "/admin/settings/stripe", permission: "settings" },
+        { label: "Mailgun Settings", href: "/admin/settings/mailgun", permission: "settings" },
+        { label: "Lead Settings", href: "/admin/lead-settings", permission: "settings" },
+        { label: "Service Type", href: "/admin/service-type", permission: "settings" },
+        { label: "Terms and Conditions", href: "/admin/terms-conditions", permission: "settings" },
       ],
     },
   ];
+
+  // Filter menu items based on permissions
+  const filterMenuItems = (items: any[]): any[] => {
+    return items.filter((item: any) => {
+      if (item.permission && !hasPermission(item.permission)) {
+        return false;
+      }
+      
+      if (item.subItems && item.subItems.length > 0) {
+        const filteredSubItems = filterMenuItems(item.subItems);
+        if (filteredSubItems.length === 0) {
+          return false;
+        }
+        item.subItems = filteredSubItems;
+      }
+      
+      return true;
+    });
+  };
+
+  const menuItems = filterMenuItems(allMenuItems);
+
+  // Debug logging
+  console.log('AdminSidebar Debug:', {
+    currentUser: currentUser?.role,
+    userPermissions,
+    hasSettingsPermission: hasPermission('settings'),
+    filteredMenuItems: menuItems.map(item => item.label),
+    allMenuItems: allMenuItems.map(item => item.label),
+    availableRoles: roles?.map((role: any) => role.name) || []
+  });
 
   const isActiveRoute = (href: string) => {
     if (href === "/admin") {
@@ -169,7 +269,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
         isCollapsed ? 'w-16' : 'w-64 border-gray-200 dark:border-gray-700'
       }`}>
       {/* Header */}
-          <div className={`border-b border-gray-200 dark:border-gray-700 ${isCollapsed ? 'p-3' : 'p-4'}`}>
+          <div className={`border-b border-gray-200 dark:border-gray-700 ${isCollapsed ? 'p-3' : 'p-6'}`}>
         <div className="flex items-center">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
             <LayoutDashboard className="h-5 w-5 text-white" />
@@ -198,7 +298,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
                   }`}
                   onClick={() => toggleMenu(item.href)}
                 >
-                  <item.icon className="h-4 w-4 mr-2" />
+                  <item.icon className="h- w-4 mr-2" />
                   {!isCollapsed && item.label}
                   {!isCollapsed && (isMenuExpanded(item.href) ? (
                     <ChevronDown className="h-3 w-3 ml-auto" />
@@ -225,7 +325,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
               {/* Sub-items */}
               {item.subItems.length > 0 && isMenuExpanded(item.href) && !isCollapsed && (
                 <div className="ml-3 mt-1 space-y-1">
-                  {item.subItems.map((subItem) => (
+                  {item.subItems.map((subItem: any) => (
                     <div key={subItem.href}>
                       {subItem.subItems ? (
                         // Nested sub-item with its own sub-items
@@ -250,7 +350,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
                           </Button>
                           {isMenuExpanded(subItem.href) && (
                             <div className="ml-3 mt-1 space-y-1">
-                              {subItem.subItems.map((nestedItem) => (
+                              {subItem.subItems.map((nestedItem: any) => (
                                 <Link key={nestedItem.href} href={nestedItem.href}>
                                   <Button
                                     variant={location === nestedItem.href ? "default" : "ghost"}

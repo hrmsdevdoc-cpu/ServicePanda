@@ -100,10 +100,17 @@ import {
   adminDepartments,
   adminUsers,
   adminUserDepartments,
+  roles,
+  permissions,
+  rolePermissions,
   type AdminDepartment,
   type InsertAdminDepartment,
   type AdminUser,
   type InsertAdminUser,
+  type Role,
+  type InsertRole,
+  type Permission,
+  type InsertPermission,
   type AdminUserDepartment,
   type InsertAdminUserDepartment,
   type ProviderVoucher,
@@ -158,6 +165,9 @@ import {
   smsCampaigns,
   type SmsCampaign,
   type InsertSmsCampaign,
+  smsMessages,
+  type SmsMessage,
+  type InsertSmsMessage,
 } from "@shared/schema";
 
 // Import Group interface
@@ -480,6 +490,7 @@ export interface IStorage {
   getPotentialCustomerImportGroups(): Promise<ImportGroup[]>;
   importPotentialCustomers(file: any, importName: string): Promise<{ count: number }>;
   updatePotentialCustomerSmsStatus(customerId: number, status: '1st_sent' | '2nd_sent'): Promise<void>;
+  updatePotentialCustomerCampaignStatus(customerId: number, status: string): Promise<void>;
   sendSmsToPotentialCustomers(customerIds: number[]): Promise<{ count: number }>;
 
   // Potential Providers operations
@@ -488,6 +499,7 @@ export interface IStorage {
   importPotentialProviders(csvData: string, importName: string): Promise<{ count: number, providers: any[] }>;
   confirmPotentialProvidersImport(providers: any[]): Promise<{ count: number }>;
   updatePotentialProvider(id: number, updates: any): Promise<PotentialProvider>;
+  updatePotentialProviderSmsStatus(providerId: number, status: '1st_sent' | '2nd_sent'): Promise<void>;
   createPotentialProviderTask(taskData: any): Promise<PotentialProviderTask>;
   sendEmailToPotentialProvider(providerId: number, subject: string, content: string): Promise<any>;
   sendSmsToPotentialProvider(providerId: number, content: string): Promise<any>;
@@ -5509,6 +5521,23 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async updatePotentialCustomerCampaignStatus(customerId: number, status: string): Promise<void> {
+    try {
+      await db
+        .update(potentialCustomers)
+        .set({
+          campaignStatus: status,
+          updatedAt: new Date(),
+        })
+        .where(eq(potentialCustomers.id, customerId));
+
+      console.log(`Updated customer ${customerId} campaign status to ${status}`);
+    } catch (error) {
+      console.error('Error updating potential customer campaign status:', error);
+      throw new Error('Failed to update campaign status');
+    }
+  }
+
   async sendSmsToPotentialCustomers(customerIds: number[]): Promise<{ count: number, details: Array<{ customerId: number, name: string, phone: string, status: '1st_sent' | '2nd_sent' | 'skipped', sent: boolean, reason?: string }> }> {
     try {
       let successCount = 0;
@@ -5982,6 +6011,36 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async updatePotentialProviderSmsStatus(providerId: number, status: '1st_sent' | '2nd_sent'): Promise<void> {
+    try {
+      const updateData: any = {};
+
+      if (status === '1st_sent') {
+        updateData.smsDeliveryStatus = '1st_sent';
+        updateData.firstSmsSentAt = new Date();
+      } else if (status === '2nd_sent') {
+        updateData.smsDeliveryStatus = '2nd_sent';
+        updateData.secondSmsSentAt = new Date();
+      }
+
+      console.log(`🔄 Updating provider ${providerId} with data:`, updateData);
+
+      const result = await db
+        .update(potentialProviders)
+        .set({
+          ...updateData,
+          updatedAt: new Date(),
+        })
+        .where(eq(potentialProviders.id, providerId))
+        .returning();
+
+      console.log(`✅ Updated provider ${providerId} SMS status to ${status}. Result:`, result);
+    } catch (error) {
+      console.error('❌ Error updating potential provider SMS status:', error);
+      throw new Error('Failed to update SMS status');
+    }
+  }
+
   async createPotentialProviderTask(taskData: any): Promise<PotentialProviderTask> {
     try {
       // Create the task
@@ -5997,16 +6056,8 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       }).returning();
 
-      // Update provider status from 'new' to 'active' when task is created
-      await db.update(potentialProviders)
-        .set({ 
-          status: 'active',
-          updatedAt: new Date()
-        })
-        .where(and(
-          eq(potentialProviders.id, taskData.potentialProviderId),
-          eq(potentialProviders.status, 'new')
-        ));
+      // Note: We don't automatically change the provider status when creating a task
+      // The provider should remain in 'new' status until explicitly updated by the user
 
       return task;
     } catch (error) {
@@ -6023,7 +6074,27 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Potential provider not found');
       }
 
-      // Log the communication
+      const providerRow = provider[0];
+      const sentAt = new Date();
+
+      // Store in main emails table for admin email management
+      await db.insert(emails).values({
+        from: 'admin@servicepanda.com.au', // Admin sender email
+        to: providerRow.email,
+        subject,
+        body: content,
+        bodyHtml: content, // Assuming content is HTML
+        status: 'sent',
+        folder: 'sent',
+        userType: 'admin',
+        userId: null, // Admin users are not in the users table - this prevents filtering issues
+        providerId: null, // This is a potential provider, not a confirmed provider
+        sentAt,
+        createdAt: sentAt,
+        updatedAt: sentAt,
+      });
+
+      // Log the communication in potential provider communications
       await db.insert(potentialProviderCommunications).values({
         potentialProviderId: providerId,
         communicationType: 'email',
@@ -6032,17 +6103,17 @@ export class DatabaseStorage implements IStorage {
         content,
         sentBy: 'admin', // TODO: Get actual admin username
         status: 'sent',
-        sentAt: new Date(),
-        createdAt: new Date(),
+        sentAt,
+        createdAt: sentAt,
       });
 
       // Update provider status and last contact
       await db.update(potentialProviders)
         .set({
           status: 'email',
-          lastContactDate: new Date(),
+          lastContactDate: sentAt,
           lastContactType: 'email',
-          updatedAt: new Date()
+          updatedAt: sentAt
         })
         .where(eq(potentialProviders.id, providerId));
 
@@ -6055,7 +6126,15 @@ export class DatabaseStorage implements IStorage {
 
   async sendSmsToPotentialProvider(providerId: number, content: string): Promise<any> {
     try {
-      const provider = await db.select().from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
+      const provider = await db.select({
+        id: potentialProviders.id,
+        firstName: potentialProviders.firstName,
+        lastName: potentialProviders.lastName,
+        phone: potentialProviders.phone,
+        smsDeliveryStatus: potentialProviders.smsDeliveryStatus,
+        firstSmsSentAt: potentialProviders.firstSmsSentAt,
+        secondSmsSentAt: potentialProviders.secondSmsSentAt
+      }).from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
 
       if (provider.length === 0) {
         throw new Error('Potential provider not found');
@@ -6093,6 +6172,24 @@ export class DatabaseStorage implements IStorage {
         sentBy: 'admin',
         status: 'sent',
       });
+
+      // Update SMS status based on current status
+      const currentSmsStatus = (providerRow as any).smsDeliveryStatus || 'not_sent';
+      console.log(`📱 Provider ${providerId} current SMS status: ${currentSmsStatus}`);
+      
+      let newSmsStatus: '1st_sent' | '2nd_sent';
+      
+      if (currentSmsStatus === 'not_sent') {
+        newSmsStatus = '1st_sent';
+      } else if (currentSmsStatus === '1st_sent') {
+        newSmsStatus = '2nd_sent';
+      } else {
+        // If already 2nd_sent, keep it as 2nd_sent
+        newSmsStatus = '2nd_sent';
+      }
+      
+      console.log(`📱 Updating provider ${providerId} SMS status to: ${newSmsStatus}`);
+      await this.updatePotentialProviderSmsStatus(providerId, newSmsStatus);
 
       // Update provider status and last contact
       await db.update(potentialProviders)
@@ -6182,22 +6279,39 @@ export class DatabaseStorage implements IStorage {
   }): Promise<Email[]> {
     try {
       let query = db.select().from(emails);
+      const conditions = [];
+
+      // Apply user filter
+      if (filters.userId === 'admin') {
+        conditions.push(eq(emails.userType, 'admin'));
+      } else if (filters.userId && filters.userId !== 'all') {
+        if (filters.userId === '2') {
+          conditions.push(eq(emails.userType, 'admin'));
+        } else {
+          conditions.push(eq(emails.userId, filters.userId));
+        }
+      }
 
       // Apply tab filter
       if (filters.tab === 'unread') {
-        query = query.where(eq(emails.isRead, false));
-      } else if (filters.tab !== 'all') {
-        query = query.where(eq(emails.status, filters.tab));
-      }
-
-      // Apply user filter
-      if (filters.userId !== 'all') {
-        query = query.where(eq(emails.userId, filters.userId));
+        conditions.push(eq(emails.isRead, false));
+      } else if (filters.tab === 'sent') {
+        conditions.push(eq(emails.folder, 'sent'));
+      } else if (filters.tab === 'inbox') {
+        conditions.push(eq(emails.folder, 'inbox'));
+      } else if (filters.tab === 'draft') {
+        conditions.push(eq(emails.folder, 'draft'));
+      } else if (filters.tab === 'spam') {
+        conditions.push(eq(emails.folder, 'spam'));
+      } else if (filters.tab === 'trash') {
+        conditions.push(eq(emails.folder, 'trash'));
+      } else if (filters.tab === 'archive') {
+        conditions.push(eq(emails.folder, 'archive'));
       }
 
       // Apply search filter
       if (filters.search) {
-        query = query.where(
+        conditions.push(
           or(
             like(emails.subject, `%${filters.search}%`),
             like(emails.body, `%${filters.search}%`),
@@ -6209,10 +6323,15 @@ export class DatabaseStorage implements IStorage {
 
       // Apply date filters
       if (filters.fromDate) {
-        query = query.where(gte(emails.createdAt, new Date(filters.fromDate)));
+        conditions.push(gte(emails.createdAt, new Date(filters.fromDate)));
       }
       if (filters.toDate) {
-        query = query.where(lte(emails.createdAt, new Date(filters.toDate)));
+        conditions.push(lte(emails.createdAt, new Date(filters.toDate)));
+      }
+
+      // Apply all conditions at once
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
       }
 
       // Order by creation date (newest first)
@@ -6547,25 +6666,27 @@ export class DatabaseStorage implements IStorage {
         .where(and(...whereConditions))
         .orderBy(asc(teamTasks.dueDate));
 
-      // Categorize tasks
+      // Categorize tasks by CREATION TIME (createdAt) with 24 hour limit
+      const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+      
       const overdue24h = allTasks.filter(task => 
-        task.dueDate < dayBeforeYesterday
+        task.createdAt < twentyFourHoursAgo
       );
       
       const overdue = allTasks.filter(task => 
-        task.dueDate >= dayBeforeYesterday && task.dueDate < today
+        task.createdAt >= twentyFourHoursAgo && task.createdAt < today
       );
       
       const todayTasks = allTasks.filter(task => 
-        task.dueDate >= today && task.dueDate < tomorrow
+        task.createdAt >= today && task.createdAt < tomorrow
       );
       
       const tomorrowTasks = allTasks.filter(task => 
-        task.dueDate >= tomorrow && task.dueDate < dayAfterTomorrow
+        task.createdAt >= tomorrow && task.createdAt < dayAfterTomorrow
       );
       
       const upcoming = allTasks.filter(task => 
-        task.dueDate >= dayAfterTomorrow
+        task.createdAt >= dayAfterTomorrow
       );
 
       return {
@@ -6678,8 +6799,12 @@ export class DatabaseStorage implements IStorage {
       let failCount = 0;
       const results = [];
 
+      console.log(`[Campaign][start] Processing ${customers.length} customers for campaign ${campaignId}`);
+      
       for (const customer of customers) {
         try {
+          console.log(`[Campaign][processing] Customer ${customer.id} - ${customer.name} (${customer.phone})`);
+          
           // Determine SMS type based on current status
           let smsType: '1st_sent' | '2nd_sent';
           if (customer.smsDeliveryStatus === 'not_sent' || !customer.smsDeliveryStatus) {
@@ -6690,6 +6815,8 @@ export class DatabaseStorage implements IStorage {
             console.warn(`[Campaign][skip] Customer ${customer.id} already sent 2 SMS`);
             continue;
           }
+          
+          console.log(`[Campaign][sms_type] Customer ${customer.id} will receive ${smsType}`);
 
           // Replace placeholders in message
           let message = campaign.message
@@ -6698,15 +6825,39 @@ export class DatabaseStorage implements IStorage {
             .replace(/\{voucherAmount\}/g, campaign.voucherAmount?.toString() || '');
 
           // Send SMS using existing SMS service
+          console.log(`[Campaign][sending] Sending SMS to ${customer.name} (${customer.phone})`);
           const success = await smsService.sendSms(customer.phone, message, {
             adminName,
             customerId: customer.id,
             smsType: smsType,
           });
           
+          console.log(`[Campaign][sms_result] SMS result for ${customer.name}: ${success ? 'SUCCESS' : 'FAILED'}`);
+          
           if (success) {
             // Update customer SMS status
             await this.updateCustomerSmsStatus(customer.id, smsType);
+            
+            // Store SMS message in chat system using SMS service recordOutbound method
+            console.log(`[Campaign][storage] Attempting to store SMS message for ${customer.name}`);
+            try {
+              await smsService.recordOutbound({
+                recipientType: 'potential_customer',
+                recipientId: customer.id,
+                recipientPhone: customer.phone,
+                recipientName: customer.name,
+                message: message,
+                direction: 'outbound',
+                status: 'sent',
+                smsType: smsType,
+                sentBy: adminName,
+              });
+              
+              console.log(`[Campaign][SMS Storage] Successfully recorded SMS message for ${customer.name}`);
+            } catch (storageError) {
+              console.error(`[Campaign][SMS Storage] Failed to record SMS message for ${customer.name}:`, storageError);
+            }
+            
             successCount++;
             results.push({
               customerId: customer.id,
@@ -6717,6 +6868,21 @@ export class DatabaseStorage implements IStorage {
             });
             console.log(`[Campaign][success] SMS sent to ${customer.name} (${customer.phone}) - ${smsType}`);
           } else {
+            // Store failed SMS message in chat system using SMS service recordOutbound method
+            await smsService.recordOutbound({
+              recipientType: 'potential_customer',
+              recipientId: customer.id,
+              recipientPhone: customer.phone,
+              recipientName: customer.name,
+              message: message,
+              direction: 'outbound',
+              status: 'failed',
+              smsType: smsType,
+              sentBy: adminName,
+            });
+            
+            console.log(`[Campaign][SMS Storage] Successfully recorded FAILED SMS message for ${customer.name}`);
+            
             failCount++;
             results.push({
               customerId: customer.id,
@@ -6789,6 +6955,264 @@ export class DatabaseStorage implements IStorage {
       console.log(`[SMS Status] Updated customer ${customerId} to ${smsType}`);
     } catch (error) {
       console.error(`[SMS Status] Error updating customer ${customerId}:`, error);
+      throw error;
+    }
+  }
+
+  // SMS Messages methods for chat functionality
+  async getSmsMessages(): Promise<any[]> {
+    try {
+      const messages = await db
+        .select()
+        .from(smsMessages)
+        .orderBy(desc(smsMessages.id));
+      
+      return messages;
+    } catch (error) {
+      console.error('Error fetching SMS messages:', error);
+      throw error;
+    }
+  }
+
+  async sendIndividualSms(customerId: number, message: string): Promise<any> {
+    try {
+      console.log(`[SMS Chat] Starting SMS send process for customer ${customerId}: "${message}"`);
+      
+      // Get customer details
+      console.log(`[SMS Chat] Fetching customer details...`);
+      const [customer] = await db
+        .select()
+        .from(potentialCustomers)
+        .where(eq(potentialCustomers.id, customerId))
+        .limit(1);
+
+      if (!customer) {
+        console.error(`[SMS Chat] Customer not found: ${customerId}`);
+        throw new Error('Customer not found');
+      }
+
+      console.log(`[SMS Chat] Found customer: ${customer.name} (${customer.phone})`);
+
+      // Send SMS via Dialpad
+      console.log(`[SMS Chat] Calling SMS service...`);
+      let success = false;
+      try {
+        success = await smsService.sendSms(customer.phone, message, {
+          customerId: customer.id,
+          adminName: 'Admin'
+        });
+        console.log(`[SMS Chat] SMS service result: ${success}`);
+      } catch (smsError) {
+        console.error(`[SMS Chat] SMS service error:`, smsError);
+        success = false;
+      }
+
+      // Store outbound message
+      console.log(`[SMS Chat] Storing message in database...`);
+      let smsMessage;
+      try {
+        [smsMessage] = await db
+          .insert(smsMessages)
+          .values({
+            recipientType: 'potential_customer',
+            recipientId: customer.id,
+            recipientPhone: customer.phone,
+            recipientName: customer.name,
+            message: message,
+            direction: 'outbound',
+            status: success ? 'sent' : 'failed',
+            smsType: 'custom',
+          })
+          .returning();
+        console.log(`[SMS Chat] Message stored successfully:`, smsMessage);
+      } catch (dbError) {
+        console.error(`[SMS Chat] Database error:`, dbError);
+        throw new Error('Failed to store message in database');
+      }
+
+      console.log(`[SMS Chat] SMS process completed successfully`);
+      return {
+        success,
+        message: smsMessage,
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+        }
+      };
+    } catch (error) {
+      console.error('[SMS Chat] Fatal error in sendIndividualSms:', error);
+      console.error('[SMS Chat] Error stack:', error.stack);
+      throw error;
+    }
+  }
+
+  async storeIncomingSms(from: string, to: string, body: string, messageId: string): Promise<void> {
+    try {
+      // Find customer by phone number
+      const [customer] = await db
+        .select()
+        .from(potentialCustomers)
+        .where(eq(potentialCustomers.phone, from))
+        .limit(1);
+
+      if (!customer) {
+        console.log(`[SMS Webhook] Customer not found for phone: ${from}`);
+        return;
+      }
+
+      // Store incoming message
+      await db
+        .insert(smsMessages)
+        .values({
+          recipientType: 'potential_customer',
+          recipientId: customer.id,
+          recipientPhone: customer.phone,
+          recipientName: customer.name,
+          message: body,
+          direction: 'inbound',
+          status: 'received',
+          smsType: 'custom',
+        });
+
+      console.log(`[SMS Webhook] Stored incoming message from ${customer.name} (${from})`);
+    } catch (error) {
+      console.error('Error storing incoming SMS:', error);
+      throw error;
+    }
+  }
+
+  // Role and Permission Management Methods
+  async getRoles() {
+    try {
+      const allRoles = await db.select().from(roles);
+      const rolesWithPermissions = await Promise.all(
+        allRoles.map(async (role) => {
+          const rolePermissionsData = await db
+            .select({ permissionId: rolePermissions.permissionId })
+            .from(rolePermissions)
+            .where(eq(rolePermissions.roleId, role.id));
+          
+          const userCount = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(adminUsers)
+            .where(eq(adminUsers.role, role.name));
+
+          return {
+            ...role,
+            permissions: rolePermissionsData.map(rp => rp.permissionId),
+            userCount: userCount[0]?.count || 0
+          };
+        })
+      );
+      return rolesWithPermissions;
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+      throw error;
+    }
+  }
+
+  async getPermissions() {
+    try {
+      return await db.select().from(permissions);
+    } catch (error) {
+      console.error('Error fetching permissions:', error);
+      throw error;
+    }
+  }
+
+  async getRolePermissions(roleId: number) {
+    try {
+      const result = await db
+        .select({ permissionId: rolePermissions.permissionId })
+        .from(rolePermissions)
+        .where(eq(rolePermissions.roleId, roleId));
+      
+      return result.map(rp => rp.permissionId);
+    } catch (error) {
+      console.error('Error fetching role permissions:', error);
+      throw error;
+    }
+  }
+
+  async createRole({ name, description, permissions }: { name: string; description: string; permissions: number[] }) {
+    try {
+      const [newRole] = await db.insert(roles).values({
+        name,
+        description,
+        isDefault: false
+      }).returning();
+
+      // Add permissions to the role
+      if (permissions.length > 0) {
+        await db.insert(rolePermissions).values(
+          permissions.map(permissionId => ({
+            roleId: newRole.id,
+            permissionId
+          }))
+        );
+      }
+
+      return newRole;
+    } catch (error) {
+      console.error('Error creating role:', error);
+      throw error;
+    }
+  }
+
+  async updateRole(roleId: number, { name, description, permissions }: { name: string; description: string; permissions: number[] }) {
+    try {
+      // Update role details
+      const [updatedRole] = await db
+        .update(roles)
+        .set({ name, description, updatedAt: new Date() })
+        .where(eq(roles.id, roleId))
+        .returning();
+
+      // Update permissions
+      await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
+      
+      if (permissions.length > 0) {
+        await db.insert(rolePermissions).values(
+          permissions.map(permissionId => ({
+            roleId,
+            permissionId
+          }))
+        );
+      }
+
+      return updatedRole;
+    } catch (error) {
+      console.error('Error updating role:', error);
+      throw error;
+    }
+  }
+
+  async deleteRole(roleId: number) {
+    try {
+      // Check if role is default
+      const role = await db.select().from(roles).where(eq(roles.id, roleId)).limit(1);
+      if (role[0]?.isDefault) {
+        throw new Error('Cannot delete default role');
+      }
+
+      // Check if role is in use
+      const usersWithRole = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(adminUsers)
+        .where(eq(adminUsers.role, role[0]?.name || ''));
+
+      if (usersWithRole[0]?.count > 0) {
+        throw new Error('Cannot delete role that is assigned to users');
+      }
+
+      // Delete role permissions first
+      await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
+      
+      // Delete role
+      await db.delete(roles).where(eq(roles.id, roleId));
+    } catch (error) {
+      console.error('Error deleting role:', error);
       throw error;
     }
   }

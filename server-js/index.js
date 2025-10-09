@@ -5041,7 +5041,7 @@ ServicePanda Team`;
           throw error;
         }
       }
-      async sendEmailToPotentialProvider(providerId, subject, content) {
+      async sendEmailToPotentialProvider(providerId, subject, content, adminUsername = "admin") {
         try {
           const provider = await db.select().from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
           if (provider.length === 0) {
@@ -5053,8 +5053,7 @@ ServicePanda Team`;
             direction: "outbound",
             subject,
             content,
-            sentBy: "admin",
-            // TODO: Get actual admin username
+            sentBy: adminUsername,
             status: "sent",
             sentAt: /* @__PURE__ */ new Date(),
             createdAt: /* @__PURE__ */ new Date()
@@ -5071,7 +5070,7 @@ ServicePanda Team`;
           throw error;
         }
       }
-      async sendSmsToPotentialProvider(providerId, content) {
+      async sendSmsToPotentialProvider(providerId, content, adminUsername = "admin") {
         try {
           const provider = await db.select().from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
           if (provider.length === 0) {
@@ -5088,8 +5087,7 @@ ServicePanda Team`;
             communicationType: "sms",
             direction: "outbound",
             content,
-            sentBy: "admin",
-            // TODO: Get actual admin username
+            sentBy: adminUsername,
             status: "sent",
             sentAt: /* @__PURE__ */ new Date(),
             createdAt: /* @__PURE__ */ new Date()
@@ -5363,7 +5361,7 @@ async function sendEmail(options) {
     const { apiKey, domain, domainSendingKey } = mailgunKeys;
     console.log("Mailgun keys retrieved - domain:", domain, "apiKey present:", !!apiKey);
     const formData = new URLSearchParams();
-    formData.append("from", `ServicePanda <noreply@${domain}>`);
+    formData.append("from", `ServicePanda <team@servicepanda.com.au>`);
     formData.append("to", options.to);
     if (options.cc) {
       formData.append("cc", options.cc);
@@ -9498,7 +9496,8 @@ ServicePanda Team`;
   app2.post("/api/admin/potential-providers/email", isAdminAuthenticated, async (req, res) => {
     try {
       const { potentialProviderId, subject, content } = req.body;
-      const result2 = await storage.sendEmailToPotentialProvider(potentialProviderId, subject, content);
+      const adminUsername = req.admin?.username || "admin";
+      const result2 = await storage.sendEmailToPotentialProvider(potentialProviderId, subject, content, adminUsername);
       res.json(result2);
     } catch (error) {
       console.error("Error sending email to potential provider:", error);
@@ -9508,7 +9507,8 @@ ServicePanda Team`;
   app2.post("/api/admin/potential-providers/sms", isAdminAuthenticated, async (req, res) => {
     try {
       const { potentialProviderId, content } = req.body;
-      const result2 = await storage.sendSmsToPotentialProvider(potentialProviderId, content);
+      const adminUsername = req.admin?.username || "admin";
+      const result2 = await storage.sendSmsToPotentialProvider(potentialProviderId, content, adminUsername);
       res.json(result2);
     } catch (error) {
       console.error("Error sending SMS to potential provider:", error);
@@ -9614,6 +9614,12 @@ ServicePanda Team`;
       if (!to || !subject || !body) {
         return res.status(400).json({ message: "To, subject, and body are required" });
       }
+      
+      // Get the admin user's ID from the database
+      const adminUser = await storage.getAdminUserByUsername(req.admin?.username);
+      const adminUserId = adminUser?.id?.toString() || req.admin?.username || "admin";
+      console.log('Admin user lookup:', { username: req.admin?.username, adminUser, adminUserId });
+      
       if (status === "draft") {
         const emailData = {
           from: "hrms.devdoc@gmail.com",
@@ -9630,7 +9636,7 @@ ServicePanda Team`;
           priority: "normal",
           folder: "draft",
           // Scope email to the logged-in admin user
-          userId: req.admin?.username || null,
+          userId: adminUserId,
           userType: "admin",
           sentAt: null
         };
@@ -9665,14 +9671,15 @@ ServicePanda Team`;
           priority: "normal",
           folder: "sent",
           // Scope email to the logged-in admin user
-          userId: req.admin?.username || null,
+          userId: adminUserId,
           userType: "admin",
           sentAt: /* @__PURE__ */ new Date()
         };
         await storage.createEmail(emailData);
         res.json({
           success: true,
-          message: "Email sent successfully"
+          message: "Email sent successfully",
+          debug: { adminUserId, adminUsername: req.admin?.username }
         });
       } else {
         const emailData = {
@@ -9690,7 +9697,7 @@ ServicePanda Team`;
           priority: "normal",
           folder: "sent",
           // Scope email to the logged-in admin user
-          userId: req.admin?.username || null,
+          userId: adminUserId,
           userType: "admin",
           sentAt: /* @__PURE__ */ new Date()
         };
@@ -9703,6 +9710,10 @@ ServicePanda Team`;
     } catch (error) {
       console.error("Error sending email:", error);
       try {
+        // Get the admin user's ID from the database for error case
+        const adminUser = await storage.getAdminUserByUsername(req.admin?.username);
+        const adminUserId = adminUser?.id?.toString() || req.admin?.username || "admin";
+        
         const { to, cc, bcc, subject, body } = req.body;
         const emailData = {
           from: "hrms.devdoc@gmail.com",
@@ -9719,7 +9730,7 @@ ServicePanda Team`;
           priority: "normal",
           folder: "sent",
           // Scope email to the logged-in admin user
-          userId: req.admin?.username || null,
+          userId: adminUserId,
           userType: "admin",
           sentAt: /* @__PURE__ */ new Date()
         };

@@ -4,10 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, MessageSquare, Phone, Calendar, User, Send, MoreVertical } from "lucide-react";
+import { Search, MessageSquare, Phone, Calendar, User, Send, MoreVertical, RefreshCw } from "lucide-react";
 import { format } from 'date-fns';
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { adminApiRequest } from "@/lib/adminAuth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface SmsMessage {
   id: number;
@@ -17,12 +19,9 @@ interface SmsMessage {
   recipientName?: string;
   message: string;
   direction: 'inbound' | 'outbound';
-  status: 'sent' | 'delivered' | 'failed' | 'read';
+  status: 'sent' | 'delivered' | 'failed' | 'received';
   smsType?: '1st_sent' | '2nd_sent' | 'custom' | 'notification';
-  sentBy?: string;
-  sentAt: string;
-  deliveredAt?: string;
-  readAt?: string;
+  sentAt?: string;
 }
 
 interface Conversation {
@@ -38,343 +37,104 @@ interface Conversation {
 }
 
 export default function AdminSmsMenu() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('customers');
   const [searchTerm, setSearchTerm] = useState('');
-  const [smsMessages, setSmsMessages] = useState<SmsMessage[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<SmsMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
 
-  // Comprehensive dummy data
-  const dummyData = {
-    customers: [
-      {
-        id: 'customer_1',
-        recipientType: 'customer' as const,
-        recipientId: 101,
-        recipientPhone: '+61412345678',
-        recipientName: 'John Smith',
-        lastMessage: 'Thank you for the service! It was excellent.',
-        lastMessageTime: '2024-01-15T14:30:00Z',
-        unreadCount: 0,
-        status: 'active' as const
-      },
-      {
-        id: 'customer_2',
-        recipientType: 'customer' as const,
-        recipientId: 102,
-        recipientPhone: '+61422222222',
-        recipientName: 'Emma Davis',
-        lastMessage: 'When will the technician arrive?',
-        lastMessageTime: '2024-01-15T13:15:00Z',
-        unreadCount: 1,
-        status: 'active' as const
-      },
-      {
-        id: 'potential_customer_1',
-        recipientType: 'potential_customer' as const,
-        recipientId: 201,
-        recipientPhone: '+61433333333',
-        recipientName: 'Sarah Wilson',
-        lastMessage: 'Hi Sarah! ServicePanda here! We noticed you might be looking for reliable service providers in your area. Reply YES to get started!',
-        lastMessageTime: '2024-01-15T12:00:00Z',
-        unreadCount: 0,
-        status: 'active' as const
-      },
-      {
-        id: 'potential_customer_2',
-        recipientType: 'potential_customer' as const,
-        recipientId: 202,
-        recipientPhone: '+61444444444',
-        recipientName: 'Michael Brown',
-        lastMessage: 'Just following up on our previous message about ServicePanda\'s verified service providers.',
-        lastMessageTime: '2024-01-15T11:45:00Z',
-        unreadCount: 2,
-        status: 'active' as const
-      },
-      {
-        id: 'customer_3',
-        recipientType: 'customer' as const,
-        recipientId: 103,
-        recipientPhone: '+61455555555',
-        recipientName: 'Lisa Johnson',
-        lastMessage: 'The service was completed successfully. Thank you!',
-        lastMessageTime: '2024-01-15T10:20:00Z',
-        unreadCount: 0,
-        status: 'active' as const
-      }
-    ],
-    providers: [
-      {
-        id: 'provider_1',
-        recipientType: 'provider' as const,
-        recipientId: 301,
-        recipientPhone: '+61466666666',
-        recipientName: 'Mike Johnson',
-        lastMessage: 'New lead available in your area! Check your dashboard for details.',
-        lastMessageTime: '2024-01-15T15:00:00Z',
-        unreadCount: 1,
-        status: 'active' as const
-      },
-      {
-        id: 'provider_2',
-        recipientType: 'provider' as const,
-        recipientId: 302,
-        recipientPhone: '+61477777777',
-        recipientName: 'David Wilson',
-        lastMessage: 'Your payment has been processed successfully.',
-        lastMessageTime: '2024-01-15T14:45:00Z',
-        unreadCount: 0,
-        status: 'active' as const
-      },
-      {
-        id: 'potential_provider_1',
-        recipientType: 'potential_provider' as const,
-        recipientId: 401,
-        recipientPhone: '+61488888888',
-        recipientName: 'Alex Thompson',
-        lastMessage: 'Hi Alex! We received your application to join ServicePanda. We\'ll review it and get back to you within 24 hours.',
-        lastMessageTime: '2024-01-15T13:30:00Z',
-        unreadCount: 0,
-        status: 'active' as const
-      },
-      {
-        id: 'potential_provider_2',
-        recipientType: 'potential_provider' as const,
-        recipientId: 402,
-        recipientPhone: '+61499999999',
-        recipientName: 'Rachel Green',
-        lastMessage: 'Thank you for your interest in ServicePanda! Please complete your profile verification.',
-        lastMessageTime: '2024-01-15T12:15:00Z',
-        unreadCount: 1,
-        status: 'active' as const
-      },
-      {
-        id: 'provider_3',
-        recipientType: 'provider' as const,
-        recipientId: 303,
-        recipientPhone: '+61400000000',
-        recipientName: 'Tom Anderson',
-        lastMessage: 'Your service area has been updated successfully.',
-        lastMessageTime: '2024-01-15T11:00:00Z',
-        unreadCount: 0,
-        status: 'active' as const
-      }
-    ]
-  };
+  // Fetch SMS messages from API
+  const { data: smsMessages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery({
+    queryKey: ['/api/admin/sms/messages'],
+    queryFn: async () => {
+      const response = await adminApiRequest('GET', '/api/admin/sms/messages');
+      return response.json();
+    },
+    refetchInterval: 5000, // Refresh every 5 seconds for real-time updates
+  });
 
-  // Dummy messages for each conversation
-  const dummyMessages = {
-    'customer_1': [
-      {
-        id: 1,
-        recipientType: 'customer',
-        recipientId: 101,
-        recipientPhone: '+61412345678',
-        recipientName: 'John Smith',
-        message: 'Hi, I need a plumber for my kitchen sink.',
-        direction: 'inbound',
-        status: 'delivered',
-        smsType: 'custom',
-        sentBy: 'john.smith@email.com',
-        sentAt: '2024-01-15T09:00:00Z',
-        deliveredAt: '2024-01-15T09:01:00Z'
-      },
-      {
-        id: 2,
-        recipientType: 'customer',
-        recipientId: 101,
-        recipientPhone: '+61412345678',
-        recipientName: 'John Smith',
-        message: 'Hi John! We\'ve assigned a qualified plumber to your request. They will contact you within 2 hours.',
-        direction: 'outbound',
-        status: 'delivered',
-        smsType: 'notification',
-        sentBy: 'admin@servicepanda.com',
-        sentAt: '2024-01-15T09:05:00Z',
-        deliveredAt: '2024-01-15T09:06:00Z'
-      },
-      {
-        id: 3,
-        recipientType: 'customer',
-        recipientId: 101,
-        recipientPhone: '+61412345678',
-        recipientName: 'John Smith',
-        message: 'Great! What time should I expect them?',
-        direction: 'inbound',
-        status: 'delivered',
-        smsType: 'custom',
-        sentBy: 'john.smith@email.com',
-        sentAt: '2024-01-15T09:10:00Z',
-        deliveredAt: '2024-01-15T09:11:00Z'
-      },
-      {
-        id: 4,
-        recipientType: 'customer',
-        recipientId: 101,
-        recipientPhone: '+61412345678',
-        recipientName: 'John Smith',
-        message: 'The plumber will arrive between 11:00 AM and 1:00 PM today.',
-        direction: 'outbound',
-        status: 'delivered',
-        smsType: 'notification',
-        sentBy: 'admin@servicepanda.com',
-        sentAt: '2024-01-15T09:15:00Z',
-        deliveredAt: '2024-01-15T09:16:00Z'
-      },
-      {
-        id: 5,
-        recipientType: 'customer',
-        recipientId: 101,
-        recipientPhone: '+61412345678',
-        recipientName: 'John Smith',
-        message: 'Perfect! Thank you for the quick response.',
-        direction: 'inbound',
-        status: 'delivered',
-        smsType: 'custom',
-        sentBy: 'john.smith@email.com',
-        sentAt: '2024-01-15T10:00:00Z',
-        deliveredAt: '2024-01-15T10:01:00Z'
-      },
-      {
-        id: 6,
-        recipientType: 'customer',
-        recipientId: 101,
-        recipientPhone: '+61412345678',
-        recipientName: 'John Smith',
-        message: 'Thank you for using ServicePanda! How was your experience? Rate us 1-5 stars.',
-        direction: 'outbound',
-        status: 'delivered',
-        smsType: 'custom',
-        sentBy: 'admin@servicepanda.com',
-        sentAt: '2024-01-15T14:30:00Z',
-        deliveredAt: '2024-01-15T14:31:00Z'
-      },
-      {
-        id: 7,
-        recipientType: 'customer',
-        recipientId: 101,
-        recipientPhone: '+61412345678',
-        recipientName: 'John Smith',
-        message: 'Thank you for the service! It was excellent.',
-        direction: 'inbound',
-        status: 'delivered',
-        smsType: 'custom',
-        sentBy: 'john.smith@email.com',
-        sentAt: '2024-01-15T14:30:00Z',
-        deliveredAt: '2024-01-15T14:31:00Z'
-      }
-    ],
-    'provider_1': [
-      {
-        id: 8,
-        recipientType: 'provider',
-        recipientId: 301,
-        recipientPhone: '+61466666666',
-        recipientName: 'Mike Johnson',
-        message: 'Hi Mike! We have a new plumbing job in your area. Check your dashboard for details.',
-        direction: 'outbound',
-        status: 'delivered',
-        smsType: 'notification',
-        sentBy: 'system@servicepanda.com',
-        sentAt: '2024-01-15T14:30:00Z',
-        deliveredAt: '2024-01-15T14:31:00Z'
-      },
-      {
-        id: 9,
-        recipientType: 'provider',
-        recipientId: 301,
-        recipientPhone: '+61466666666',
-        recipientName: 'Mike Johnson',
-        message: 'Thanks! I can see the job details. I\'ll contact the customer right away.',
-        direction: 'inbound',
-        status: 'delivered',
-        smsType: 'custom',
-        sentBy: 'mike.johnson@email.com',
-        sentAt: '2024-01-15T14:35:00Z',
-        deliveredAt: '2024-01-15T14:36:00Z'
-      },
-      {
-        id: 10,
-        recipientType: 'provider',
-        recipientId: 301,
-        recipientPhone: '+61466666666',
-        recipientName: 'Mike Johnson',
-        message: 'Great! The customer has been notified. Please update the job status once completed.',
-        direction: 'outbound',
-        status: 'delivered',
-        smsType: 'notification',
-        sentBy: 'system@servicepanda.com',
-        sentAt: '2024-01-15T14:40:00Z',
-        deliveredAt: '2024-01-15T14:41:00Z'
-      },
-      {
-        id: 11,
-        recipientType: 'provider',
-        recipientId: 301,
-        recipientPhone: '+61466666666',
-        recipientName: 'Mike Johnson',
-        message: 'New lead available in your area! Check your dashboard for details.',
-        direction: 'outbound',
-        status: 'sent',
-        smsType: 'notification',
-        sentBy: 'system@servicepanda.com',
-        sentAt: '2024-01-15T15:00:00Z'
-      }
-    ]
-  };
+  // Fetch potential customers for customer tab
+  const { data: potentialCustomers = [] } = useQuery({
+    queryKey: ['/api/admin/potential-customers'],
+    queryFn: async () => {
+      const response = await adminApiRequest('GET', '/api/admin/potential-customers');
+      return response.json();
+    },
+  });
 
-  // Load messages from server and construct conversations
+  // Fetch providers for provider tab
+  const { data: providers = [] } = useQuery({
+    queryKey: ['/api/admin/providers'],
+    queryFn: async () => {
+      const response = await adminApiRequest('GET', '/api/admin/providers');
+      return response.json();
+    },
+  });
+
+  // Send SMS mutation
+  const sendSmsMutation = useMutation({
+    mutationFn: async (data: { customerId: number; message: string }) => {
+      const response = await adminApiRequest('POST', '/api/admin/sms/send', data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "SMS Sent",
+        description: "Message sent successfully",
+      });
+      setNewMessage("");
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/sms/messages'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send SMS",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Clear selected conversation when switching tabs
   useEffect(() => {
-    let cancelled = false;
-    async function fetchMessages() {
-      try {
-        const res = await adminApiRequest('GET', '/api/admin/sms/messages');
-        const data = await res.json();
-        if (cancelled) return;
-
-        // data can be either array of messages or {messages: []}
-        const messages: SmsMessage[] = Array.isArray(data) ? data : (data.messages || []);
-        setSmsMessages(messages);
-
-        // Build conversations grouped by recipientType + recipientId/phone
-        const map = new Map<string, Conversation>();
-        for (const msg of messages) {
-          const key = `${msg.recipientType}:${msg.recipientId || msg.recipientPhone}`;
-          const existing = map.get(key);
-          const conv: Conversation = existing || {
-            id: key,
-            recipientType: msg.recipientType,
-            recipientId: msg.recipientId,
-            recipientPhone: msg.recipientPhone,
-            recipientName: msg.recipientName,
-            lastMessage: msg.message,
-            lastMessageTime: msg.sentAt,
-            unreadCount: 0,
-            status: 'active',
-          };
-          if (!existing || new Date(msg.sentAt) > new Date(conv.lastMessageTime)) {
-            conv.lastMessage = msg.message;
-            conv.lastMessageTime = msg.sentAt;
-          }
-          map.set(key, conv);
-        }
-
-        const allConversations = Array.from(map.values());
-        const customerConvs = allConversations.filter(c => c.recipientType === 'customer' || c.recipientType === 'potential_customer');
-        const providerConvs = allConversations.filter(c => c.recipientType === 'provider' || c.recipientType === 'potential_provider');
-
-        setConversations(activeTab === 'customers' ? customerConvs : providerConvs);
-        setIsLoading(false);
-      } catch (e) {
-        setIsLoading(false);
-      }
-    }
-    fetchMessages();
-    return () => { cancelled = true; };
+    setSelectedConversation(null);
   }, [activeTab]);
+
+  // Build conversations from SMS messages and potential customers/providers
+  useEffect(() => {
+    const map = new Map<string, Conversation>();
+    
+    // Add conversations from SMS messages
+    for (const msg of smsMessages) {
+      const key = `${msg.recipientType}:${msg.recipientId || msg.recipientPhone}`;
+      const existing = map.get(key);
+      const conv: Conversation = existing || {
+        id: key,
+        recipientType: msg.recipientType,
+        recipientId: msg.recipientId,
+        recipientPhone: msg.recipientPhone,
+        recipientName: msg.recipientName,
+        lastMessage: msg.message,
+        lastMessageTime: new Date().toISOString(), // Use current time since we don't have sentAt in existing table
+        unreadCount: 0,
+        status: 'active',
+      };
+      // Always update with latest message
+      conv.lastMessage = msg.message;
+      map.set(key, conv);
+    }
+
+    // Only show users who have actually sent messages
+    // No need to add users who haven't sent any messages
+
+    const allConversations = Array.from(map.values());
+    const customerConvs = allConversations.filter(c => c.recipientType === 'customer' || c.recipientType === 'potential_customer');
+    const providerConvs = allConversations.filter(c => c.recipientType === 'provider' || c.recipientType === 'potential_provider');
+
+    setConversations(activeTab === 'customers' ? customerConvs : providerConvs);
+  }, [smsMessages, potentialCustomers, providers, activeTab]);
 
   // Load conversation messages for selected conversation
   useEffect(() => {
@@ -382,12 +142,29 @@ export default function AdminSmsMenu() {
       setConversationMessages([]);
       return;
     }
-    const filtered = smsMessages.filter(m => {
+    
+    // Check if the selected conversation is valid for the current tab
+    const isCustomerTab = activeTab === 'customers';
+    const isCustomerConversation = selectedConversation.recipientType === 'customer' || selectedConversation.recipientType === 'potential_customer';
+    const isProviderConversation = selectedConversation.recipientType === 'provider' || selectedConversation.recipientType === 'potential_provider';
+    
+    if ((isCustomerTab && !isCustomerConversation) || (!isCustomerTab && !isProviderConversation)) {
+      // Clear the selected conversation if it doesn't match the current tab
+      setSelectedConversation(null);
+      setConversationMessages([]);
+      return;
+    }
+    
+    const filtered = smsMessages.filter((m: SmsMessage) => {
       const key = `${m.recipientType}:${m.recipientId || m.recipientPhone}`;
       return key === selectedConversation.id;
-    }).sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
+    }).sort((a: SmsMessage, b: SmsMessage) => {
+      const aTime = a.sentAt ? new Date(a.sentAt).getTime() : 0;
+      const bTime = b.sentAt ? new Date(b.sentAt).getTime() : 0;
+      return aTime - bTime;
+    });
     setConversationMessages(filtered);
-  }, [selectedConversation, smsMessages]);
+  }, [selectedConversation, smsMessages, activeTab]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -420,33 +197,13 @@ export default function AdminSmsMenu() {
   };
 
   const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() || !selectedConversation || !selectedConversation.recipientId) return;
     
-    // Add new message to conversation
-    const newMsg: SmsMessage = {
-      id: Date.now(),
-      recipientType: selectedConversation.recipientType,
-      recipientId: selectedConversation.recipientId,
-      recipientPhone: selectedConversation.recipientPhone,
-      recipientName: selectedConversation.recipientName,
-      message: newMessage,
-      direction: 'outbound',
-      status: 'sent',
-      smsType: 'custom',
-      sentBy: 'admin@servicepanda.com',
-      sentAt: new Date().toISOString()
-    };
-    
-    setConversationMessages(prev => [...prev, newMsg]);
-    
-    // Update conversation last message
-    setConversations(prev => prev.map(conv => 
-      conv.id === selectedConversation.id 
-        ? { ...conv, lastMessage: newMessage, lastMessageTime: new Date().toISOString() }
-        : conv
-    ));
-    
-    setNewMessage('');
+    // Send SMS via API
+    sendSmsMutation.mutate({
+      customerId: selectedConversation.recipientId,
+      message: newMessage.trim(),
+    });
   };
 
   const filteredConversations = conversations.filter(conv => 
@@ -455,7 +212,7 @@ export default function AdminSmsMenu() {
     conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (isLoading) {
+  if (messagesLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Loading SMS conversations...</div>
@@ -471,11 +228,22 @@ export default function AdminSmsMenu() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="bg-white border-b border-gray-200 px-6 py-5">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">SMS Conversations</h1>
-              <p className="text-gray-600">Manage all SMS communications</p>
+              <h1 className="text-xl font-semibold text-gray-900">SMS Conversations</h1>
+              <p className="text-xs text-gray-600">Manage all SMS communications</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchMessages()}
+                disabled={messagesLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${messagesLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
             </div>
           </div>
         </div>
@@ -508,8 +276,22 @@ export default function AdminSmsMenu() {
             </div>
 
             {/* Conversations */}
-            <div className="flex-1 overflow-y-auto">
-              {filteredConversations.map((conversation) => (
+            <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+              {filteredConversations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                  <MessageSquare className="h-12 w-12 text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {activeTab === 'customers' ? 'No Customer Conversations' : 'No Provider Conversations'}
+                  </h3>
+                  <p className="text-sm text-gray-500 max-w-sm">
+                    {activeTab === 'customers' 
+                      ? 'No customers have sent messages yet. Conversations will appear here once customers start messaging.'
+                      : 'No providers have sent messages yet. Conversations will appear here once providers start messaging.'
+                    }
+                  </p>
+                </div>
+              ) : (
+                filteredConversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   onClick={() => handleConversationClick(conversation)}
@@ -552,7 +334,8 @@ export default function AdminSmsMenu() {
                     {format(new Date(conversation.lastMessageTime), 'MMM dd, HH:mm')}
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -600,7 +383,7 @@ export default function AdminSmsMenu() {
                         <div className={`flex items-center justify-between mt-2 text-xs ${
                           message.direction === 'outbound' ? 'text-blue-100' : 'text-gray-500'
                         }`}>
-                          <span>{format(new Date(message.sentAt), 'HH:mm')}</span>
+                          <span>{format(new Date(), 'HH:mm')}</span>
                           <div className="flex items-center gap-1">
                             {getDirectionIcon(message.direction)}
                             <Badge className={`text-xs ${getStatusColor(message.status)}`}>
@@ -623,8 +406,12 @@ export default function AdminSmsMenu() {
                       onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                       className="flex-1"
                     />
-                    <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                    <Button 
+                      onClick={handleSendMessage} 
+                      disabled={!newMessage.trim() || sendSmsMutation.isPending}
+                    >
                       <Send className="h-4 w-4" />
+                      {sendSmsMutation.isPending ? "Sending..." : ""}
                     </Button>
                   </div>
                 </div>
