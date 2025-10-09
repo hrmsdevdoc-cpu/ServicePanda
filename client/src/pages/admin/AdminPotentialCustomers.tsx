@@ -39,6 +39,7 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   MoreHorizontal,
 } from "lucide-react";
 
@@ -112,7 +113,9 @@ export default function AdminPotentialCustomers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedImportId, setSelectedImportId] = useState<string>("all");
   const [selectedState, setSelectedState] = useState<string>("all");
-  const [selectedCustomerStatus, setSelectedCustomerStatus] = useState<string>("all");
+  const [selectedCustomerStatuses, setSelectedCustomerStatuses] = useState<string[]>(["New", "Added to Campaign", "1st SMS", "2nd SMS"]);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
   // Region filter removed - customers don't have region data
   
   // State for SMS sending
@@ -144,66 +147,82 @@ export default function AdminPotentialCustomers() {
   // Local status state per customer (UI only for now)
   const [customerStatusMap, setCustomerStatusMap] = useState<Record<number, string>>({});
 
-  const setCustomerStatus = (customerId: number, status: string) => {
-    setCustomerStatusMap(prev => ({ ...prev, [customerId]: status }));
+  const setCustomerStatus = async (customerId: number, status: string) => {
+    try {
+      console.log(`🔄 Updating customer ${customerId} status to ${status}`);
+      
+      const response = await adminApiRequest('PUT', `/api/admin/potential-customers/${customerId}/status`, {
+        status: status
+      });
+      
+      console.log(`📡 API Response status: ${response.status}`);
+      
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log(`✅ API Response data:`, responseData);
+        
+        setCustomerStatusMap(prev => ({ ...prev, [customerId]: status }));
+        console.log(`✅ Customer ${customerId} status updated to ${status} in UI`);
+        
+        // Refresh the data to get updated customer information
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-customers'] });
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Failed to update customer status:', response.status, errorText);
+        toast({
+          title: "Error",
+          description: "Failed to update customer status",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error updating customer status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update customer status",
+        variant: "destructive",
+      });
+    }
   };
 
   // List/Kanban toggle for customer list
   const [customerListView, setCustomerListView] = useState<'list' | 'kanban'>('list');
   
-  // Auto-scroll functionality
-  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+  // Kanban ref for keyboard navigation
   const kanbanRef = useRef<HTMLDivElement>(null);
+  
+  // Arrow visibility state
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
 
-  // Auto-scroll effect
-  React.useEffect(() => {
-    let animationId: number;
-    let scrollDirection: 'left' | 'right' | null = null;
+  // Update arrow visibility based on scroll position
+  const updateArrowVisibility = () => {
+    if (!kanbanRef.current) return;
     
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!kanbanRef.current || customerListView !== 'kanban') return;
-      
-      const rect = kanbanRef.current.getBoundingClientRect();
-      const scrollThreshold = 80; // Distance from edge to trigger scroll
-      const scrollSpeed = 2; // Pixels per frame
-      
-      // Check if mouse is near left edge
-      if (e.clientX - rect.left < scrollThreshold && kanbanRef.current.scrollLeft > 0) {
-        scrollDirection = 'left';
-        setIsAutoScrolling(true);
-      }
-      // Check if mouse is near right edge
-      else if (rect.right - e.clientX < scrollThreshold && 
-               kanbanRef.current.scrollLeft < kanbanRef.current.scrollWidth - kanbanRef.current.clientWidth) {
-        scrollDirection = 'right';
-        setIsAutoScrolling(true);
-      }
-      else {
-        scrollDirection = null;
-        setIsAutoScrolling(false);
-      }
+    const { scrollLeft, scrollWidth, clientWidth } = kanbanRef.current;
+    const isAtStart = scrollLeft <= 0;
+    const isAtEnd = scrollLeft >= scrollWidth - clientWidth - 1; // -1 for rounding errors
+    
+    setShowLeftArrow(!isAtStart);
+    setShowRightArrow(!isAtEnd);
+  };
+
+  // Scroll event listener for arrow visibility
+  React.useEffect(() => {
+    if (customerListView !== 'kanban' || !kanbanRef.current) return;
+    
+    const handleScroll = () => {
+      updateArrowVisibility();
     };
-
-    const animateScroll = () => {
-      if (kanbanRef.current && scrollDirection) {
-        if (scrollDirection === 'left') {
-          kanbanRef.current.scrollLeft -= 2;
-        } else if (scrollDirection === 'right') {
-          kanbanRef.current.scrollLeft += 2;
-        }
-        animationId = requestAnimationFrame(animateScroll);
-      }
-    };
-
-    if (customerListView === 'kanban') {
-      document.addEventListener('mousemove', handleMouseMove);
-      animationId = requestAnimationFrame(animateScroll);
-    }
-
+    
+    kanbanRef.current.addEventListener('scroll', handleScroll);
+    
+    // Initial check
+    updateArrowVisibility();
+    
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      if (animationId) {
-        cancelAnimationFrame(animationId);
+      if (kanbanRef.current) {
+        kanbanRef.current.removeEventListener('scroll', handleScroll);
       }
     };
   }, [customerListView]);
@@ -257,30 +276,38 @@ export default function AdminPotentialCustomers() {
 
 
   // Fetch potential customers
-  const { data: potentialCustomers = [], isLoading } = useQuery({
+  const { data: potentialCustomers = [], isLoading, error } = useQuery({
     queryKey: ['/api/admin/potential-customers'],
     queryFn: async () => {
+      try {
+        console.log('🔄 [API] Fetching potential customers...');
       const response = await adminApiRequest('GET', '/api/admin/potential-customers');
-      const data = await response.json();
-      // Check if region field exists and log sample data
-      if (data.length > 0) {
-        console.log('🔍 API Response Check:');
-        console.log('  - Total customers:', data.length);
-        console.log('  - First customer fields:', Object.keys(data[0]));
-        console.log('  - Region field exists:', data[0].hasOwnProperty('region'));
-        console.log('  - Region value:', data[0].region);
+        console.log('📡 [API] Response status:', response.status);
         
-        // Log unique regions in the data
-        const uniqueRegions = Array.from(new Set(data.map((c: any) => c.region).filter(Boolean)));
-        console.log('  - Unique regions in database:', uniqueRegions);
-        
-        if (!data[0].hasOwnProperty('region')) {
-          console.error('❌ API is not returning region field. Server needs to be restarted after schema change.');
-        } else {
-          console.log('✅ Region field is available!');
+        if (!response.ok) {
+          console.error('❌ [API] Response not OK:', response.status, response.statusText);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        
+      const data = await response.json();
+        console.log('📊 [API] Potential customers data received:');
+        console.log('  - Total customers:', data.length);
+        
+        if (data && data.length > 0) {
+        console.log('  - First customer fields:', Object.keys(data[0]));
+          console.log('  - Sample customer:', data[0]);
+        
+          // Log unique regions in the data
+          const uniqueRegions = Array.from(new Set(data.map((c: any) => c.region).filter(Boolean)));
+          console.log('  - Unique regions in database:', uniqueRegions);
+        } else {
+          console.log('📊 [API] No potential customers data received or empty array');
       }
       return data;
+      } catch (error) {
+        console.error('❌ [API] Error fetching potential customers:', error);
+        throw error;
+      }
     },
   });
 
@@ -307,6 +334,48 @@ export default function AdminPotentialCustomers() {
       return resp.json();
     },
   });
+
+  // Initialize customer status map when customers are loaded
+  React.useEffect(() => {
+    if (potentialCustomers && potentialCustomers.length > 0) {
+      setCustomerStatusMap(prev => {
+        const newStatusMap = { ...prev };
+        let hasNewCustomers = false;
+        
+        potentialCustomers.forEach((customer: PotentialCustomer) => {
+          // Use campaignStatus from database if available, otherwise default to 'New'
+          const status = (customer as any).campaignStatus || 'New';
+          if (!newStatusMap[customer.id]) {
+            newStatusMap[customer.id] = status;
+            hasNewCustomers = true;
+          }
+        });
+        
+        if (hasNewCustomers) {
+          console.log('🔄 [Status Map] Initialized customer status map from database');
+        }
+        
+        return newStatusMap;
+      });
+    }
+  }, [potentialCustomers]);
+
+  // Debug logging for filter data
+  React.useEffect(() => {
+    console.log('[Filter Debug] Filter states:', {
+      searchTerm,
+      selectedImportId,
+      selectedState,
+      selectedCustomerStatuses,
+      allStatesCount: allStates.length,
+      allStates: allStates.map(s => ({ name: s.name, abbreviation: s.abbreviation })),
+      potentialCustomersCount: potentialCustomers.length,
+      sampleCustomerStates: potentialCustomers.slice(0, 3).map((c: PotentialCustomer) => ({ id: c.id, name: c.name, state: c.state, smsStatus: c.smsDeliveryStatus })),
+      customerStatusMapSample: Object.keys(customerStatusMap).slice(0, 3).map(id => ({ id, status: customerStatusMap[parseInt(id)] })),
+      isLoading,
+      error: error?.message
+    });
+  }, [searchTerm, selectedImportId, selectedState, selectedCustomerStatuses, allStates, potentialCustomers, customerStatusMap, isLoading, error]);
 
   // Calculate target audience for campaigns
   const getTargetAudience = React.useMemo(() => {
@@ -439,13 +508,13 @@ export default function AdminPotentialCustomers() {
       
       // Update customer statuses based on SMS results
       if (data.results) {
-        data.results.forEach((result: any) => {
+        data.results.forEach(async (result: any) => {
           if (result.status === 'sent') {
             // Move from "Added to Campaign" to appropriate SMS status
             if (result.smsType === '1st_sent') {
-              setCustomerStatus(result.customerId, '1st_sent');
+              await setCustomerStatus(result.customerId, '1st_sent');
             } else if (result.smsType === '2nd_sent') {
-              setCustomerStatus(result.customerId, '2nd_sent');
+              await setCustomerStatus(result.customerId, '2nd_sent');
             }
           }
         });
@@ -755,11 +824,11 @@ export default function AdminPotentialCustomers() {
     };
 
     createCampaignMutation.mutate(campaignData, {
-      onSuccess: () => {
+      onSuccess: async () => {
         // Move target customers to "Added to Campaign" status
-        targetAudience.forEach((customer: PotentialCustomer) => {
-          setCustomerStatus(customer.id, 'Added to Campaign');
-        });
+        for (const customer of targetAudience) {
+          await setCustomerStatus(customer.id, 'Added to Campaign');
+        }
         
         toast({
           title: "Campaign Created",
@@ -891,13 +960,13 @@ export default function AdminPotentialCustomers() {
       case 'not_sent':
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Not Sent</Badge>;
       case '1st_sent':
-        return <Badge className="bg-blue-100 text-blue-800"><CheckCircle className="h-3 w-3 mr-1" />1st SMS Sent</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800"><CheckCircle className="h-3 w-3 mr-1" />1st</Badge>;
       case '2nd_sent':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />2nd SMS Sent</Badge>;
+        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />2nd</Badge>;
       case 'unsubscribed':
         return <Badge className="bg-red-100 text-red-800"><X className="h-3 w-3 mr-1" />Unsubscribed</Badge>;
       default:
-        return <Badge variant="secondary"><AlertCircle className="h-3 w-3 mr-1" />Unknown</Badge>;
+        return <Badge variant="secondary"><AlertCircle className="h-3 w-3 mr-1" />Not Set</Badge>;
     }
   };
 
@@ -912,15 +981,57 @@ export default function AdminPotentialCustomers() {
       if (selectedState === "all") return true;
       // Find the state object that matches the selected state name
       const selectedStateObj = allStates.find(state => state.name === selectedState);
-      if (!selectedStateObj) return false;
+      if (!selectedStateObj) {
+        console.log(`[Filter] State not found: ${selectedState}`, allStates);
+        return false;
+      }
       // Compare customer state (abbreviation) with the abbreviation of selected state
-      return customer.state === selectedStateObj.abbreviation;
+      const matches = customer.state === selectedStateObj.abbreviation;
+      if (!matches) {
+        console.log(`[Filter] State mismatch: customer.state=${customer.state}, selectedStateObj.abbreviation=${selectedStateObj.abbreviation}`);
+      }
+      return matches;
     })();
     
     const currentStatus = customerStatusMap[customer.id] ?? 'New';
-    const matchesCustomerStatus = selectedCustomerStatus === 'all' || currentStatus === selectedCustomerStatus;
+    const smsStatus = customer.smsDeliveryStatus || 'not_sent';
     
-    return matchesSearch && matchesImportId && matchesState && matchesCustomerStatus;
+    // Handle customer status filtering with multiple selections
+    let matchesCustomerStatus = false;
+    
+    // Check if customer matches any of the selected statuses
+    matchesCustomerStatus = selectedCustomerStatuses.some(status => {
+      if (status === '1st SMS') {
+        // Match customers who have received first SMS
+        return smsStatus === '1st_sent';
+      } else if (status === '2nd SMS') {
+        // Match customers who have received second SMS
+        return smsStatus === '2nd_sent';
+      } else {
+        // For other statuses (New, Added to Campaign, Lost, Won, Unsubscribe), use campaign status
+        return currentStatus === status;
+      }
+    });
+    
+    const result = matchesImportId && matchesState && matchesCustomerStatus;
+    
+    // Debug logging for first few customers
+    if (customer.id <= 3) {
+      console.log(`[Filter] Customer ${customer.id} (${customer.name}):`, {
+        matchesImportId,
+        matchesState,
+        matchesCustomerStatus,
+        result,
+        customerState: customer.state,
+        selectedState,
+        currentStatus,
+        smsStatus,
+        selectedCustomerStatuses,
+        customerStatusMapValue: customerStatusMap[customer.id]
+      });
+    }
+    
+    return result;
   });
 
   // Remove duplicates from filtered customers based on phone number
@@ -947,7 +1058,21 @@ export default function AdminPotentialCustomers() {
   React.useEffect(() => {
     setCurrentPage(1);
     setLoadedCount(10);
-  }, [searchTerm, selectedImportId, selectedState, selectedCustomerStatus]);
+  }, [searchTerm, selectedImportId, selectedState, selectedCustomerStatuses]);
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Sync tabs with route
   const currentTab: 'list' | 'imports' | 'sms' = React.useMemo(() => {
@@ -999,10 +1124,7 @@ export default function AdminPotentialCustomers() {
             <TabsContent value="list" className="space-y-4">
               {/* Filters */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Filters</CardTitle>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                     <div>
                       <Label htmlFor="search">Search</Label>
@@ -1046,22 +1168,68 @@ export default function AdminPotentialCustomers() {
                     {/* Region filter removed - customers don't have region data */}
                     <div>
                       <Label htmlFor="customer-status">Customer Status</Label>
-                      <Select value={selectedCustomerStatus} onValueChange={setSelectedCustomerStatus}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All statuses" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All statuses</SelectItem>
-                          <SelectItem value="New">New</SelectItem>
-                          <SelectItem value="Added to Campaign">Added to Campaign</SelectItem>
-                          <SelectItem value="SMS Sent">SMS Sent</SelectItem>
-                          <SelectItem value="2nd SMS">2nd SMS</SelectItem>
-                          <SelectItem value="3rd Sent">3rd Sent</SelectItem>
-                          <SelectItem value="Lost">Lost</SelectItem>
-                          <SelectItem value="Won">Won</SelectItem>
-                          <SelectItem value="Unsubscribe">Unsubscribe</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="relative" ref={statusDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                          className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-md bg-white shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <span className="text-sm text-gray-700">
+                            {selectedCustomerStatuses.length === 0 
+                              ? 'Select statuses...' 
+                              : `${selectedCustomerStatuses.length} selected`
+                            }
+                          </span>
+                          <div className="flex items-center space-x-2">
+                            {selectedCustomerStatuses.length > 0 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCustomerStatuses([]);
+                                }}
+                                className="text-xs text-gray-500 hover:text-gray-700"
+                              >
+                                Clear
+                              </button>
+                            )}
+                            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+                          </div>
+                        </button>
+                        
+                        {isStatusDropdownOpen && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                            <div className="max-h-48 overflow-y-auto">
+                              {[
+                                { id: 'New', label: 'New' },
+                                { id: 'Added to Campaign', label: 'Added to Campaign' },
+                                { id: '1st SMS', label: '1st SMS' },
+                                { id: '2nd SMS', label: '2nd SMS' },
+                                { id: 'Lost', label: 'Lost' },
+                                { id: 'Won', label: 'Won' },
+                                { id: 'Unsubscribe', label: 'Unsubscribe' }
+                              ].map((status) => (
+                                <label key={status.id} className="flex items-center space-x-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedCustomerStatuses.includes(status.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedCustomerStatuses(prev => [...prev, status.id]);
+                                      } else {
+                                        setSelectedCustomerStatuses(prev => 
+                                          prev.filter(s => s !== status.id)
+                                        );
+                                      }
+                                    }}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                  <span className="text-sm text-gray-700">{status.label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-end">
                       <Button 
@@ -1070,7 +1238,7 @@ export default function AdminPotentialCustomers() {
                           setSearchTerm("");
                           setSelectedImportId("all");
                           setSelectedState("all");
-                          setSelectedCustomerStatus("all");
+                          setSelectedCustomerStatuses(["New", "Added to Campaign", "1st SMS", "2nd SMS"]);
                         }}
                       >
                         <RefreshCw className="h-4 w-4 mr-2" />
@@ -1116,7 +1284,7 @@ export default function AdminPotentialCustomers() {
                     Imported customer data with SMS delivery status
                     {customerListView === 'kanban' && (
                       <span className="block text-xs text-gray-500 mt-1">
-                        💡 Move mouse to edges for auto-scroll • Use ← → keys to navigate • Home/End for start/end
+                        💡 Use ← → keys or click arrow buttons to navigate • Home/End for start/end
                       </span>
                     )}
                   </CardDescription>
@@ -1127,16 +1295,32 @@ export default function AdminPotentialCustomers() {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                       <p className="text-gray-500 mt-2">Loading customers...</p>
                     </div>
-                  ) : uniqueFilteredCustomers.length === 0 ? (
+                  ) : error ? (
                     <div className="text-center py-8">
-                      <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Customers Found</h3>
-                      <p className="text-gray-500">Import customer data to get started.</p>
+                      <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Customers</h3>
+                      <p className="text-gray-500 mb-4">Failed to fetch customer data from the server.</p>
+                      <p className="text-sm text-gray-400">Check the browser console for more details.</p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => window.location.reload()} 
+                        className="mt-4"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Retry
+                      </Button>
                     </div>
                   ) : (
                     <div>
                       {customerListView === 'list' ? (
                         <>
+                          {displayedCustomers.length === 0 ? (
+                            <div className="text-center py-8">
+                              <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                              <h3 className="text-lg font-medium text-gray-900 mb-2">No Customers Found</h3>
+                              <p className="text-gray-500">Import customer data to get started.</p>
+                            </div>
+                          ) : (
                           <div className="space-y-4">
                             {displayedCustomers.map((customer: PotentialCustomer) => (
                               <div key={customer.id} className="border rounded-lg p-4 bg-white">
@@ -1177,7 +1361,7 @@ export default function AdminPotentialCustomers() {
                                         }`}></div>
                                       <Select
                                         value={customerStatusMap[customer.id] ?? 'New'}
-                                        onValueChange={(value) => setCustomerStatus(customer.id, value)}
+                                        onValueChange={async (value) => await setCustomerStatus(customer.id, value)}
                                       >
                                           <SelectTrigger className={`w-56 ${
                                             customerStatusMap[customer.id] ? 'border-green-300 bg-green-50' : 'border-gray-300'
@@ -1215,6 +1399,7 @@ export default function AdminPotentialCustomers() {
                               </div>
                             ))}
                           </div>
+                          )}
                           
                           {/* View Mode Toggle */}
                           <div className="flex items-center justify-between mt-6">
@@ -1344,34 +1529,100 @@ export default function AdminPotentialCustomers() {
                           )}
                         </>
                       ) : (
-                        <div 
-                          ref={kanbanRef}
-                          className={`overflow-x-auto relative transition-all duration-200 ${
-                            isAutoScrolling ? 'shadow-lg' : ''
-                          }`}
-                          style={{
-                            scrollbarWidth: 'thin',
-                            scrollbarColor: '#cbd5e0 #f1f5f9'
-                          }}
-                        >
-                          {/* Auto-scroll indicators */}
-                          {isAutoScrolling && (
-                            <div className="absolute top-1/2 left-4 transform -translate-y-1/2 z-10">
-                              <div className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium animate-pulse">
-                                Auto-scrolling
-                              </div>
-                            </div>
+                        <div className="relative">
+                          {/* Left Arrow Button - Auto Hide/Show */}
+                          {showLeftArrow && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (kanbanRef.current) {
+                                  kanbanRef.current.scrollBy({
+                                    left: -300,
+                                    behavior: 'smooth'
+                                  });
+                                }
+                              }}
+                              className="absolute left-2 top-1/2 transform -translate-y-1/2 z-20 bg-white hover:bg-gray-50 border border-gray-300 rounded-full p-2 shadow-lg transition-all duration-200 hover:shadow-xl"
+                              title="Scroll Left"
+                            >
+                              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
                           )}
-                          
+
+                          {/* Right Arrow Button - Auto Hide/Show */}
+                          {showRightArrow && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (kanbanRef.current) {
+                                  kanbanRef.current.scrollBy({
+                                    left: 300,
+                                    behavior: 'smooth'
+                                  });
+                                }
+                              }}
+                              className="absolute right-2 top-1/2 transform -translate-y-1/2 z-20 bg-white hover:bg-gray-50 border border-gray-300 rounded-full p-2 shadow-lg transition-all duration-200 hover:shadow-xl"
+                              title="Scroll Right"
+                            >
+                              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          )}
+
+                          <div 
+                            ref={kanbanRef}
+                            className="overflow-x-auto transition-all duration-200"
+                            style={{
+                              scrollbarWidth: 'thin',
+                              scrollbarColor: '#cbd5e0 #f1f5f9'
+                            }}
+                          >
                           <div className="flex gap-6 min-w-max pr-2">
                             {(CUSTOMER_STATUSES).map((column) => {
                               const columnCustomers = uniqueFilteredCustomers.filter((c: PotentialCustomer) => {
                                 const smsStatus = c.smsDeliveryStatus || 'not_sent';
                                 const campaignStatus = customerStatusMap[c.id] || 'New';
                                 
-                                // For SMS status columns, use SMS status
+                                // First check if this column should be shown based on selected statuses
+                                let shouldShowColumn = false;
+                                
+                                if (column.id === '1st_sent' && selectedCustomerStatuses.includes('1st SMS')) {
+                                  shouldShowColumn = true;
+                                } else if (column.id === '2nd_sent' && selectedCustomerStatuses.includes('2nd SMS')) {
+                                  shouldShowColumn = true;
+                                } else if (column.id === 'New' && selectedCustomerStatuses.includes('New')) {
+                                  shouldShowColumn = true;
+                                } else if (column.id === 'Added to Campaign' && selectedCustomerStatuses.includes('Added to Campaign')) {
+                                  shouldShowColumn = true;
+                                } else if (column.id === 'Lost' && selectedCustomerStatuses.includes('Lost')) {
+                                  shouldShowColumn = true;
+                                } else if (column.id === 'Won' && selectedCustomerStatuses.includes('Won')) {
+                                  shouldShowColumn = true;
+                                } else if (column.id === 'Unsubscribe' && selectedCustomerStatuses.includes('Unsubscribe')) {
+                                  shouldShowColumn = true;
+                                }
+                                
+                                if (!shouldShowColumn) return false;
+                                
+                                // Priority: Campaign status over SMS status
+                                // If customer has a campaign status (Lost, Won, etc.), use that
+                                if (campaignStatus !== 'New' && campaignStatus !== 'Added to Campaign') {
+                                  // Customer has been moved to Lost, Won, Unsubscribe - show in campaign status column
+                                  if (column.id === campaignStatus) {
+                                    return true;
+                                  } else {
+                                    return false; // Don't show in any other column
+                                  }
+                                }
+                                
+                                // For SMS status columns, use SMS status (only if no campaign status)
                                 if (column.id === '1st_sent' || column.id === '2nd_sent') {
-                                  return smsStatus === column.id;
+                                  return smsStatus === column.id && campaignStatus === 'New';
                                 }
                                 
                                 // For campaign status columns, use campaign status
@@ -1387,31 +1638,34 @@ export default function AdminPotentialCustomers() {
                                 return false;
                               });
                               return (
-                                <div key={column.id} className="space-y-3 w-80 flex-shrink-0">
+                                <div key={column.id} className="space-y-2 w-72 flex-shrink-0">
                                   <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-semibold text-gray-800">{column.title}</h3>
-                                    <Badge variant="secondary" className="bg-white text-gray-700 border border-gray-300">
+                                    <h3 className="text-sm font-semibold text-gray-800">{column.title}</h3>
+                                    <Badge variant="secondary" className="bg-white text-gray-700 border border-gray-300 text-xs">
                                       {columnCustomers.length}
                                     </Badge>
                                   </div>
                                   <div
-                                    className={"min-h-[500px] max-h-[700px] p-4 rounded-xl " + column.color + " border-2 border-gray-200 overflow-hidden shadow-sm"}
+                                    className={"min-h-[400px] max-h-[600px] p-2 rounded-lg " + column.color + " border border-gray-200 overflow-hidden shadow-sm"}
                                     onDragOver={(e) => {
                                       e.preventDefault();
-                                      e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
+                                      // Only highlight campaign status columns as drop targets
+                                      if (column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New') {
+                                        e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
+                                      }
                                     }}
                                     onDragLeave={(e) => {
                                       e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
                                     }}
-                                    onDrop={(e) => {
+                                    onDrop={async (e) => {
                                       e.preventDefault();
                                       e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
                                       const idStr = e.dataTransfer.getData('text/plain');
                                       const cid = parseInt(idStr);
                                       if (!isNaN(cid)) {
-                                        // Only allow drag and drop for campaign status columns, not SMS status
+                                        // Allow drag and drop for campaign status columns
                                         if (column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New') {
-                                        setCustomerStatus(cid, column.id);
+                                        await setCustomerStatus(cid, column.id);
                                         toast({
                                           title: "Status Updated",
                                           description: `Customer moved to ${column.title}`,
@@ -1419,14 +1673,14 @@ export default function AdminPotentialCustomers() {
                                         } else {
                                           toast({
                                             title: "Info",
-                                            description: "SMS status is automatically managed by the system",
+                                            description: "SMS status columns are not draggable",
                                             variant: "default",
                                           });
                                         }
                                       }
                                     }}
                                   >
-                                    <div className="space-y-3 max-h-[660px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f1f5f9' }}>
+                                    <div className="space-y-1.5 max-h-[660px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f1f5f9' }}>
                                       {columnCustomers.length === 0 ? (
                                         <div className="text-center py-8 text-gray-500">
                                           <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -1436,14 +1690,14 @@ export default function AdminPotentialCustomers() {
                                         columnCustomers.map((customer: PotentialCustomer) => (
                                           <div
                                             key={customer.id}
-                                            className={`bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 group ${
-                                              (column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New') 
-                                                ? 'cursor-move hover:scale-[1.02]' 
+                                            className={`bg-white rounded-md p-2 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 group ${
+                                              (column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New' || column.id === '1st_sent' || column.id === '2nd_sent') 
+                                                ? 'cursor-move hover:scale-[1.01]' 
                                                 : ''
                                             }`}
-                                            draggable={(column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New')}
+                                            draggable={(column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New' || column.id === '1st_sent' || column.id === '2nd_sent')}
                                             onDragStart={(e) => {
-                                              if (column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New') {
+                                              if (column.id === 'Added to Campaign' || column.id === 'Lost' || column.id === 'Won' || column.id === 'Unsubscribe' || column.id === 'New' || column.id === '1st_sent' || column.id === '2nd_sent') {
                                               e.dataTransfer.setData('text/plain', customer.id.toString());
                                               e.currentTarget.classList.add('opacity-50');
                                               }
@@ -1452,54 +1706,34 @@ export default function AdminPotentialCustomers() {
                                               e.currentTarget.classList.remove('opacity-50');
                                             }}
                                           >
-                                            <div className="flex items-start justify-between">
-                                              <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                  <h4 className="font-semibold text-gray-900 truncate">{customer.name}</h4>
-                                                  <div className="flex gap-1">
-                                                  <Badge variant="outline" className="text-xs">
+                                            <div className="space-y-1">
+                                              <div className="flex items-center justify-between">
+                                                <h4 className="font-medium text-sm text-gray-900 truncate">{customer.name}</h4>
+                                                <div className="flex gap-1">
+                                                  <Badge variant="outline" className="text-xs px-1 py-0">
                                                     {getSmsStatusBadge(customer.smsDeliveryStatus)}
                                                   </Badge>
-                                                    <Badge variant="secondary" className="text-xs">
-                                                      {customerStatusMap[customer.id] || 'New'}
-                                                    </Badge>
-                                                  </div>
                                                 </div>
-                                                <div className="space-y-2 text-sm text-gray-600">
-                                                  <div className="flex items-center gap-2">
-                                                    <Mail className="h-3 w-3 text-gray-400" />
+                                              </div>
+                                              <div className="text-xs text-gray-500 space-y-0.5">
+                                                <div className="flex items-center gap-1">
+                                                  <Mail className="h-2.5 w-2.5 text-gray-400" />
                                                     <span className="truncate">{customer.email}</span>
                                                   </div>
-                                                  <div className="flex items-center gap-2">
-                                                    <Phone className="h-3 w-3 text-gray-400" />
+                                                <div className="flex items-center gap-1">
+                                                  <Phone className="h-2.5 w-2.5 text-gray-400" />
                                                     <span>{customer.phone}</span>
                                                   </div>
-                                                  <div className="flex items-center gap-2">
-                                                    <MapPin className="h-3 w-3 text-gray-400" />
+                                                <div className="flex items-center gap-1">
+                                                  <MapPin className="h-2.5 w-2.5 text-gray-400" />
                                                     <span>{customer.city}, {customer.state}</span>
                                                   </div>
                                                   {customer.importName && (
-                                                    <div className="flex items-center gap-2">
-                                                      <Calendar className="h-3 w-3 text-gray-400" />
-                                                      <span className="text-xs text-gray-500">{customer.importName}</span>
+                                                  <div className="flex items-center gap-1">
+                                                    <Calendar className="h-2.5 w-2.5 text-gray-400" />
+                                                    <span className="text-xs text-gray-400 truncate">{customer.importName}</span>
                                                     </div>
                                                   )}
-                                                </div>
-                                              </div>
-                                              <div className="ml-2 flex flex-col gap-1">
-                                                {/* Send SMS button hidden for now */}
-                                                {/* <Button
-                                                  size="sm"
-                                                  variant="outline"
-                                                  className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedCustomersForSms([customer]);
-                                                    setIsSmsDialogOpen(true);
-                                                  }}
-                                                >
-                                                  <Send className="h-3 w-3" />
-                                                </Button> */}
                                               </div>
                                             </div>
                                           </div>
@@ -1510,6 +1744,7 @@ export default function AdminPotentialCustomers() {
                                 </div>
                               );
                             })}
+                            </div>
                           </div>
                         </div>
                       )}

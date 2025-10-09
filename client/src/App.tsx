@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import AuthPage from "@/pages/AuthPage";
@@ -48,6 +49,7 @@ import AdminTermsConditions from "@/pages/admin/AdminTermsConditions";
 import AdminLeadManagement from "@/pages/admin/AdminLeadManagement";
 import AdminEmail from "@/pages/AdminEmail";
 import AdminSmsMenu from "@/pages/AdminSmsMenu";
+import AdminRolePermissions from "@/pages/admin/AdminRolePermissions";
 import RequestService from "@/pages/RequestService";
 import ReviewSubmission from "@/pages/ReviewSubmission";
 
@@ -94,10 +96,26 @@ function Router() {
       <Route path="/admin/providers" component={AdminViewProviders} />
       <Route path="/admin/providers/report" component={AdminProviderReport} />
       <Route path="/admin/users" component={AdminViewUsers} />
-      <Route path="/admin/admin-users" component={AdminUsers} />
-      <Route path="/admin-users" component={AdminUsers} />
-      <Route path="/admin/departments" component={AdminDepartments} />
-      <Route path="/admin-departments" component={AdminDepartments} />
+      <Route path="/admin/admin-users">
+        <ProtectedRoute requiredPermissions={['admin_users']}>
+          <AdminUsers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin-users">
+        <ProtectedRoute requiredPermissions={['admin_users']}>
+          <AdminUsers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/departments">
+        <ProtectedRoute requiredPermissions={['departments']}>
+          <AdminDepartments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin-departments">
+        <ProtectedRoute requiredPermissions={['departments']}>
+          <AdminDepartments />
+        </ProtectedRoute>
+      </Route>
       <Route path="/admin/change-password" component={AdminChangePassword} />
       <Route path="/admin-change-password" component={AdminChangePassword} />
       <Route path="/admin/leads" component={AdminLeads} />
@@ -113,9 +131,26 @@ function Router() {
       <Route path="/admin/reports/users" component={AdminUserReports} />
       <Route path="/admin/reports/providers" component={AdminProviderReports} />
       <Route path="/admin/reports/daily" component={AdminDailyReports} />
-      <Route path="/admin/settings/stripe" component={AdminStripeSettings} />
-      <Route path="/admin/settings/mailgun" component={AdminMailgunSettings} />
-      <Route path="/admin/terms-conditions" component={AdminTermsConditions} />
+      <Route path="/admin/settings/roles-permissions">
+        <ProtectedRoute requiredPermissions={['settings']}>
+          <AdminRolePermissions />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/settings/stripe">
+        <ProtectedRoute requiredPermissions={['settings']}>
+          <AdminStripeSettings />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/settings/mailgun">
+        <ProtectedRoute requiredPermissions={['settings']}>
+          <AdminMailgunSettings />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/terms-conditions">
+        <ProtectedRoute requiredPermissions={['settings']}>
+          <AdminTermsConditions />
+        </ProtectedRoute>
+      </Route>
       
       {/* Review submission route - public access */}
       <Route path="/review/:token" component={ReviewSubmission} />

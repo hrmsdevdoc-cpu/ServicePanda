@@ -506,11 +506,59 @@ export const adminUserDepartments = pgTable("admin_user_departments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Roles table
+export const roles = pgTable("roles", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").unique().notNull(),
+  description: text("description"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Permissions table
+export const permissions = pgTable("permissions", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").unique().notNull(),
+  description: text("description"),
+  category: varchar("category").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Role permissions (many-to-many relationship)
+export const rolePermissions = pgTable("role_permissions", {
+  id: serial("id").primaryKey(),
+  roleId: integer("role_id").references(() => roles.id).notNull(),
+  permissionId: integer("permission_id").references(() => permissions.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   serviceRequests: many(serviceRequests),
   sentEmails: many(sentEmails),
   activityLogs: many(userActivityLogs),
+}));
+
+// Role and permission relations
+export const rolesRelations = relations(roles, ({ many }) => ({
+  rolePermissions: many(rolePermissions),
+}));
+
+export const permissionsRelations = relations(permissions, ({ many }) => ({
+  rolePermissions: many(rolePermissions),
+}));
+
+export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
+  role: one(roles, {
+    fields: [rolePermissions.roleId],
+    references: [roles.id],
+  }),
+  permission: one(permissions, {
+    fields: [rolePermissions.permissionId],
+    references: [permissions.id],
+  }),
 }));
 
 export const serviceProvidersRelations = relations(serviceProviders, ({ many }) => ({
@@ -722,6 +770,22 @@ export const insertAdminUserDepartmentSchema = createInsertSchema(adminUserDepar
   createdAt: true 
 });
 
+// Role and permission insert schemas
+export const insertRoleSchema = createInsertSchema(roles).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertPermissionSchema = createInsertSchema(permissions).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
 // Email management insert schemas
 export const insertEmailSchema = createInsertSchema(emails).omit({ 
   id: true, 
@@ -806,6 +870,14 @@ export type AdminUser = typeof adminUsers.$inferSelect;
 export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
 export type AdminUserDepartment = typeof adminUserDepartments.$inferSelect;
 export type InsertAdminUserDepartment = z.infer<typeof insertAdminUserDepartmentSchema>;
+
+// Role and permission types
+export type Role = typeof roles.$inferSelect;
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type Permission = typeof permissions.$inferSelect;
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertProviderActivityLog = z.infer<typeof insertProviderActivityLogSchema>;
 export type ProviderActivityLog = typeof providerActivityLogs.$inferSelect;
 export type InsertLeadNote = z.infer<typeof insertLeadNoteSchema>;
@@ -970,6 +1042,7 @@ export const potentialCustomers = pgTable("potential_customers", {
   importId: varchar("import_id").notNull(), // Unique identifier for batch imports
   importName: varchar("import_name").notNull(), // Label to identify imported groups
   smsDeliveryStatus: varchar("sms_delivery_status", { length: 20 }).default("not_sent"), // not_sent, 1st_sent, 2nd_sent
+  campaignStatus: varchar("campaign_status", { length: 50 }).default("New"), // New, Added to Campaign, Lost, Won, Unsubscribe
   firstSmsSentAt: timestamp("first_sms_sent_at"),
   secondSmsSentAt: timestamp("second_sms_sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -1030,6 +1103,9 @@ export const potentialProviders = pgTable("potential_providers", {
   status: varchar("status").default("new"), // new, first_call, follow_up, email, won, lost
   priority: varchar("priority").default("medium"), // low, medium, high, urgent
   assignedTo: varchar("assigned_to"), // Admin username assigned to this potential provider
+  smsDeliveryStatus: varchar("sms_delivery_status", { length: 20 }).default("not_sent"), // not_sent, 1st_sent, 2nd_sent
+  firstSmsSentAt: timestamp("first_sms_sent_at"),
+  secondSmsSentAt: timestamp("second_sms_sent_at"),
   notes: text("notes"),
   nextFollowUpDate: timestamp("next_follow_up_date"),
   lastContactDate: timestamp("last_contact_date"),

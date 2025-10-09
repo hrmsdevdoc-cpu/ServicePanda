@@ -3231,6 +3231,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/admin/potential-customers/:id/status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!id || !status) {
+        return res.status(400).json({ error: 'Customer ID and status are required' });
+      }
+
+      await storage.updatePotentialCustomerCampaignStatus(parseInt(id), status);
+      res.json({ success: true, message: 'Customer status updated successfully' });
+    } catch (error) {
+      console.error('Error updating customer status:', error);
+      res.status(500).json({ error: 'Failed to update customer status' });
+    }
+  });
+
   app.post('/api/admin/potential-customers/import', isAdminAuthenticated, async (req, res) => {
     try {
       console.log('Import request received:');
@@ -4170,6 +4187,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'To, subject, and body are required' });
       }
 
+      // Get the admin user's ID from the database
+      const adminUser = await storage.getAdminUserByUsername((req as any).admin?.username);
+      const adminUserId = adminUser?.id?.toString() || (req as any).admin?.username || "admin";
+      console.log('Admin user lookup:', { username: (req as any).admin?.username, adminUser, adminUserId });
+
       // Check if this is a draft (don't send via email service)
       if (status === 'draft') {
         // Store draft in database
@@ -4188,7 +4210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'draft',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: null,
         };
@@ -4230,7 +4252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'sent',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: new Date(),
         };
@@ -4239,7 +4261,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json({
           success: true,
-          message: 'Email sent successfully'
+          message: 'Email sent successfully',
+          debug: { adminUserId, adminUsername: (req as any).admin?.username }
         });
       } else {
         // Ensure the composed message is still visible in Sent even if delivery fails
@@ -4258,7 +4281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'sent',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: new Date(),
         };
@@ -4275,6 +4298,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Try to save the email as failed for debugging
       try {
+        // Get the admin user's ID from the database for error case
+        const adminUser = await storage.getAdminUserByUsername((req as any).admin?.username);
+        const adminUserId = adminUser?.id?.toString() || (req as any).admin?.username || "admin";
+        
         const { to, cc, bcc, subject, body } = req.body;
         const emailData = {
           from: 'hrms.devdoc@gmail.com',
@@ -4291,7 +4318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'sent',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: new Date(),
         };
@@ -4615,6 +4642,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error sending SMS campaign:', error);
       res.status(500).json({ message: 'Failed to send SMS campaign' });
+    }
+  });
+
+  // SMS Messages API endpoints for chat functionality
+  // Get all SMS messages
+  app.get('/api/admin/sms/messages', isAdminAuthenticated, async (req, res) => {
+    try {
+      const messages = await storage.getSmsMessages();
+      res.json(messages);
+    } catch (error) {
+      console.error('Error fetching SMS messages:', error);
+      res.status(500).json({ message: 'Failed to fetch SMS messages' });
+    }
+  });
+
+  // Send individual SMS message
+  app.post('/api/admin/sms/send', isAdminAuthenticated, async (req, res) => {
+    try {
+      console.log('📱 [Route] SMS send request received:', req.body);
+      const { customerId, message } = req.body;
+      
+      if (!customerId || !message) {
+        console.error('📱 [Route] Missing required fields:', { customerId, message });
+        return res.status(400).json({ message: 'Missing customerId or message' });
+      }
+      
+      console.log('📱 [Route] Calling storage.sendIndividualSms...');
+      const result = await storage.sendIndividualSms(customerId, message);
+      console.log('📱 [Route] SMS send result:', result);
+      res.json(result);
+    } catch (error) {
+      console.error('📱 [Route] Error sending SMS:', error);
+      console.error('📱 [Route] Error stack:', error.stack);
+      res.status(500).json({ message: 'Failed to send SMS' });
+    }
+  });
+
+  // Webhook endpoint for incoming SMS replies (from Dialpad)
+  app.post('/api/sms/webhook', async (req, res) => {
+    try {
+      console.log('📨 [Webhook] Received SMS webhook:', JSON.stringify(req.body, null, 2));
+      
+      // Handle different Dialpad payload formats
+      const { from, to, body, messageId, text, sender, recipient } = req.body;
+      
+      // Extract phone numbers and message from different possible formats
+      const fromPhone = from || sender;
+      const toPhone = to || recipient;
+      const messageText = body || text;
+      
+      if (!fromPhone || !messageText) {
+        console.error('❌ [Webhook] Missing required fields:', { fromPhone, messageText });
+        return res.status(400).json({ 
+          message: 'Missing required fields: from/sender and body/text' 
+        });
+      }
+      
+      console.log(`📱 [Webhook] Processing SMS from ${fromPhone}: "${messageText}"`);
+      
+      // Store incoming message
+      await storage.storeIncomingSms(fromPhone, toPhone, messageText, messageId);
+      
+      console.log('✅ [Webhook] SMS stored successfully');
+      res.status(200).json({ message: 'SMS received successfully' });
+    } catch (error) {
+      console.error('❌ [Webhook] Error processing incoming SMS:', error);
+      res.status(500).json({ message: 'Failed to process SMS' });
+    }
+  });
+
+  // Role and Permission Management API endpoints
+  app.get("/api/admin/roles", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roles = await storage.getRoles();
+      res.json(roles);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      res.status(500).json({ message: "Failed to fetch roles" });
+    }
+  });
+
+  app.get("/api/admin/permissions", isAdminAuthenticated, async (req, res) => {
+    try {
+      const permissions = await storage.getPermissions();
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching permissions:", error);
+      res.status(500).json({ message: "Failed to fetch permissions" });
+    }
+  });
+
+  app.get("/api/admin/roles/:id/permissions", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      const permissions = await storage.getRolePermissions(roleId);
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ message: "Failed to fetch role permissions" });
+    }
+  });
+
+  app.post("/api/admin/roles", isAdminAuthenticated, async (req, res) => {
+    try {
+      const { name, description, permissions } = req.body;
+      const role = await storage.createRole({ name, description, permissions });
+      res.json(role);
+    } catch (error) {
+      console.error("Error creating role:", error);
+      res.status(500).json({ message: "Failed to create role" });
+    }
+  });
+
+  app.put("/api/admin/roles/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      const { name, description, permissions } = req.body;
+      const role = await storage.updateRole(roleId, { name, description, permissions });
+      res.json(role);
+    } catch (error) {
+      console.error("Error updating role:", error);
+      res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+
+  app.delete("/api/admin/roles/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      await storage.deleteRole(roleId);
+      res.json({ message: "Role deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting role:", error);
+      res.status(500).json({ message: "Failed to delete role" });
     }
   });
 

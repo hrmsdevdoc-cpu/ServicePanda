@@ -164,6 +164,78 @@ export default function AdminDashboard() {
     },
   });
 
+  // Fetch all roles to get permissions for current user's role
+  const { data: roles } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const response = await adminApiRequest("GET", "/api/admin/roles");
+      return response.json();
+    },
+  });
+
+  // Get current user's permissions
+  const getUserPermissions = () => {
+    if (!currentAdminUser || !roles) return [];
+    
+    // Special case for super_admin - give all permissions
+    if (currentAdminUser.role === 'super_admin') {
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]; // All permission IDs
+    }
+    
+    const userRole = roles.find((role: any) => role.name === currentAdminUser.role);
+    return userRole ? userRole.permissions : [];
+  };
+
+  const userPermissions = getUserPermissions();
+
+  // Check if user has a specific permission
+  const hasPermission = (permissionName: string) => {
+    if (!userPermissions.length) return false;
+    
+    // Map permission names to IDs (this should match the database)
+    const permissionMap: { [key: string]: number } = {
+      'dashboard': 1,
+      'providers': 2,
+      'leads': 5,
+      'potential_customers': 7,
+      'potential_providers': 8,
+      'vouchers': 9,
+      'email': 10,
+      'sms': 11,
+      'reports': 12,
+      'settings': 14,
+      'admin_users': 15,
+      'departments': 16,
+    };
+
+    const permissionId = permissionMap[permissionName];
+    return permissionId ? userPermissions.includes(permissionId) : false;
+  };
+
+  // Auto-switch to first available tab if current tab is not accessible
+  useEffect(() => {
+    if (userPermissions.length > 0) {
+      const allTabs = [
+        { value: "overview", permission: "dashboard" },
+        { value: "providers", permission: "providers" },
+        { value: "approvals", permission: "providers" },
+        { value: "requests", permission: "leads" },
+        { value: "vouchers", permission: "vouchers" },
+        { value: "analytics", permission: "reports" },
+        { value: "settings", permission: "settings" },
+      ];
+
+      const currentTab = allTabs.find(tab => tab.value === activeTab);
+      if (currentTab && !hasPermission(currentTab.permission)) {
+        // Find first available tab
+        const firstAvailableTab = allTabs.find(tab => hasPermission(tab.permission));
+        if (firstAvailableTab) {
+          setActiveTab(firstAvailableTab.value);
+        }
+      }
+    }
+  }, [userPermissions, activeTab, hasPermission]);
+
   // Logout function
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -214,15 +286,31 @@ export default function AdminDashboard() {
         {/* Content */}
         <div className="px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="providers">Providers</TabsTrigger>
-            <TabsTrigger value="approvals">Approvals</TabsTrigger>
-            <TabsTrigger value="requests">Requests</TabsTrigger>
-            <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+          {(() => {
+            // Define all possible tabs with their permissions
+            const allTabs = [
+              { value: "overview", label: "Overview", permission: "dashboard" },
+              { value: "providers", label: "Providers", permission: "providers" },
+              { value: "approvals", label: "Approvals", permission: "providers" },
+              { value: "requests", label: "Requests", permission: "leads" },
+              { value: "vouchers", label: "Vouchers", permission: "vouchers" },
+              { value: "analytics", label: "Analytics", permission: "reports" },
+              { value: "settings", label: "Settings", permission: "settings" },
+            ];
+
+            // Filter tabs based on permissions
+            const visibleTabs = allTabs.filter(tab => hasPermission(tab.permission));
+
+            return (
+              <TabsList className="flex w-full">
+                {visibleTabs.map(tab => (
+                  <TabsTrigger key={tab.value} value={tab.value} className="flex-1">
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            );
+          })()}
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
