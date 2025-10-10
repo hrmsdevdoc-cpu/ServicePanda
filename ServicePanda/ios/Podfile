@@ -15,6 +15,7 @@ target 'ServicePanda' do
   
 
   # Add any custom native pods below this line
+  pod 'OneSignal', '>= 3.0.0', '< 4.0'
 
   post_install do |installer|
     # Set environment variables to disable new architecture

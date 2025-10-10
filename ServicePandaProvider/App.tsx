@@ -45,6 +45,7 @@ const { colors } = require('./src/utils/theme');
 const Icon = require('react-native-vector-icons/MaterialIcons').default;
 // Import notification components
 const NotificationList = require('./src/components/NotificationList');
+const oneSignalService = require('./src/services/oneSignalService').default;
 import RealTimeNotificationController from './src/components/RealTimeNotificationController';
 
 // Animated dot component for loading
@@ -148,17 +149,19 @@ const AppContent = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState('login');
 
-  // Simple test - just check if App.tsx useEffect runs
+  // Initialize OneSignal like buzyteam on app start
   useEffect(() => {
-    console.log('🔥🔥🔥 App.tsx: AppContent useEffect DEFINITELY running!');
-    console.log('🎯 App.tsx: Testing if this shows up in logs...');
-    
-    // Skip OneSignal completely - use server-side notifications only
-    console.log('🎯 App.tsx: Skipping OneSignal - using pure server notifications');
-    console.log('✅ App.tsx: Server-side notifications working when app open');
-    console.log('📱 App.tsx: Background notifications will be handled by server');
-    
-    console.log('✅ App.tsx: useEffect finished - this should definitely show!');
+    (async () => {
+      const initialized = await oneSignalService.initialize('a3f5070d-9c46-44cd-8b0a-259df155ae94');
+      if (initialized && __DEV__) {
+        try {
+          const status = await oneSignalService.checkDeviceStatus();
+          console.log('🔍 OneSignal status:', status);
+        } catch (e) {
+          // ignore
+        }
+      }
+    })();
   }, []);
 
   const [currentSubScreen, setCurrentSubScreen] = useState(null);

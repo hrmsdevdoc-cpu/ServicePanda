@@ -43,6 +43,8 @@ const useSafeAreaInsets = () => {
 };
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 const { apiService } = require('./src/services/api');
+const oneSignalService = require('./src/services/oneSignalService').default;
+const { ONESIGNAL_CONFIG, getOneSignalAppId, getNotificationSettings, getUserTags } = require('./src/config/oneSignalConfig');
 
 // Import screens
 const CustomerLoginScreen = require('./src/screens/customer/CustomerLoginScreen');
@@ -96,8 +98,33 @@ const AppContent = () => {
 
   // Check authentication status on app start
   useEffect(() => {
+    initializeOneSignal();
     checkAuthStatus();
   }, []);
+
+  // Initialize OneSignal
+  const initializeOneSignal = async () => {
+    try {
+      console.log('🔔 Initializing OneSignal...');
+      
+      // Get the correct App ID for the current platform
+      const oneSignalAppId = getOneSignalAppId(Platform.OS);
+      
+      if (oneSignalAppId === 'YOUR_ONESIGNAL_APP_ID') {
+        console.warn('⚠️ OneSignal App ID not configured. Please update src/config/oneSignalConfig.ts with your actual OneSignal App ID');
+        return;
+      }
+      
+      await oneSignalService.initialize({
+        appId: oneSignalAppId,
+        ...getNotificationSettings()
+      });
+      
+      console.log('✅ OneSignal initialized successfully');
+    } catch (error) {
+      console.error('❌ OneSignal initialization failed:', error);
+    }
+  };
 
   const checkAuthStatus = async () => {
     try {
@@ -209,11 +236,29 @@ const AppContent = () => {
   };
 
   // Handle login success
-  const handleLoginSuccess = (customerData: any) => {
-    console.log('🔍 Customer login successful:', customerData);
-    setIsAuthenticated(true);
-    setCurrentScreen('dashboard');
-    setNavigationHistory(['dashboard']);
+  const handleLoginSuccess = async (customerData: any) => {
+    try {
+      console.log('🔍 Customer login successful:', customerData);
+      setIsAuthenticated(true);
+      setCurrentScreen('dashboard');
+      setNavigationHistory(['dashboard']);
+      
+      // Set OneSignal external user ID for push notifications
+      if (customerData.id) {
+        await oneSignalService.setExternalUserId(customerData.id.toString());
+        
+        // Set user tags for better targeting
+        await oneSignalService.setUserTags(getUserTags({
+          user_id: customerData.id.toString(),
+          email: customerData.email || '',
+          name: customerData.name || customerData.firstName || ''
+        }));
+        
+        console.log('✅ OneSignal user identification set');
+      }
+    } catch (error) {
+      console.error('❌ Error setting OneSignal user identification:', error);
+    }
   };
 
   // Handle logout
@@ -227,6 +272,14 @@ const AppContent = () => {
         console.log('✅ Server logout successful');
       } catch (apiError) {
         console.log('⚠️ Server logout failed, continuing with local cleanup');
+      }
+      
+      // Clear OneSignal user identification
+      try {
+        await oneSignalService.removeExternalUserId();
+        console.log('✅ OneSignal user identification cleared');
+      } catch (oneSignalError) {
+        console.log('⚠️ OneSignal cleanup failed:', oneSignalError);
       }
       
       // Clear local storage
