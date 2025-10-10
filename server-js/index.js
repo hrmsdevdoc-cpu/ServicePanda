@@ -4821,14 +4821,18 @@ ServicePanda Team`;
             month: sql`to_char(${serviceProviders.createdAt}, 'YYYY-MM')`,
             status: serviceProviders.status,
             count: sql`cast(count(*) as integer)`
-          }).from(serviceProviders).groupBy(sql`to_char(${serviceProviders.createdAt}, 'YYYY-MM'), ${serviceProviders.status}`);
+          }).from(serviceProviders).where(
+            gte(serviceProviders.createdAt, sql`CURRENT_DATE - INTERVAL '4 years'`)
+          ).groupBy(sql`to_char(${serviceProviders.createdAt}, 'YYYY-MM'), ${serviceProviders.status}`);
           const monthlyJoins = [];
           const monthMap = /* @__PURE__ */ new Map();
-          const uniqueMonths = new Set(monthlyData.map((row) => row.month));
-          const sortedMonths = Array.from(uniqueMonths).sort();
-          sortedMonths.forEach((monthKey) => {
-            const date = /* @__PURE__ */ new Date(monthKey + "-01");
+          const now = new Date();
+          const last4Years = [];
+          for (let i = 47; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             const monthName = date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+            last4Years.push(monthKey);
             monthMap.set(monthKey, {
               month: monthName,
               count: 0,
@@ -4836,7 +4840,7 @@ ServicePanda Team`;
               pending: 0,
               rejected: 0
             });
-          });
+          }
           console.log("Raw monthly data from database:", monthlyData);
           monthlyData.forEach((row) => {
             const monthKey = row.month;
@@ -4850,7 +4854,12 @@ ServicePanda Team`;
               if (row.status === "rejected") monthData.rejected = parseInt(row.count.toString()) || 0;
             }
           });
-          monthlyJoins.push(...Array.from(monthMap.values()));
+          last4Years.forEach((monthKey) => {
+            const monthData = monthMap.get(monthKey);
+            if (monthData) {
+              monthlyJoins.push(monthData);
+            }
+          });
           console.log("Monthly joins:", monthlyJoins);
           const topServiceCategories = await db.select({
             category: serviceCategories.name,
@@ -6658,7 +6667,6 @@ var isAdminAuthenticated = (req, res, next) => {
       return res.status(401).json({ message: "Admin authentication required" });
     }
     const decoded = verifyAdminToken(token);
-    console.log("Admin auth - decoded token:", decoded);
     if (!decoded || decoded.role !== "admin") {
       console.log("Admin auth failed - invalid token or role");
       return res.status(401).json({ message: "Invalid admin token" });

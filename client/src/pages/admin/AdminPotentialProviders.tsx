@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -47,6 +49,7 @@ import {
   CheckCircle,
   XCircle,
   MoreHorizontal,
+  MoreVertical,
   Edit,
   Trash2,
   Eye,
@@ -92,6 +95,8 @@ interface PotentialProvider {
   status: string;
   priority: string;
   assignedTo?: string;
+  assignedAdminName?: string;
+  taskTitle?: string;
   notes?: string;
   nextFollowUpDate?: string;
   lastContactDate?: string;
@@ -165,6 +170,7 @@ export default function AdminPotentialProviders() {
   const [isConvertDialogOpen, setIsConvertDialogOpen] = useState(false);
   const [isWonAlertOpen, setIsWonAlertOpen] = useState(false);
   const [isLostAlertOpen, setIsLostAlertOpen] = useState(false);
+  const [isViewDetailsDialogOpen, setIsViewDetailsDialogOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<PotentialProvider | null>(null);
   
   // Team task state
@@ -220,6 +226,7 @@ export default function AdminPotentialProviders() {
     postcode: "",
     serviceCategories: "",
     priority: "medium",
+    assignedTo: "",
     notes: "",
   });
 
@@ -267,6 +274,18 @@ export default function AdminPotentialProviders() {
     },
   });
 
+  // Update taskData when currentAdminUser is loaded
+  useEffect(() => {
+    if (currentAdminUser?.username) {
+      console.log('=== DEBUG: Current admin user loaded ===');
+      console.log('Current admin user:', currentAdminUser);
+      setTaskData(prev => ({
+        ...prev,
+        assignedTo: currentAdminUser.username
+      }));
+    }
+  }, [currentAdminUser]);
+
   // Get current user's permissions
   const getUserPermissions = () => {
     if (!currentUserRole || !roles) return [];
@@ -307,16 +326,7 @@ export default function AdminPotentialProviders() {
     return permissionId ? userPermissions.includes(permissionId) : false;
   };
 
-  // Debug logging (after hasPermission is defined)
-  console.log('AdminPotentialProviders Debug:', {
-    currentUserRole,
-    userPermissions,
-    hasPotentialProvidersPermission: hasPermission('potential_providers'),
-    isManager,
-    isSuperAdmin,
-    currentAdminUser: currentAdminUser?.role,
-    showNewMembersTab: currentAdminUser?.role !== 'Team Member'
-  });
+
 
   const [emailData, setEmailData] = useState({
     subject: "",
@@ -344,6 +354,10 @@ export default function AdminPotentialProviders() {
       setIsSuperAdmin(role === 'administrator');
       setIsManager(role === 'manager');
       
+      console.log('=== DEBUG: User role loaded ===');
+      console.log('User role:', role);
+      console.log('Is super admin:', role === 'administrator');
+      
       // If team member is on member-list view, redirect to list view
       if (currentAdminUser?.role === 'Team Member' && viewMode === 'member-list') {
         setViewMode('list');
@@ -365,6 +379,16 @@ export default function AdminPotentialProviders() {
     queryFn: async () => {
       const response = await adminApiRequest('GET', '/api/admin/potential-providers');
       const data = await response.json();
+      console.log('=== DEBUG: Potential providers from API ===');
+      console.log('Total providers:', data.length);
+      if (data.length > 0) {
+        console.log('First provider:', {
+          id: data[0].id,
+          name: `${data[0].firstName} ${data[0].lastName}`,
+          assignedTo: data[0].assignedTo,
+          taskTitle: data[0].taskTitle
+        });
+      }
       return data;
     },
     staleTime: 5 * 60 * 1000,
@@ -424,6 +448,7 @@ export default function AdminPotentialProviders() {
         postcode: "",
         serviceCategories: "",
         priority: "medium",
+        assignedTo: "",
         notes: "",
       });
     },
@@ -515,12 +540,13 @@ export default function AdminPotentialProviders() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
       setIsTaskDialogOpen(false);
+      setSelectedProvider(null);
       setTaskData({
         taskType: "general",
         title: "",
         description: "",
         scheduledDate: "",
-        assignedTo: "",
+        assignedTo: currentAdminUser?.username || "",
         priority: "P3",
         customerType: "all",
         comments: "",
@@ -649,13 +675,19 @@ export default function AdminPotentialProviders() {
           (statusFilter === "sms_1st" && (provider as any).smsDeliveryStatus === "1st_sent") ||
           (statusFilter === "sms_2nd" && (provider as any).smsDeliveryStatus === "2nd_sent");
         const matchesPriority = priorityFilter === "all" || provider.priority === priorityFilter;
-        const matchesAssignedTo = assignedToFilter === "all" || provider.assignedTo === assignedToFilter;
+        const matchesAssignedTo = assignedToFilter === "all" || 
+          (assignedToFilter === "unassigned" && (!provider.assignedTo || provider.assignedTo === "")) ||
+          provider.assignedTo === assignedToFilter;
         const matchesSource = sourceFilter === "all" || provider.source === sourceFilter;
         
-        // Exclude won and lost providers from kanban view
+        // Exclude won, lost, and new providers from kanban view, and only show providers with tasks
         const isNotWonOrLost = provider.status !== 'won' && provider.status !== 'lost';
+        const hasTask = provider.taskTitle && provider.taskTitle.trim() !== '';
+        
+        // For non-super-admin users, only show providers assigned to them
+        const isAssignedToCurrentUser = isSuperAdmin || !currentAdminUser?.username || provider.assignedTo === currentAdminUser.username;
 
-        return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && isNotWonOrLost;
+        return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && isNotWonOrLost && hasTask && isAssignedToCurrentUser;
       });
 
       const updatedColumns = KANBAN_COLUMNS.map(column => ({
@@ -918,8 +950,50 @@ export default function AdminPotentialProviders() {
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "new": return "bg-blue-500";
+      case "active": return "bg-green-500";
+      case "first_call": return "bg-purple-500";
+      case "follow_up": return "bg-orange-500";
+      case "email": return "bg-indigo-500";
+      case "sms_1st": return "bg-cyan-500";
+      case "sms_2nd": return "bg-teal-500";
+      case "won": return "bg-emerald-500";
+      case "lost": return "bg-red-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+  const getStatusLabel = (provider: any) => {
+    if (provider.smsDeliveryStatus === '1st_sent') return '1st SMS';
+    if (provider.smsDeliveryStatus === '2nd_sent') return '2nd SMS';
+    
+    switch (provider.status) {
+      case "new": return "New";
+      case "active": return "Active";
+      case "first_call": return "First Call";
+      case "follow_up": return "Follow Up";
+      case "email": return "Email";
+      case "won": return "Won";
+      case "lost": return "Lost";
+      default: return provider.status;
+    }
+  };
+
   const getStatusCount = (status: string) => {
     return kanbanColumns.find(col => col.id === status)?.providers.length || 0;
+  };
+
+  // Get team member name from username
+  const getTeamMemberName = (username: string) => {
+    const user = adminUsers.find((user: any) => user.username === username);
+    return user ? `${user.firstName} ${user.lastName}` : username;
+  };
+
+  // Get team member object from username
+  const getTeamMember = (username: string) => {
+    return adminUsers.find((user: any) => user.username === username);
   };
 
   const totalProviders = potentialProviders?.length || 0;
@@ -946,43 +1020,104 @@ export default function AdminPotentialProviders() {
         (statusFilter === "sms_1st" && (provider as any).smsDeliveryStatus === "1st_sent") ||
         (statusFilter === "sms_2nd" && (provider as any).smsDeliveryStatus === "2nd_sent");
       const matchesPriority = priorityFilter === "all" || provider.priority === priorityFilter;
-      const matchesAssignedTo = assignedToFilter === "all" || provider.assignedTo === assignedToFilter;
+      const matchesAssignedTo = assignedToFilter === "all" || 
+        (assignedToFilter === "unassigned" && (!provider.assignedTo || provider.assignedTo === "")) ||
+        provider.assignedTo === assignedToFilter;
       const matchesSource = sourceFilter === "all" || provider.source === sourceFilter;
 
       return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource;
     });
 
-    // For team members, show all providers assigned to them
-    if (currentAdminUser?.role === 'Team Member') {
-      return filtered; // Show all filtered providers for team members
-    }
+    // Debug: Log current state
+    console.log('=== DEBUG: Filtering logic ===');
+    console.log('Current user:', currentAdminUser?.username);
+    console.log('Current user role:', currentAdminUser?.role);
+    console.log('Is super admin:', isSuperAdmin);
+    console.log('Filtered providers before user filter:', filtered.length);
+    
+    // Apply user filtering logic (same as Kanban view)
+    const userFiltered = filtered.filter((provider: PotentialProvider) => {
+      // If super admin, show all
+      if (isSuperAdmin) {
+        return true;
+      }
+      
+      // If user data not loaded yet, show all
+      if (!currentAdminUser?.username) {
+        return true;
+      }
+      
+      // Show if assigned to current user OR if not assigned to anyone (null)
+      const isAssignedToCurrentUser = provider.assignedTo === currentAdminUser.username || provider.assignedTo === null;
+      console.log('Provider assignedTo:', provider.assignedTo, 'Current user:', currentAdminUser?.username, 'Is super admin:', isSuperAdmin, 'Show:', isAssignedToCurrentUser);
+      return isAssignedToCurrentUser;
+    });
+    
+    console.log('Filtered providers after user filter:', userFiltered.length);
 
     if (viewMode === 'completed') {
-      return filtered.filter((p: PotentialProvider) => p.status === 'won');
+      return userFiltered.filter((p: PotentialProvider) => p.status === 'won');
     }
     
     if (viewMode === 'lost') {
-      return filtered.filter((p: PotentialProvider) => p.status === 'lost');
+      return userFiltered.filter((p: PotentialProvider) => p.status === 'lost');
     }
     
     if (viewMode === 'member-list') {
-      return filtered.filter((p: PotentialProvider) => p.status === 'new');
+      return userFiltered.filter((p: PotentialProvider) => p.status === 'new');
     }
     
     if (viewMode === 'kanban') {
-      return filtered.filter((p: PotentialProvider) => p.status !== 'won' && p.status !== 'lost' && p.status !== 'new');
+      return userFiltered.filter((p: PotentialProvider) => 
+        p.status !== 'won' && 
+        p.status !== 'lost' && 
+        p.status !== 'new' && 
+        p.taskTitle && 
+        p.taskTitle.trim() !== ''
+      );
     }
     
-    return filtered.filter((p: PotentialProvider) => p.status !== 'won' && p.status !== 'lost' && p.status !== 'new');
+    return userFiltered.filter((p: PotentialProvider) => 
+      p.status !== 'won' && 
+      p.status !== 'lost' && 
+      p.status !== 'new' && 
+      p.taskTitle && 
+      p.taskTitle.trim() !== ''
+    );
   };
 
   const filteredProviders = getFilteredProviders();
+  
+  // Debug: Log filtered providers
+  console.log('=== DEBUG: Filtered providers for List View ===');
+  console.log('View mode:', viewMode);
+  console.log('Total filtered providers:', filteredProviders.length);
+  console.log('Current page:', currentPage);
+  console.log('Items per page:', itemsPerPage);
+  if (filteredProviders.length > 0) {
+    console.log('First filtered provider:', {
+      id: filteredProviders[0].id,
+      name: `${filteredProviders[0].firstName} ${filteredProviders[0].lastName}`,
+      assignedTo: filteredProviders[0].assignedTo,
+      taskTitle: filteredProviders[0].taskTitle,
+      status: filteredProviders[0].status
+    });
+  } else {
+    console.log('No filtered providers found!');
+  }
 
   // Pagination logic
   const totalPages = Math.ceil(filteredProviders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedProviders = filteredProviders.slice(startIndex, endIndex);
+  
+  // Debug: Log pagination
+  console.log('=== DEBUG: Pagination ===');
+  console.log('Total pages:', totalPages);
+  console.log('Start index:', startIndex);
+  console.log('End index:', endIndex);
+  console.log('Paginated providers:', paginatedProviders.length);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -1216,6 +1351,21 @@ export default function AdminPotentialProviders() {
                   <SelectItem value="manual">Manual</SelectItem>
                   <SelectItem value="import">Import</SelectItem>
                   <SelectItem value="referral">Referral</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={assignedToFilter} onValueChange={setAssignedToFilter}>
+                <SelectTrigger className="w-40 h-10">
+                  <SelectValue placeholder="All Assigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {adminUsers.map((user: any) => (
+                    <SelectItem key={user.id} value={user.username}>
+                      {user.firstName} {user.lastName}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -1480,8 +1630,9 @@ export default function AdminPotentialProviders() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Task</TableHead>
                         <TableHead>Name</TableHead>
-                        <TableHead>Business</TableHead>
                         <TableHead>Contact</TableHead>
                         <TableHead>Location</TableHead>
                         <TableHead>Status</TableHead>
@@ -1491,8 +1642,18 @@ export default function AdminPotentialProviders() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {paginatedProviders.map((provider: PotentialProvider) => (
+                      {paginatedProviders.map((provider: PotentialProvider, index: number) => (
                         <TableRow key={provider.id}>
+                          <TableCell>
+                            <div className="text-sm font-medium text-gray-500">
+                              {(currentPage - 1) * itemsPerPage + index + 1}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-bold text-sm">
+                              {provider.taskTitle || '-'}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div>
                               <div className="font-medium">
@@ -1502,9 +1663,6 @@ export default function AdminPotentialProviders() {
                                 {provider.email}
                               </div>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {provider.businessName || '-'}
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
@@ -1519,45 +1677,13 @@ export default function AdminPotentialProviders() {
                             </div>
                           </TableCell>
                           <TableCell>
-                             <Select 
-                               value={
-                                 (provider as any).smsDeliveryStatus === '1st_sent' ? 'sms_1st' :
-                                 (provider as any).smsDeliveryStatus === '2nd_sent' ? 'sms_2nd' :
-                                 provider.status
-                               } 
-                               onValueChange={(newStatus) => {
-                                 if (newStatus === 'sms_1st' || newStatus === 'sms_2nd') {
-                                   // Update SMS status instead of regular status
-                                   updateProviderMutation.mutate({
-                                     id: provider.id,
-                                     smsDeliveryStatus: newStatus === 'sms_1st' ? '1st_sent' : '2nd_sent',
-                                     ...(newStatus === 'sms_1st' && { firstSmsSentAt: new Date().toISOString() }),
-                                     ...(newStatus === 'sms_2nd' && { secondSmsSentAt: new Date().toISOString() })
-                                   });
-                                 } else {
-                                   // Update regular status
-                                   updateProviderMutation.mutate({
-                                     id: provider.id,
-                                     status: newStatus
-                                   });
-                                 }
-                               }}
-                             >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="new">New</SelectItem>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="first_call">First Call</SelectItem>
-                                <SelectItem value="follow_up">Follow Up</SelectItem>
-                                <SelectItem value="email">Email</SelectItem>
-                                <SelectItem value="sms_1st">1st SMS</SelectItem>
-                                <SelectItem value="sms_2nd">2nd SMS</SelectItem>
-                                <SelectItem value="won">Won</SelectItem>
-                                <SelectItem value="lost">Lost</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <Badge className={`${getStatusColor(
+                              (provider as any).smsDeliveryStatus === '1st_sent' ? 'sms_1st' :
+                              (provider as any).smsDeliveryStatus === '2nd_sent' ? 'sms_2nd' :
+                              provider.status
+                            )} text-white`}>
+                              {getStatusLabel(provider)}
+                            </Badge>
                           </TableCell>
                           <TableCell>
                             <Badge className={`${getPriorityColor(provider.priority)} text-white`}>
@@ -1565,23 +1691,43 @@ export default function AdminPotentialProviders() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {provider.assignedTo || '-'}
+                            <div className="flex items-center space-x-2">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Avatar className="h-8 w-8">
+                                      {provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? (
+                                        <>
+                                          <AvatarImage 
+                                            src={getTeamMember(provider.assignedTo)?.profileImage || ''} 
+                                            alt={provider.assignedAdminName}
+                                          />
+                                          <AvatarFallback className="bg-blue-500 text-white text-sm">
+                                            {provider.assignedAdminName.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+                                          </AvatarFallback>
+                                        </>
+                                      ) : (
+                                        <AvatarFallback className="bg-gray-400 text-white text-sm">
+                                          ?
+                                        </AvatarFallback>
+                                      )}
+                                    </Avatar>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? provider.assignedAdminName : 'Unassigned'}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
+                                  <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {
-                                  setSelectedProvider(provider);
-                                  setIsTaskDialogOpen(true);
-                                }}>
-                                  <Calendar className="h-4 w-4 mr-2" />
-                                  Add Task
-                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => {
                                   // Update status to "First Call" before opening phone
                                   updateProviderMutation.mutate({
@@ -1629,13 +1775,12 @@ export default function AdminPotentialProviders() {
                                   <XCircle className="h-4 w-4 mr-2 text-red-600" />
                                   Mark as Lost
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedProvider(provider);
+                                  setIsViewDetailsDialogOpen(true);
+                                }}>
                                   <Eye className="h-4 w-4 mr-2" />
                                   View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -1828,6 +1973,76 @@ export default function AdminPotentialProviders() {
                                             'New'}
                                          </Badge>
                                        )}
+                                       
+                                       {/* Actions Dropdown - Top Right */}
+                                       <DropdownMenu>
+                                         <DropdownMenuTrigger asChild>
+                                           <Button 
+                                             variant="ghost" 
+                                             size="sm" 
+                                             className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-600"
+                                             onClick={(e) => e.stopPropagation()}
+                                           >
+                                             <MoreVertical className="h-4 w-4" />
+                                           </Button>
+                                         </DropdownMenuTrigger>
+                                         <DropdownMenuContent align="end">
+                                           <DropdownMenuItem onClick={() => {
+                                             // Update status to "First Call" before opening phone
+                                             updateProviderMutation.mutate({
+                                               id: provider.id,
+                                               status: 'first_call'
+                                             });
+                                             // Open phone dialer
+                                             window.open(`tel:${provider.phone}`, '_self');
+                                           }}>
+                                             <Phone className="h-4 w-4 mr-2" />
+                                             Call
+                                           </DropdownMenuItem>
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsEmailDialogOpen(true);
+                                           }}>
+                                             <Mail className="h-4 w-4 mr-2" />
+                                             Follow Up
+                                           </DropdownMenuItem>
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsSmsDialogOpen(true);
+                                           }}>
+                                             <MessageSquare className="h-4 w-4 mr-2" />
+                                             Send SMS
+                                           </DropdownMenuItem>
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsConvertDialogOpen(true);
+                                           }}>
+                                             <UserPlus className="h-4 w-4 mr-2" />
+                                             Convert to Provider
+                                           </DropdownMenuItem>
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsWonAlertOpen(true);
+                                           }}>
+                                             <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                                             Mark as Won
+                                           </DropdownMenuItem>
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsLostAlertOpen(true);
+                                           }}>
+                                             <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                                             Mark as Lost
+                                           </DropdownMenuItem>
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsViewDetailsDialogOpen(true);
+                                           }}>
+                                             <Eye className="h-4 w-4 mr-2" />
+                                             View Details
+                                           </DropdownMenuItem>
+                                         </DropdownMenuContent>
+                                       </DropdownMenu>
                                      </div>
                                   </div>
                                   
@@ -1847,12 +2062,34 @@ export default function AdminPotentialProviders() {
                                       <span className="truncate">{provider.city}, {provider.state}</span>
                                     </div>
                                     
-                                    {provider.assignedTo && (
-                                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                        <User className="h-3 w-3 mr-2 flex-shrink-0" />
-                                        <span className="truncate">{provider.assignedTo}</span>
-                                      </div>
-                                    )}
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Avatar className="h-6 w-6 mr-2">
+                                              {provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? (
+                                                <>
+                                                  <AvatarImage 
+                                                    src={getTeamMember(provider.assignedTo)?.profileImage || ''} 
+                                                    alt={provider.assignedAdminName}
+                                                  />
+                                                  <AvatarFallback className="bg-blue-500 text-white text-xs">
+                                                    {provider.assignedAdminName.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+                                                  </AvatarFallback>
+                                                </>
+                                              ) : (
+                                                <AvatarFallback className="bg-gray-400 text-white text-xs">
+                                                  ?
+                                                </AvatarFallback>
+                                              )}
+                                            </Avatar>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>{provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? provider.assignedAdminName : 'Unassigned'}</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    </div>
                                     
                                     <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 dark:border-gray-600">
                                       <Badge variant="outline" className="text-xs">
@@ -1864,83 +2101,6 @@ export default function AdminPotentialProviders() {
                                       </div>
                                     </div>
                                     
-                                    {/* Communication Buttons */}
-                                    <div className="flex items-center justify-center space-x-2 mt-3 pt-2 border-t border-gray-100 dark:border-gray-600">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-2 text-xs"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          // Update status to "First Call" before opening phone
-                                          updateProviderMutation.mutate({
-                                            id: provider.id,
-                                            status: 'first_call'
-                                          });
-                                          // Open phone dialer
-                                          window.open(`tel:${provider.phone}`, '_self');
-                                        }}
-                                      >
-                                        <Phone className="h-3 w-3 mr-1" />
-                                        Call
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-2 text-xs"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedProvider(provider);
-                                          setIsEmailDialogOpen(true);
-                                        }}
-                                      >
-                                        <Mail className="h-3 w-3 mr-1" />
-                                        Email
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-2 text-xs"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedProvider(provider);
-                                          setIsSmsDialogOpen(true);
-                                        }}
-                                      >
-                                        <MessageSquare className="h-3 w-3 mr-1" />
-                                        SMS
-                                      </Button>
-                                    </div>
-                                    
-                                    {/* Status Action Buttons */}
-                                    <div className="flex items-center justify-center space-x-2 mt-2">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-3 text-xs bg-green-50 hover:bg-green-100 text-green-700 border-green-200 hover:border-green-300"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedProvider(provider);
-                                          setIsWonAlertOpen(true);
-                                        }}
-                                      >
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        Won
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-3 text-xs bg-red-50 hover:bg-red-100 text-red-700 border-red-200 hover:border-red-300"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedProvider(provider);
-                                          setIsLostAlertOpen(true);
-                                        }}
-                                      >
-                                        <XCircle className="h-3 w-3 mr-1" />
-                                        Lost
-                                      </Button>
-                                    </div>
                                   </div>
                               </div>
                             ))}
@@ -2020,7 +2180,7 @@ export default function AdminPotentialProviders() {
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
+                                    <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -2116,7 +2276,7 @@ export default function AdminPotentialProviders() {
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
+                                    <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -2408,6 +2568,22 @@ export default function AdminPotentialProviders() {
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
                   <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Assigned To</label>
+              <Select value={newProvider.assignedTo} onValueChange={(value) => setNewProvider({...newProvider, assignedTo: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team member" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {adminUsers.map((user: any) => (
+                    <SelectItem key={user.id} value={user.username}>
+                      {user.firstName} {user.lastName} ({user.username})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -2934,6 +3110,208 @@ export default function AdminPotentialProviders() {
               className="bg-red-600 hover:bg-red-700 text-white px-8 py-2"
             >
               Confirm & Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details Dialog */}
+      <Dialog open={isViewDetailsDialogOpen} onOpenChange={setIsViewDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Provider Details</DialogTitle>
+            <DialogDescription>
+              Complete information for {selectedProvider?.firstName} {selectedProvider?.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedProvider && (
+            <div className="space-y-6">
+              {/* Header Section */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {selectedProvider.firstName} {selectedProvider.lastName}
+                  </h3>
+                  {selectedProvider.businessName && (
+                    <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">
+                      {selectedProvider.businessName}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge 
+                    className={`${
+                      selectedProvider.priority === 'high' ? 'bg-red-500' :
+                      selectedProvider.priority === 'medium' ? 'bg-yellow-500' :
+                      'bg-gray-500'
+                    } text-white text-sm font-medium`}
+                  >
+                    {selectedProvider.priority}
+                  </Badge>
+                  {((selectedProvider as any).smsDeliveryStatus && (selectedProvider as any).smsDeliveryStatus !== 'not_sent') ? (
+                    <Badge 
+                      className={`${
+                        (selectedProvider as any).smsDeliveryStatus === '1st_sent' ? 'bg-indigo-500' :
+                        (selectedProvider as any).smsDeliveryStatus === '2nd_sent' ? 'bg-indigo-600' :
+                        'bg-gray-400'
+                      } text-white text-sm font-medium`}
+                    >
+                      {(selectedProvider as any).smsDeliveryStatus === '1st_sent' ? '1st SMS' :
+                       (selectedProvider as any).smsDeliveryStatus === '2nd_sent' ? '2nd SMS' :
+                       'SMS'}
+                    </Badge>
+                  ) : (
+                    <Badge 
+                      className={`${
+                        selectedProvider.status === 'email' ? 'bg-blue-500' :
+                        selectedProvider.status === 'email_sent' ? 'bg-blue-500' :
+                        selectedProvider.status === 'follow_up' ? 'bg-green-500' :
+                        selectedProvider.status === 'first_call' ? 'bg-purple-500' :
+                        selectedProvider.status === 'active' ? 'bg-blue-400' :
+                        selectedProvider.status === 'won' ? 'bg-green-600' :
+                        selectedProvider.status === 'lost' ? 'bg-red-500' :
+                        'bg-gray-400'
+                      } text-white text-sm font-medium`}
+                    >
+                      {selectedProvider.status === 'email' ? 'Email' :
+                       selectedProvider.status === 'email_sent' ? 'Email' :
+                       selectedProvider.status === 'follow_up' ? 'Follow Up' :
+                       selectedProvider.status === 'first_call' ? 'First Call' :
+                       selectedProvider.status === 'active' ? 'Active' :
+                       selectedProvider.status === 'won' ? 'Won' :
+                       selectedProvider.status === 'lost' ? 'Lost' :
+                       'New'}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Contact Information</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <Mail className="h-5 w-5 text-gray-400 mr-3" />
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="text-gray-900 dark:text-white">{selectedProvider.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      <Phone className="h-5 w-5 text-gray-400 mr-3" />
+                      <div>
+                        <p className="text-sm text-gray-500">Phone</p>
+                        <p className="text-gray-900 dark:text-white">{selectedProvider.phone}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      <MapPin className="h-5 w-5 text-gray-400 mr-3" />
+                      <div>
+                        <p className="text-sm text-gray-500">Location</p>
+                        <p className="text-gray-900 dark:text-white">
+                          {selectedProvider.city}, {selectedProvider.state} {selectedProvider.postcode}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Business Information</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm text-gray-500">Business Name</p>
+                      <p className="text-gray-900 dark:text-white">{selectedProvider.businessName || 'N/A'}</p>
+                    </div>
+                    {selectedProvider.businessAbn && (
+                      <div>
+                        <p className="text-sm text-gray-500">ABN</p>
+                        <p className="text-gray-900 dark:text-white">{selectedProvider.businessAbn}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm text-gray-500">Service Categories</p>
+                      <p className="text-gray-900 dark:text-white">{selectedProvider.serviceCategories || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Source</p>
+                      <Badge variant="outline" className="text-xs">
+                        {selectedProvider.source}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Additional Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Assigned To</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Avatar className="h-8 w-8">
+                              {selectedProvider.assignedAdminName && selectedProvider.assignedAdminName.trim() !== '' ? (
+                                <>
+                                  <AvatarImage 
+                                    src={getTeamMember(selectedProvider.assignedTo)?.profileImage || ''} 
+                                    alt={selectedProvider.assignedAdminName}
+                                  />
+                                  <AvatarFallback className="bg-blue-500 text-white text-sm">
+                                    {selectedProvider.assignedAdminName.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+                                  </AvatarFallback>
+                                </>
+                              ) : (
+                                <AvatarFallback className="bg-gray-400 text-white text-sm">
+                                  ?
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{selectedProvider.assignedAdminName && selectedProvider.assignedAdminName.trim() !== '' ? selectedProvider.assignedAdminName : 'Unassigned'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Created Date</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {new Date(selectedProvider.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Last Updated</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {new Date(selectedProvider.updatedAt || selectedProvider.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes Section */}
+              {selectedProvider.notes && (
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Notes</h4>
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <p className="text-gray-900 dark:text-white whitespace-pre-wrap">
+                      {selectedProvider.notes}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewDetailsDialogOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

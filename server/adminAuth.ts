@@ -46,9 +46,9 @@ export async function comparePasswords(supplied: string, stored: string): Promis
   }
 }
 
-function generateAdminToken(username: string): string {
+function generateAdminToken(username: string, role: string): string {
   return jwt.sign(
-    { username, role: "admin", type: "admin" },
+    { username, role, type: "admin" },
     JWT_SECRET,
     { expiresIn: "24h" }
   );
@@ -128,9 +128,9 @@ export function setupAdminAuth(app: Express) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Generate JWT token
-      const token = generateAdminToken(username);
-      console.log('Admin login successful for:', username);
+      // Generate JWT token with actual role
+      const token = generateAdminToken(username, adminUser.role);
+      console.log('Admin login successful for:', username, 'with role:', adminUser.role);
 
       res.json({
         message: "Login successful",
@@ -175,7 +175,6 @@ export const isAdminAuthenticated: RequestHandler = (req, res, next) => {
     }
 
     const decoded = verifyAdminToken(token);
-    console.log("Admin auth - decoded token:", decoded);
     
     if (!decoded || decoded.role !== "admin") {
       console.log("Admin auth failed - invalid token or role");

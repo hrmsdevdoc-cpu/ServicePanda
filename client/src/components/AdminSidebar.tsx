@@ -223,15 +223,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
 
   const menuItems = filterMenuItems(allMenuItems);
 
-  // Debug logging
-  console.log('AdminSidebar Debug:', {
-    currentUser: currentUser?.role,
-    userPermissions,
-    hasSettingsPermission: hasPermission('settings'),
-    filteredMenuItems: menuItems.map(item => item.label),
-    allMenuItems: allMenuItems.map(item => item.label),
-    availableRoles: roles?.map((role: any) => role.name) || []
-  });
+
 
   const isActiveRoute = (href: string) => {
     if (href === "/admin") {
@@ -265,66 +257,68 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
     <>
       {/* Sidebar toggle button - positioned near top-left outside sidebar */}
 
-      <div className={`bg-white dark:bg-gray-800 flex flex-col h-screen overflow-hidden transition-all duration-300 border-r sticky left-0 top-0 relative ${
-        isCollapsed ? 'w-16' : 'w-64 border-gray-200 dark:border-gray-700'
+      <div className={`bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex flex-col h-screen overflow-hidden transition-all duration-500 ease-in-out border-r sticky left-0 top-0 relative shadow-2xl ${
+        isCollapsed ? 'w-16' : 'w-64 border-slate-700 dark:border-gray-700'
       }`}>
       {/* Header */}
-          <div className={`border-b border-gray-200 dark:border-gray-700 ${isCollapsed ? 'p-3' : 'p-6'}`}>
-        <div className="flex items-center">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
-            <LayoutDashboard className="h-5 w-5 text-white" />
+          <div className={`border-b border-slate-700/50 transition-all duration-300 ${isCollapsed ? 'p-3' : 'p-6'} relative overflow-hidden`}>
+        {/* Animated background pattern */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 animate-pulse"></div>
+        <div className="relative z-10 flex items-center">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-3 transition-all duration-300 hover:scale-110 hover:shadow-xl hover:shadow-blue-500/25 ring-1 ring-blue-500/20">
+            <LayoutDashboard className="h-4 w-4 text-white transition-transform duration-300 hover:rotate-12" />
           </div>
           {!isCollapsed && (
-            <div>
-              <h1 className="text-base font-bold text-gray-900 dark:text-white">ServicePanda</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Admin Panel</p>
+            <div className="transition-all duration-300">
+              <h1 className="text-lg font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent transition-all duration-300">ServicePanda</h1>
+              <p className="text-xs text-slate-400 transition-colors duration-300">Admin Panel</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className={`flex-1 overflow-y-auto ${isCollapsed ? 'p-1' : 'p-3'}`}>
+      <nav className={`flex-1 overflow-y-auto transition-all duration-300 ${isCollapsed ? 'p-1' : 'p-3'}`}>
         <div className="space-y-1">
           {menuItems.map((item) => (
             <div key={item.href}>
               {item.subItems.length > 0 ? (
                 <Button
                   variant={isActiveRoute(item.href) || hasActiveSubItem(item.subItems) ? "default" : "ghost"}
-                  className={`w-full justify-start text-sm ${
+                  className={`w-full justify-start text-sm transition-all duration-300 transform hover:scale-105 relative overflow-hidden group ${
                     isActiveRoute(item.href) || hasActiveSubItem(item.subItems)
-                      ? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white hover:from-blue-500/30 hover:to-purple-500/30 shadow-lg shadow-blue-500/25 border border-blue-400/30"
+                      : "text-slate-300 hover:text-white hover:bg-slate-700/50 hover:shadow-md hover:shadow-slate-500/10"
                   }`}
                   onClick={() => toggleMenu(item.href)}
                 >
-                  <item.icon className="h- w-4 mr-2" />
-                  {!isCollapsed && item.label}
+                  <item.icon className="h- w-4 mr-2 transition-transform duration-300" />
+                  {!isCollapsed && <span className="transition-all duration-300">{item.label}</span>}
                   {!isCollapsed && (isMenuExpanded(item.href) ? (
-                    <ChevronDown className="h-3 w-3 ml-auto" />
+                    <ChevronDown className="h-3 w-3 ml-auto transition-transform duration-300" />
                   ) : (
-                    <ChevronRight className="h-3 w-3 ml-auto" />
+                    <ChevronRight className="h-3 w-3 ml-auto transition-transform duration-300" />
                   ))}
                 </Button>
               ) : (
                 <Link href={item.href}>
                   <Button
                     variant={isActiveRoute(item.href) ? "default" : "ghost"}
-                    className={`w-full justify-start text-sm ${
+                    className={`w-full justify-start text-sm transition-all duration-300 transform hover:scale-105 relative overflow-hidden group ${
                       isActiveRoute(item.href)
-                        ? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white hover:from-blue-500/30 hover:to-purple-500/30 shadow-lg shadow-blue-500/25 border border-blue-400/30"
+                        : "text-slate-300 hover:text-white hover:bg-slate-700/50 hover:shadow-md hover:shadow-slate-500/10"
                     }`}
                   >
-                    <item.icon className="h-4 w-4 mr-2" />
-                    {!isCollapsed && item.label}
+                    <item.icon className="h-4 w-4 mr-2 transition-transform duration-300 group-hover:scale-110" />
+                    {!isCollapsed && <span className="transition-all duration-300">{item.label}</span>}
                   </Button>
                 </Link>
               )}
               
               {/* Sub-items */}
               {item.subItems.length > 0 && isMenuExpanded(item.href) && !isCollapsed && (
-                <div className="ml-3 mt-1 space-y-1">
+                <div className="ml-6 mt-3 space-y-3 transition-all duration-300 animate-in slide-in-from-top-2 border-l-2 border-slate-500/40 pl-4 bg-slate-800/30 rounded-r-lg py-2">
                   {item.subItems.map((subItem: any) => (
                     <div key={subItem.href}>
                       {subItem.subItems ? (
@@ -333,35 +327,35 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className={`w-full justify-start text-xs ${
+                            className={`w-full justify-start text-xs transition-all duration-300 transform hover:scale-105 relative overflow-hidden group rounded-lg mx-2 ${
                               hasActiveSubItem(subItem.subItems)
-                                ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-400"
-                                : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-200 hover:from-blue-500/30 hover:to-purple-500/30 shadow-lg shadow-blue-500/25 border border-blue-400/30"
+                                : "text-slate-300 hover:text-white hover:bg-slate-600/40 hover:shadow-md hover:shadow-slate-500/10"
                             }`}
                             onClick={() => toggleMenu(subItem.href)}
                           >
-                            <Users className="h-3 w-3 mr-2" />
-                            {subItem.label}
+                            <Users className="h-3 w-3 mr-2 transition-transform duration-300" />
+                            <span className="transition-all duration-300">{subItem.label}</span>
                             {isMenuExpanded(subItem.href) ? (
-                              <ChevronDown className="h-3 w-3 ml-auto" />
+                              <ChevronDown className="h-3 w-3 ml-auto transition-transform duration-300" />
                             ) : (
-                              <ChevronRight className="h-3 w-3 ml-auto" />
+                              <ChevronRight className="h-3 w-3 ml-auto transition-transform duration-300" />
                             )}
                           </Button>
                           {isMenuExpanded(subItem.href) && (
-                            <div className="ml-3 mt-1 space-y-1">
+                            <div className="ml-6 mt-3 space-y-3 transition-all duration-300 animate-in slide-in-from-top-2 border-l-2 border-slate-400/30 pl-4 bg-slate-700/20 rounded-r-lg py-2">
                               {subItem.subItems.map((nestedItem: any) => (
                                 <Link key={nestedItem.href} href={nestedItem.href}>
                                   <Button
                                     variant={location === nestedItem.href ? "default" : "ghost"}
                                     size="sm"
-                                    className={`w-full justify-start text-xs ${
+                                    className={`w-full justify-start text-xs transition-all duration-300 transform hover:scale-105 relative overflow-hidden group rounded-lg mx-2 ${
                                       location === nestedItem.href
-                                        ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-400"
-                                        : "text-gray-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                        ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-200 hover:from-blue-500/30 hover:to-purple-500/30 shadow-lg shadow-blue-500/25 border border-blue-400/30"
+                                        : "text-slate-400 hover:text-white hover:bg-slate-600/40 hover:shadow-md hover:shadow-slate-500/10"
                                     }`}
                                   >
-                                    {nestedItem.label}
+                                    <span className="transition-all duration-300">{nestedItem.label}</span>
                                   </Button>
                                 </Link>
                               ))}
@@ -374,13 +368,13 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
                           <Button
                             variant={location === subItem.href ? "default" : "ghost"}
                             size="sm"
-                            className={`w-full justify-start text-sm ${
+                            className={`w-full justify-start text-sm transition-all duration-300 transform hover:scale-105 relative overflow-hidden group rounded-lg mx-2 ${
                               location === subItem.href
-                                ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-400"
-                                : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-200 hover:from-blue-500/30 hover:to-purple-500/30 shadow-lg shadow-blue-500/25 border border-blue-400/30"
+                                : "text-slate-300 hover:text-white hover:bg-slate-600/40 hover:shadow-md hover:shadow-slate-500/10"
                             }`}
                           >
-                            {subItem.label}
+                            <span className="transition-all duration-300">{subItem.label}</span>
                           </Button>
                         </Link>
                       )}
@@ -394,27 +388,31 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className={`border-t border-gray-200 dark:border-gray-700 ${isCollapsed ? 'p-2' : 'p-3'}`}>
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center space-x-2">
-            <User className="h-4 w-4 text-gray-500" />
-            {!isCollapsed && (
-              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+      <div className={`border-t border-slate-700/50 transition-all duration-300 ${isCollapsed ? 'p-2' : 'p-3'} relative overflow-hidden`}>
+        {/* Animated background pattern */}
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-pink-500/5 to-blue-500/5 animate-pulse"></div>
+        <div className="relative z-10 flex items-center justify-between w-full">
+          {!isCollapsed && (
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg">
+                <User className="h-4 w-4 text-slate-300 transition-transform duration-300" />
+              </div>
+              <span className="text-xs font-medium text-slate-300 transition-all duration-300">
                 {adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Admin'}
               </span>
-            )}
-          </div>
+            </div>
+          )}
           <div className="flex items-center space-x-2">
             {!isCollapsed && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Settings className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:bg-slate-700/50">
+                    <Settings className="h-4 w-4 text-slate-400 transition-transform duration-300 hover:rotate-90 hover:text-slate-200" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-48 bg-slate-800 border-slate-700">
                   <DropdownMenuItem asChild>
-                    <Link href="/admin/change-password" className="w-full">
+                    <Link href="/admin/change-password" className="w-full text-slate-300 hover:text-white">
                       Change Password
                     </Link>
                   </DropdownMenuItem>
@@ -426,18 +424,20 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
                 variant="ghost"
                 size="sm"
                 onClick={onLogout}
-                className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950"
+                className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all duration-300 hover:scale-110 hover:shadow-lg"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-4 w-4 transition-transform duration-300 hover:rotate-12" />
               </Button>
             )}
-            <ToggleButton 
-              isExpanded={!isCollapsed} 
-              onToggle={() => {
-                console.log('Toggle clicked, current isCollapsed:', isCollapsed);
-                setIsCollapsed(!isCollapsed);
-              }} 
-            />
+            <div className="flex-shrink-0">
+              <ToggleButton 
+                isExpanded={!isCollapsed} 
+                onToggle={() => {
+                  console.log('Toggle clicked, current isCollapsed:', isCollapsed);
+                  setIsCollapsed(!isCollapsed);
+                }} 
+              />
+            </div>
           </div>
         </div>
       </div>
