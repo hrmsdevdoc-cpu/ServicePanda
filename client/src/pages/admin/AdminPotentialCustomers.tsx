@@ -55,6 +55,7 @@ interface PotentialCustomer {
   importId: string;
   importName: string;
   smsDeliveryStatus: 'not_sent' | '1st_sent' | '2nd_sent';
+  campaignStatus: 'New' | 'Added to Campaign' | 'Lost' | 'Won' | 'Unsubscribe';
   firstSmsSentAt?: string;
   secondSmsSentAt?: string;
   createdAt: string;
@@ -344,7 +345,7 @@ export default function AdminPotentialCustomers() {
         
         potentialCustomers.forEach((customer: PotentialCustomer) => {
           // Use campaignStatus from database if available, otherwise default to 'New'
-          const status = (customer as any).campaignStatus || 'New';
+          const status = customer.campaignStatus || 'New';
           if (!newStatusMap[customer.id]) {
             newStatusMap[customer.id] = status;
             hasNewCustomers = true;
@@ -993,7 +994,8 @@ export default function AdminPotentialCustomers() {
       return matches;
     })();
     
-    const currentStatus = customerStatusMap[customer.id] ?? 'New';
+    // Use campaignStatus directly from the customer data instead of customerStatusMap
+    const currentStatus = customer.campaignStatus || 'New';
     const smsStatus = customer.smsDeliveryStatus || 'not_sent';
     
     // Handle customer status filtering with multiple selections
@@ -1002,22 +1004,23 @@ export default function AdminPotentialCustomers() {
     // Check if customer matches any of the selected statuses
     matchesCustomerStatus = selectedCustomerStatuses.some(status => {
       if (status === '1st SMS') {
-        // Match customers who have received first SMS
-        return smsStatus === '1st_sent';
+        // Match customers who have received first SMS AND are still in New or Added to Campaign status
+        return smsStatus === '1st_sent' && (currentStatus === 'New' || currentStatus === 'Added to Campaign');
       } else if (status === '2nd SMS') {
-        // Match customers who have received second SMS
-        return smsStatus === '2nd_sent';
+        // Match customers who have received second SMS AND are still in New or Added to Campaign status
+        return smsStatus === '2nd_sent' && (currentStatus === 'New' || currentStatus === 'Added to Campaign');
       } else {
         // For other statuses (New, Added to Campaign, Lost, Won, Unsubscribe), use campaign status
         return currentStatus === status;
       }
     });
     
-    const result = matchesImportId && matchesState && matchesCustomerStatus;
+    const result = matchesSearch && matchesImportId && matchesState && matchesCustomerStatus;
     
-    // Debug logging for first few customers
-    if (customer.id <= 3) {
-      console.log(`[Filter] Customer ${customer.id} (${customer.name}):`, {
+    // Debug logging for Lost customers
+    if (currentStatus === 'Lost') {
+      console.log(`[Filter] Lost Customer ${customer.id} (${customer.name}):`, {
+        matchesSearch,
         matchesImportId,
         matchesState,
         matchesCustomerStatus,
@@ -1027,7 +1030,8 @@ export default function AdminPotentialCustomers() {
         currentStatus,
         smsStatus,
         selectedCustomerStatuses,
-        customerStatusMapValue: customerStatusMap[customer.id]
+        customerStatusMapValue: customerStatusMap[customer.id],
+        isLostSelected: selectedCustomerStatuses.includes('Lost')
       });
     }
     
@@ -1357,6 +1361,9 @@ export default function AdminPotentialCustomers() {
                                       <Label className="text-sm whitespace-nowrap">Customer Status</Label>
                                       <div className="flex items-center gap-2">
                                         <div className={`w-2 h-2 rounded-full ${
+                                          customerStatusMap[customer.id] === 'Lost' ? 'bg-red-500' :
+                                          customerStatusMap[customer.id] === 'Won' ? 'bg-emerald-500' :
+                                          customerStatusMap[customer.id] === 'Unsubscribe' ? 'bg-slate-500' :
                                           customerStatusMap[customer.id] ? 'bg-green-500' : 'bg-gray-300'
                                         }`}></div>
                                       <Select
@@ -1364,6 +1371,9 @@ export default function AdminPotentialCustomers() {
                                         onValueChange={async (value) => await setCustomerStatus(customer.id, value)}
                                       >
                                           <SelectTrigger className={`w-56 ${
+                                            customerStatusMap[customer.id] === 'Lost' ? 'border-red-300 bg-red-50' :
+                                            customerStatusMap[customer.id] === 'Won' ? 'border-emerald-300 bg-emerald-50' :
+                                            customerStatusMap[customer.id] === 'Unsubscribe' ? 'border-slate-300 bg-slate-50' :
                                             customerStatusMap[customer.id] ? 'border-green-300 bg-green-50' : 'border-gray-300'
                                           }`}>
                                             <SelectValue placeholder="Select status" />

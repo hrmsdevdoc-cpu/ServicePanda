@@ -243,10 +243,10 @@ export default function AdminProviderReport() {
                   </p>
                 </div>
               </div>
-              <Button onClick={handleExportReport}>
+              {/* <Button onClick={handleExportReport}>
                 <Download className="h-4 w-4 mr-2" />
                 Export Report
-              </Button>
+              </Button> */}
             </div>
           </div>
         </header>
@@ -398,9 +398,21 @@ export default function AdminProviderReport() {
                         <tr className="border-b">
                           <th className="text-left p-3 font-medium text-gray-900">Service Type</th>
                           <th className="text-left p-3 font-medium text-gray-900">Gold Coast</th>
-                          <th className="text-left p-3 font-medium text-gray-900">Brisbane</th>
-                          <th className="text-left p-3 font-medium text-gray-900">SC</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Sunshine Coast</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Adelaide</th>
                           <th className="text-left p-3 font-medium text-gray-900">Newcastle</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Brisbane</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Melbourne</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Canberra</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Sydney</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Wollongong</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Perth</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Townsville</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Geelong</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Hobart</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Port Macquarie</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Darwin</th>
+                          <th className="text-left p-3 font-medium text-gray-900">Ipswich</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -409,7 +421,7 @@ export default function AdminProviderReport() {
                             <td className="p-3">
                               <ServiceTypeBadge categoryName={serviceType} />
                             </td>
-                              {['Gold Coast', 'Brisbane', 'SC', 'Newcastle'].map((location) => {
+                              {['Gold Coast', 'Sunshine Coast', 'Adelaide', 'Newcastle', 'Brisbane', 'Melbourne', 'Canberra', 'Sydney', 'Wollongong', 'Perth', 'Townsville', 'Geelong', 'Hobart', 'Port Macquarie', 'Darwin', 'Ipswich'].map((location) => {
                                 const locationProviders = providers.filter(provider => 
                                   provider.serviceAreas && provider.serviceAreas.some(area => 
                                     area.centerAddress.toLowerCase().includes(location.toLowerCase())
