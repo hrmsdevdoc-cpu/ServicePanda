@@ -3966,7 +3966,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Potential Providers endpoints
   app.get('/api/admin/potential-providers', isAdminAuthenticated, async (req, res) => {
     try {
-      const providers = await storage.getAllPotentialProviders();
+      // Get the admin username and role from the authenticated user
+      const adminUsername = (req as any).admin?.username;
+      const adminRole = (req as any).admin?.role;
+      const isSuperAdmin = adminRole === 'administrator';
+      
+      console.log('Admin username from request:', adminUsername);
+      console.log('Admin role:', adminRole);
+      console.log('Is super admin:', isSuperAdmin);
+      
+      const providers = await storage.getAllPotentialProviders(adminUsername, isSuperAdmin);
       res.json(providers);
     } catch (error) {
       console.error('Error getting potential providers:', error);

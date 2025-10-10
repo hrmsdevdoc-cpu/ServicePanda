@@ -206,11 +206,19 @@ export default function AdminSmsMenu() {
     });
   };
 
-  const filteredConversations = conversations.filter(conv => 
-    conv.recipientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    conv.recipientPhone.includes(searchTerm) ||
-    conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredConversations = conversations.filter(conv => {
+    // Filter by search term
+    const matchesSearch = conv.recipientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         conv.recipientPhone.includes(searchTerm) ||
+                         conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filter by main tab (customer/provider)
+    const isCustomerConversation = conv.recipientType === 'customer' || conv.recipientType === 'potential_customer';
+    const isProviderConversation = conv.recipientType === 'provider' || conv.recipientType === 'potential_provider';
+    const matchesMainTab = activeTab === 'customers' ? isCustomerConversation : isProviderConversation;
+    
+    return matchesSearch && matchesMainTab;
+  });
 
   if (messagesLoading) {
     return (
@@ -234,34 +242,54 @@ export default function AdminSmsMenu() {
               <h1 className="text-xl font-semibold text-gray-900">SMS Conversations</h1>
               <p className="text-xs text-gray-600">Manage all SMS communications</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
+              {/* Tabs - Customer/Provider */}
+             <div className="flex bg-gray-100 rounded-lg p-1 shadow-inner">
+               <button
+                 onClick={() => setActiveTab('customers')}
+                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 transform ${
+                   activeTab === 'customers' 
+                     ? 'bg-yellow-100 text-yellow-800 shadow-lg scale-105 border border-yellow-200' 
+                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:scale-102'
+                 }`}
+               >
+                 Customer
+               </button>
+               <button
+                 onClick={() => setActiveTab('providers')}
+                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 transform ${
+                   activeTab === 'providers' 
+                     ? 'bg-purple-100 text-purple-800 shadow-lg scale-105 border border-purple-200' 
+                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:scale-102'
+                 }`}
+               >
+                 Provider
+               </button>
+             </div>
+              
+
+              
+              {/* Refresh Button */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => refetchMessages()}
                 disabled={messagesLoading}
+                className="transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${messagesLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 mr-2 transition-transform duration-300 ${messagesLoading ? 'animate-spin' : 'hover:rotate-180'}`} />
                 Refresh
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white border-b border-gray-200 px-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="customers">Customer</TabsTrigger>
-              <TabsTrigger value="providers">Provider</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
         {/* Chat Interface */}
         <div className="flex-1 flex">
           {/* Conversations List */}
-          <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+          <div className={`w-80 border-r border-gray-200 flex flex-col transition-all duration-500 ease-in-out ${
+            activeTab === 'customers' ? 'bg-yellow-50' : 'bg-purple-50'
+          }`}>
             {/* Search */}
             <div className="p-4 border-b border-gray-200">
               <div className="relative">
@@ -292,13 +320,13 @@ export default function AdminSmsMenu() {
                 </div>
               ) : (
                 filteredConversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  onClick={() => handleConversationClick(conversation)}
-                  className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                    selectedConversation?.id === conversation.id ? 'bg-blue-50 border-blue-200' : ''
-                  }`}
-                >
+                  <div
+                    key={conversation.id}
+                    onClick={() => handleConversationClick(conversation)}
+                    className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md ${
+                      selectedConversation?.id === conversation.id ? 'bg-blue-50 border-blue-200 shadow-lg scale-[1.01]' : ''
+                    }`}
+                  >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Badge className={getRecipientTypeColor(conversation.recipientType)}>

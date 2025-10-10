@@ -5742,7 +5742,7 @@ export class DatabaseStorage implements IStorage {
         );
 
 
-      // Get monthly join data for ALL providers (not just last 12 months)
+      // Get monthly join data for the last 4 years
       const monthlyData = await db
         .select({
           month: sql<string>`to_char(${serviceProviders.createdAt}, 'YYYY-MM')`,
@@ -5750,20 +5750,26 @@ export class DatabaseStorage implements IStorage {
           count: sql<number>`cast(count(*) as integer)`
         })
         .from(serviceProviders)
+        .where(
+          gte(serviceProviders.createdAt, sql`CURRENT_DATE - INTERVAL '4 years'`)
+        )
         .groupBy(sql`to_char(${serviceProviders.createdAt}, 'YYYY-MM'), ${serviceProviders.status}`);
 
       // Process monthly data into the required format
       const monthlyJoins = [];
       const monthMap = new Map();
 
-      // Initialize months based on actual data found
-      const uniqueMonths = new Set(monthlyData.map(row => row.month));
-      const sortedMonths = Array.from(uniqueMonths).sort();
-
-      sortedMonths.forEach(monthKey => {
-        const date = new Date(monthKey + '-01');
+      // Generate last 4 years of data (48 months)
+      const now = new Date();
+      const last4Years = [];
+      
+      for (let i = 47; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        // Use UTC to avoid timezone issues
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-
+        
+        last4Years.push(monthKey);
         monthMap.set(monthKey, {
           month: monthName,
           count: 0,
@@ -5771,7 +5777,7 @@ export class DatabaseStorage implements IStorage {
           pending: 0,
           rejected: 0
         });
-      });
+      }
 
       // Fill in the actual data
       monthlyData.forEach(row => {
@@ -5787,8 +5793,13 @@ export class DatabaseStorage implements IStorage {
         }
       });
 
-      // Convert to array and sort by month
-      monthlyJoins.push(...Array.from(monthMap.values()));
+      // Convert to array in the correct order
+      last4Years.forEach(monthKey => {
+        const monthData = monthMap.get(monthKey);
+        if (monthData) {
+          monthlyJoins.push(monthData);
+        }
+      });
 
 
       // Get top service categories in a single query
@@ -5894,9 +5905,88 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Potential Providers methods
-  async getAllPotentialProviders(): Promise<PotentialProvider[]> {
+  async getAllPotentialProviders(adminUsername?: string, isSuperAdmin: boolean = false): Promise<PotentialProvider[]> {
     try {
-      const providers = await db.select().from(potentialProviders).orderBy(desc(potentialProviders.createdAt));
+      console.log('=== DEBUG: Getting potential providers ===');
+      console.log('Admin username filter:', adminUsername);
+      console.log('Is super admin:', isSuperAdmin);
+      console.log('Will apply filtering:', adminUsername && !isSuperAdmin);
+      
+      let query = db
+        .select({
+          id: potentialProviders.id,
+          firstName: potentialProviders.firstName,
+          lastName: potentialProviders.lastName,
+          email: potentialProviders.email,
+          phone: potentialProviders.phone,
+          businessName: potentialProviders.businessName,
+          businessAbn: potentialProviders.businessAbn,
+          address: potentialProviders.address,
+          state: potentialProviders.state,
+          city: potentialProviders.city,
+          postcode: potentialProviders.postcode,
+          serviceCategories: potentialProviders.serviceCategories,
+          source: potentialProviders.source,
+          importId: potentialProviders.importId,
+          importName: potentialProviders.importName,
+          status: potentialProviders.status,
+          priority: potentialProviders.priority,
+          assignedTo: potentialProviders.assignedTo,
+          assignedAdminName: sql<string>`CONCAT(${adminUsers.firstName}, ' ', ${adminUsers.lastName})`.as('assignedAdminName'),
+          taskTitle: sql<string>`${potentialProviderTasks.title}`.as('taskTitle'),
+          smsDeliveryStatus: potentialProviders.smsDeliveryStatus,
+          firstSmsSentAt: potentialProviders.firstSmsSentAt,
+          secondSmsSentAt: potentialProviders.secondSmsSentAt,
+          notes: potentialProviders.notes,
+          nextFollowUpDate: potentialProviders.nextFollowUpDate,
+          lastContactDate: potentialProviders.lastContactDate,
+          lastContactType: potentialProviders.lastContactType,
+          createdAt: potentialProviders.createdAt,
+          updatedAt: potentialProviders.updatedAt,
+        })
+        .from(potentialProviders)
+        .leftJoin(potentialProviderTasks, eq(potentialProviders.id, potentialProviderTasks.potentialProviderId))
+        .leftJoin(adminUsers, eq(potentialProviderTasks.assignedTo, adminUsers.username));
+      
+      // Add filtering based on admin username (unless super admin)
+      if (adminUsername && !isSuperAdmin) {
+        query = query.where(eq(potentialProviderTasks.assignedTo, adminUsername));
+        console.log('Filtering by assigned admin:', adminUsername);
+      } else if (isSuperAdmin) {
+        console.log('Super admin - showing all tasks');
+      }
+      
+      const providers = await query.orderBy(desc(potentialProviders.createdAt));
+      
+      console.log('=== DEBUG: Query result ===');
+      console.log('Total providers found:', providers.length);
+      if (providers.length > 0) {
+        console.log('First provider:', {
+          id: providers[0].id,
+          name: `${providers[0].firstName} ${providers[0].lastName}`,
+          status: providers[0].status,
+          assignedTo: providers[0].assignedTo,
+          assignedAdminName: providers[0].assignedAdminName,
+          taskTitle: providers[0].taskTitle
+        });
+      }
+      
+      // Debug: Check potential_provider_tasks table
+      try {
+        console.log('\n=== DEBUG: Checking potential_provider_tasks table ===');
+        const potentialProviderTasksData = await db.select().from(potentialProviderTasks).limit(3);
+        console.log('Potential provider tasks found:', potentialProviderTasksData.length);
+        if (potentialProviderTasksData.length > 0) {
+          console.log('First potential provider task:', {
+            id: potentialProviderTasksData[0].id,
+            potentialProviderId: potentialProviderTasksData[0].potentialProviderId,
+            assignedTo: potentialProviderTasksData[0].assignedTo
+          });
+        }
+      } catch (error) {
+        console.log('Error checking potential_provider_tasks:', error.message);
+      }
+      
       return providers;
     } catch (error) {
       console.error('Error getting potential providers:', error);
@@ -6056,8 +6146,18 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       }).returning();
 
-      // Note: We don't automatically change the provider status when creating a task
-      // The provider should remain in 'new' status until explicitly updated by the user
+      // Update the provider status from 'new' to 'active' when a task is created
+      if (taskData.potentialProviderId) {
+        await db
+          .update(potentialProviders)
+          .set({ 
+            status: 'active',
+            updatedAt: new Date()
+          })
+          .where(eq(potentialProviders.id, taskData.potentialProviderId));
+        
+        console.log(`✅ Updated provider ${taskData.potentialProviderId} status from 'new' to 'active' after task creation`);
+      }
 
       return task;
     } catch (error) {

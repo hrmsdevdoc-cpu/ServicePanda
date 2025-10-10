@@ -3,7 +3,6 @@ import { getApiUrl } from "./apiConfig";
 // Admin authentication utility for handling token expiration
 export const adminApiRequest = async (method: string, url: string, data?: any) => {
   const token = localStorage.getItem('adminToken');
-  console.log("Frontend sending admin token:", token ? `${token.substring(0, 20)}...` : "None");
   
   // Check if data is FormData
   const isFormData = data instanceof FormData;
