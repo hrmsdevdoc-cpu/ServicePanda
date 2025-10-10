@@ -34,6 +34,40 @@
 		<string>This app needs access to location when open to show nearby service requests.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>This app needs access to photo library to select images for service documentation.</string>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+			<string>background-processing</string>
+			<string>background-fetch</string>
+		</array>
+		<key>UIUserNotificationSettings</key>
+		<dict>
+			<key>UIUserNotificationTypes</key>
+			<integer>7</integer>
+			<key>UIUserNotificationActionSettings</key>
+			<array>
+				<dict>
+					<key>UIUserNotificationActionIdentifier</key>
+					<string>ACCEPT_LEAD</string>
+					<key>UIUserNotificationActionTitle</key>
+					<string>Accept Lead</string>
+					<key>UIUserNotificationActionBehavior</key>
+					<integer>0</integer>
+					<key>UIUserNotificationActionActivationMode</key>
+					<integer>0</integer>
+				</dict>
+				<dict>
+					<key>UIUserNotificationActionIdentifier</key>
+					<string>DECLINE_LEAD</string>
+					<key>UIUserNotificationActionTitle</key>
+					<string>Decline Lead</string>
+					<key>UIUserNotificationActionBehavior</key>
+					<integer>1</integer>
+					<key>UIUserNotificationActionActivationMode</key>
+					<integer>1</integer>
+				</dict>
+			</array>
+		</dict>
 		<key>UIAppFonts</key>
 		<array>
 			<string>AntDesign.ttf</string>
