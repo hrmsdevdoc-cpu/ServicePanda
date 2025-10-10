@@ -1069,18 +1069,22 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {Array.isArray(serviceRequests) && serviceRequests.slice(0, 10).map((request: ServiceRequest) => (
-                      <div key={request.id} className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{request.serviceCategory}</p>
-                          <p className="text-sm text-gray-500">{request.location}</p>
+                    {Array.isArray(serviceRequests) && serviceRequests.length > 0 ? (
+                      serviceRequests.slice(0, 10).map((request: ServiceRequest) => (
+                        <div key={request.id} className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{request.customerName}</p>
+                            <p className="text-sm text-gray-500">{request.customerEmail}</p>
+                            <p className="text-xs text-gray-400">
+                              {request.serviceCategory} - {request.location}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="text-blue-600">
+                            {request.status}
+                          </Badge>
                         </div>
-                        <Badge variant="outline" className="text-blue-600">
-                          {request.status}
-                        </Badge>
-                      </div>
-                    ))}
-                    {(!serviceRequests || serviceRequests.length === 0) && (
+                      ))
+                    ) : (
                       <p className="text-gray-500 text-center py-4">No recent requests</p>
                     )}
                   </div>

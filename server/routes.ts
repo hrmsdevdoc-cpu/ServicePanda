@@ -1300,7 +1300,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/service-requests', isAdminAuthenticated, async (req, res) => {
     try {
       const serviceRequests = await storage.getAllServiceRequestsForAdmin();
-      res.json(serviceRequests);
+      
+      // Get customer and category details for each request
+      const requestsWithDetails = await Promise.all(
+        serviceRequests.map(async (request) => {
+          // Get customer details
+          const customer = await storage.getUser(request.customerId);
+          
+          // Get category details
+          const category = await storage.getServiceCategory(request.categoryId);
+          
+          return {
+            id: request.id,
+            customerName: customer ? `${customer.firstName} ${customer.lastName}` : 'Unknown Customer',
+            customerEmail: customer?.email || 'No email',
+            serviceCategory: category?.name || 'Unknown Category',
+            location: request.suburb || request.postcode || 'Unknown Location',
+            status: request.status,
+            createdAt: request.createdAt,
+            budget: request.budget,
+            description: request.description
+          };
+        })
+      );
+      
+      res.json(requestsWithDetails);
     } catch (error) {
       console.error('Error fetching service requests:', error);
       res.status(500).json({ message: 'Failed to fetch service requests' });
