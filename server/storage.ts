@@ -5557,6 +5557,12 @@ export class DatabaseStorage implements IStorage {
             continue;
           }
 
+          // Check if customer has unsubscribed
+          if (customer.campaignStatus === 'Unsubscribe') {
+            console.warn(`[SMS][skip] Customer unsubscribed -> id=${customer.id} name=${customer.name}`);
+            details.push({ customerId: customer.id, name: customer.name, phone: customer.phone, status: 'skipped', sent: false, reason: 'unsubscribed' });
+            continue;
+          }
 
           // Normalize AU phone number to E.164 (+61...) format
           const normalizedPhone = (() => {
@@ -7147,14 +7153,72 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async storeIncomingSms(from: string, to: string, body: string, messageId: string): Promise<void> {
+  async findPotentialCustomerByPhone(phone: string): Promise<any | null> {
     try {
-      // Find customer by phone number
-      const [customer] = await db
+      // Normalize phone number for matching (remove spaces, dashes, parentheses, +61, 0 prefix)
+      const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+      
+      console.log(`[Storage] Finding customer by phone: ${phone} (normalized: ${normalizedPhone})`);
+      
+      // Try exact match first
+      let [customer] = await db
         .select()
         .from(potentialCustomers)
-        .where(eq(potentialCustomers.phone, from))
+        .where(eq(potentialCustomers.phone, phone))
         .limit(1);
+
+      // If not found, try normalized matching
+      if (!customer) {
+        const allCustomers = await db
+          .select()
+          .from(potentialCustomers);
+        
+        // Find customer by normalized phone comparison
+        customer = allCustomers.find(c => {
+          const customerNormalized = c.phone.replace(/[\s\-\(\)\+]/g, '');
+          
+          // Remove leading 61 or 0 from both numbers for comparison
+          const searchDigits = normalizedPhone.replace(/^(61|0)/, '');
+          const customerDigits = customerNormalized.replace(/^(61|0)/, '');
+          
+          return searchDigits === customerDigits;
+        });
+        
+        if (customer) {
+          console.log(`[Storage] Found customer by normalized phone: ${customer.name} (${customer.phone})`);
+        }
+      } else {
+        console.log(`[Storage] Found customer by exact match: ${customer.name}`);
+      }
+
+      return customer || null;
+    } catch (error) {
+      console.error('Error finding customer by phone:', error);
+      return null;
+    }
+  }
+
+  async updatePotentialCustomerStatus(customerId: number, status: string): Promise<void> {
+    try {
+      await db
+        .update(potentialCustomers)
+        .set({ 
+          campaignStatus: status as any,
+          updatedAt: new Date()
+        })
+        .where(eq(potentialCustomers.id, customerId));
+      
+      console.log(`[Storage] Updated customer ${customerId} status to ${status}`);
+    } catch (error) {
+      console.error('Error updating customer status:', error);
+      throw error;
+    }
+  }
+
+  async storeIncomingSms(from: string, to: string, body: string, messageId: string, isStopRequest: boolean = false): Promise<void> {
+    try {
+      // Find customer by phone number (using normalized matching)
+      const customer = await this.findPotentialCustomerByPhone(from);
 
       if (!customer) {
         console.log(`[SMS Webhook] Customer not found for phone: ${from}`);
@@ -7172,10 +7236,10 @@ export class DatabaseStorage implements IStorage {
           message: body,
           direction: 'inbound',
           status: 'received',
-          smsType: 'custom',
+          smsType: isStopRequest ? 'unsubscribe' : 'reply',
         });
 
-      console.log(`[SMS Webhook] Stored incoming message from ${customer.name} (${from})`);
+      console.log(`[SMS Webhook] Stored incoming message from ${customer.name} (${from})` + (isStopRequest ? ' - STOP request' : ''));
     } catch (error) {
       console.error('Error storing incoming SMS:', error);
       throw error;

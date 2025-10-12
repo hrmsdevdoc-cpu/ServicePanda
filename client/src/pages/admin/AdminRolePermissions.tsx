@@ -235,17 +235,30 @@ const AdminRolePermissions: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(156, 146, 172, 0.15) 1px, transparent 0)`,
+          backgroundSize: '20px 20px'
+        }}></div>
+      </div>
+      {/* Subtle Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-blue-100/20 pointer-events-none"></div>
       {/* Sidebar */}
-      <AdminSidebar adminUser={currentAdminUser} />
+      <div className="relative z-20">
+        <AdminSidebar adminUser={currentAdminUser} />
+      </div>
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative z-10">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-4" style={{ paddingTop: '1.7rem', paddingBottom: '1rem' }}>
+        <header className="bg-white/95 backdrop-blur-sm dark:bg-gray-800 shadow-lg shadow-slate-200/20 border-b border-slate-200/50 dark:border-gray-700">
+          <div className="px-8 py-3" style={{ paddingTop: '1.2rem', paddingBottom: '0.8rem' }}>
             <div className="flex items-center">
-              <Shield className="h-8 w-8 text-blue-600 mr-3" />
+              <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center mr-3">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                   Role & Permissions Management

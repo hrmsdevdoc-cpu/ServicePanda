@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Scrollbar Styles */
+@layer utilities {
+  .scrollbar-custom {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(71 85 105 / 0.7) rgb(30 41 59 / 0.5);
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: rgb(30 41 59 / 0.3);
+    border-radius: 10px;
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgb(71 85 105 / 0.8), rgb(100 116 139 / 0.6));
+    border-radius: 10px;
+    border: 1px solid rgb(30 41 59 / 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.1);
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgb(100 116 139 / 0.9), rgb(148 163 184 / 0.7));
+    border-color: rgb(30 41 59 / 0.3);
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgb(0 0 0 / 0.2), 0 0 12px rgb(59 130 246 / 0.3);
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, rgb(148 163 184 / 0.9), rgb(203 213 225 / 0.7));
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar-corner {
+    background: rgb(30 41 59 / 0.3);
+  }
+}
+
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(222, 84%, 4.9%);

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { adminApiRequest } from "@/lib/adminAuth";
 import ToggleButton from "./ToggleButton";
@@ -47,23 +47,47 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
   const [location] = useLocation();
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+
+  // Handle scroll detection
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = nav;
+      setShowScrollIndicator(scrollHeight > clientHeight);
+    };
+
+    handleScroll(); // Check initially
+    nav.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleScroll);
+
+    return () => {
+      nav.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, []);
 
   // Fetch current user's role and permissions
-  const { data: currentUser } = useQuery({
+  const { data: currentUser, error: currentUserError } = useQuery({
     queryKey: ['adminUser'],
     queryFn: async () => {
       const response = await adminApiRequest("GET", "/api/admin/current-user");
       return response.json();
     },
+    retry: false,
   });
 
   // Fetch all roles to get permissions for current user's role
-  const { data: roles } = useQuery({
+  const { data: roles, error: rolesError } = useQuery({
     queryKey: ['roles'],
     queryFn: async () => {
       const response = await adminApiRequest("GET", "/api/admin/roles");
       return response.json();
     },
+    retry: false,
   });
 
   // Get current user's permissions
@@ -137,7 +161,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       href: "/admin/potential-customers",
       permission: "potential_customers",
       subItems: [
-        { label: "Import Groups", href: "/admin/potential-customers/imports" },
+        { label: "Import Groups", href: "/admin/potential-customers/imports", permission: "admin_users" },
         { label: "Customer List", href: "/admin/potential-customers" },
         { label: "SMS Campaigns", href: "/admin/potential-customers/sms" },
       ],
@@ -278,8 +302,19 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className={`flex-1 overflow-y-auto transition-all duration-300 ${isCollapsed ? 'p-1' : 'p-3'}`}>
-        <div className="space-y-1">
+      <div className="flex-1 relative overflow-hidden">
+        {/* Top fade indicator - only show when scrolled down */}
+        {showScrollIndicator && (
+          <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none transition-opacity duration-300"></div>
+        )}
+        
+        {/* Bottom fade indicator - only show when there's more content */}
+        {showScrollIndicator && (
+          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none transition-opacity duration-300"></div>
+        )}
+        
+        <nav ref={navRef} className={`h-full overflow-y-auto transition-all duration-300 ${isCollapsed ? 'p-1' : 'p-3'} scrollbar-custom scroll-smooth`}>
+          <div className="space-y-1">
           {menuItems.map((item) => (
             <div key={item.href}>
               {item.subItems.length > 0 ? (
@@ -386,6 +421,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
           ))}
         </div>
       </nav>
+      </div>
 
       {/* Footer */}
       <div className={`border-t border-slate-700/50 transition-all duration-300 ${isCollapsed ? 'p-2' : 'p-3'} relative overflow-hidden`}>

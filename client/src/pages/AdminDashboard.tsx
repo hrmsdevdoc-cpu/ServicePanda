@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AdminSidebar } from "@/components/AdminSidebar";
-import AdminVoucherManagement from "./admin/AdminVoucherManagement";
+// import AdminVoucherManagement from "./admin/AdminVoucherManagement"; // Removed to avoid duplicate sidebar
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { adminApiRequest } from "@/lib/adminAuth";
@@ -101,12 +101,32 @@ export default function AdminDashboard() {
   useEffect(() => {
     const adminToken = localStorage.getItem('adminToken');
     if (!adminToken) {
+      console.log('No admin token found, redirecting to login');
       navigate('/admin-login');
+      return;
     }
+    
+    // Verify token is valid by making a test API call
+    const verifyToken = async () => {
+      try {
+        const response = await adminApiRequest('GET', '/api/admin/current-user');
+        if (!response.ok) {
+          console.log('Token verification failed, redirecting to login');
+          localStorage.removeItem('adminToken');
+          navigate('/admin-login');
+        }
+      } catch (error) {
+        console.log('Token verification error, redirecting to login:', error);
+        localStorage.removeItem('adminToken');
+        navigate('/admin-login');
+      }
+    };
+    
+    verifyToken();
   }, [navigate]);
 
   // Admin Statistics Query
-  const { data: stats } = useQuery({
+  const { data: stats, error: statsError } = useQuery({
     queryKey: ['/api/admin/stats'],
     queryFn: async () => {
       const response = await adminApiRequest('GET', '/api/admin/stats');
@@ -116,7 +136,7 @@ export default function AdminDashboard() {
   });
 
   // Pending Providers Query
-  const { data: pendingProviders, isLoading: loadingProviders } = useQuery({
+  const { data: pendingProviders, isLoading: loadingProviders, error: pendingProvidersError } = useQuery({
     queryKey: ['/api/admin/providers', 'pending'],
     queryFn: async () => {
       const response = await adminApiRequest('GET', '/api/admin/providers?status=pending');
@@ -126,7 +146,7 @@ export default function AdminDashboard() {
   });
 
   // All Providers Query
-  const { data: allProviders } = useQuery({
+  const { data: allProviders, error: allProvidersError } = useQuery({
     queryKey: ['/api/admin/providers', 'all'],
     queryFn: async () => {
       const response = await adminApiRequest('GET', '/api/admin/providers');
@@ -136,22 +156,24 @@ export default function AdminDashboard() {
   });
 
   // Service Requests Query
-  const { data: serviceRequests = [] } = useQuery({
+  const { data: serviceRequests = [], error: serviceRequestsError } = useQuery({
     queryKey: ['/api/admin/service-requests'],
     queryFn: async () => {
       const response = await adminApiRequest('GET', '/api/admin/service-requests');
       return response.json();
     },
+    retry: false,
   });
 
   // Provider Reports Query for Chart
-  const { data: providerReports } = useQuery({
+  const { data: providerReports, error: providerReportsError } = useQuery({
     queryKey: ['/api/admin/reports/providers'],
     queryFn: async () => {
       const response = await adminApiRequest('GET', '/api/admin/reports/providers');
       return response.json();
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: false,
   });
 
   // Provider Approval Mutation
@@ -178,21 +200,23 @@ export default function AdminDashboard() {
   });
 
   // Get current admin user info
-  const { data: currentAdminUser } = useQuery({
+  const { data: currentAdminUser, error: currentAdminUserError } = useQuery({
     queryKey: ["/api/admin/current-user"],
     queryFn: async () => {
       const response = await adminApiRequest("GET", "/api/admin/current-user");
       return response.json();
     },
+    retry: false,
   });
 
   // Fetch all roles to get permissions for current user's role
-  const { data: roles } = useQuery({
+  const { data: roles, error: rolesError } = useQuery({
     queryKey: ['roles'],
     queryFn: async () => {
       const response = await adminApiRequest("GET", "/api/admin/roles");
       return response.json();
     },
+    retry: false,
   });
 
   // Get current user's permissions
@@ -276,9 +300,8 @@ export default function AdminDashboard() {
     console.log('Sample service request:', serviceRequests[0]);
     
     // Log available years in the data
-    const availableYears = [...new Set(serviceRequests.map((r: ServiceRequest) => 
-      new Date(r.createdAt).getFullYear()
-    ))].sort((a, b) => b - a);
+    const years = serviceRequests.map((r: ServiceRequest) => new Date(r.createdAt).getFullYear());
+    const availableYears = (Array.from(new Set(years)) as number[]).sort((a, b) => b - a);
     console.log('Available years in data:', availableYears);
     
     // Filter by selected year
@@ -326,7 +349,7 @@ export default function AdminDashboard() {
           inProgress,
           completed,
           cancelled,
-          statuses: monthRequests.map(r => r.status)
+          statuses: monthRequests.map((r: ServiceRequest) => r.status)
         });
       }
       
@@ -354,7 +377,7 @@ export default function AdminDashboard() {
         { value: "providers", permission: "providers" },
         { value: "approvals", permission: "providers" },
         { value: "requests", permission: "leads" },
-        { value: "vouchers", permission: "vouchers" },
+        // { value: "vouchers", permission: "vouchers" }, // Removed to avoid duplicate sidebar
         { value: "analytics", permission: "reports" },
         { value: "settings", permission: "settings" },
       ];
@@ -391,20 +414,33 @@ export default function AdminDashboard() {
   }) : [];
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(156, 146, 172, 0.15) 1px, transparent 0)`,
+          backgroundSize: '20px 20px'
+        }}></div>
+      </div>
+      {/* Subtle Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-blue-100/20 pointer-events-none"></div>
       {/* Sidebar */}
-      <AdminSidebar 
-        onLogout={handleLogout} 
-        adminUser={currentAdminUser}
-      />
+      <div className="relative z-20">
+        <AdminSidebar 
+          onLogout={handleLogout} 
+          adminUser={currentAdminUser}
+        />
+      </div>
       
       {/* Main content area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto relative z-10">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-4" style={{ paddingTop: '1.7rem', paddingBottom: '1rem' }}>
+        <header className="bg-white/95 backdrop-blur-sm dark:bg-gray-800 shadow-lg shadow-slate-200/20 border-b border-slate-200/50 dark:border-gray-700">
+          <div className="px-8 py-3" style={{ paddingTop: '1.2rem', paddingBottom: '0.8rem' }}>
             <div className="flex items-center">
-              <Shield className="h-8 w-8 text-blue-600 mr-3" />
+              <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center mr-3">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                   Dashboard Overview
@@ -418,8 +454,8 @@ export default function AdminDashboard() {
         </header>
 
         {/* Content */}
-        <div className="px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <div className="px-8 pt-4 pb-8 min-h-screen">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           {(() => {
             // Define all possible tabs with their permissions
             const allTabs = [
@@ -427,7 +463,7 @@ export default function AdminDashboard() {
               { value: "providers", label: "Providers", permission: "providers" },
               { value: "approvals", label: "Approvals", permission: "providers" },
               { value: "requests", label: "Requests", permission: "leads" },
-              { value: "vouchers", label: "Vouchers", permission: "vouchers" },
+              // { value: "vouchers", label: "Vouchers", permission: "vouchers" }, // Removed to avoid duplicate sidebar
               { value: "analytics", label: "Analytics", permission: "reports" },
               { value: "settings", label: "Settings", permission: "settings" },
             ];
@@ -436,9 +472,13 @@ export default function AdminDashboard() {
             const visibleTabs = allTabs.filter(tab => hasPermission(tab.permission));
 
             return (
-              <TabsList className="flex w-full">
+              <TabsList className="flex w-full bg-white/80 backdrop-blur-sm border border-slate-200/50 shadow-lg shadow-slate-200/20">
                 {visibleTabs.map(tab => (
-                  <TabsTrigger key={tab.value} value={tab.value} className="flex-1">
+                  <TabsTrigger 
+                    key={tab.value} 
+                    value={tab.value} 
+                    className="flex-1 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 transition-all duration-300 hover:bg-slate-100/50"
+                  >
                     {tab.label}
                   </TabsTrigger>
                 ))}
@@ -447,9 +487,9 @@ export default function AdminDashboard() {
           })()}
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Providers</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
@@ -462,7 +502,7 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
                   <Clock className="h-4 w-4 text-orange-500" />
@@ -475,7 +515,7 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Active Requests</CardTitle>
                   <Wrench className="h-4 w-4 text-blue-500" />
@@ -488,7 +528,7 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
                   <DollarSign className="h-4 w-4 text-green-500" />
@@ -505,9 +545,9 @@ export default function AdminDashboard() {
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-12 gap-6">
+            <div className="grid grid-cols-12 gap-4">
               {/* Provider Join Trends Chart */}
-              <Card className={isProviderChartExpanded ? "col-span-12" : "col-span-6"}>
+              <Card className={`bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 ${isProviderChartExpanded ? "col-span-12" : "col-span-6"}`}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -654,7 +694,7 @@ export default function AdminDashboard() {
                             dataKey="approved" 
                             stroke="#10b981" 
                             strokeWidth={3}
-                            dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                            dot={false}
                             activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2 }}
                             name="Approved"
                           />
@@ -663,7 +703,7 @@ export default function AdminDashboard() {
                             dataKey="pending" 
                             stroke="#f59e0b" 
                             strokeWidth={3}
-                            dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
+                            dot={false}
                             activeDot={{ r: 6, stroke: '#f59e0b', strokeWidth: 2 }}
                             name="Pending"
                           />
@@ -672,7 +712,7 @@ export default function AdminDashboard() {
                             dataKey="rejected" 
                             stroke="#ef4444" 
                             strokeWidth={3}
-                            dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                            dot={false}
                             activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }}
                             name="Rejected"
                           />
@@ -759,7 +799,7 @@ export default function AdminDashboard() {
               </Card>
 
               {/* Service Request Trends Chart */}
-              <Card className={isServiceRequestExpanded ? "col-span-12" : "col-span-6"}>
+              <Card className={`bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 ${isServiceRequestExpanded ? "col-span-12" : "col-span-6"}`}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -913,7 +953,7 @@ export default function AdminDashboard() {
                                 dataKey="pending" 
                                 stroke="#f59e0b" 
                                 strokeWidth={3}
-                                dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
+                                dot={false}
                                 activeDot={{ r: 6, stroke: '#f59e0b', strokeWidth: 2 }}
                                 name="Pending"
                               />
@@ -922,7 +962,7 @@ export default function AdminDashboard() {
                                 dataKey="inProgress" 
                                 stroke="#3b82f6" 
                                 strokeWidth={3}
-                                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                                dot={false}
                                 activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
                                 name="In Progress"
                               />
@@ -931,7 +971,7 @@ export default function AdminDashboard() {
                                 dataKey="completed" 
                                 stroke="#10b981" 
                                 strokeWidth={3}
-                                dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                                dot={false}
                                 activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2 }}
                                 name="Completed"
                               />
@@ -940,7 +980,7 @@ export default function AdminDashboard() {
                                 dataKey="cancelled" 
                                 stroke="#ef4444" 
                                 strokeWidth={3}
-                                dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                                dot={false}
                                 activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }}
                                 name="Cancelled"
                               />
@@ -1039,53 +1079,123 @@ export default function AdminDashboard() {
 
             {/* Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Provider Applications</CardTitle>
+              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
+                <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-orange-50 to-amber-50">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-10 w-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
+                      <UserCheck className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Recent Provider Applications</CardTitle>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {Array.isArray(pendingProviders) ? pendingProviders.length : 0} pending review
+                      </p>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+                <CardContent className="pt-6">
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                     {Array.isArray(pendingProviders) && pendingProviders.slice(0, 10).map((provider: ServiceProvider) => (
-                      <div key={provider.id} className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{provider.firstName} {provider.lastName}</p>
-                          <p className="text-sm text-gray-500">{provider.email}</p>
+                      <div 
+                        key={provider.id} 
+                        className="flex items-center justify-between p-4 rounded-lg border border-slate-100 bg-gradient-to-r from-white to-slate-50/50 hover:from-orange-50/50 hover:to-amber-50/50 transition-all duration-200 hover:shadow-md hover:border-orange-200"
+                      >
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <div className="h-10 w-10 bg-gradient-to-br from-orange-100 to-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Users className="h-5 w-5 text-orange-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">
+                              {provider.firstName} {provider.lastName}
+                            </p>
+                            <p className="text-sm text-gray-500 truncate">{provider.email}</p>
+                          </div>
                         </div>
-                        <Badge variant="outline" className="text-orange-600">
+                        <Badge 
+                          variant="outline" 
+                          className="ml-3 border-orange-300 bg-orange-50 text-orange-700 font-medium px-3 py-1 flex-shrink-0"
+                        >
                           Pending
                         </Badge>
                       </div>
                     ))}
                     {(!pendingProviders || pendingProviders.length === 0) && (
-                      <p className="text-gray-500 text-center py-4">No pending applications</p>
+                      <div className="text-center py-12">
+                        <div className="inline-flex h-16 w-16 bg-gradient-to-br from-orange-100 to-amber-100 rounded-full items-center justify-center mb-4">
+                          <UserCheck className="h-8 w-8 text-orange-500" />
+                        </div>
+                        <p className="text-gray-600 font-medium">No pending applications</p>
+                        <p className="text-gray-400 text-sm mt-1">All applications have been reviewed</p>
+                      </div>
                     )}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Service Requests</CardTitle>
+              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
+                <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-purple-50 to-pink-50">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                      <Wrench className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Recent Service Requests</CardTitle>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {Array.isArray(serviceRequests) ? serviceRequests.length : 0} total requests
+                      </p>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+                <CardContent className="pt-6">
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                     {Array.isArray(serviceRequests) && serviceRequests.length > 0 ? (
                       serviceRequests.slice(0, 10).map((request: ServiceRequest) => (
-                        <div key={request.id} className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">{request.customerName}</p>
-                            <p className="text-sm text-gray-500">{request.customerEmail}</p>
-                            <p className="text-xs text-gray-400">
-                              {request.serviceCategory} - {request.location}
-                            </p>
+                        <div 
+                          key={request.id} 
+                          className="flex items-center justify-between p-4 rounded-lg border border-slate-100 bg-gradient-to-r from-white to-slate-50/50 hover:from-purple-50/50 hover:to-pink-50/50 transition-all duration-200 hover:shadow-md hover:border-purple-200"
+                        >
+                          <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <div className="h-10 w-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <Wrench className="h-5 w-5 text-purple-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-900 truncate">
+                                {request.customerName}
+                              </p>
+                              <p className="text-sm text-gray-500 truncate">{request.customerEmail}</p>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <span className="text-xs text-gray-400 font-medium bg-gray-100 px-2 py-0.5 rounded">
+                                  {request.serviceCategory}
+                                </span>
+                                <span className="text-xs text-gray-400 flex items-center">
+                                  <MapPin className="h-3 w-3 mr-1" />
+                                  {request.location}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <Badge variant="outline" className="text-blue-600">
+                          <Badge 
+                            variant="outline" 
+                            className={`ml-3 font-medium px-3 py-1 flex-shrink-0 ${
+                              request.status === 'active' 
+                                ? 'border-purple-300 bg-purple-50 text-purple-700' 
+                                : request.status === 'expired'
+                                ? 'border-red-300 bg-red-50 text-red-700'
+                                : 'border-gray-300 bg-gray-50 text-gray-700'
+                            }`}
+                          >
                             {request.status}
                           </Badge>
                         </div>
                       ))
                     ) : (
-                      <p className="text-gray-500 text-center py-4">No recent requests</p>
+                      <div className="text-center py-12">
+                        <div className="inline-flex h-16 w-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full items-center justify-center mb-4">
+                          <Wrench className="h-8 w-8 text-purple-500" />
+                        </div>
+                        <p className="text-gray-600 font-medium">No recent requests</p>
+                        <p className="text-gray-400 text-sm mt-1">Service requests will appear here</p>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -1094,8 +1204,8 @@ export default function AdminDashboard() {
           </TabsContent>
 
           {/* Providers Tab */}
-          <TabsContent value="providers" className="space-y-6">
-            <Card>
+          <TabsContent value="providers" className="space-y-4">
+            <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
               <CardHeader>
                 <CardTitle>All Service Providers</CardTitle>
                 <div className="flex items-center space-x-4">
@@ -1171,7 +1281,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           {/* Approvals Tab */}
-          <TabsContent value="approvals" className="space-y-6">
+          <TabsContent value="approvals" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -1240,7 +1350,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           {/* Service Requests Tab */}
-          <TabsContent value="requests" className="space-y-6">
+          <TabsContent value="requests" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Service Requests Management</CardTitle>
@@ -1288,14 +1398,14 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Vouchers Tab */}
-          <TabsContent value="vouchers" className="space-y-6">
+          {/* Vouchers Tab - Removed to avoid duplicate sidebar */}
+          {/* <TabsContent value="vouchers" className="space-y-6">
             <AdminVoucherManagement />
-          </TabsContent>
+          </TabsContent> */}
 
           {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <TabsContent value="analytics" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -1380,8 +1490,8 @@ export default function AdminDashboard() {
           </TabsContent>
 
           {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <TabsContent value="settings" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">

@@ -351,12 +351,12 @@ export default function AdminPotentialProviders() {
       const tokenPayload = JSON.parse(atob(adminToken.split('.')[1]));
       const role = tokenPayload.role;
       setCurrentUserRole(role);
-      setIsSuperAdmin(role === 'administrator');
+      setIsSuperAdmin(role === 'administrator' || role === 'super_admin');
       setIsManager(role === 'manager');
       
       console.log('=== DEBUG: User role loaded ===');
       console.log('User role:', role);
-      console.log('Is super admin:', role === 'administrator');
+      console.log('Is super admin:', role === 'administrator' || role === 'super_admin');
       
       // If team member is on member-list view, redirect to list view
       if (currentAdminUser?.role === 'Team Member' && viewMode === 'member-list') {
@@ -404,11 +404,11 @@ export default function AdminPotentialProviders() {
         // If super admin, fetch all tasks
         if (isSuperAdmin) {
           url += '?all=true';
-        } else if (isManager) {
-          // For managers, fetch tasks assigned to them
-          url += '?assignedTo=true';
         }
-        // For regular admins, fetch only their own tasks (default behavior)
+        // For all other users (managers, team members, etc), server will automatically
+        // filter by assignedTo field to show only their assigned tasks
+        
+        console.log('Fetching kanban tasks for user role:', currentUserRole, 'isSuperAdmin:', isSuperAdmin);
         
         const response = await adminApiRequest('GET', url);
         return await response.json();
@@ -660,7 +660,17 @@ export default function AdminPotentialProviders() {
 
   // Filter and organize providers into kanban columns
   useEffect(() => {
+    console.log('🔥 useEffect TRIGGERED for Kanban!');
+    console.log('potentialProviders:', potentialProviders?.length || 0);
+    console.log('currentAdminUser:', currentAdminUser?.username);
+    console.log('isSuperAdmin:', isSuperAdmin);
+    
     if (potentialProviders) {
+      console.log('=== DEBUG: Kanban columns update ===');
+      console.log('Current user:', currentAdminUser?.username);
+      console.log('Is super admin:', isSuperAdmin);
+      console.log('Total providers:', potentialProviders.length);
+      
       // Apply the same filtering logic as getFilteredProviders but for kanban view
       const filtered = potentialProviders.filter((provider: PotentialProvider) => {
         const matchesSearch = searchTerm === "" || 
@@ -681,14 +691,45 @@ export default function AdminPotentialProviders() {
         const matchesSource = sourceFilter === "all" || provider.source === sourceFilter;
         
         // Exclude won, lost, and new providers from kanban view, and only show providers with tasks
-        const isNotWonOrLost = provider.status !== 'won' && provider.status !== 'lost';
+        const isNotWonOrLost = provider.status !== 'won' && provider.status !== 'lost' && provider.status !== 'new';
         const hasTask = provider.taskTitle && provider.taskTitle.trim() !== '';
         
-        // For non-super-admin users, only show providers assigned to them
-        const isAssignedToCurrentUser = isSuperAdmin || !currentAdminUser?.username || provider.assignedTo === currentAdminUser.username;
+        // For non-super-admin users, show providers assigned to them OR unassigned (null)
+        const isAssignedToCurrentUser = isSuperAdmin || !currentAdminUser?.username || 
+          provider.assignedTo === currentAdminUser.username || 
+          provider.assignedTo === null || 
+          provider.assignedTo === '';
+
+        // Debug filtering for first few providers
+        if (potentialProviders.indexOf(provider) < 3) {
+          console.log(`Provider ${provider.firstName}:`, {
+            matchesSearch,
+            matchesStatus,
+            matchesPriority,
+            matchesAssignedTo,
+            matchesSource,
+            isNotWonOrLost,
+            hasTask: !!hasTask,
+            taskTitle: provider.taskTitle,
+            isAssignedToCurrentUser,
+            assignedTo: provider.assignedTo,
+            currentUser: currentAdminUser?.username,
+            status: provider.status,
+            PASSES: matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && isNotWonOrLost && hasTask && isAssignedToCurrentUser
+          });
+        }
 
         return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && isNotWonOrLost && hasTask && isAssignedToCurrentUser;
       });
+      
+      console.log('Filtered providers for Kanban:', filtered.length);
+      if (filtered.length > 0) {
+        console.log('First filtered provider:', {
+          name: `${filtered[0].firstName} ${filtered[0].lastName}`,
+          assignedTo: filtered[0].assignedTo,
+          taskTitle: filtered[0].taskTitle
+        });
+      }
 
       const updatedColumns = KANBAN_COLUMNS.map(column => ({
         ...column,
@@ -697,6 +738,18 @@ export default function AdminPotentialProviders() {
           const now = new Date();
           const providerDate = provider.nextFollowUpDate ? new Date(provider.nextFollowUpDate) : new Date(provider.createdAt);
           const daysDiff = Math.ceil((providerDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Debug first provider in each iteration
+          if (filtered.indexOf(provider) === 0) {
+            console.log('Sample provider date calculation:', {
+              provider: `${provider.firstName} ${provider.lastName}`,
+              nextFollowUpDate: provider.nextFollowUpDate,
+              createdAt: provider.createdAt,
+              providerDate: providerDate.toISOString(),
+              daysDiff,
+              column: column.id
+            });
+          }
           
           switch (column.id) {
             case 'overdue24h':
@@ -714,6 +767,12 @@ export default function AdminPotentialProviders() {
           }
         })
       }));
+      
+      console.log('Updated Kanban columns:', updatedColumns.map(col => ({
+        id: col.id,
+        title: col.title,
+        count: col.providers.length
+      })));
 
       setKanbanColumns(updatedColumns);
       
@@ -722,7 +781,7 @@ export default function AdminPotentialProviders() {
         updateArrowVisibility();
       }, 100);
     }
-  }, [potentialProviders, searchTerm, statusFilter, priorityFilter, assignedToFilter, sourceFilter]);
+  }, [potentialProviders, searchTerm, statusFilter, priorityFilter, assignedToFilter, sourceFilter, isSuperAdmin, currentAdminUser]);
 
   // Update arrow visibility based on scroll position
   const updateArrowVisibility = () => {
@@ -1047,8 +1106,10 @@ export default function AdminPotentialProviders() {
         return true;
       }
       
-      // Show if assigned to current user OR if not assigned to anyone (null)
-      const isAssignedToCurrentUser = provider.assignedTo === currentAdminUser.username || provider.assignedTo === null;
+      // Show if assigned to current user OR if not assigned to anyone (null/empty)
+      const isAssignedToCurrentUser = provider.assignedTo === currentAdminUser.username || 
+        provider.assignedTo === null || 
+        provider.assignedTo === '';
       console.log('Provider assignedTo:', provider.assignedTo, 'Current user:', currentAdminUser?.username, 'Is super admin:', isSuperAdmin, 'Show:', isAssignedToCurrentUser);
       return isAssignedToCurrentUser;
     });
@@ -1124,21 +1185,34 @@ export default function AdminPotentialProviders() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(156, 146, 172, 0.15) 1px, transparent 0)`,
+          backgroundSize: '20px 20px'
+        }}></div>
+      </div>
+      {/* Subtle Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-blue-100/20 pointer-events-none"></div>
       {/* Sidebar */}
-      <AdminSidebar 
-        onLogout={handleLogout} 
-        adminUser={currentAdminUser}
-      />
+      <div className="relative z-20">
+        <AdminSidebar 
+          onLogout={handleLogout} 
+          adminUser={currentAdminUser}
+        />
+      </div>
       
       {/* Main content area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto relative z-10">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm">
-          <div className="px-8 py-6 border-b border-gray-200 dark:border-gray-700" style={{ paddingTop: '1.7rem', paddingBottom: '1rem' }}>
+        <header className="bg-white/95 backdrop-blur-sm dark:bg-gray-800 shadow-lg shadow-slate-200/20 border-b border-slate-200/50 dark:border-gray-700">
+          <div className="px-8 py-3" style={{ paddingTop: '1.2rem', paddingBottom: '0.8rem' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <UserSearch className="h-8 w-8 text-purple-600 mr-3" />
+                <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center mr-3">
+                  <UserSearch className="h-5 w-5 text-white" />
+                </div>
                 <div>
                   <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                     Potential Providers
@@ -1163,7 +1237,7 @@ export default function AdminPotentialProviders() {
         </header>
 
         {/* View Mode Tabs */}
-        <div className="px-8 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="px-8 py-4 bg-white/95 backdrop-blur-sm dark:bg-gray-800 border-b border-slate-200/50 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
               {/* Hide "New Members" tab for team members only */}
@@ -1227,8 +1301,8 @@ export default function AdminPotentialProviders() {
               )}
             </div>
             
-            {/* Create Task Button - only show in Kanban view */}
-            {viewMode === 'kanban' && (
+            {/* Create Task Button - Hidden as per user request */}
+            {/* {viewMode === 'kanban' && (
               <div className="flex items-center space-x-3">
                 <Button
                   onClick={() => setIsTaskDialogOpen(true)}
@@ -1245,7 +1319,7 @@ export default function AdminPotentialProviders() {
                   </Badge>
                 )}
               </div>
-            )}
+            )} */}
             
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
@@ -1285,7 +1359,7 @@ export default function AdminPotentialProviders() {
         </div>
 
         {/* Filters and Search */}
-        <div className="px-8 py-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="px-8 py-6 bg-white/95 backdrop-blur-sm dark:bg-gray-800 border-b border-slate-200/50 dark:border-gray-700">
           <div className="flex flex-wrap items-center gap-6">
             {/* Search */}
             <div className="relative flex-1 max-w-md">
@@ -1401,18 +1475,18 @@ export default function AdminPotentialProviders() {
               )}
             </div>
 
-            {/* Counts */}
-            <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400 font-medium">
+            {/* Counts - Hidden as per user request */}
+            {/* <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400 font-medium">
               <span>Total: {totalProviders}</span>
               <span>New: {newProviders.length}</span>
               <span>Active: {activeProviders.length}</span>
               <span>Won: {wonProviders.length}</span>
-            </div>
+            </div> */}
           </div>
         </div>
 
         {/* Content */}
-        <div className="px-8 py-8">
+        <div className="px-8 pt-4 pb-8 min-h-screen">
           {isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
@@ -1482,7 +1556,7 @@ export default function AdminPotentialProviders() {
                     </div>
                   )}
 
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                  <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                         <Users className="h-5 w-5 text-blue-600 mr-2" />
@@ -1626,7 +1700,7 @@ export default function AdminPotentialProviders() {
               )}
 
               {viewMode === 'list' && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -1754,13 +1828,13 @@ export default function AdminPotentialProviders() {
                                   <MessageSquare className="h-4 w-4 mr-2" />
                                   Send SMS
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
+                                {/* <DropdownMenuItem onClick={() => {
                                   setSelectedProvider(provider);
                                   setIsConvertDialogOpen(true);
                                 }}>
                                   <UserPlus className="h-4 w-4 mr-2" />
                                   Convert to Provider
-                                </DropdownMenuItem>
+                                </DropdownMenuItem> */}
                                 <DropdownMenuItem onClick={() => {
                                   setSelectedProvider(provider);
                                   setIsWonAlertOpen(true);
@@ -2013,13 +2087,13 @@ export default function AdminPotentialProviders() {
                                              <MessageSquare className="h-4 w-4 mr-2" />
                                              Send SMS
                                            </DropdownMenuItem>
-                                           <DropdownMenuItem onClick={() => {
+                                           {/* <DropdownMenuItem onClick={() => {
                                              setSelectedProvider(provider);
                                              setIsConvertDialogOpen(true);
                                            }}>
                                              <UserPlus className="h-4 w-4 mr-2" />
                                              Convert to Provider
-                                           </DropdownMenuItem>
+                                           </DropdownMenuItem> */}
                                            <DropdownMenuItem onClick={() => {
                                              setSelectedProvider(provider);
                                              setIsWonAlertOpen(true);
@@ -2116,7 +2190,7 @@ export default function AdminPotentialProviders() {
 
               {viewMode === 'completed' && (
                 <div className="space-y-6">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                  <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                         <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
@@ -2184,13 +2258,13 @@ export default function AdminPotentialProviders() {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => {
+                                  {/* <DropdownMenuItem onClick={() => {
                                     setSelectedProvider(provider);
                                     setIsConvertDialogOpen(true);
                                   }}>
                                     <UserPlus className="h-4 w-4 mr-2" />
                                     Convert to Provider
-                                  </DropdownMenuItem>
+                                  </DropdownMenuItem> */}
                                   <DropdownMenuItem>
                                     <Eye className="h-4 w-4 mr-2" />
                                     View Details
@@ -2212,7 +2286,7 @@ export default function AdminPotentialProviders() {
 
               {viewMode === 'lost' && (
                 <div className="space-y-6">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                  <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                         <XCircle className="h-5 w-5 text-red-600 mr-2" />
@@ -2311,7 +2385,7 @@ export default function AdminPotentialProviders() {
               {/* New Member List View - for managers */}
               {viewMode === 'new-member-list' && (
                 <div className="space-y-6">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                  <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                         <Users className="h-5 w-5 text-blue-600 mr-2" />
@@ -2571,7 +2645,7 @@ export default function AdminPotentialProviders() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            {/* <div>
               <label className="text-sm font-medium">Assigned To</label>
               <Select value={newProvider.assignedTo} onValueChange={(value) => setNewProvider({...newProvider, assignedTo: value})}>
                 <SelectTrigger>
@@ -2586,7 +2660,7 @@ export default function AdminPotentialProviders() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
             <div className="col-span-2">
               <label className="text-sm font-medium">Service Categories</label>
               <Input
@@ -2657,7 +2731,7 @@ export default function AdminPotentialProviders() {
 
       {/* Team Task Dialog */}
       <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Task</DialogTitle>
             <DialogDescription>
@@ -2667,7 +2741,7 @@ export default function AdminPotentialProviders() {
               }
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 pr-2">
             {/* Show selected provider info */}
             {selectedProvider && (
               <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">

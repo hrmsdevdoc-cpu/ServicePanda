@@ -229,12 +229,23 @@ export default function AdminSmsMenu() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(156, 146, 172, 0.15) 1px, transparent 0)`,
+          backgroundSize: '20px 20px'
+        }}></div>
+      </div>
+      {/* Subtle Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-blue-100/20 pointer-events-none"></div>
       {/* Admin Sidebar */}
-      <AdminSidebar onLogout={() => {}} />
+      <div className="relative z-20">
+        <AdminSidebar onLogout={() => {}} />
+      </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative z-10">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-5">
           <div className="flex items-center justify-between">
