@@ -175,15 +175,17 @@ export const isAdminAuthenticated: RequestHandler = (req, res, next) => {
     }
 
     const decoded = verifyAdminToken(token);
+    console.log("Decoded token:", decoded);
     
-    if (!decoded || decoded.role !== "admin") {
-      console.log("Admin auth failed - invalid token or role");
+    // Check if token is valid (not checking specific roles, just that it's a valid admin token)
+    if (!decoded || !decoded.username || !decoded.role) {
+      console.log("Admin auth failed - invalid token or missing required fields:", decoded);
       return res.status(401).json({ message: "Invalid admin token" });
     }
 
     // Add admin info to request object
     (req as any).admin = decoded;
-    console.log("Admin auth successful");
+    console.log("Admin auth successful for user:", decoded.username, "with role:", decoded.role);
     next();
   } catch (error) {
     console.error("Admin authentication error:", error);

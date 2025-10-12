@@ -24,10 +24,8 @@ export const adminApiRequest = async (method: string, url: string, data?: any) =
   
   // Check for 401 Unauthorized (token expired)
   if (response.status === 401) {
-    console.log("Admin session expired, clearing token and redirecting to login");
+    console.log("Admin session expired, clearing token");
     localStorage.removeItem('adminToken');
-    // Use window.location to ensure page reload and clear any cached state
-    window.location.href = '/admin-login';
     throw new Error('Session expired');
   }
   

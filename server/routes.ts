@@ -678,6 +678,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const request = await storage.createServiceRequest(requestData);
 
+      // 🎯 Check if customer is in potential_customers and update to "Won"
+      try {
+        const customer = await storage.getUser(userId);
+        if (customer && customer.phoneNumber) {
+          console.log(`[Won Status] Checking if customer ${customer.email} is in potential customers...`);
+          const potentialCustomer = await storage.findPotentialCustomerByPhone(customer.phoneNumber);
+          
+          if (potentialCustomer && potentialCustomer.campaignStatus !== 'Won') {
+            console.log(`[Won Status] Customer found! Updating ${potentialCustomer.name} (ID: ${potentialCustomer.id}) to Won`);
+            await storage.updatePotentialCustomerStatus(potentialCustomer.id, 'Won');
+            console.log(`✅ [Won Status] Customer ${potentialCustomer.name} marked as Won!`);
+          } else if (potentialCustomer) {
+            console.log(`[Won Status] Customer ${potentialCustomer.name} already has status: ${potentialCustomer.campaignStatus}`);
+          } else {
+            console.log(`[Won Status] Customer not found in potential customers`);
+          }
+        }
+      } catch (wonError) {
+        console.error('[Won Status] Error updating potential customer to Won:', wonError);
+        // Don't fail the service request if this fails
+      }
+
       // Log user activity
       await storage.logUserActivity({
         userId,
@@ -2761,11 +2783,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get current admin user endpoint
-  app.get('/api/admin/current-user', isAdminAuthenticated, async (req, res) => {
+  app.get('/api/admin/current-user', isAdminAuthenticated, async (req: any, res) => {
     try {
-      const adminToken = req.headers['x-admin-token'] as string;
-      const decoded = jwt.verify(adminToken, process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-key') as any;
-      const username = decoded.username;
+      // The admin info is already available from the middleware
+      const adminInfo = req.admin;
+      const username = adminInfo.username;
 
       const user = await storage.getAdminUserByUsername(username);
       if (!user) {
@@ -3993,7 +4015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the admin username and role from the authenticated user
       const adminUsername = (req as any).admin?.username;
       const adminRole = (req as any).admin?.role;
-      const isSuperAdmin = adminRole === 'administrator';
+      const isSuperAdmin = adminRole === 'administrator' || adminRole === 'super_admin';
       
       console.log('Admin username from request:', adminUsername);
       console.log('Admin role:', adminRole);
@@ -4500,18 +4522,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/team-tasks/kanban', isAdminAuthenticated, async (req, res) => {
     try {
       const showAll = req.query.all === 'true';
-      const assignedTo = req.query.assignedTo === 'true';
       const adminInfo = (req as any).admin;
       
-      let filterBy = adminInfo.username; // Default: show only current admin's tasks
+      let filterBy = null;
       
-      if (showAll && adminInfo.role === 'administrator') {
+      if (showAll && (adminInfo.role === 'administrator' || adminInfo.role === 'super_admin')) {
         // Super admin can see all tasks
         filterBy = null;
-      } else if (assignedTo && adminInfo.role === 'manager') {
-        // Manager sees tasks assigned to them (by assignedTo field)
+      } else {
+        // For all other users (managers, team members, etc), filter by assignedTo field
+        // This ensures they see tasks assigned to them, regardless of who created them
         filterBy = 'assignedTo:' + adminInfo.username;
       }
+      
+      console.log('Kanban tasks - User:', adminInfo.username, 'Role:', adminInfo.role, 'FilterBy:', filterBy);
       
       const kanbanData = await storage.getTeamTasksForKanban(filterBy);
       res.json(kanbanData);
@@ -4734,11 +4758,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📱 [Webhook] Processing SMS from ${fromPhone}: "${messageText}"`);
       
-      // Store incoming message
-      await storage.storeIncomingSms(fromPhone, toPhone, messageText, messageId);
+      // Check if customer replied with STOP (case-insensitive)
+      const isStopRequest = messageText.trim().toUpperCase() === 'STOP';
       
-      console.log('✅ [Webhook] SMS stored successfully');
-      res.status(200).json({ message: 'SMS received successfully' });
+      if (isStopRequest) {
+        console.log('🛑 [Webhook] Customer requested to STOP - processing unsubscribe...');
+        
+        // Find customer and update status to Unsubscribe
+        const customer = await storage.findPotentialCustomerByPhone(fromPhone);
+        if (customer) {
+          await storage.updatePotentialCustomerStatus(customer.id, 'Unsubscribe');
+          console.log(`✅ [Webhook] Customer ${customer.name} (ID: ${customer.id}) unsubscribed successfully`);
+        } else {
+          console.warn(`⚠️ [Webhook] Customer not found for phone: ${fromPhone}`);
+        }
+      }
+      
+      // Store incoming message (with unsubscribe status if applicable)
+      await storage.storeIncomingSms(fromPhone, toPhone, messageText, messageId, isStopRequest);
+      
+      console.log('✅ [Webhook] SMS stored successfully' + (isStopRequest ? ' - Customer unsubscribed' : ''));
+      res.status(200).json({ 
+        message: 'SMS received successfully',
+        unsubscribed: isStopRequest 
+      });
     } catch (error) {
       console.error('❌ [Webhook] Error processing incoming SMS:', error);
       res.status(500).json({ message: 'Failed to process SMS' });
