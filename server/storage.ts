@@ -100,10 +100,17 @@ import {
   adminDepartments,
   adminUsers,
   adminUserDepartments,
+  roles,
+  permissions,
+  rolePermissions,
   type AdminDepartment,
   type InsertAdminDepartment,
   type AdminUser,
   type InsertAdminUser,
+  type Role,
+  type InsertRole,
+  type Permission,
+  type InsertPermission,
   type AdminUserDepartment,
   type InsertAdminUserDepartment,
   type ProviderVoucher,
@@ -155,6 +162,12 @@ import {
   teamTasks,
   type TeamTask,
   type InsertTeamTask,
+  smsCampaigns,
+  type SmsCampaign,
+  type InsertSmsCampaign,
+  smsMessages,
+  type SmsMessage,
+  type InsertSmsMessage,
 } from "@shared/schema";
 
 // Import Group interface
@@ -304,6 +317,8 @@ export interface IStorage {
   getServiceProviderCount(status?: string): Promise<number>;
   getUserCount(): Promise<number>;
   getServiceRequestCount(status?: string): Promise<number>;
+  getActiveServiceRequestCount(): Promise<number>;
+  getMonthlyRevenue(): Promise<number>;
   getServiceProvidersForAdmin(status?: string): Promise<ServiceProvider[]>;
   getServiceProvidersForReport(status?: string, rating?: string): Promise<any[]>;
   updateServiceProviderStatus(id: number, status: string): Promise<void>;
@@ -477,6 +492,7 @@ export interface IStorage {
   getPotentialCustomerImportGroups(): Promise<ImportGroup[]>;
   importPotentialCustomers(file: any, importName: string): Promise<{ count: number }>;
   updatePotentialCustomerSmsStatus(customerId: number, status: '1st_sent' | '2nd_sent'): Promise<void>;
+  updatePotentialCustomerCampaignStatus(customerId: number, status: string): Promise<void>;
   sendSmsToPotentialCustomers(customerIds: number[]): Promise<{ count: number }>;
 
   // Potential Providers operations
@@ -485,6 +501,7 @@ export interface IStorage {
   importPotentialProviders(csvData: string, importName: string): Promise<{ count: number, providers: any[] }>;
   confirmPotentialProvidersImport(providers: any[]): Promise<{ count: number }>;
   updatePotentialProvider(id: number, updates: any): Promise<PotentialProvider>;
+  updatePotentialProviderSmsStatus(providerId: number, status: '1st_sent' | '2nd_sent'): Promise<void>;
   createPotentialProviderTask(taskData: any): Promise<PotentialProviderTask>;
   sendEmailToPotentialProvider(providerId: number, subject: string, content: string): Promise<any>;
   sendSmsToPotentialProvider(providerId: number, content: string): Promise<any>;
@@ -1522,6 +1539,36 @@ export class DatabaseStorage implements IStorage {
 
     const result = await query;
     return result.length;
+  }
+
+  async getActiveServiceRequestCount(): Promise<number> {
+    // Count only requests with 'active' status (not expired, completed, or cancelled)
+    const result = await db
+      .select()
+      .from(serviceRequests)
+      .where(eq(serviceRequests.status, 'active'));
+    return result.length;
+  }
+
+  async getMonthlyRevenue(): Promise<number> {
+    // Calculate total revenue from lead purchases in the current month
+    const currentDate = new Date();
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+
+    const result = await db
+      .select({
+        totalRevenue: sql<number>`COALESCE(SUM(CAST(${leadPurchases.totalCost} AS DECIMAL)), 0)`
+      })
+      .from(leadPurchases)
+      .where(
+        and(
+          gte(leadPurchases.purchasedAt, firstDayOfMonth),
+          lte(leadPurchases.purchasedAt, lastDayOfMonth)
+        )
+      );
+
+    return parseFloat(result[0]?.totalRevenue?.toString() || '0');
   }
 
   async getServiceProvidersForAdmin(status?: string): Promise<any[]> {
@@ -5506,6 +5553,23 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async updatePotentialCustomerCampaignStatus(customerId: number, status: string): Promise<void> {
+    try {
+      await db
+        .update(potentialCustomers)
+        .set({
+          campaignStatus: status,
+          updatedAt: new Date(),
+        })
+        .where(eq(potentialCustomers.id, customerId));
+
+      console.log(`Updated customer ${customerId} campaign status to ${status}`);
+    } catch (error) {
+      console.error('Error updating potential customer campaign status:', error);
+      throw new Error('Failed to update campaign status');
+    }
+  }
+
   async sendSmsToPotentialCustomers(customerIds: number[]): Promise<{ count: number, details: Array<{ customerId: number, name: string, phone: string, status: '1st_sent' | '2nd_sent' | 'skipped', sent: boolean, reason?: string }> }> {
     try {
       let successCount = 0;
@@ -5525,6 +5589,12 @@ export class DatabaseStorage implements IStorage {
             continue;
           }
 
+          // Check if customer has unsubscribed
+          if (customer.campaignStatus === 'Unsubscribe') {
+            console.warn(`[SMS][skip] Customer unsubscribed -> id=${customer.id} name=${customer.name}`);
+            details.push({ customerId: customer.id, name: customer.name, phone: customer.phone, status: 'skipped', sent: false, reason: 'unsubscribed' });
+            continue;
+          }
 
           // Normalize AU phone number to E.164 (+61...) format
           const normalizedPhone = (() => {
@@ -5710,7 +5780,7 @@ export class DatabaseStorage implements IStorage {
         );
 
 
-      // Get monthly join data for ALL providers (not just last 12 months)
+      // Get monthly join data for the last 4 years
       const monthlyData = await db
         .select({
           month: sql<string>`to_char(${serviceProviders.createdAt}, 'YYYY-MM')`,
@@ -5718,20 +5788,26 @@ export class DatabaseStorage implements IStorage {
           count: sql<number>`cast(count(*) as integer)`
         })
         .from(serviceProviders)
+        .where(
+          gte(serviceProviders.createdAt, sql`CURRENT_DATE - INTERVAL '4 years'`)
+        )
         .groupBy(sql`to_char(${serviceProviders.createdAt}, 'YYYY-MM'), ${serviceProviders.status}`);
 
       // Process monthly data into the required format
       const monthlyJoins = [];
       const monthMap = new Map();
 
-      // Initialize months based on actual data found
-      const uniqueMonths = new Set(monthlyData.map(row => row.month));
-      const sortedMonths = Array.from(uniqueMonths).sort();
-
-      sortedMonths.forEach(monthKey => {
-        const date = new Date(monthKey + '-01');
+      // Generate last 4 years of data (48 months)
+      const now = new Date();
+      const last4Years = [];
+      
+      for (let i = 47; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        // Use UTC to avoid timezone issues
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-
+        
+        last4Years.push(monthKey);
         monthMap.set(monthKey, {
           month: monthName,
           count: 0,
@@ -5739,7 +5815,7 @@ export class DatabaseStorage implements IStorage {
           pending: 0,
           rejected: 0
         });
-      });
+      }
 
       // Fill in the actual data
       monthlyData.forEach(row => {
@@ -5755,8 +5831,13 @@ export class DatabaseStorage implements IStorage {
         }
       });
 
-      // Convert to array and sort by month
-      monthlyJoins.push(...Array.from(monthMap.values()));
+      // Convert to array in the correct order
+      last4Years.forEach(monthKey => {
+        const monthData = monthMap.get(monthKey);
+        if (monthData) {
+          monthlyJoins.push(monthData);
+        }
+      });
 
 
       // Get top service categories in a single query
@@ -5862,9 +5943,88 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Potential Providers methods
-  async getAllPotentialProviders(): Promise<PotentialProvider[]> {
+  async getAllPotentialProviders(adminUsername?: string, isSuperAdmin: boolean = false): Promise<PotentialProvider[]> {
     try {
-      const providers = await db.select().from(potentialProviders).orderBy(desc(potentialProviders.createdAt));
+      console.log('=== DEBUG: Getting potential providers ===');
+      console.log('Admin username filter:', adminUsername);
+      console.log('Is super admin:', isSuperAdmin);
+      console.log('Will apply filtering:', adminUsername && !isSuperAdmin);
+      
+      let query = db
+        .select({
+          id: potentialProviders.id,
+          firstName: potentialProviders.firstName,
+          lastName: potentialProviders.lastName,
+          email: potentialProviders.email,
+          phone: potentialProviders.phone,
+          businessName: potentialProviders.businessName,
+          businessAbn: potentialProviders.businessAbn,
+          address: potentialProviders.address,
+          state: potentialProviders.state,
+          city: potentialProviders.city,
+          postcode: potentialProviders.postcode,
+          serviceCategories: potentialProviders.serviceCategories,
+          source: potentialProviders.source,
+          importId: potentialProviders.importId,
+          importName: potentialProviders.importName,
+          status: potentialProviders.status,
+          priority: potentialProviders.priority,
+          assignedTo: potentialProviders.assignedTo,
+          assignedAdminName: sql<string>`CONCAT(${adminUsers.firstName}, ' ', ${adminUsers.lastName})`.as('assignedAdminName'),
+          taskTitle: sql<string>`${potentialProviderTasks.title}`.as('taskTitle'),
+          smsDeliveryStatus: potentialProviders.smsDeliveryStatus,
+          firstSmsSentAt: potentialProviders.firstSmsSentAt,
+          secondSmsSentAt: potentialProviders.secondSmsSentAt,
+          notes: potentialProviders.notes,
+          nextFollowUpDate: potentialProviders.nextFollowUpDate,
+          lastContactDate: potentialProviders.lastContactDate,
+          lastContactType: potentialProviders.lastContactType,
+          createdAt: potentialProviders.createdAt,
+          updatedAt: potentialProviders.updatedAt,
+        })
+        .from(potentialProviders)
+        .leftJoin(potentialProviderTasks, eq(potentialProviders.id, potentialProviderTasks.potentialProviderId))
+        .leftJoin(adminUsers, eq(potentialProviderTasks.assignedTo, adminUsers.username));
+      
+      // Add filtering based on admin username (unless super admin)
+      if (adminUsername && !isSuperAdmin) {
+        query = query.where(eq(potentialProviderTasks.assignedTo, adminUsername));
+        console.log('Filtering by assigned admin:', adminUsername);
+      } else if (isSuperAdmin) {
+        console.log('Super admin - showing all tasks');
+      }
+      
+      const providers = await query.orderBy(desc(potentialProviders.createdAt));
+      
+      console.log('=== DEBUG: Query result ===');
+      console.log('Total providers found:', providers.length);
+      if (providers.length > 0) {
+        console.log('First provider:', {
+          id: providers[0].id,
+          name: `${providers[0].firstName} ${providers[0].lastName}`,
+          status: providers[0].status,
+          assignedTo: providers[0].assignedTo,
+          assignedAdminName: providers[0].assignedAdminName,
+          taskTitle: providers[0].taskTitle
+        });
+      }
+      
+      // Debug: Check potential_provider_tasks table
+      try {
+        console.log('\n=== DEBUG: Checking potential_provider_tasks table ===');
+        const potentialProviderTasksData = await db.select().from(potentialProviderTasks).limit(3);
+        console.log('Potential provider tasks found:', potentialProviderTasksData.length);
+        if (potentialProviderTasksData.length > 0) {
+          console.log('First potential provider task:', {
+            id: potentialProviderTasksData[0].id,
+            potentialProviderId: potentialProviderTasksData[0].potentialProviderId,
+            assignedTo: potentialProviderTasksData[0].assignedTo
+          });
+        }
+      } catch (error) {
+        console.log('Error checking potential_provider_tasks:', error.message);
+      }
+      
       return providers;
     } catch (error) {
       console.error('Error getting potential providers:', error);
@@ -5979,6 +6139,36 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async updatePotentialProviderSmsStatus(providerId: number, status: '1st_sent' | '2nd_sent'): Promise<void> {
+    try {
+      const updateData: any = {};
+
+      if (status === '1st_sent') {
+        updateData.smsDeliveryStatus = '1st_sent';
+        updateData.firstSmsSentAt = new Date();
+      } else if (status === '2nd_sent') {
+        updateData.smsDeliveryStatus = '2nd_sent';
+        updateData.secondSmsSentAt = new Date();
+      }
+
+      console.log(`🔄 Updating provider ${providerId} with data:`, updateData);
+
+      const result = await db
+        .update(potentialProviders)
+        .set({
+          ...updateData,
+          updatedAt: new Date(),
+        })
+        .where(eq(potentialProviders.id, providerId))
+        .returning();
+
+      console.log(`✅ Updated provider ${providerId} SMS status to ${status}. Result:`, result);
+    } catch (error) {
+      console.error('❌ Error updating potential provider SMS status:', error);
+      throw new Error('Failed to update SMS status');
+    }
+  }
+
   async createPotentialProviderTask(taskData: any): Promise<PotentialProviderTask> {
     try {
       // Create the task
@@ -5994,16 +6184,18 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       }).returning();
 
-      // Update provider status from 'new' to 'active' when task is created
-      await db.update(potentialProviders)
-        .set({ 
-          status: 'active',
-          updatedAt: new Date()
-        })
-        .where(and(
-          eq(potentialProviders.id, taskData.potentialProviderId),
-          eq(potentialProviders.status, 'new')
-        ));
+      // Update the provider status from 'new' to 'active' when a task is created
+      if (taskData.potentialProviderId) {
+        await db
+          .update(potentialProviders)
+          .set({ 
+            status: 'active',
+            updatedAt: new Date()
+          })
+          .where(eq(potentialProviders.id, taskData.potentialProviderId));
+        
+        console.log(`✅ Updated provider ${taskData.potentialProviderId} status from 'new' to 'active' after task creation`);
+      }
 
       return task;
     } catch (error) {
@@ -6020,7 +6212,27 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Potential provider not found');
       }
 
-      // Log the communication
+      const providerRow = provider[0];
+      const sentAt = new Date();
+
+      // Store in main emails table for admin email management
+      await db.insert(emails).values({
+        from: 'admin@servicepanda.com.au', // Admin sender email
+        to: providerRow.email,
+        subject,
+        body: content,
+        bodyHtml: content, // Assuming content is HTML
+        status: 'sent',
+        folder: 'sent',
+        userType: 'admin',
+        userId: null, // Admin users are not in the users table - this prevents filtering issues
+        providerId: null, // This is a potential provider, not a confirmed provider
+        sentAt,
+        createdAt: sentAt,
+        updatedAt: sentAt,
+      });
+
+      // Log the communication in potential provider communications
       await db.insert(potentialProviderCommunications).values({
         potentialProviderId: providerId,
         communicationType: 'email',
@@ -6029,17 +6241,17 @@ export class DatabaseStorage implements IStorage {
         content,
         sentBy: 'admin', // TODO: Get actual admin username
         status: 'sent',
-        sentAt: new Date(),
-        createdAt: new Date(),
+        sentAt,
+        createdAt: sentAt,
       });
 
       // Update provider status and last contact
       await db.update(potentialProviders)
         .set({
           status: 'email',
-          lastContactDate: new Date(),
+          lastContactDate: sentAt,
           lastContactType: 'email',
-          updatedAt: new Date()
+          updatedAt: sentAt
         })
         .where(eq(potentialProviders.id, providerId));
 
@@ -6052,7 +6264,15 @@ export class DatabaseStorage implements IStorage {
 
   async sendSmsToPotentialProvider(providerId: number, content: string): Promise<any> {
     try {
-      const provider = await db.select().from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
+      const provider = await db.select({
+        id: potentialProviders.id,
+        firstName: potentialProviders.firstName,
+        lastName: potentialProviders.lastName,
+        phone: potentialProviders.phone,
+        smsDeliveryStatus: potentialProviders.smsDeliveryStatus,
+        firstSmsSentAt: potentialProviders.firstSmsSentAt,
+        secondSmsSentAt: potentialProviders.secondSmsSentAt
+      }).from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
 
       if (provider.length === 0) {
         throw new Error('Potential provider not found');
@@ -6090,6 +6310,24 @@ export class DatabaseStorage implements IStorage {
         sentBy: 'admin',
         status: 'sent',
       });
+
+      // Update SMS status based on current status
+      const currentSmsStatus = (providerRow as any).smsDeliveryStatus || 'not_sent';
+      console.log(`📱 Provider ${providerId} current SMS status: ${currentSmsStatus}`);
+      
+      let newSmsStatus: '1st_sent' | '2nd_sent';
+      
+      if (currentSmsStatus === 'not_sent') {
+        newSmsStatus = '1st_sent';
+      } else if (currentSmsStatus === '1st_sent') {
+        newSmsStatus = '2nd_sent';
+      } else {
+        // If already 2nd_sent, keep it as 2nd_sent
+        newSmsStatus = '2nd_sent';
+      }
+      
+      console.log(`📱 Updating provider ${providerId} SMS status to: ${newSmsStatus}`);
+      await this.updatePotentialProviderSmsStatus(providerId, newSmsStatus);
 
       // Update provider status and last contact
       await db.update(potentialProviders)
@@ -6179,22 +6417,39 @@ export class DatabaseStorage implements IStorage {
   }): Promise<Email[]> {
     try {
       let query = db.select().from(emails);
+      const conditions = [];
+
+      // Apply user filter
+      if (filters.userId === 'admin') {
+        conditions.push(eq(emails.userType, 'admin'));
+      } else if (filters.userId && filters.userId !== 'all') {
+        if (filters.userId === '2') {
+          conditions.push(eq(emails.userType, 'admin'));
+        } else {
+          conditions.push(eq(emails.userId, filters.userId));
+        }
+      }
 
       // Apply tab filter
       if (filters.tab === 'unread') {
-        query = query.where(eq(emails.isRead, false));
-      } else if (filters.tab !== 'all') {
-        query = query.where(eq(emails.status, filters.tab));
-      }
-
-      // Apply user filter
-      if (filters.userId !== 'all') {
-        query = query.where(eq(emails.userId, filters.userId));
+        conditions.push(eq(emails.isRead, false));
+      } else if (filters.tab === 'sent') {
+        conditions.push(eq(emails.folder, 'sent'));
+      } else if (filters.tab === 'inbox') {
+        conditions.push(eq(emails.folder, 'inbox'));
+      } else if (filters.tab === 'draft') {
+        conditions.push(eq(emails.folder, 'draft'));
+      } else if (filters.tab === 'spam') {
+        conditions.push(eq(emails.folder, 'spam'));
+      } else if (filters.tab === 'trash') {
+        conditions.push(eq(emails.folder, 'trash'));
+      } else if (filters.tab === 'archive') {
+        conditions.push(eq(emails.folder, 'archive'));
       }
 
       // Apply search filter
       if (filters.search) {
-        query = query.where(
+        conditions.push(
           or(
             like(emails.subject, `%${filters.search}%`),
             like(emails.body, `%${filters.search}%`),
@@ -6206,10 +6461,15 @@ export class DatabaseStorage implements IStorage {
 
       // Apply date filters
       if (filters.fromDate) {
-        query = query.where(gte(emails.createdAt, new Date(filters.fromDate)));
+        conditions.push(gte(emails.createdAt, new Date(filters.fromDate)));
       }
       if (filters.toDate) {
-        query = query.where(lte(emails.createdAt, new Date(filters.toDate)));
+        conditions.push(lte(emails.createdAt, new Date(filters.toDate)));
+      }
+
+      // Apply all conditions at once
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
       }
 
       // Order by creation date (newest first)
@@ -6544,25 +6804,27 @@ export class DatabaseStorage implements IStorage {
         .where(and(...whereConditions))
         .orderBy(asc(teamTasks.dueDate));
 
-      // Categorize tasks
+      // Categorize tasks by CREATION TIME (createdAt) with 24 hour limit
+      const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+      
       const overdue24h = allTasks.filter(task => 
-        task.dueDate < dayBeforeYesterday
+        task.createdAt < twentyFourHoursAgo
       );
       
       const overdue = allTasks.filter(task => 
-        task.dueDate >= dayBeforeYesterday && task.dueDate < today
+        task.createdAt >= twentyFourHoursAgo && task.createdAt < today
       );
       
       const todayTasks = allTasks.filter(task => 
-        task.dueDate >= today && task.dueDate < tomorrow
+        task.createdAt >= today && task.createdAt < tomorrow
       );
       
       const tomorrowTasks = allTasks.filter(task => 
-        task.dueDate >= tomorrow && task.dueDate < dayAfterTomorrow
+        task.createdAt >= tomorrow && task.createdAt < dayAfterTomorrow
       );
       
       const upcoming = allTasks.filter(task => 
-        task.dueDate >= dayAfterTomorrow
+        task.createdAt >= dayAfterTomorrow
       );
 
       return {
@@ -6574,6 +6836,702 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('Error fetching team tasks for kanban:', error);
+      throw error;
+    }
+  }
+
+  // SMS Campaign methods
+  async getSmsCampaigns(): Promise<any[]> {
+    try {
+      const campaigns = await db
+        .select()
+        .from(smsCampaigns)
+        .orderBy(desc(smsCampaigns.createdAt));
+      return campaigns;
+    } catch (error) {
+      console.error('Error fetching SMS campaigns:', error);
+      throw error;
+    }
+  }
+
+  async createSmsCampaign(campaignData: any): Promise<any> {
+    try {
+      // Ensure arrays are properly formatted
+      const selectedStates = Array.isArray(campaignData.selectedStates) 
+        ? campaignData.selectedStates 
+        : [];
+      
+      const selectedStatuses = Array.isArray(campaignData.selectedStatuses) 
+        ? campaignData.selectedStatuses 
+        : [];
+      
+      const selectedRegions = campaignData.selectedRegions && Array.isArray(campaignData.selectedRegions)
+        ? campaignData.selectedRegions
+        : null;
+
+      // Convert scheduledAt string to Date object if provided
+      let scheduledAt = null;
+      if (campaignData.scheduledAt) {
+        try {
+          scheduledAt = new Date(campaignData.scheduledAt);
+          // Check if date is valid
+          if (isNaN(scheduledAt.getTime())) {
+            console.warn('[Storage] Invalid scheduledAt date, setting to null');
+            scheduledAt = null;
+          }
+        } catch (e) {
+          console.warn('[Storage] Error parsing scheduledAt, setting to null:', e);
+          scheduledAt = null;
+        }
+      }
+
+      console.log('[Storage] Creating campaign with:', {
+        name: campaignData.name,
+        selectedStates,
+        selectedStatuses,
+        selectedRegions,
+        voucherAmount: campaignData.voucherAmount,
+        scheduledAt: scheduledAt
+      });
+
+      const [campaign] = await db
+        .insert(smsCampaigns)
+        .values({
+          name: campaignData.name,
+          message: campaignData.message,
+          voucherCode: campaignData.voucherCode || null,
+          voucherAmount: campaignData.voucherAmount || null,
+          selectedStates: selectedStates,
+          selectedRegions: selectedRegions,
+          selectedStatuses: selectedStatuses,
+          scheduledAt: scheduledAt,
+          status: campaignData.status || 'draft',
+          totalSent: 0,
+        })
+        .returning();
+      
+      console.log('[Storage] Campaign created successfully:', campaign.id);
+      return campaign;
+    } catch (error: any) {
+      console.error('[Storage] Error creating SMS campaign:', error);
+      console.error('[Storage] Error message:', error.message);
+      console.error('[Storage] Error code:', error.code);
+      if (error.detail) {
+        console.error('[Storage] Error detail:', error.detail);
+      }
+      throw error;
+    }
+  }
+
+  async updateSmsCampaign(campaignId: number, campaignData: any): Promise<any> {
+    try {
+      // Convert scheduledAt string to Date object if provided
+      let scheduledAt = null;
+      if (campaignData.scheduledAt) {
+        try {
+          scheduledAt = new Date(campaignData.scheduledAt);
+          if (isNaN(scheduledAt.getTime())) {
+            scheduledAt = null;
+          }
+        } catch (e) {
+          scheduledAt = null;
+        }
+      }
+
+      const [campaign] = await db
+        .update(smsCampaigns)
+        .set({
+          name: campaignData.name,
+          message: campaignData.message,
+          voucherCode: campaignData.voucherCode || null,
+          voucherAmount: campaignData.voucherAmount || null,
+          selectedStates: campaignData.selectedStates,
+          selectedRegions: campaignData.selectedRegions || null,
+          selectedStatuses: campaignData.selectedStatuses,
+          scheduledAt: scheduledAt,
+          status: campaignData.status || 'draft',
+          updatedAt: new Date(),
+        })
+        .where(eq(smsCampaigns.id, campaignId))
+        .returning();
+      return campaign;
+    } catch (error) {
+      console.error('Error updating SMS campaign:', error);
+      throw error;
+    }
+  }
+
+  async deleteSmsCampaign(campaignId: number): Promise<void> {
+    try {
+      await db
+        .delete(smsCampaigns)
+        .where(eq(smsCampaigns.id, campaignId));
+    } catch (error) {
+      console.error('Error deleting SMS campaign:', error);
+      throw error;
+    }
+  }
+
+  async sendSmsCampaign(campaignId: number, customerIds: number[], adminName: string): Promise<any> {
+    try {
+      // Get campaign details
+      const [campaign] = await db
+        .select()
+        .from(smsCampaigns)
+        .where(eq(smsCampaigns.id, campaignId));
+
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      // Get customer details
+      const customers = await db
+        .select()
+        .from(potentialCustomers)
+        .where(inArray(potentialCustomers.id, customerIds));
+
+      // Send SMS to each customer
+      let successCount = 0;
+      let failCount = 0;
+      const results = [];
+
+      console.log(`[Campaign][start] Processing ${customers.length} customers for campaign ${campaignId}`);
+      
+      for (const customer of customers) {
+        try {
+          console.log(`[Campaign][processing] Customer ${customer.id} - ${customer.name} (${customer.phone})`);
+          
+          // Determine SMS type based on current status
+          let smsType: '1st_sent' | '2nd_sent';
+          if (customer.smsDeliveryStatus === 'not_sent' || !customer.smsDeliveryStatus) {
+            smsType = '1st_sent';
+          } else if (customer.smsDeliveryStatus === '1st_sent') {
+            smsType = '2nd_sent';
+          } else {
+            console.warn(`[Campaign][skip] Customer ${customer.id} already sent 2 SMS`);
+            continue;
+          }
+          
+          console.log(`[Campaign][sms_type] Customer ${customer.id} will receive ${smsType}`);
+
+          // Check if campaign has voucher amount - if yes, create unique voucher for each customer
+          let voucherCode = '';
+          let finalMessage = campaign.message;
+
+          if (campaign.voucherAmount && campaign.voucherAmount > 0) {
+            // Use sendSmsWithVoucher to create unique voucher and send SMS
+            console.log(`[Campaign][voucher] Creating unique voucher for ${customer.name} - Amount: $${campaign.voucherAmount}`);
+            
+            const voucherResult = await smsService.sendSmsWithVoucher(
+              customer.phone,
+              customer.name,
+              campaign.message,
+              Number(campaign.voucherAmount),
+              {
+                customerId: customer.id,
+                adminName: adminName || 'admin',
+                smsType: 'campaign' as any
+              }
+            );
+
+            if (voucherResult.success) {
+              voucherCode = voucherResult.voucherCode || '';
+              finalMessage = voucherResult.message || finalMessage;
+              
+              // Update customer SMS status
+              await this.updateCustomerSmsStatus(customer.id, smsType);
+              
+              // Store SMS message in chat system
+              console.log(`[Campaign][storage] Attempting to store SMS message for ${customer.name}`);
+              try {
+                await smsService.recordOutbound({
+                  recipientType: 'potential_customer',
+                  recipientId: customer.id,
+                  recipientPhone: customer.phone,
+                  recipientName: customer.name,
+                  message: finalMessage,
+                  status: 'sent',
+                  smsType: smsType,
+                  sentBy: adminName,
+                });
+                
+                console.log(`[Campaign][SMS Storage] Successfully recorded SMS message for ${customer.name}`);
+              } catch (storageError) {
+                console.error(`[Campaign][SMS Storage] Failed to record SMS message for ${customer.name}:`, storageError);
+              }
+              
+              successCount++;
+              results.push({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: customer.phone,
+                status: 'sent',
+                smsType: smsType,
+                voucherCode: voucherCode
+              });
+              console.log(`[Campaign][success] SMS sent to ${customer.name} (${customer.phone}) with voucher ${voucherCode} - ${smsType}`);
+            } else {
+              // Voucher creation or SMS send failed
+              failCount++;
+              results.push({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: customer.phone,
+                status: 'failed',
+                smsType: smsType,
+                error: voucherResult.message
+              });
+              console.log(`[Campaign][failed] SMS with voucher failed for ${customer.name}: ${voucherResult.message}`);
+            }
+          } else {
+            // No voucher amount - send regular SMS without voucher
+            finalMessage = campaign.message
+              .replace(/\{customerName\}/g, customer.name)
+              .replace(/\{voucherCode\}/g, '')
+              .replace(/\{voucherAmount\}/g, '');
+
+            console.log(`[Campaign][sending] Sending SMS without voucher to ${customer.name} (${customer.phone})`);
+            const success = await smsService.sendSms(customer.phone, finalMessage, {
+              adminName,
+              customerId: customer.id,
+              smsType: smsType,
+            });
+            
+            console.log(`[Campaign][sms_result] SMS result for ${customer.name}: ${success ? 'SUCCESS' : 'FAILED'}`);
+            
+            if (success) {
+              // Update customer SMS status
+              await this.updateCustomerSmsStatus(customer.id, smsType);
+              
+              // Store SMS message in chat system
+              try {
+                await smsService.recordOutbound({
+                  recipientType: 'potential_customer',
+                  recipientId: customer.id,
+                  recipientPhone: customer.phone,
+                  recipientName: customer.name,
+                  message: finalMessage,
+                  status: 'sent',
+                  smsType: smsType,
+                  sentBy: adminName,
+                });
+              } catch (storageError) {
+                console.error(`[Campaign][SMS Storage] Failed to record SMS message for ${customer.name}:`, storageError);
+              }
+              
+              successCount++;
+              results.push({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: customer.phone,
+                status: 'sent',
+                smsType: smsType
+              });
+              console.log(`[Campaign][success] SMS sent to ${customer.name} (${customer.phone}) - ${smsType}`);
+            } else {
+              // Store failed SMS message
+              await smsService.recordOutbound({
+                recipientType: 'potential_customer',
+                recipientId: customer.id,
+                recipientPhone: customer.phone,
+                recipientName: customer.name,
+                message: finalMessage,
+                status: 'failed',
+                smsType: smsType,
+                sentBy: adminName,
+              });
+              
+              console.log(`[Campaign][SMS Storage] Successfully recorded FAILED SMS message for ${customer.name}`);
+              
+              failCount++;
+              results.push({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: customer.phone,
+                status: 'failed',
+                smsType: smsType
+              });
+              console.error(`[Campaign][failed] SMS failed to ${customer.name} (${customer.phone}) - ${smsType}`);
+            }
+          }
+        } catch (error) {
+          console.error(`[Campaign][error] Error sending SMS to customer ${customer.id}:`, error);
+          failCount++;
+          results.push({
+            customerId: customer.id,
+            customerName: customer.name,
+            phone: customer.phone,
+            status: 'error',
+            error: error.message
+          });
+        }
+      }
+
+      // Update campaign status
+      const campaignStatus = failCount === 0 ? 'sent' : (successCount > 0 ? 'sent' : 'failed');
+      const [updatedCampaign] = await db
+        .update(smsCampaigns)
+        .set({
+          status: campaignStatus,
+          totalSent: successCount,
+          sentAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(smsCampaigns.id, campaignId))
+        .returning();
+
+      console.log(`[Campaign][complete] Campaign ${campaignId} - Success: ${successCount}, Failed: ${failCount}`);
+
+      return {
+        campaign: updatedCampaign,
+        successCount,
+        failCount,
+        totalCustomers: customers.length,
+        results: results
+      };
+    } catch (error) {
+      console.error('Error sending SMS campaign:', error);
+      throw error;
+    }
+  }
+
+  async updateCustomerSmsStatus(customerId: number, smsType: '1st_sent' | '2nd_sent'): Promise<void> {
+    try {
+      const updateData: any = {
+        smsDeliveryStatus: smsType,
+        updatedAt: new Date(),
+      };
+
+      if (smsType === '1st_sent') {
+        updateData.firstSmsSentAt = new Date();
+      } else if (smsType === '2nd_sent') {
+        updateData.secondSmsSentAt = new Date();
+      }
+
+      await db
+        .update(potentialCustomers)
+        .set(updateData)
+        .where(eq(potentialCustomers.id, customerId));
+
+      console.log(`[SMS Status] Updated customer ${customerId} to ${smsType}`);
+    } catch (error) {
+      console.error(`[SMS Status] Error updating customer ${customerId}:`, error);
+      throw error;
+    }
+  }
+
+  // SMS Messages methods for chat functionality
+  async getSmsMessages(): Promise<any[]> {
+    try {
+      const messages = await db
+        .select()
+        .from(smsMessages)
+        .orderBy(desc(smsMessages.id));
+      
+      return messages;
+    } catch (error) {
+      console.error('Error fetching SMS messages:', error);
+      throw error;
+    }
+  }
+
+  async sendIndividualSms(customerId: number, message: string): Promise<any> {
+    try {
+      console.log(`[SMS Chat] Starting SMS send process for customer ${customerId}: "${message}"`);
+      
+      // Get customer details
+      console.log(`[SMS Chat] Fetching customer details...`);
+      const [customer] = await db
+        .select()
+        .from(potentialCustomers)
+        .where(eq(potentialCustomers.id, customerId))
+        .limit(1);
+
+      if (!customer) {
+        console.error(`[SMS Chat] Customer not found: ${customerId}`);
+        throw new Error('Customer not found');
+      }
+
+      console.log(`[SMS Chat] Found customer: ${customer.name} (${customer.phone})`);
+
+      // Send SMS via Dialpad
+      console.log(`[SMS Chat] Calling SMS service...`);
+      let success = false;
+      try {
+        success = await smsService.sendSms(customer.phone, message, {
+          customerId: customer.id,
+          adminName: 'Admin'
+        });
+        console.log(`[SMS Chat] SMS service result: ${success}`);
+      } catch (smsError) {
+        console.error(`[SMS Chat] SMS service error:`, smsError);
+        success = false;
+      }
+
+      // Store outbound message
+      console.log(`[SMS Chat] Storing message in database...`);
+      let smsMessage;
+      try {
+        [smsMessage] = await db
+          .insert(smsMessages)
+          .values({
+            recipientType: 'potential_customer',
+            recipientId: customer.id,
+            recipientPhone: customer.phone,
+            recipientName: customer.name,
+            message: message,
+            direction: 'outbound',
+            status: success ? 'sent' : 'failed',
+            smsType: 'custom',
+          })
+          .returning();
+        console.log(`[SMS Chat] Message stored successfully:`, smsMessage);
+      } catch (dbError) {
+        console.error(`[SMS Chat] Database error:`, dbError);
+        throw new Error('Failed to store message in database');
+      }
+
+      console.log(`[SMS Chat] SMS process completed successfully`);
+      return {
+        success,
+        message: smsMessage,
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+        }
+      };
+    } catch (error) {
+      console.error('[SMS Chat] Fatal error in sendIndividualSms:', error);
+      console.error('[SMS Chat] Error stack:', error.stack);
+      throw error;
+    }
+  }
+
+  async findPotentialCustomerByPhone(phone: string): Promise<any | null> {
+    try {
+      // Normalize phone number for matching (remove spaces, dashes, parentheses, +61, 0 prefix)
+      const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+      
+      console.log(`[Storage] Finding customer by phone: ${phone} (normalized: ${normalizedPhone})`);
+      
+      // Try exact match first
+      let [customer] = await db
+        .select()
+        .from(potentialCustomers)
+        .where(eq(potentialCustomers.phone, phone))
+        .limit(1);
+
+      // If not found, try normalized matching
+      if (!customer) {
+        const allCustomers = await db
+          .select()
+          .from(potentialCustomers);
+        
+        // Find customer by normalized phone comparison
+        customer = allCustomers.find(c => {
+          const customerNormalized = c.phone.replace(/[\s\-\(\)\+]/g, '');
+          
+          // Remove leading 61 or 0 from both numbers for comparison
+          const searchDigits = normalizedPhone.replace(/^(61|0)/, '');
+          const customerDigits = customerNormalized.replace(/^(61|0)/, '');
+          
+          return searchDigits === customerDigits;
+        });
+        
+        if (customer) {
+          console.log(`[Storage] Found customer by normalized phone: ${customer.name} (${customer.phone})`);
+        }
+      } else {
+        console.log(`[Storage] Found customer by exact match: ${customer.name}`);
+      }
+
+      return customer || null;
+    } catch (error) {
+      console.error('Error finding customer by phone:', error);
+      return null;
+    }
+  }
+
+  async updatePotentialCustomerStatus(customerId: number, status: string): Promise<void> {
+    try {
+      await db
+        .update(potentialCustomers)
+        .set({ 
+          campaignStatus: status as any,
+          updatedAt: new Date()
+        })
+        .where(eq(potentialCustomers.id, customerId));
+      
+      console.log(`[Storage] Updated customer ${customerId} status to ${status}`);
+    } catch (error) {
+      console.error('Error updating customer status:', error);
+      throw error;
+    }
+  }
+
+  async storeIncomingSms(from: string, to: string, body: string, messageId: string, isStopRequest: boolean = false): Promise<void> {
+    try {
+      // Find customer by phone number (using normalized matching)
+      const customer = await this.findPotentialCustomerByPhone(from);
+
+      if (!customer) {
+        console.log(`[SMS Webhook] Customer not found for phone: ${from}`);
+        return;
+      }
+
+      // Store incoming message
+      await db
+        .insert(smsMessages)
+        .values({
+          recipientType: 'potential_customer',
+          recipientId: customer.id,
+          recipientPhone: customer.phone,
+          recipientName: customer.name,
+          message: body,
+          direction: 'inbound',
+          status: 'received',
+          smsType: isStopRequest ? 'unsubscribe' : 'reply',
+        });
+
+      console.log(`[SMS Webhook] Stored incoming message from ${customer.name} (${from})` + (isStopRequest ? ' - STOP request' : ''));
+    } catch (error) {
+      console.error('Error storing incoming SMS:', error);
+      throw error;
+    }
+  }
+
+  // Role and Permission Management Methods
+  async getRoles() {
+    try {
+      const allRoles = await db.select().from(roles);
+      const rolesWithPermissions = await Promise.all(
+        allRoles.map(async (role) => {
+          const rolePermissionsData = await db
+            .select({ permissionId: rolePermissions.permissionId })
+            .from(rolePermissions)
+            .where(eq(rolePermissions.roleId, role.id));
+          
+          const userCount = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(adminUsers)
+            .where(eq(adminUsers.role, role.name));
+
+          return {
+            ...role,
+            permissions: rolePermissionsData.map(rp => rp.permissionId),
+            userCount: userCount[0]?.count || 0
+          };
+        })
+      );
+      return rolesWithPermissions;
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+      throw error;
+    }
+  }
+
+  async getPermissions() {
+    try {
+      return await db.select().from(permissions);
+    } catch (error) {
+      console.error('Error fetching permissions:', error);
+      throw error;
+    }
+  }
+
+  async getRolePermissions(roleId: number) {
+    try {
+      const result = await db
+        .select({ permissionId: rolePermissions.permissionId })
+        .from(rolePermissions)
+        .where(eq(rolePermissions.roleId, roleId));
+      
+      return result.map(rp => rp.permissionId);
+    } catch (error) {
+      console.error('Error fetching role permissions:', error);
+      throw error;
+    }
+  }
+
+  async createRole({ name, description, permissions }: { name: string; description: string; permissions: number[] }) {
+    try {
+      const [newRole] = await db.insert(roles).values({
+        name,
+        description,
+        isDefault: false
+      }).returning();
+
+      // Add permissions to the role
+      if (permissions.length > 0) {
+        await db.insert(rolePermissions).values(
+          permissions.map(permissionId => ({
+            roleId: newRole.id,
+            permissionId
+          }))
+        );
+      }
+
+      return newRole;
+    } catch (error) {
+      console.error('Error creating role:', error);
+      throw error;
+    }
+  }
+
+  async updateRole(roleId: number, { name, description, permissions }: { name: string; description: string; permissions: number[] }) {
+    try {
+      // Update role details
+      const [updatedRole] = await db
+        .update(roles)
+        .set({ name, description, updatedAt: new Date() })
+        .where(eq(roles.id, roleId))
+        .returning();
+
+      // Update permissions
+      await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
+      
+      if (permissions.length > 0) {
+        await db.insert(rolePermissions).values(
+          permissions.map(permissionId => ({
+            roleId,
+            permissionId
+          }))
+        );
+      }
+
+      return updatedRole;
+    } catch (error) {
+      console.error('Error updating role:', error);
+      throw error;
+    }
+  }
+
+  async deleteRole(roleId: number) {
+    try {
+      // Check if role is default
+      const role = await db.select().from(roles).where(eq(roles.id, roleId)).limit(1);
+      if (role[0]?.isDefault) {
+        throw new Error('Cannot delete default role');
+      }
+
+      // Check if role is in use
+      const usersWithRole = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(adminUsers)
+        .where(eq(adminUsers.role, role[0]?.name || ''));
+
+      if (usersWithRole[0]?.count > 0) {
+        throw new Error('Cannot delete role that is assigned to users');
+      }
+
+      // Delete role permissions first
+      await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
+      
+      // Delete role
+      await db.delete(roles).where(eq(roles.id, roleId));
+    } catch (error) {
+      console.error('Error deleting role:', error);
       throw error;
     }
   }

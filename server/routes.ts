@@ -678,6 +678,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const request = await storage.createServiceRequest(requestData);
 
+      // 🎯 Check if customer is in potential_customers and update to "Won"
+      try {
+        const customer = await storage.getUser(userId);
+        if (customer && customer.phoneNumber) {
+          console.log(`[Won Status] Checking if customer ${customer.email} is in potential customers...`);
+          const potentialCustomer = await storage.findPotentialCustomerByPhone(customer.phoneNumber);
+          
+          if (potentialCustomer && potentialCustomer.campaignStatus !== 'Won') {
+            console.log(`[Won Status] Customer found! Updating ${potentialCustomer.name} (ID: ${potentialCustomer.id}) to Won`);
+            await storage.updatePotentialCustomerStatus(potentialCustomer.id, 'Won');
+            console.log(`✅ [Won Status] Customer ${potentialCustomer.name} marked as Won!`);
+          } else if (potentialCustomer) {
+            console.log(`[Won Status] Customer ${potentialCustomer.name} already has status: ${potentialCustomer.campaignStatus}`);
+          } else {
+            console.log(`[Won Status] Customer not found in potential customers`);
+          }
+        }
+      } catch (wonError) {
+        console.error('[Won Status] Error updating potential customer to Won:', wonError);
+        // Don't fail the service request if this fails
+      }
+
       // Log user activity
       await storage.logUserActivity({
         userId,
@@ -990,18 +1012,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const totalProviders = await storage.getServiceProviderCount();
       const activeProviders = await storage.getServiceProviderCount('approved');
-      const pendingProviders = await storage.getServiceProviderCount('pending');
+      const pendingApprovals = await storage.getServiceProviderCount('pending');
       const totalCustomers = await storage.getUserCount();
       const totalRequests = await storage.getServiceRequestCount();
-      const pendingRequests = await storage.getServiceRequestCount('pending');
+      const activeRequests = await storage.getActiveServiceRequestCount();
+      const completedJobs = await storage.getServiceRequestCount('completed');
+      const monthlyRevenue = await storage.getMonthlyRevenue();
 
       res.json({
         totalProviders,
         activeProviders,
-        pendingProviders,
+        pendingApprovals,
         totalCustomers,
         totalRequests,
-        pendingRequests,
+        activeRequests,
+        monthlyRevenue,
+        completedJobs,
       });
     } catch (error) {
       console.error('Error fetching admin stats:', error);
@@ -1300,7 +1326,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/service-requests', isAdminAuthenticated, async (req, res) => {
     try {
       const serviceRequests = await storage.getAllServiceRequestsForAdmin();
-      res.json(serviceRequests);
+      
+      // Get customer and category details for each request
+      const requestsWithDetails = await Promise.all(
+        serviceRequests.map(async (request) => {
+          // Get customer details
+          const customer = await storage.getUser(request.customerId);
+          
+          // Get category details
+          const category = await storage.getServiceCategory(request.categoryId);
+          
+          return {
+            id: request.id,
+            customerName: customer ? `${customer.firstName} ${customer.lastName}` : 'Unknown Customer',
+            customerEmail: customer?.email || 'No email',
+            serviceCategory: category?.name || 'Unknown Category',
+            location: request.suburb || request.postcode || 'Unknown Location',
+            status: request.status,
+            createdAt: request.createdAt,
+            budget: request.budget,
+            description: request.description
+          };
+        })
+      );
+      
+      res.json(requestsWithDetails);
     } catch (error) {
       console.error('Error fetching service requests:', error);
       res.status(500).json({ message: 'Failed to fetch service requests' });
@@ -2737,11 +2787,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get current admin user endpoint
-  app.get('/api/admin/current-user', isAdminAuthenticated, async (req, res) => {
+  app.get('/api/admin/current-user', isAdminAuthenticated, async (req: any, res) => {
     try {
-      const adminToken = req.headers['x-admin-token'] as string;
-      const decoded = jwt.verify(adminToken, process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-key') as any;
-      const username = decoded.username;
+      // The admin info is already available from the middleware
+      const adminInfo = req.admin;
+      const username = adminInfo.username;
 
       const user = await storage.getAdminUserByUsername(username);
       if (!user) {
@@ -3231,6 +3281,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/admin/potential-customers/:id/status', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!id || !status) {
+        return res.status(400).json({ error: 'Customer ID and status are required' });
+      }
+
+      await storage.updatePotentialCustomerCampaignStatus(parseInt(id), status);
+      res.json({ success: true, message: 'Customer status updated successfully' });
+    } catch (error) {
+      console.error('Error updating customer status:', error);
+      res.status(500).json({ error: 'Failed to update customer status' });
+    }
+  });
+
   app.post('/api/admin/potential-customers/import', isAdminAuthenticated, async (req, res) => {
     try {
       console.log('Import request received:');
@@ -3321,6 +3388,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("❌ Error sending SMS to potential customers:", error); // 👈 log error
         res.status(500).json({ message: 'Failed to send SMS' });
+      }
+    }
+  );
+
+
+  // Execute campaign with unique vouchers
+  app.post(
+    '/api/admin/campaigns/execute',
+    isAdminAuthenticated,
+    async (req, res) => {
+      try {
+        const { 
+          campaignId, 
+          messageTemplate, 
+          voucherAmount, 
+          customerIds, 
+          adminName 
+        } = req.body;
+
+        console.log("🎯 Executing campaign with unique vouchers:", { 
+          campaignId, 
+          voucherAmount, 
+          customerCount: customerIds?.length 
+        });
+
+        if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
+          return res.status(400).json({ message: 'No customer IDs provided' });
+        }
+
+        if (!messageTemplate || !voucherAmount) {
+          return res.status(400).json({ message: 'Message template and voucher amount are required' });
+        }
+
+        const results = [];
+        let successCount = 0;
+        let failureCount = 0;
+
+        // Process each customer individually to generate unique vouchers
+        for (const customerId of customerIds) {
+          try {
+            // Get customer details
+            const [customer] = await db
+              .select()
+              .from(potentialCustomers)
+              .where(eq(potentialCustomers.id, customerId));
+
+            if (!customer) {
+              console.warn(`[Campaign] Customer not found: id=${customerId}`);
+              results.push({
+                customerId,
+                name: '',
+                phone: '',
+                status: 'skipped',
+                sent: false,
+                reason: 'not_found',
+                voucherCode: null
+              });
+              failureCount++;
+              continue;
+            }
+
+            // Normalize phone number
+            const raw = (customer.phone || '').toString();
+            const digits = raw.replace(/[^0-9+]/g, '');
+            const normalizedPhone = digits.startsWith('+61') ? digits : 
+                                  digits.startsWith('61') ? `+${digits}` : 
+                                  digits.startsWith('0') ? `+61${digits.slice(1)}` : null;
+
+            if (!normalizedPhone) {
+              console.warn(`[Campaign] Invalid phone format: id=${customer.id} phone=${customer.phone}`);
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: 'skipped',
+                sent: false,
+                reason: 'invalid_phone',
+                voucherCode: null
+              });
+              failureCount++;
+              continue;
+            }
+
+            // Send SMS with unique voucher
+            const voucherResult = await smsService.sendSmsWithVoucher(
+              normalizedPhone,
+              customer.name,
+              messageTemplate,
+              voucherAmount,
+              {
+                customerId: customer.id,
+                adminName: adminName || 'admin',
+                smsType: 'campaign'
+              }
+            );
+
+            if (voucherResult.success) {
+              // Update customer SMS status
+              await storage.updatePotentialCustomerSmsStatus(customer.id, '1st_sent');
+              
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: 'sent',
+                sent: true,
+                voucherCode: voucherResult.voucherCode,
+                message: voucherResult.message
+              });
+              successCount++;
+              
+              console.log(`[Campaign] ✅ Sent to ${customer.name} with voucher ${voucherResult.voucherCode}`);
+            } else {
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: 'failed',
+                sent: false,
+                reason: voucherResult.message || 'SMS send failed',
+                voucherCode: null
+              });
+              failureCount++;
+              
+              console.log(`[Campaign] ❌ Failed to send to ${customer.name}: ${voucherResult.message}`);
+            }
+
+          } catch (error) {
+            console.error(`[Campaign] Error processing customer ${customerId}:`, error);
+            results.push({
+              customerId,
+              name: '',
+              phone: '',
+              status: 'failed',
+              sent: false,
+              reason: 'processing_error',
+              voucherCode: null
+            });
+            failureCount++;
+          }
+        }
+
+        console.log(`[Campaign] Execution complete: ${successCount} sent, ${failureCount} failed`);
+
+        res.json({
+          success: true,
+          campaignId,
+          totalCustomers: customerIds.length,
+          sent: successCount,
+          failed: failureCount,
+          results
+        });
+
+      } catch (error) {
+        console.error("❌ Error executing campaign:", error);
+        res.status(500).json({ message: 'Failed to execute campaign' });
       }
     }
   );
@@ -3793,7 +4016,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Potential Providers endpoints
   app.get('/api/admin/potential-providers', isAdminAuthenticated, async (req, res) => {
     try {
-      const providers = await storage.getAllPotentialProviders();
+      // Get the admin username and role from the authenticated user
+      const adminUsername = (req as any).admin?.username;
+      const adminRole = (req as any).admin?.role;
+      const isSuperAdmin = adminRole === 'administrator' || adminRole === 'super_admin';
+      
+      console.log('Admin username from request:', adminUsername);
+      console.log('Admin role:', adminRole);
+      console.log('Is super admin:', isSuperAdmin);
+      
+      const providers = await storage.getAllPotentialProviders(adminUsername, isSuperAdmin);
       res.json(providers);
     } catch (error) {
       console.error('Error getting potential providers:', error);
@@ -4014,6 +4246,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'To, subject, and body are required' });
       }
 
+      // Get the admin user's ID from the database
+      const adminUser = await storage.getAdminUserByUsername((req as any).admin?.username);
+      const adminUserId = adminUser?.id?.toString() || (req as any).admin?.username || "admin";
+      console.log('Admin user lookup:', { username: (req as any).admin?.username, adminUser, adminUserId });
+
       // Check if this is a draft (don't send via email service)
       if (status === 'draft') {
         // Store draft in database
@@ -4032,7 +4269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'draft',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: null,
         };
@@ -4074,7 +4311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'sent',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: new Date(),
         };
@@ -4083,7 +4320,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json({
           success: true,
-          message: 'Email sent successfully'
+          message: 'Email sent successfully',
+          debug: { adminUserId, adminUsername: (req as any).admin?.username }
         });
       } else {
         // Ensure the composed message is still visible in Sent even if delivery fails
@@ -4102,7 +4340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'sent',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: new Date(),
         };
@@ -4119,6 +4357,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Try to save the email as failed for debugging
       try {
+        // Get the admin user's ID from the database for error case
+        const adminUser = await storage.getAdminUserByUsername((req as any).admin?.username);
+        const adminUserId = adminUser?.id?.toString() || (req as any).admin?.username || "admin";
+        
         const { to, cc, bcc, subject, body } = req.body;
         const emailData = {
           from: 'hrms.devdoc@gmail.com',
@@ -4135,7 +4377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'sent',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: new Date(),
         };
@@ -4284,18 +4526,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/team-tasks/kanban', isAdminAuthenticated, async (req, res) => {
     try {
       const showAll = req.query.all === 'true';
-      const assignedTo = req.query.assignedTo === 'true';
       const adminInfo = (req as any).admin;
       
-      let filterBy = adminInfo.username; // Default: show only current admin's tasks
+      let filterBy = null;
       
-      if (showAll && adminInfo.role === 'administrator') {
+      if (showAll && (adminInfo.role === 'administrator' || adminInfo.role === 'super_admin')) {
         // Super admin can see all tasks
         filterBy = null;
-      } else if (assignedTo && adminInfo.role === 'manager') {
-        // Manager sees tasks assigned to them (by assignedTo field)
+      } else {
+        // For all other users (managers, team members, etc), filter by assignedTo field
+        // This ensures they see tasks assigned to them, regardless of who created them
         filterBy = 'assignedTo:' + adminInfo.username;
       }
+      
+      console.log('Kanban tasks - User:', adminInfo.username, 'Role:', adminInfo.role, 'FilterBy:', filterBy);
       
       const kanbanData = await storage.getTeamTasksForKanban(filterBy);
       res.json(kanbanData);
@@ -4396,6 +4640,249 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting team task:', error);
       res.status(500).json({ message: 'Failed to delete team task' });
+    }
+  });
+
+  // SMS Campaigns API endpoints
+  // Get all SMS campaigns
+  app.get('/api/admin/sms/campaigns', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaigns = await storage.getSmsCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error('Error fetching SMS campaigns:', error);
+      res.status(500).json({ message: 'Failed to fetch SMS campaigns' });
+    }
+  });
+
+  // Create new SMS campaign
+  app.post('/api/admin/sms/campaigns', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignData = req.body;
+      
+      // Validate required fields
+      if (!campaignData.name || !campaignData.name.trim()) {
+        return res.status(400).json({ message: 'Campaign name is required' });
+      }
+      
+      if (!campaignData.message || !campaignData.message.trim()) {
+        return res.status(400).json({ message: 'Campaign message is required' });
+      }
+      
+      // Ensure selectedStates and selectedStatuses are arrays
+      if (!Array.isArray(campaignData.selectedStates)) {
+        campaignData.selectedStates = [];
+      }
+      
+      if (!Array.isArray(campaignData.selectedStatuses)) {
+        campaignData.selectedStatuses = [];
+      }
+      
+      console.log('[SMS Campaign] Creating campaign with data:', JSON.stringify(campaignData, null, 2));
+      
+      const campaign = await storage.createSmsCampaign(campaignData);
+      
+      console.log('[SMS Campaign] Campaign created successfully:', campaign.id);
+      res.status(201).json(campaign);
+    } catch (error: any) {
+      console.error('[SMS Campaign] Error creating SMS campaign:', error);
+      console.error('[SMS Campaign] Error details:', error.message);
+      console.error('[SMS Campaign] Error stack:', error.stack);
+      res.status(500).json({ 
+        message: 'Failed to create SMS campaign',
+        error: error.message || 'Unknown error'
+      });
+    }
+  });
+
+  // Update SMS campaign
+  app.put('/api/admin/sms/campaigns/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaignData = req.body;
+      const campaign = await storage.updateSmsCampaign(campaignId, campaignData);
+      res.json(campaign);
+    } catch (error) {
+      console.error('Error updating SMS campaign:', error);
+      res.status(500).json({ message: 'Failed to update SMS campaign' });
+    }
+  });
+
+  // Delete SMS campaign
+  app.delete('/api/admin/sms/campaigns/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      await storage.deleteSmsCampaign(campaignId);
+      res.json({ message: 'Campaign deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting SMS campaign:', error);
+      res.status(500).json({ message: 'Failed to delete SMS campaign' });
+    }
+  });
+
+  // Send SMS campaign
+  app.post('/api/admin/sms/campaigns/:id/send', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const { customerIds, adminName } = req.body;
+      
+      const result = await storage.sendSmsCampaign(campaignId, customerIds, adminName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error sending SMS campaign:', error);
+      res.status(500).json({ message: 'Failed to send SMS campaign' });
+    }
+  });
+
+  // SMS Messages API endpoints for chat functionality
+  // Get all SMS messages
+  app.get('/api/admin/sms/messages', isAdminAuthenticated, async (req, res) => {
+    try {
+      const messages = await storage.getSmsMessages();
+      res.json(messages);
+    } catch (error) {
+      console.error('Error fetching SMS messages:', error);
+      res.status(500).json({ message: 'Failed to fetch SMS messages' });
+    }
+  });
+
+  // Send individual SMS message
+  app.post('/api/admin/sms/send', isAdminAuthenticated, async (req, res) => {
+    try {
+      console.log('📱 [Route] SMS send request received:', req.body);
+      const { customerId, message } = req.body;
+      
+      if (!customerId || !message) {
+        console.error('📱 [Route] Missing required fields:', { customerId, message });
+        return res.status(400).json({ message: 'Missing customerId or message' });
+      }
+      
+      console.log('📱 [Route] Calling storage.sendIndividualSms...');
+      const result = await storage.sendIndividualSms(customerId, message);
+      console.log('📱 [Route] SMS send result:', result);
+      res.json(result);
+    } catch (error) {
+      console.error('📱 [Route] Error sending SMS:', error);
+      console.error('📱 [Route] Error stack:', error.stack);
+      res.status(500).json({ message: 'Failed to send SMS' });
+    }
+  });
+
+  // Webhook endpoint for incoming SMS replies (from Dialpad)
+  app.post('/api/sms/webhook', async (req, res) => {
+    try {
+      console.log('📨 [Webhook] Received SMS webhook:', JSON.stringify(req.body, null, 2));
+      
+      // Handle different Dialpad payload formats
+      const { from, to, body, messageId, text, sender, recipient } = req.body;
+      
+      // Extract phone numbers and message from different possible formats
+      const fromPhone = from || sender;
+      const toPhone = to || recipient;
+      const messageText = body || text;
+      
+      if (!fromPhone || !messageText) {
+        console.error('❌ [Webhook] Missing required fields:', { fromPhone, messageText });
+        return res.status(400).json({ 
+          message: 'Missing required fields: from/sender and body/text' 
+        });
+      }
+      
+      console.log(`📱 [Webhook] Processing SMS from ${fromPhone}: "${messageText}"`);
+      
+      // Check if customer replied with STOP (case-insensitive)
+      const isStopRequest = messageText.trim().toUpperCase() === 'STOP';
+      
+      if (isStopRequest) {
+        console.log('🛑 [Webhook] Customer requested to STOP - processing unsubscribe...');
+        
+        // Find customer and update status to Unsubscribe
+        const customer = await storage.findPotentialCustomerByPhone(fromPhone);
+        if (customer) {
+          await storage.updatePotentialCustomerStatus(customer.id, 'Unsubscribe');
+          console.log(`✅ [Webhook] Customer ${customer.name} (ID: ${customer.id}) unsubscribed successfully`);
+        } else {
+          console.warn(`⚠️ [Webhook] Customer not found for phone: ${fromPhone}`);
+        }
+      }
+      
+      // Store incoming message (with unsubscribe status if applicable)
+      await storage.storeIncomingSms(fromPhone, toPhone, messageText, messageId, isStopRequest);
+      
+      console.log('✅ [Webhook] SMS stored successfully' + (isStopRequest ? ' - Customer unsubscribed' : ''));
+      res.status(200).json({ 
+        message: 'SMS received successfully',
+        unsubscribed: isStopRequest 
+      });
+    } catch (error) {
+      console.error('❌ [Webhook] Error processing incoming SMS:', error);
+      res.status(500).json({ message: 'Failed to process SMS' });
+    }
+  });
+
+  // Role and Permission Management API endpoints
+  app.get("/api/admin/roles", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roles = await storage.getRoles();
+      res.json(roles);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      res.status(500).json({ message: "Failed to fetch roles" });
+    }
+  });
+
+  app.get("/api/admin/permissions", isAdminAuthenticated, async (req, res) => {
+    try {
+      const permissions = await storage.getPermissions();
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching permissions:", error);
+      res.status(500).json({ message: "Failed to fetch permissions" });
+    }
+  });
+
+  app.get("/api/admin/roles/:id/permissions", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      const permissions = await storage.getRolePermissions(roleId);
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ message: "Failed to fetch role permissions" });
+    }
+  });
+
+  app.post("/api/admin/roles", isAdminAuthenticated, async (req, res) => {
+    try {
+      const { name, description, permissions } = req.body;
+      const role = await storage.createRole({ name, description, permissions });
+      res.json(role);
+    } catch (error) {
+      console.error("Error creating role:", error);
+      res.status(500).json({ message: "Failed to create role" });
+    }
+  });
+
+  app.put("/api/admin/roles/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      const { name, description, permissions } = req.body;
+      const role = await storage.updateRole(roleId, { name, description, permissions });
+      res.json(role);
+    } catch (error) {
+      console.error("Error updating role:", error);
+      res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+
+  app.delete("/api/admin/roles/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      await storage.deleteRole(roleId);
+      res.json({ message: "Role deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting role:", error);
+      res.status(500).json({ message: "Failed to delete role" });
     }
   });
 

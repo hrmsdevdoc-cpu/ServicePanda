@@ -24,6 +24,7 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { adminApiRequest } from "@/lib/adminAuth";
+import { useQuery } from "@tanstack/react-query";
 import {
   Search,
   Filter,
@@ -51,6 +52,7 @@ import {
   Underline,
   Strikethrough,
   List,
+  Mail,
   ListOrdered,
   AlignLeft,
   AlignCenter,
@@ -86,16 +88,24 @@ interface Email {
 export default function AdminEmail() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const initialSelectedUser = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.selectedUser')) || 'all';
+  
+  // Get current logged-in user
+  const { data: currentUser } = useQuery({
+    queryKey: ['adminUser'],
+    queryFn: async () => {
+      const response = await adminApiRequest("GET", "/api/admin/current-user");
+      return response.json();
+    },
+  });
+
+  const initialSelectedUser = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.selectedUser')) || (currentUser?.username || 'admin');
   const initialActiveTab = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.activeTab')) || 'inbox';
   const initialSearch = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.searchTerm')) || '';
   const initialFrom = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.fromDate')) || '';
   const initialTo = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.toDate')) || '';
 
   const [emails, setEmails] = useState<Email[]>([]);
-  const [users, setUsers] = useState<{ id: string; firstName: string; lastName: string }[]>([
-    { id: 'all', firstName: 'All', lastName: 'Users' },
-  ]);
+  const [users, setUsers] = useState<{ id: string; firstName: string; lastName: string }[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>(initialSelectedUser);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [fromDate, setFromDate] = useState(initialFrom);
@@ -172,7 +182,7 @@ export default function AdminEmail() {
       const res = await adminApiRequest('GET', '/api/admin/users');
       if (!res.ok) return;
       const list = await res.json();
-      const mapped = [{ id: 'all', firstName: 'All', lastName: 'Users' }, ...list.map((u: any) => ({ id: u.id, firstName: u.firstName || u.username || 'User', lastName: u.lastName || '' }))];
+      const mapped = list.map((u: any) => ({ id: u.id, firstName: u.firstName || u.username || 'User', lastName: u.lastName || '' }));
       setUsers(mapped);
     } catch {}
   };
@@ -187,7 +197,7 @@ export default function AdminEmail() {
         fromDate,
         toDate,
       });
-      const res = await fetch(`/api/admin/emails?${params.toString()}`, { headers: authHeaders() });
+      const res = await adminApiRequest('GET', `/api/admin/emails?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch emails');
       const data = await res.json();
       setEmails(data);
@@ -205,7 +215,7 @@ export default function AdminEmail() {
       const results = await Promise.all(
         tabs.map(async (tab) => {
           const params = new URLSearchParams({ tab, user: selectedUser, search: '', fromDate: '', toDate: '' });
-          const res = await fetch(`/api/admin/emails?${params.toString()}`, { headers: authHeaders() });
+          const res = await adminApiRequest('GET', `/api/admin/emails?${params.toString()}`);
           if (!res.ok) return [tab, 0] as const;
           const data = await res.json();
           return [tab, Array.isArray(data) ? data.length : 0] as const;
@@ -220,6 +230,13 @@ export default function AdminEmail() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  // Set selectedUser to current user when currentUser is loaded
+  useEffect(() => {
+    if (currentUser?.username && selectedUser === 'admin') {
+      setSelectedUser(currentUser.username);
+    }
+  }, [currentUser, selectedUser]);
 
   useEffect(() => {
     fetchEmails();
@@ -245,7 +262,7 @@ export default function AdminEmail() {
     // mark as read in backend
     try {
       if (!email.isRead) {
-        await fetch(`/api/admin/emails/${email.id}/read`, { method: 'PATCH', headers: authHeaders() });
+        await adminApiRequest('PATCH', `/api/admin/emails/${email.id}/read`);
         // reflect locally
         setEmails((prev) => prev.map((e) => e.id === email.id ? { ...e, isRead: true } : e));
         fetchCounts();
@@ -307,16 +324,9 @@ export default function AdminEmail() {
       }
 
       // Update email status to archive via API
-      const response = await fetch(`/api/admin/emails/${email.id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        },
-        body: JSON.stringify({
-          status: 'archive',
-          folder: 'archive'
-        })
+      const response = await adminApiRequest('PATCH', `/api/admin/emails/${email.id}/status`, {
+        status: 'archive',
+        folder: 'archive'
       });
 
       if (response.ok) {
@@ -358,16 +368,9 @@ export default function AdminEmail() {
       }
 
       // Update email status to trash via API
-      const response = await fetch(`/api/admin/emails/${email.id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        },
-        body: JSON.stringify({
-          status: 'trash',
-          folder: 'trash'
-        })
+      const response = await adminApiRequest('PATCH', `/api/admin/emails/${email.id}/status`, {
+        status: 'trash',
+        folder: 'trash'
       });
 
       if (response.ok) {
@@ -409,16 +412,9 @@ export default function AdminEmail() {
       }
 
       // Update email status to spam via API
-      const response = await fetch(`/api/admin/emails/${email.id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        },
-        body: JSON.stringify({
-          status: 'spam',
-          folder: 'spam'
-        })
+      const response = await adminApiRequest('PATCH', `/api/admin/emails/${email.id}/status`, {
+        status: 'spam',
+        folder: 'spam'
       });
 
       if (response.ok) {
@@ -539,21 +535,14 @@ export default function AdminEmail() {
       }
 
       // Save draft via API
-      const response = await fetch('/api/admin/emails/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        },
-        body: JSON.stringify({
-          to: composeData.to,
-          cc: composeData.cc,
-          bcc: composeData.bcc,
-          subject: composeData.subject,
-          body: composeData.body,
-          template: composeData.template,
-          status: 'draft' // Mark as draft
-        })
+      const response = await adminApiRequest('POST', '/api/admin/emails/send', {
+        to: composeData.to,
+        cc: composeData.cc,
+        bcc: composeData.bcc,
+        subject: composeData.subject,
+        body: composeData.body,
+        template: composeData.template,
+        status: 'draft' // Mark as draft
       });
 
       if (response.ok) {
@@ -595,22 +584,15 @@ export default function AdminEmail() {
 
       // For now, we'll save as a draft with a scheduled flag
       // In a full implementation, you'd want a separate scheduled emails table
-      const response = await fetch('/api/admin/emails/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        },
-        body: JSON.stringify({
-          to: composeData.to,
-          cc: composeData.cc,
-          bcc: composeData.bcc,
-          subject: composeData.subject,
-          body: composeData.body,
-          template: composeData.template,
-          status: 'draft', // Save as draft for now
-          scheduled: true // Flag as scheduled
-        })
+      const response = await adminApiRequest('POST', '/api/admin/emails/send', {
+        to: composeData.to,
+        cc: composeData.cc,
+        bcc: composeData.bcc,
+        subject: composeData.subject,
+        body: composeData.body,
+        template: composeData.template,
+        status: 'draft', // Save as draft for now
+        scheduled: true // Flag as scheduled
       });
 
       if (response.ok) {
@@ -667,11 +649,7 @@ export default function AdminEmail() {
         return;
       }
 
-      const res = await fetch('/api/admin/emails/bulk-status', {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify({ ids: selectedIds, status })
-      });
+      const res = await adminApiRequest('PATCH', '/api/admin/emails/bulk-status', { ids: selectedIds, status });
       if (!res.ok) {
         let detail = '';
         try { const j = await res.json(); detail = j?.message || ''; } catch {}
@@ -697,11 +675,7 @@ export default function AdminEmail() {
         return;
       }
 
-      const res = await fetch('/api/admin/emails/bulk-delete', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ ids: selectedIds })
-      });
+      const res = await adminApiRequest('POST', '/api/admin/emails/bulk-delete', { ids: selectedIds });
       if (!res.ok) {
         let detail = '';
         try { const j = await res.json(); detail = j?.message || ''; } catch {}
@@ -721,10 +695,28 @@ export default function AdminEmail() {
 
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <AdminSidebar onLogout={() => navigate('/admin-login')} />
+    <div className="h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(156, 146, 172, 0.15) 1px, transparent 0)`,
+          backgroundSize: '20px 20px'
+        }}></div>
+      </div>
+      {/* Subtle Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-blue-100/20 pointer-events-none"></div>
+      {/* Sidebar */}
+      <div className="relative z-20">
+        <AdminSidebar 
+          onLogout={() => navigate('/admin-login')} 
+          adminUser={currentUser ? {
+            firstName: currentUser.firstName || currentUser.username,
+            lastName: currentUser.lastName || ''
+          } : undefined}
+        />
+      </div>
       
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative z-10">
         {/* Top Filter Bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -748,11 +740,23 @@ export default function AdminEmail() {
                     <SelectValue placeholder="Select user" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.firstName} {user.lastName}
-                      </SelectItem>
-                    ))}
+                    {users
+                      .filter((user) => {
+                        // Super admin can see all users
+                        if (currentUser?.role === 'super_admin') {
+                          return true;
+                        }
+                        // Regular users can only see their own emails
+                        if (currentUser?.username) {
+                          return user.id === currentUser.username || user.firstName === currentUser.firstName;
+                        }
+                        return true; // Fallback to show all users if currentUser is not loaded
+                      })
+                      .map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.firstName} {user.lastName}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -821,17 +825,29 @@ export default function AdminEmail() {
         {/* User/Category Filter Buttons */}
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex items-center space-x-2 overflow-x-auto">
-            {users.map((user) => (
-              <Button
-                key={user.id}
-                variant={selectedUser === user.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedUser(user.id)}
-                className="whitespace-nowrap"
-              >
-                {user.firstName} {user.lastName}
-              </Button>
-            ))}
+            {users
+              .filter((user) => {
+                // Super admin can see all users
+                if (currentUser?.role === 'super_admin') {
+                  return true;
+                }
+                // Regular users can only see their own emails
+                if (currentUser?.username) {
+                  return user.id === currentUser.username || user.firstName === currentUser.firstName;
+                }
+                return true; // Fallback to show all users if currentUser is not loaded
+              })
+              .map((user) => (
+                <Button
+                  key={user.id}
+                  variant={selectedUser === user.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedUser(user.id)}
+                  className="whitespace-nowrap"
+                >
+                  {user.firstName} {user.lastName}
+                </Button>
+              ))}
           </div>
         </div>
 
@@ -982,10 +998,10 @@ export default function AdminEmail() {
             )}
             {/* Email Table */}
             <div className="overflow-x-auto max-h-[80vh] overflow-y-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-3 text-left">
                       <input
                         type="checkbox"
                         className="rounded border-gray-300"
@@ -996,69 +1012,85 @@ export default function AdminEmail() {
                         }}
                       />
                     </th>
-                    {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <Star className="h-4 w-4" />
-                    </th> */}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Id
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-16">
+                      #
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-20">
+                      ID
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      To
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      NAME
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Subject
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      TO
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      SUBJECT
                     </th>
-                    {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contact
-                    </th> */}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      DATE
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-24">
+                      ACTION
                     </th>
                   </tr>
                 </thead>
-                                 <tbody className="bg-white divide-y divide-gray-200">
-                   {emails.map((email) => (
-                    <tr key={email.id} className={`hover:bg-gray-50 cursor-pointer ${email.isRead ? '' : 'bg-blue-50'}`} onClick={() => handleViewEmail(email)}>
-                      <td className="px-4 py-3" onClick={(e) => { e.stopPropagation(); }}>
-                        <input 
-                          type="checkbox" 
-                          className="rounded border-gray-300" 
-                          checked={selectedIds.includes(email.id)}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setSelectedIds((prev) => checked ? Array.from(new Set([...prev, email.id])) : prev.filter((id) => id !== email.id));
-                          }}
-                        />
-                      </td>
-                      {/* <td className="px-4 py-3">
-                        {email.isStarred ? (
-                          <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                        ) : (
-                          <Star className="h-4 w-4 text-gray-400" />
-                        )}
-                      </td> */}
-                      <td className="px-4 py-3 text-sm text-gray-900">{email.id}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{email.from}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{email.to}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">{email.subject}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{formatDate(email.createdAt)}</td>
-                      {/* <td className="px-4 py-3">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                            +
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {emails.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                            <Mail className="h-8 w-8 text-gray-400" />
                           </div>
-                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                            ⋯
-                          </div>
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">No emails found</h3>
+                          <p className="text-sm text-gray-500 max-w-sm text-center">
+                            {activeTab === 'inbox' ? 'Your inbox is empty. New emails will appear here.' :
+                             activeTab === 'sent' ? 'No sent emails yet. Start composing to send your first email.' :
+                             activeTab === 'draft' ? 'No draft emails. Start composing to create your first draft.' :
+                             activeTab === 'trash' ? 'Trash is empty. Deleted emails will appear here.' :
+                             activeTab === 'spam' ? 'No spam emails. Spam emails will appear here.' :
+                             activeTab === 'archive' ? 'No archived emails. Archived emails will appear here.' :
+                             activeTab === 'unread' ? 'No unread emails. All emails have been read.' :
+                             'No emails found in this folder.'}
+                          </p>
                         </div>
-                      </td> */}
-                      <td className="px-4 py-3">
+                      </td>
+                    </tr>
+                  ) : (
+                    emails.map((email, index) => (
+                      <tr 
+                        key={email.id} 
+                        className={`hover:bg-gray-50 cursor-pointer transition-colors ${email.isRead ? '' : 'bg-blue-50/30'}`} 
+                        onClick={() => handleViewEmail(email)}
+                      >
+                        <td className="px-3 py-3" onClick={(e) => { e.stopPropagation(); }}>
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-gray-300" 
+                            checked={selectedIds.includes(email.id)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setSelectedIds((prev) => checked ? Array.from(new Set([...prev, email.id])) : prev.filter((id) => id !== email.id));
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className="font-semibold text-gray-600">{index + 1}</span>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-gray-900">{email.id}</td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                              {email.from.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-sm font-medium text-gray-900 truncate">{email.from}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-gray-900 truncate max-w-[200px]">{email.to}</td>
+                        <td className="px-3 py-3 text-sm text-gray-900 max-w-xs truncate">{email.subject}</td>
+                        <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(email.createdAt)}</td>
+                        <td className="px-3 py-3">
                                                  <DropdownMenu>
                            <DropdownMenuTrigger asChild>
                              <Button 
@@ -1105,7 +1137,8 @@ export default function AdminEmail() {
                         </DropdownMenu>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                   )}
                 </tbody>
               </table>
             </div>
