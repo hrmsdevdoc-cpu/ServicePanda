@@ -130,9 +130,9 @@ export default function AdminPotentialCustomers() {
   const [campaigns, setCampaigns] = useState<SMSCampaign[]>([]);
   const [newCampaign, setNewCampaign] = useState({
     name: '',
-    message: '',
+    message: 'Hello {customerName}! Welcome to ServicePanda your friendly Service Provider app, click here to download the app https://tinurl/123 as per our first launch, here is a $' + '{voucherAmount}' + '.00 voucher for your first job with us. Voucher \'{voucherCode}\'.\nIf you do not wish to receive any sms, please reply STOP',
     voucherCode: '',
-    voucherAmount: 0,
+    voucherAmount: 20,
     selectedStates: [] as string[],
     selectedRegions: [] as string[],
     selectedStatuses: [] as string[],
@@ -449,9 +449,22 @@ export default function AdminPotentialCustomers() {
       });
     },
     onError: (error: any) => {
+      console.error('[Campaign Creation] Error:', error);
+      
+      let errorMessage = "Failed to create campaign. Please try again.";
+      
+      // Try to extract detailed error message from response
+      if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to create campaign. Please try again.",
+        title: "Error Creating Campaign",
+        description: errorMessage,
         variant: "destructive",
       });
     },

@@ -998,10 +998,10 @@ export default function AdminEmail() {
             )}
             {/* Email Table */}
             <div className="overflow-x-auto max-h-[80vh] overflow-y-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-3 text-left">
                       <input
                         type="checkbox"
                         className="rounded border-gray-300"
@@ -1012,92 +1012,85 @@ export default function AdminEmail() {
                         }}
                       />
                     </th>
-                    {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <Star className="h-4 w-4" />
-                    </th> */}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Id
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-16">
+                      #
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-20">
+                      ID
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      To
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      NAME
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Subject
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      TO
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      SUBJECT
                     </th>
-                    {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contact
-                    </th> */}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      DATE
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-24">
+                      ACTION
                     </th>
                   </tr>
                 </thead>
-                                 <tbody className="bg-white divide-y divide-gray-200">
-                   {emails.length === 0 ? (
-                     <tr>
-                       <td colSpan={6} className="px-4 py-12 text-center">
-                         <div className="flex flex-col items-center justify-center">
-                           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                             <Mail className="h-8 w-8 text-gray-400" />
-                           </div>
-                           <h3 className="text-lg font-medium text-gray-900 mb-2">No emails found</h3>
-                           <p className="text-sm text-gray-500 max-w-sm text-center">
-                             {activeTab === 'inbox' ? 'Your inbox is empty. New emails will appear here.' :
-                              activeTab === 'sent' ? 'No sent emails yet. Start composing to send your first email.' :
-                              activeTab === 'draft' ? 'No draft emails. Start composing to create your first draft.' :
-                              activeTab === 'trash' ? 'Trash is empty. Deleted emails will appear here.' :
-                              activeTab === 'spam' ? 'No spam emails. Spam emails will appear here.' :
-                              activeTab === 'archive' ? 'No archived emails. Archived emails will appear here.' :
-                              activeTab === 'unread' ? 'No unread emails. All emails have been read.' :
-                              'No emails found in this folder.'}
-                           </p>
-    
-                         </div>
-                       </td>
-                     </tr>
-                   ) : (
-                     emails.map((email) => (
-                    <tr key={email.id} className={`hover:bg-gray-50 cursor-pointer ${email.isRead ? '' : 'bg-blue-50'}`} onClick={() => handleViewEmail(email)}>
-                      <td className="px-4 py-3" onClick={(e) => { e.stopPropagation(); }}>
-                        <input 
-                          type="checkbox" 
-                          className="rounded border-gray-300" 
-                          checked={selectedIds.includes(email.id)}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setSelectedIds((prev) => checked ? Array.from(new Set([...prev, email.id])) : prev.filter((id) => id !== email.id));
-                          }}
-                        />
-                      </td>
-                      {/* <td className="px-4 py-3">
-                        {email.isStarred ? (
-                          <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                        ) : (
-                          <Star className="h-4 w-4 text-gray-400" />
-                        )}
-                      </td> */}
-                      <td className="px-4 py-3 text-sm text-gray-900">{email.id}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{email.from}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{email.to}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">{email.subject}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{formatDate(email.createdAt)}</td>
-                      {/* <td className="px-4 py-3">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                            +
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {emails.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                            <Mail className="h-8 w-8 text-gray-400" />
                           </div>
-                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                            ⋯
-                          </div>
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">No emails found</h3>
+                          <p className="text-sm text-gray-500 max-w-sm text-center">
+                            {activeTab === 'inbox' ? 'Your inbox is empty. New emails will appear here.' :
+                             activeTab === 'sent' ? 'No sent emails yet. Start composing to send your first email.' :
+                             activeTab === 'draft' ? 'No draft emails. Start composing to create your first draft.' :
+                             activeTab === 'trash' ? 'Trash is empty. Deleted emails will appear here.' :
+                             activeTab === 'spam' ? 'No spam emails. Spam emails will appear here.' :
+                             activeTab === 'archive' ? 'No archived emails. Archived emails will appear here.' :
+                             activeTab === 'unread' ? 'No unread emails. All emails have been read.' :
+                             'No emails found in this folder.'}
+                          </p>
                         </div>
-                      </td> */}
-                      <td className="px-4 py-3">
+                      </td>
+                    </tr>
+                  ) : (
+                    emails.map((email, index) => (
+                      <tr 
+                        key={email.id} 
+                        className={`hover:bg-gray-50 cursor-pointer transition-colors ${email.isRead ? '' : 'bg-blue-50/30'}`} 
+                        onClick={() => handleViewEmail(email)}
+                      >
+                        <td className="px-3 py-3" onClick={(e) => { e.stopPropagation(); }}>
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-gray-300" 
+                            checked={selectedIds.includes(email.id)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setSelectedIds((prev) => checked ? Array.from(new Set([...prev, email.id])) : prev.filter((id) => id !== email.id));
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className="font-semibold text-gray-600">{index + 1}</span>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-gray-900">{email.id}</td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                              {email.from.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-sm font-medium text-gray-900 truncate">{email.from}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-gray-900 truncate max-w-[200px]">{email.to}</td>
+                        <td className="px-3 py-3 text-sm text-gray-900 max-w-xs truncate">{email.subject}</td>
+                        <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(email.createdAt)}</td>
+                        <td className="px-3 py-3">
                                                  <DropdownMenu>
                            <DropdownMenuTrigger asChild>
                              <Button 

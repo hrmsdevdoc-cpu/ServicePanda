@@ -1012,18 +1012,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const totalProviders = await storage.getServiceProviderCount();
       const activeProviders = await storage.getServiceProviderCount('approved');
-      const pendingProviders = await storage.getServiceProviderCount('pending');
+      const pendingApprovals = await storage.getServiceProviderCount('pending');
       const totalCustomers = await storage.getUserCount();
       const totalRequests = await storage.getServiceRequestCount();
-      const pendingRequests = await storage.getServiceRequestCount('pending');
+      const activeRequests = await storage.getActiveServiceRequestCount();
+      const completedJobs = await storage.getServiceRequestCount('completed');
+      const monthlyRevenue = await storage.getMonthlyRevenue();
 
       res.json({
         totalProviders,
         activeProviders,
-        pendingProviders,
+        pendingApprovals,
         totalCustomers,
         totalRequests,
-        pendingRequests,
+        activeRequests,
+        monthlyRevenue,
+        completedJobs,
       });
     } catch (error) {
       console.error('Error fetching admin stats:', error);
@@ -4655,11 +4659,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/sms/campaigns', isAdminAuthenticated, async (req, res) => {
     try {
       const campaignData = req.body;
+      
+      // Validate required fields
+      if (!campaignData.name || !campaignData.name.trim()) {
+        return res.status(400).json({ message: 'Campaign name is required' });
+      }
+      
+      if (!campaignData.message || !campaignData.message.trim()) {
+        return res.status(400).json({ message: 'Campaign message is required' });
+      }
+      
+      // Ensure selectedStates and selectedStatuses are arrays
+      if (!Array.isArray(campaignData.selectedStates)) {
+        campaignData.selectedStates = [];
+      }
+      
+      if (!Array.isArray(campaignData.selectedStatuses)) {
+        campaignData.selectedStatuses = [];
+      }
+      
+      console.log('[SMS Campaign] Creating campaign with data:', JSON.stringify(campaignData, null, 2));
+      
       const campaign = await storage.createSmsCampaign(campaignData);
+      
+      console.log('[SMS Campaign] Campaign created successfully:', campaign.id);
       res.status(201).json(campaign);
-    } catch (error) {
-      console.error('Error creating SMS campaign:', error);
-      res.status(500).json({ message: 'Failed to create SMS campaign' });
+    } catch (error: any) {
+      console.error('[SMS Campaign] Error creating SMS campaign:', error);
+      console.error('[SMS Campaign] Error details:', error.message);
+      console.error('[SMS Campaign] Error stack:', error.stack);
+      res.status(500).json({ 
+        message: 'Failed to create SMS campaign',
+        error: error.message || 'Unknown error'
+      });
     }
   });
 

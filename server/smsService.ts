@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { db } from './db';
-import { smsMessages } from '@shared/schema';
+import { smsMessages, providerVouchers } from '@shared/schema';
 
 interface SmsData {
   sendTo: string;
@@ -284,6 +284,103 @@ ServicePanda Team`;
   getLogs() {
     // return newest first
     return [...this.logs].sort((a, b) => (a.sentAt < b.sentAt ? 1 : -1));
+  }
+
+  /**
+   * Generate a unique 6-character alphanumeric voucher code
+   */
+  private generateVoucherCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluding similar looking chars
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  /**
+   * Create a unique voucher in the database
+   */
+  async createVoucher(voucherAmount: number, adminName: string): Promise<{ code: string; value: number }> {
+    const maxAttempts = 10;
+    let attempt = 0;
+
+    while (attempt < maxAttempts) {
+      try {
+        const code = this.generateVoucherCode();
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 30); // 30 days from now
+
+        const [voucher] = await db
+          .insert(providerVouchers)
+          .values({
+            code,
+            value: voucherAmount.toString(),
+            description: `Campaign voucher for $${voucherAmount}`,
+            status: 'active',
+            expiryDate,
+            createdBy: adminName,
+          })
+          .returning();
+
+        console.log(`[SMS Service] Created voucher: ${code} for $${voucherAmount}`);
+        return { code: voucher.code, value: voucherAmount };
+      } catch (error: any) {
+        if (error.code === '23505') {
+          // Unique constraint violation - code already exists, try again
+          attempt++;
+          console.log(`[SMS Service] Voucher code collision, retrying... (attempt ${attempt}/${maxAttempts})`);
+        } else {
+          console.error('[SMS Service] Error creating voucher:', error);
+          throw error;
+        }
+      }
+    }
+
+    throw new Error('Failed to generate unique voucher code after maximum attempts');
+  }
+
+  /**
+   * Send SMS with unique voucher creation
+   */
+  async sendSmsWithVoucher(
+    phone: string,
+    customerName: string,
+    messageTemplate: string,
+    voucherAmount: number,
+    options: {
+      customerId: number;
+      adminName: string;
+      smsType: '1st_sent' | '2nd_sent' | 'campaign';
+    }
+  ): Promise<{ success: boolean; voucherCode?: string; message?: string }> {
+    try {
+      // Create unique voucher
+      const voucher = await this.createVoucher(voucherAmount, options.adminName);
+      
+      // Replace placeholders in message
+      const message = messageTemplate
+        .replace(/\{customerName\}/g, customerName)
+        .replace(/\{voucherCode\}/g, voucher.code)
+        .replace(/\{voucherAmount\}/g, voucherAmount.toString());
+
+      // Send SMS
+      const success = await this.sendSms(phone, message, {
+        adminName: options.adminName,
+        customerId: options.customerId,
+        smsType: options.smsType as '1st_sent' | '2nd_sent',
+      });
+
+      if (success) {
+        console.log(`[SMS Service] Successfully sent SMS with voucher ${voucher.code} to ${customerName}`);
+        return { success: true, voucherCode: voucher.code, message };
+      } else {
+        return { success: false, message: 'Failed to send SMS' };
+      }
+    } catch (error: any) {
+      console.error('[SMS Service] Error in sendSmsWithVoucher:', error);
+      return { success: false, message: error.message || 'Unknown error' };
+    }
   }
 }
 

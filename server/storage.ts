@@ -317,6 +317,8 @@ export interface IStorage {
   getServiceProviderCount(status?: string): Promise<number>;
   getUserCount(): Promise<number>;
   getServiceRequestCount(status?: string): Promise<number>;
+  getActiveServiceRequestCount(): Promise<number>;
+  getMonthlyRevenue(): Promise<number>;
   getServiceProvidersForAdmin(status?: string): Promise<ServiceProvider[]>;
   getServiceProvidersForReport(status?: string, rating?: string): Promise<any[]>;
   updateServiceProviderStatus(id: number, status: string): Promise<void>;
@@ -1537,6 +1539,36 @@ export class DatabaseStorage implements IStorage {
 
     const result = await query;
     return result.length;
+  }
+
+  async getActiveServiceRequestCount(): Promise<number> {
+    // Count only requests with 'active' status (not expired, completed, or cancelled)
+    const result = await db
+      .select()
+      .from(serviceRequests)
+      .where(eq(serviceRequests.status, 'active'));
+    return result.length;
+  }
+
+  async getMonthlyRevenue(): Promise<number> {
+    // Calculate total revenue from lead purchases in the current month
+    const currentDate = new Date();
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+
+    const result = await db
+      .select({
+        totalRevenue: sql<number>`COALESCE(SUM(CAST(${leadPurchases.totalCost} AS DECIMAL)), 0)`
+      })
+      .from(leadPurchases)
+      .where(
+        and(
+          gte(leadPurchases.purchasedAt, firstDayOfMonth),
+          lte(leadPurchases.purchasedAt, lastDayOfMonth)
+        )
+      );
+
+    return parseFloat(result[0]?.totalRevenue?.toString() || '0');
   }
 
   async getServiceProvidersForAdmin(status?: string): Promise<any[]> {
@@ -6824,6 +6856,44 @@ export class DatabaseStorage implements IStorage {
 
   async createSmsCampaign(campaignData: any): Promise<any> {
     try {
+      // Ensure arrays are properly formatted
+      const selectedStates = Array.isArray(campaignData.selectedStates) 
+        ? campaignData.selectedStates 
+        : [];
+      
+      const selectedStatuses = Array.isArray(campaignData.selectedStatuses) 
+        ? campaignData.selectedStatuses 
+        : [];
+      
+      const selectedRegions = campaignData.selectedRegions && Array.isArray(campaignData.selectedRegions)
+        ? campaignData.selectedRegions
+        : null;
+
+      // Convert scheduledAt string to Date object if provided
+      let scheduledAt = null;
+      if (campaignData.scheduledAt) {
+        try {
+          scheduledAt = new Date(campaignData.scheduledAt);
+          // Check if date is valid
+          if (isNaN(scheduledAt.getTime())) {
+            console.warn('[Storage] Invalid scheduledAt date, setting to null');
+            scheduledAt = null;
+          }
+        } catch (e) {
+          console.warn('[Storage] Error parsing scheduledAt, setting to null:', e);
+          scheduledAt = null;
+        }
+      }
+
+      console.log('[Storage] Creating campaign with:', {
+        name: campaignData.name,
+        selectedStates,
+        selectedStatuses,
+        selectedRegions,
+        voucherAmount: campaignData.voucherAmount,
+        scheduledAt: scheduledAt
+      });
+
       const [campaign] = await db
         .insert(smsCampaigns)
         .values({
@@ -6831,23 +6901,43 @@ export class DatabaseStorage implements IStorage {
           message: campaignData.message,
           voucherCode: campaignData.voucherCode || null,
           voucherAmount: campaignData.voucherAmount || null,
-          selectedStates: campaignData.selectedStates,
-          selectedRegions: campaignData.selectedRegions || null,
-          selectedStatuses: campaignData.selectedStatuses,
-          scheduledAt: campaignData.scheduledAt || null,
+          selectedStates: selectedStates,
+          selectedRegions: selectedRegions,
+          selectedStatuses: selectedStatuses,
+          scheduledAt: scheduledAt,
           status: campaignData.status || 'draft',
           totalSent: 0,
         })
         .returning();
+      
+      console.log('[Storage] Campaign created successfully:', campaign.id);
       return campaign;
-    } catch (error) {
-      console.error('Error creating SMS campaign:', error);
+    } catch (error: any) {
+      console.error('[Storage] Error creating SMS campaign:', error);
+      console.error('[Storage] Error message:', error.message);
+      console.error('[Storage] Error code:', error.code);
+      if (error.detail) {
+        console.error('[Storage] Error detail:', error.detail);
+      }
       throw error;
     }
   }
 
   async updateSmsCampaign(campaignId: number, campaignData: any): Promise<any> {
     try {
+      // Convert scheduledAt string to Date object if provided
+      let scheduledAt = null;
+      if (campaignData.scheduledAt) {
+        try {
+          scheduledAt = new Date(campaignData.scheduledAt);
+          if (isNaN(scheduledAt.getTime())) {
+            scheduledAt = null;
+          }
+        } catch (e) {
+          scheduledAt = null;
+        }
+      }
+
       const [campaign] = await db
         .update(smsCampaigns)
         .set({
@@ -6858,7 +6948,7 @@ export class DatabaseStorage implements IStorage {
           selectedStates: campaignData.selectedStates,
           selectedRegions: campaignData.selectedRegions || null,
           selectedStatuses: campaignData.selectedStatuses,
-          scheduledAt: campaignData.scheduledAt || null,
+          scheduledAt: scheduledAt,
           status: campaignData.status || 'draft',
           updatedAt: new Date(),
         })
@@ -6924,80 +7014,145 @@ export class DatabaseStorage implements IStorage {
           
           console.log(`[Campaign][sms_type] Customer ${customer.id} will receive ${smsType}`);
 
-          // Replace placeholders in message
-          let message = campaign.message
-            .replace(/\{customerName\}/g, customer.name)
-            .replace(/\{voucherCode\}/g, campaign.voucherCode || '')
-            .replace(/\{voucherAmount\}/g, campaign.voucherAmount?.toString() || '');
+          // Check if campaign has voucher amount - if yes, create unique voucher for each customer
+          let voucherCode = '';
+          let finalMessage = campaign.message;
 
-          // Send SMS using existing SMS service
-          console.log(`[Campaign][sending] Sending SMS to ${customer.name} (${customer.phone})`);
-          const success = await smsService.sendSms(customer.phone, message, {
-            adminName,
-            customerId: customer.id,
-            smsType: smsType,
-          });
-          
-          console.log(`[Campaign][sms_result] SMS result for ${customer.name}: ${success ? 'SUCCESS' : 'FAILED'}`);
-          
-          if (success) {
-            // Update customer SMS status
-            await this.updateCustomerSmsStatus(customer.id, smsType);
+          if (campaign.voucherAmount && campaign.voucherAmount > 0) {
+            // Use sendSmsWithVoucher to create unique voucher and send SMS
+            console.log(`[Campaign][voucher] Creating unique voucher for ${customer.name} - Amount: $${campaign.voucherAmount}`);
             
-            // Store SMS message in chat system using SMS service recordOutbound method
-            console.log(`[Campaign][storage] Attempting to store SMS message for ${customer.name}`);
-            try {
+            const voucherResult = await smsService.sendSmsWithVoucher(
+              customer.phone,
+              customer.name,
+              campaign.message,
+              Number(campaign.voucherAmount),
+              {
+                customerId: customer.id,
+                adminName: adminName || 'admin',
+                smsType: 'campaign' as any
+              }
+            );
+
+            if (voucherResult.success) {
+              voucherCode = voucherResult.voucherCode || '';
+              finalMessage = voucherResult.message || finalMessage;
+              
+              // Update customer SMS status
+              await this.updateCustomerSmsStatus(customer.id, smsType);
+              
+              // Store SMS message in chat system
+              console.log(`[Campaign][storage] Attempting to store SMS message for ${customer.name}`);
+              try {
+                await smsService.recordOutbound({
+                  recipientType: 'potential_customer',
+                  recipientId: customer.id,
+                  recipientPhone: customer.phone,
+                  recipientName: customer.name,
+                  message: finalMessage,
+                  status: 'sent',
+                  smsType: smsType,
+                  sentBy: adminName,
+                });
+                
+                console.log(`[Campaign][SMS Storage] Successfully recorded SMS message for ${customer.name}`);
+              } catch (storageError) {
+                console.error(`[Campaign][SMS Storage] Failed to record SMS message for ${customer.name}:`, storageError);
+              }
+              
+              successCount++;
+              results.push({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: customer.phone,
+                status: 'sent',
+                smsType: smsType,
+                voucherCode: voucherCode
+              });
+              console.log(`[Campaign][success] SMS sent to ${customer.name} (${customer.phone}) with voucher ${voucherCode} - ${smsType}`);
+            } else {
+              // Voucher creation or SMS send failed
+              failCount++;
+              results.push({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: customer.phone,
+                status: 'failed',
+                smsType: smsType,
+                error: voucherResult.message
+              });
+              console.log(`[Campaign][failed] SMS with voucher failed for ${customer.name}: ${voucherResult.message}`);
+            }
+          } else {
+            // No voucher amount - send regular SMS without voucher
+            finalMessage = campaign.message
+              .replace(/\{customerName\}/g, customer.name)
+              .replace(/\{voucherCode\}/g, '')
+              .replace(/\{voucherAmount\}/g, '');
+
+            console.log(`[Campaign][sending] Sending SMS without voucher to ${customer.name} (${customer.phone})`);
+            const success = await smsService.sendSms(customer.phone, finalMessage, {
+              adminName,
+              customerId: customer.id,
+              smsType: smsType,
+            });
+            
+            console.log(`[Campaign][sms_result] SMS result for ${customer.name}: ${success ? 'SUCCESS' : 'FAILED'}`);
+            
+            if (success) {
+              // Update customer SMS status
+              await this.updateCustomerSmsStatus(customer.id, smsType);
+              
+              // Store SMS message in chat system
+              try {
+                await smsService.recordOutbound({
+                  recipientType: 'potential_customer',
+                  recipientId: customer.id,
+                  recipientPhone: customer.phone,
+                  recipientName: customer.name,
+                  message: finalMessage,
+                  status: 'sent',
+                  smsType: smsType,
+                  sentBy: adminName,
+                });
+              } catch (storageError) {
+                console.error(`[Campaign][SMS Storage] Failed to record SMS message for ${customer.name}:`, storageError);
+              }
+              
+              successCount++;
+              results.push({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: customer.phone,
+                status: 'sent',
+                smsType: smsType
+              });
+              console.log(`[Campaign][success] SMS sent to ${customer.name} (${customer.phone}) - ${smsType}`);
+            } else {
+              // Store failed SMS message
               await smsService.recordOutbound({
                 recipientType: 'potential_customer',
                 recipientId: customer.id,
                 recipientPhone: customer.phone,
                 recipientName: customer.name,
-                message: message,
-                direction: 'outbound',
-                status: 'sent',
+                message: finalMessage,
+                status: 'failed',
                 smsType: smsType,
                 sentBy: adminName,
               });
               
-              console.log(`[Campaign][SMS Storage] Successfully recorded SMS message for ${customer.name}`);
-            } catch (storageError) {
-              console.error(`[Campaign][SMS Storage] Failed to record SMS message for ${customer.name}:`, storageError);
+              console.log(`[Campaign][SMS Storage] Successfully recorded FAILED SMS message for ${customer.name}`);
+              
+              failCount++;
+              results.push({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: customer.phone,
+                status: 'failed',
+                smsType: smsType
+              });
+              console.error(`[Campaign][failed] SMS failed to ${customer.name} (${customer.phone}) - ${smsType}`);
             }
-            
-            successCount++;
-            results.push({
-              customerId: customer.id,
-              customerName: customer.name,
-              phone: customer.phone,
-              status: 'sent',
-              smsType: smsType
-            });
-            console.log(`[Campaign][success] SMS sent to ${customer.name} (${customer.phone}) - ${smsType}`);
-          } else {
-            // Store failed SMS message in chat system using SMS service recordOutbound method
-            await smsService.recordOutbound({
-              recipientType: 'potential_customer',
-              recipientId: customer.id,
-              recipientPhone: customer.phone,
-              recipientName: customer.name,
-              message: message,
-              direction: 'outbound',
-              status: 'failed',
-              smsType: smsType,
-              sentBy: adminName,
-            });
-            
-            console.log(`[Campaign][SMS Storage] Successfully recorded FAILED SMS message for ${customer.name}`);
-            
-            failCount++;
-            results.push({
-              customerId: customer.id,
-              customerName: customer.name,
-              phone: customer.phone,
-              status: 'failed',
-              smsType: smsType
-            });
-            console.error(`[Campaign][failed] SMS failed to ${customer.name} (${customer.phone}) - ${smsType}`);
           }
         } catch (error) {
           console.error(`[Campaign][error] Error sending SMS to customer ${customer.id}:`, error);
