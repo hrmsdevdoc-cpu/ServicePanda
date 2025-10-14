@@ -573,6 +573,7 @@ export default function AdminPendingProviders() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
+                        <th className="text-left p-3 w-16">#</th>
                         <th className="text-left p-3">Provider</th>
                         <th className="text-left p-3">Email</th>
                         <th className="text-left p-3">Phone</th>
@@ -582,8 +583,11 @@ export default function AdminPendingProviders() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredProviders?.map((provider: ServiceProvider) => (
+                      {filteredProviders?.map((provider: ServiceProvider, index: number) => (
                         <tr key={provider.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="p-3">
+                            <span className="font-semibold text-gray-600">{index + 1}</span>
+                          </td>
                           <td className="p-3">
                             <div>
                               <p className="font-medium">{provider.firstName} {provider.lastName}</p>
@@ -635,7 +639,7 @@ export default function AdminPendingProviders() {
                       ))}
                       {(!filteredProviders || filteredProviders.length === 0) && !isLoading && (
                         <tr>
-                          <td colSpan={6} className="text-center py-8 text-gray-500">
+                          <td colSpan={7} className="text-center py-8 text-gray-500">
                             No pending provider applications found
                           </td>
                         </tr>
