@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { adminApiRequest } from "@/lib/adminAuth";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import {
@@ -40,11 +41,10 @@ export default function AdminMailgunSettings() {
   const { data: mailgunSettings, isLoading } = useQuery({
     queryKey: ['/api/admin/mailgun-settings'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/mailgun-settings', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
+      const response = await adminApiRequest('GET', '/api/admin/mailgun-settings');
+      if (!response.ok) {
+        throw new Error('Failed to fetch Mailgun settings');
+      }
       return response.json();
     },
   });
@@ -63,7 +63,11 @@ export default function AdminMailgunSettings() {
   // Save Mailgun settings mutation
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiRequest('POST', '/api/setup/mailgun-settings', data);
+      const response = await adminApiRequest('POST', '/api/admin/mailgun-settings', data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save settings');
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -86,14 +90,11 @@ export default function AdminMailgunSettings() {
   // Test email mutation
   const testEmailMutation = useMutation({
     mutationFn: async (email: string) => {
-      const response = await fetch('/api/admin/test-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-        body: JSON.stringify({ email }),
-      });
+      const response = await adminApiRequest('POST', '/api/admin/test-email', { email });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to send test email');
+      }
       return response.json();
     },
     onSuccess: (data) => {

@@ -5,23 +5,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import { adminApiRequest } from '@/lib/adminAuth';
 import { 
   Shield, 
-  Users, 
-  UserCheck, 
-  Settings, 
   Plus, 
   Edit, 
   Trash2, 
   Save,
-  X,
-  Eye,
-  EyeOff
+  X
 } from 'lucide-react';
 
 interface Permission {
@@ -41,7 +35,6 @@ interface Role {
 }
 
 const AdminRolePermissions: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('roles');
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showAddRole, setShowAddRole] = useState(false);
@@ -161,7 +154,7 @@ const AdminRolePermissions: React.FC = () => {
     permissions: [] as number[]
   });
 
-  const categories = [...new Set(permissions.map(p => p.category))];
+  const categories = Array.from(new Set(permissions.map(p => p.category)));
 
   const handlePermissionToggle = (permissionId: number, checked: boolean) => {
     if (!selectedRole) return;
@@ -234,6 +227,11 @@ const AdminRolePermissions: React.FC = () => {
     return role.permissions.length;
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    window.location.href = '/admin-login';
+  };
+
   return (
     <div className="h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex relative overflow-hidden">
       {/* Background Pattern */}
@@ -247,7 +245,7 @@ const AdminRolePermissions: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-blue-100/20 pointer-events-none"></div>
       {/* Sidebar */}
       <div className="relative z-20">
-        <AdminSidebar adminUser={currentAdminUser} />
+        <AdminSidebar onLogout={handleLogout} adminUser={currentAdminUser} />
       </div>
       
       {/* Main Content */}
@@ -297,14 +295,7 @@ const AdminRolePermissions: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="roles">Roles</TabsTrigger>
-            <TabsTrigger value="permissions">Permissions</TabsTrigger>
-          </TabsList>
-
-          {/* Roles Tab */}
-          <TabsContent value="roles" className="space-y-6">
+              <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Roles List */}
               <div className="lg:col-span-1">
@@ -314,13 +305,13 @@ const AdminRolePermissions: React.FC = () => {
                       <CardTitle className="text-lg">Roles</CardTitle>
                       <CardDescription>Manage user roles</CardDescription>
                     </div>
-                    <Button 
+                    {/* <Button 
                       size="sm" 
                       onClick={() => setShowAddRole(true)}
                       className="h-8 w-8 p-0"
                     >
                       <Plus className="h-4 w-4" />
-                    </Button>
+                    </Button> */}
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {roles.map((role) => (
@@ -486,53 +477,7 @@ const AdminRolePermissions: React.FC = () => {
                 )}
               </div>
             </div>
-          </TabsContent>
-
-          {/* Permissions Tab */}
-          <TabsContent value="permissions" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Permissions</CardTitle>
-                <CardDescription>
-                  Overview of all available permissions in the system
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {categories.map((category) => {
-                    const categoryPermissions = permissions.filter(p => p.category === category);
-                    
-                    return (
-                      <div key={category} className="space-y-3">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b pb-2">
-                          {category}
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {categoryPermissions.map((permission) => (
-                            <div
-                              key={permission.id}
-                              className="p-4 rounded-lg border border-gray-200 dark:border-gray-700"
-                            >
-                              <h4 className="font-medium text-gray-900 dark:text-white mb-1">
-                                {permission.name}
-                              </h4>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {permission.description}
-                              </p>
-                              <Badge variant="outline" className="mt-2 text-xs">
-                                {permission.id}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </div>
             )}
 
         {/* Add Role Modal */}
