@@ -3,11 +3,10 @@ const getBaseUrl = () => {
   // If we're in a browser environment
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
     
-    // Production/Staging - use current domain
+    // Production/Staging - use API subdomain
     if (hostname === 'staging.servicepanda.com.au' || hostname === 'servicepanda.com.au') {
-      return `${protocol}//${hostname}`;
+      return 'https://api.servicepanda.com.au';
     }
     
     // Development - use localhost with port 3000
