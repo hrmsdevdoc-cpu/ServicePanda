@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
@@ -126,7 +127,7 @@ export default function AdminDashboard() {
   }, [navigate]);
 
   // Admin Statistics Query
-  const { data: stats, error: statsError } = useQuery({
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['/api/admin/stats'],
     queryFn: async () => {
       const response = await adminApiRequest('GET', '/api/admin/stats');
@@ -166,7 +167,7 @@ export default function AdminDashboard() {
   });
 
   // Provider Reports Query for Chart
-  const { data: providerReports, error: providerReportsError } = useQuery({
+  const { data: providerReports, isLoading: reportsLoading, error: providerReportsError } = useQuery({
     queryKey: ['/api/admin/reports/providers'],
     queryFn: async () => {
       const response = await adminApiRequest('GET', '/api/admin/reports/providers');
@@ -489,59 +490,79 @@ export default function AdminDashboard() {
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Providers</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats?.totalProviders || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Active service providers
-                  </p>
-                </CardContent>
-              </Card>
+              {statsLoading ? (
+                // Skeleton loaders for stats cards
+                <>
+                  {[1, 2, 3, 4].map((i) => (
+                    <Card key={i} className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-4 rounded-full" />
+                      </CardHeader>
+                      <CardContent>
+                        <Skeleton className="h-8 w-20 mb-2" />
+                        <Skeleton className="h-3 w-32" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Providers</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{stats?.totalProviders || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Active service providers
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-                  <Clock className="h-4 w-4 text-orange-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">{stats?.pendingApprovals || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Waiting for review
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+                      <Clock className="h-4 w-4 text-orange-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-orange-600">{stats?.pendingApprovals || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Waiting for review
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Requests</CardTitle>
-                  <Wrench className="h-4 w-4 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{stats?.activeRequests || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Current service requests
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Active Requests</CardTitle>
+                      <Wrench className="h-4 w-4 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-blue-600">{stats?.activeRequests || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Current service requests
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    ${stats?.monthlyRevenue?.toLocaleString() || '0'}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Current month
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
+                      <DollarSign className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-green-600">
+                        ${stats?.monthlyRevenue?.toLocaleString() || '0'}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Current month
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </div>
 
             {/* Charts Section */}
@@ -603,7 +624,12 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className={isProviderChartExpanded ? "h-80" : "h-48"}>
-                  {monthlyData.length > 0 ? (
+                  {reportsLoading ? (
+                    <div className="flex flex-col space-y-4 p-4">
+                      <Skeleton className="h-6 w-32" />
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                  ) : monthlyData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       {chartType === 'bar' ? (
                         <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -855,7 +881,12 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className={isServiceRequestExpanded ? "h-80" : "h-48"}>
-                      {serviceRequestChartData.length > 0 ? (
+                      {reportsLoading ? (
+                        <div className="flex flex-col space-y-4 p-4">
+                          <Skeleton className="h-6 w-32" />
+                          <Skeleton className="h-full w-full" />
+                        </div>
+                      ) : serviceRequestChartData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                           {serviceRequestChartType === 'bar' ? (
                             <BarChart data={serviceRequestChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>

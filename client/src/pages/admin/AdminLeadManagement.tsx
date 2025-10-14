@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { adminApiRequest } from "@/lib/adminAuth";
+import API_BASE_URL from "@/lib/apiConfig";
 import {
   Plus,
   Edit,
@@ -90,6 +91,13 @@ export default function AdminLeadManagement() {
     popular: false,
     trending: false,
   });
+
+  // Helper function to get the full image URL
+  const getFullImageUrl = (imageUrl: string | undefined) => {
+    if (!imageUrl) return null;
+    if (imageUrl.startsWith('http')) return imageUrl;
+    return `${API_BASE_URL}${imageUrl}`;
+  };
 
   // Check admin authentication
   useEffect(() => {
@@ -258,7 +266,7 @@ export default function AdminLeadManagement() {
       const formData = new FormData();
       formData.append('image', file);
       
-      const response = await fetch(`/api/admin/service-categories/${categoryId}/image`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/service-categories/${categoryId}/image`, {
         method: 'POST',
         headers: {
           'x-admin-token': localStorage.getItem('adminToken') || '',
@@ -619,16 +627,27 @@ export default function AdminLeadManagement() {
                         <div className="flex items-center gap-2">
                           {category.imageUrl ? (
                             <img
-                              src={category.imageUrl}
+                              src={getFullImageUrl(category.imageUrl) || ''}
                               alt={category.name}
                               className="h-8 w-8 rounded object-cover"
+                              onError={(e) => {
+                                console.error('Image load error for:', category.name, category.imageUrl);
+                                // Hide image on error and show icon instead
+                                const target = e.currentTarget as HTMLImageElement;
+                                target.style.display = 'none';
+                                const icon = target.nextElementSibling;
+                                if (icon) {
+                                  (icon as HTMLElement).style.display = 'inline-block';
+                                }
+                              }}
                             />
-                          ) : (
-                            (() => {
+                          ) : null}
+                          <div style={{ display: category.imageUrl ? 'none' : 'inline-block' }}>
+                            {(() => {
                               const IconComponent = getIconComponent(category.icon);
                               return <IconComponent className="h-4 w-4" />;
-                            })()
-                          )}
+                            })()}
+                          </div>
                           <span className="font-medium">{category.name}</span>
                         </div>
                         <div className="flex gap-1">
@@ -653,7 +672,7 @@ export default function AdminLeadManagement() {
                       </div>
                       <div className="flex gap-2">
                         {/* Image Upload Button */}
-                        <div className="relative">
+                        {/* <div className="relative">
                           <input
                             type="file"
                             accept="image/*"
@@ -673,7 +692,7 @@ export default function AdminLeadManagement() {
                               <ImageIcon className="h-4 w-4" />
                             )}
                           </Button>
-                        </div>
+                        </div> */}
                         <Button
                           size="sm"
                           variant="outline"
@@ -749,11 +768,17 @@ export default function AdminLeadManagement() {
                   <Label htmlFor="edit-image">Service Image</Label>
                   <div className="mt-2">
                     {editingCategory.imageUrl && (
-                      <div className="mb-2">
+                      <div className="mb-3 flex items-center justify-center">
                         <img
-                          src={editingCategory.imageUrl}
+                          src={getFullImageUrl(editingCategory.imageUrl) || ''}
                           alt={editingCategory.name}
-                          className="h-16 w-16 rounded object-cover"
+                          className="h-24 w-24 rounded-lg object-cover border-2 border-gray-200 shadow-sm"
+                          onError={(e) => {
+                            console.error('Image load error in edit dialog:', editingCategory.name, editingCategory.imageUrl);
+                            // Hide image on error
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
                         />
                       </div>
                     )}
