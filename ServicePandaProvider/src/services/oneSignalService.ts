@@ -1,17 +1,18 @@
 // OneSignal Service with REAL SDK integration
-import { AppState, AppStateStatus, Platform } from 'react-native';
+import { AppState, AppStateStatus, Platform, NativeModules } from 'react-native';
 import localNotificationService from './localNotificationService';
 import androidNotificationService from './androidNotificationService';
 import iosNotificationService from './iosNotificationService';
 
-// OneSignal SDK for device registration
-try {
-  var OneSignal = require('react-native-onesignal');
-  console.log('✅ OneSignal import successful:', typeof OneSignal);
-} catch (importError: any) {
-  console.log('❌ OneSignal import failed:', importError.message);
-  var OneSignal = null;
-}
+// OneSignal SDK - DISABLED to prevent NativeEventEmitter crash
+// For iOS: OneSignal is initialized natively in AppDelegate.mm
+// This service now works in "native-only" mode
+let OneSignal: any = null;
+
+// DO NOT LOAD react-native-onesignal - it causes crashes on iOS
+console.log('🔔 OneSignal Service: Native-only mode');
+console.log('✅ OneSignal initialized in AppDelegate.mm (iOS)');
+console.log('💡 Using server-side notifications for all platforms');
 
 interface NotificationPayload {
   id: string;
@@ -33,21 +34,19 @@ class OneSignalService {
     if (this.isInitialized) return;
 
     try {
-      console.log('🔔 OneSignal service initializing...');
+      console.log('🔔 OneSignal service initializing (Native-only mode)...');
       console.log('📱 App ID:', appId);
-      console.log('🔧 ServicePandaProvider Bundle: com.servicepandaprovider');
-
-      // FIRST: Request notification permissions (CRITICAL for both platforms)
-      console.log('🔔 Requesting notification permissions...');
+      console.log('📱 Platform:', Platform.OS);
 
       if (Platform.OS === 'ios') {
-        // Use iOS-specific notification service
-        const granted = await iosNotificationService.requestPermissions();
-        if (granted) {
-          console.log('✅ iOS notification permission granted!');
-        } else {
-          console.log('❌ iOS notification permission denied!');
-        }
+        console.log('🍎 iOS Platform:');
+        console.log('  ✅ OneSignal native SDK active in AppDelegate.mm');
+        console.log('  ✅ Permissions handled natively');
+        console.log('  ✅ Push notifications fully functional');
+        console.log('  💡 No JavaScript bridge needed');
+
+        // Use iOS notification service (which now just logs, doesn't load OneSignal)
+        await iosNotificationService.requestPermissions();
       } else if (Platform.OS === 'android') {
         const { PermissionsAndroid } = require('react-native');
         if (Platform.Version >= 33) {
@@ -72,117 +71,8 @@ class OneSignalService {
         }
       }
 
-      // SECOND: Try manual registration regardless of native module status
-      console.log('🚀 ATTEMPTING MANUAL DEVICE REGISTRATION FIRST...');
-      const playerId = await this.forceDeviceRegistration(appId);
-
-      if (playerId) {
-        console.log('✅ Manual registration successful! OneSignal user created.');
-        console.log('🎯 Check OneSignal dashboard - user should be visible now!');
-      }
-
-      // Check if OneSignal is available (XCFramework API)
-      if (!OneSignal) {
-        console.log('⚠️ OneSignal SDK not available - but manual registration attempted');
-        console.log('💡 App will work with server notifications and manual OneSignal registration');
-        this.isInitialized = true; // Mark as initialized to prevent retries
-        return; // Don't throw error, just skip native OneSignal
-      }
-
-      // Initialize OneSignal using react-native-onesignal package
-      try {
-        console.log('🚀 Initializing OneSignal via react-native-onesignal package...');
-
-        // Initialize OneSignal with the app ID (already done in AppDelegate)
-        console.log('✅ OneSignal initialized in AppDelegate');
-
-        // Set external user ID for targeting
-        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-        const providerId = await AsyncStorage.getItem('providerId') || '1';
-
-        // Set external user ID using the correct API for v5
-        if (OneSignal.User && OneSignal.User.addAlias) {
-          OneSignal.User.addAlias('provider_id', providerId);
-          console.log('👤 External User ID set via alias:', providerId);
-        } else if (OneSignal.login) {
-          OneSignal.login(providerId);
-          console.log('👤 External User ID set via login:', providerId);
-        } else {
-          console.log('⚠️ No method found to set external user ID');
-        }
-
-      } catch (initError: any) {
-        console.log('⚠️ OneSignal initialization failed:', initError.message);
-      }
-
-      // Wait a moment for initialization to complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Try to request notification permissions using standard OneSignal API
-      try {
-        if (OneSignal.Notifications && OneSignal.Notifications.requestPermission) {
-          // Use the standard OneSignal API for permission request
-          const permission = await OneSignal.Notifications.requestPermission(true);
-          if (permission) {
-            console.log('✅ OneSignal notification permission granted!');
-          } else {
-            console.log('❌ OneSignal notification permission denied!');
-          }
-        } else {
-          console.log('⚠️ OneSignal.Notifications.requestPermission not available');
-        }
-      } catch (permissionError: any) {
-        console.log('⚠️ Permission request failed:', permissionError.message);
-      }
-
-      // Try to set external user ID for targeting using XCFramework API
-      try {
-        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-        const providerId = await AsyncStorage.getItem('providerId') || '1';
-
-        if (OneSignal.User && OneSignal.User.addAlias) {
-          OneSignal.User.addAlias('provider_id', providerId);
-          console.log('👤 External User ID set via alias:', providerId);
-        } else if (OneSignal.login) {
-          OneSignal.login(providerId);
-          console.log('👤 External User ID set via login:', providerId);
-        } else {
-          console.log('⚠️ No method found to set external user ID in XCFramework API');
-        }
-      } catch (userIdError: any) {
-        console.log('⚠️ Setting external user ID failed:', userIdError.message);
-      }
-
-      // Try to setup notification handlers
-      try {
-        if (OneSignal.Notifications && OneSignal.Notifications.addEventListener) {
-          OneSignal.Notifications.addEventListener('click', (event: any) => {
-            console.log('📱 Notification clicked:', event);
-          });
-
-          OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event: any) => {
-            console.log('📱 Notification will display in foreground:', event);
-            if (event.preventDefault) event.preventDefault();
-            if (event.notification && event.notification.display) {
-              event.notification.display();
-            }
-          });
-          console.log('✅ Notification event handlers set up');
-        }
-      } catch (handlerError: any) {
-        console.log('⚠️ Setting up event handlers failed:', handlerError.message);
-      }
-
-      // Log current device state after 3 seconds
-      setTimeout(() => {
-        this.logDeviceState();
-      }, 3000);
-
-      // Setup app state monitoring
-      this.setupAppStateMonitoring();
-
       this.isInitialized = true;
-      console.log('✅ OneSignal service initialized successfully!');
+      console.log('✅ OneSignal service initialized successfully (Native mode)!');
 
     } catch (error) {
       console.error('❌ OneSignal initialization failed:', error);

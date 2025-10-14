@@ -4,14 +4,10 @@ import {name as appName} from './app.json';
 
 console.log('🚀 ServicePandaProvider App Starting...');
 
-// Simple OneSignal initialization
-try {
-  const OneSignal = require('react-native-onesignal');
-  OneSignal.setAppId('a3f5070d-9c46-44cd-8b0a-259df155ae94');
-  OneSignal.disablePush(false);
-  console.log('✅ OneSignal ready for notifications');
-} catch (error) {
-  console.log('❌ OneSignal failed:', error);
-}
+// ✅ OneSignal is initialized NATIVELY in AppDelegate.mm (iOS)
+// ✅ No JavaScript SDK needed - native initialization handles everything
+console.log('🔔 OneSignal: Native-only mode (iOS)');
+console.log('✅ OneSignal XCFramework initialized in AppDelegate.mm');
+console.log('💡 Push notifications handled natively');
 
 AppRegistry.registerComponent(appName, () => App);

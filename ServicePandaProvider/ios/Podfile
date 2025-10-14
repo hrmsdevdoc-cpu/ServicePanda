@@ -47,6 +47,11 @@ target 'ServicePandaProvider' do
 
         # Match working project behaviour: allow non-modular includes in framework modules
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        
+        # Enable dSYM generation for all pods (fixes Upload Symbols Failed error)
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+        config.build_settings['DWARF_DSYM_FOLDER_PATH'] = '$(CONFIGURATION_BUILD_DIR)'
+        config.build_settings['DWARF_DSYM_FILE_NAME'] = '$(EXECUTABLE_NAME).dSYM'
 
         # Ensure OneSignal Swift frameworks are module-stable and importable from ObjC
         if target.name.include?('OneSignal')
