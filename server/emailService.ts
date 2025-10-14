@@ -31,7 +31,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     
     // Prepare form data for Mailgun API using URLSearchParams (Node.js compatible)
     const formData = new URLSearchParams();
-    formData.append('from', `ServicePanda <noreply@${domain}>`);
+    formData.append('from', `ServicePanda <team@servicepanda.com.au>`);
     formData.append('to', options.to);
     if (options.cc) {
       formData.append('cc', options.cc);

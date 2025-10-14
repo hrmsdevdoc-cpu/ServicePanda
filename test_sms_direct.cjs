@@ -1,92 +1,63 @@
 const axios = require('axios');
 
-// Direct SMS test to user's number
-async function testSmsDirect() {
-  console.log('🧪 Testing SMS Service Directly to Your Number...\n');
+async function testSmsSending() {
+  const apiKey = '3prDbqty5SVg6sVEeVPXzupjyUVnZUTFG75CrmPXK4rB76hP4LuE4HvVKMqutFt44bEffSPV6jAuntpGh3kgSKn3Mu9Rd2ZHL7Vc';
+  const apiUrl = 'https://dialpad.com/api/v2/sms';
+  const fromNumber = '+61452229882';
+  const toNumber = '0485901942'; // Your test number
   
-  // Use provided Dialpad credentials directly (no .env)
-  const smsApiUrl = 'https://dialpad.com/api/v2/sms';
-  const smsApiKey = '3prDbqty5SVg6sVEeVPXzupjyUVnZUTFG75CrmPXK4rB76hP4LuE4HvVKMqutFt44bEffSPV6jAuntpGh3kgSKn3Mu9Rd2ZHL7Vc';
+  const message = `Test SMS from ServicePanda Campaign System!
   
-  // User's phone number (with country code)
-  const userPhone = '+61485901939';
-  const testMessage = `🧪 Test SMS from ServicePanda!
+This is a test message to verify SMS delivery.
 
-This is a direct test message to verify our SMS service is working correctly.
-
-Time: ${new Date().toLocaleString()}
-Service: Dialpad SMS API
-Status: Direct Test
-
-If you receive this, our SMS integration is working! 🎉
+If you receive this, the SMS system is working correctly.
 
 Best regards,
 ServicePanda Team`;
 
-  console.log('\n📱 Sending Direct Test SMS...');
-  console.log('To:', userPhone);
-  console.log('Message:', testMessage.substring(0, 100) + '...');
-  
+  console.log('🔍 Testing SMS sending...');
+  console.log('📱 To:', toNumber);
+  console.log('📱 From:', fromNumber);
+  console.log('📝 Message:', message.substring(0, 100) + '...');
+  console.log('🔑 API Key:', apiKey.substring(0, 20) + '...');
+  console.log('🌐 API URL:', apiUrl);
+
   try {
-    console.log('\n🚀 Making API request to Dialpad...');
-    
-    // Send SMS using Dialpad API
     const response = await axios.post(
-      `${smsApiUrl}?apikey=${encodeURIComponent(smsApiKey)}`,
+      `${apiUrl}?apikey=${encodeURIComponent(apiKey)}`,
       {
         infer_country_code: false,
-        text: testMessage,
-        to_numbers: [userPhone],
-        from_number: '+61452229882',
+        text: message,
+        to_numbers: [toNumber],
+        from_number: fromNumber,
       },
       {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        timeout: 30000, // 30 second timeout
       }
     );
-
-    const responseData = response.data;
-    console.log('\n📤 SMS API Response:', responseData);
-
-    if (responseData && typeof responseData.id === 'string' && responseData.id.trim() !== '') {
-      console.log('\n🎉 SUCCESS! SMS sent successfully!');
-      console.log('Message ID:', responseData.id);
-      console.log('To:', userPhone);
-      console.log('\n✅ API acknowledged send.');
-      console.log('\n📱 Please confirm the SMS arrived on +61 485 901 939.');
-      console.log('\n📋 Next steps:');
-      console.log('1. Verify you received the SMS');
-      console.log('2. Test the admin panel SMS functionality');
-      console.log('3. Use the "Send SMS" buttons in your admin panel');
+    
+    console.log('✅ SMS API Response:');
+    console.log('Status:', response.status);
+    console.log('Data:', JSON.stringify(response.data, null, 2));
+    
+    if (response.data && response.data.id) {
+      console.log('🎉 SMS sent successfully!');
+      console.log('SMS ID:', response.data.id);
     } else {
-      console.log('\n❌ SMS API response error:', responseData);
-      console.log('Please check your Dialpad API configuration');
+      console.log('❌ SMS failed - No ID returned');
     }
     
   } catch (error) {
-    console.log('\n❌ Failed to send SMS:');
+    console.error('❌ SMS sending failed:');
+    console.error('Error:', error.message);
     if (error.response) {
-      console.log('Status:', error.response.status);
-      console.log('Response:', error.response.data);
-    } else if (error.request) {
-      console.log('Request error:', error.message);
-    } else {
-      console.log('Error:', error.message);
+      console.error('Status:', error.response.status);
+      console.error('Response:', JSON.stringify(error.response.data, null, 2));
     }
-    
-    console.log('\n🔍 Troubleshooting tips:');
-    console.log('1. Verify your Dialpad API key is valid');
-    console.log('2. Check if you have sufficient SMS credits');
-    console.log('3. Ensure the API endpoint is correct');
-    console.log('4. Check your internet connection');
-    console.log('5. Verify the phone number format (+918077158797)');
   }
 }
 
-// Run the test
-console.log('🚀 Starting Direct SMS Test...\n');
-testSmsDirect().catch(console.error);
-
+testSmsSending();
