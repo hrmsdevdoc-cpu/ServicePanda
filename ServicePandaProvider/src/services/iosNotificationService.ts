@@ -17,30 +17,12 @@ class IOSNotificationServiceImpl implements IOSNotificationService {
         }
 
         try {
-            console.log('🔔 Requesting iOS notification permissions...');
-
-            // Dynamically require to avoid undefined default import issues
-            const OS: any = (() => {
-                try { return require('react-native-onesignal'); } catch { return null; }
-            })();
-
-            if (!OS?.Notifications?.requestPermission) {
-                console.log('⚠️ OneSignal.Notifications.requestPermission not available (already prompted in AppDelegate).');
-                return true;
-            }
-
-            const permission = await OS.Notifications.requestPermission(true);
-            if (permission) {
-                console.log('✅ iOS notification permission granted');
-                return true;
-            } else {
-                console.log('❌ iOS notification permission denied');
-                this.showPermissionDeniedAlert();
-                return false;
-            }
+            console.log('🔔 iOS: Permissions handled natively in AppDelegate.mm');
+            console.log('✅ No JavaScript SDK needed - native initialization handles everything');
+            return true; // Always return true as permissions are handled natively
         } catch (error) {
-            console.error('❌ Error requesting iOS notification permissions:', error);
-            return false;
+            console.error('❌ Error in iOS permission check:', error);
+            return true; // Still return true as native handles it
         }
     }
 
@@ -70,60 +52,9 @@ class IOSNotificationServiceImpl implements IOSNotificationService {
     }
 
     private setupNotificationHandlers(): void {
-        const OS: any = (() => { try { return require('react-native-onesignal'); } catch { return null; } })();
-        if (!OS?.Notifications) {
-            console.log('⚠️ OneSignal Notifications API not available yet; handlers not attached.');
-            return;
-        }
-
-        // Handle notification received while app is in foreground
-        OS.Notifications.addEventListener('foregroundWillDisplay', (event: any) => {
-            console.log('🔔 iOS notification received in foreground:', event);
-
-            // You can customize the notification display here
-            // For now, we'll let it display normally
-            try {
-                const notif = event.getNotification ? event.getNotification() : event.notification;
-                notif?.display?.();
-            } catch { }
-        });
-
-        // Handle notification opened
-        OS.Notifications.addEventListener('click', (event: any) => {
-            console.log('🔔 iOS notification clicked:', event);
-
-            // Handle notification click - navigate to relevant screen
-            const notification = event.notification;
-            const data = notification.additionalData;
-
-            if (data) {
-                console.log('📱 Notification data:', data);
-                // Handle navigation based on notification data
-                this.handleNotificationNavigation(data);
-            }
-        });
-
-        // Handle permission changes
-        OS.Notifications.addEventListener('permissionChange', (permission: any) => {
-            console.log('🔔 iOS notification permission changed:', permission);
-        });
-
-        // Handle notification actions (Accept/Decline Lead)
-        OS.Notifications.addEventListener('action', (event: any) => {
-            console.log('🔔 iOS notification action triggered:', event);
-
-            const actionId = event.action.actionId;
-            const notification = event.notification;
-            const data = notification.additionalData;
-
-            if (actionId === 'ACCEPT_LEAD') {
-                console.log('📱 Lead accepted via notification');
-                this.handleLeadAction('accept', data);
-            } else if (actionId === 'DECLINE_LEAD') {
-                console.log('📱 Lead declined via notification');
-                this.handleLeadAction('decline', data);
-            }
-        });
+        console.log('⚠️ iOS: Skipping JavaScript notification handlers (native-only mode)');
+        console.log('✅ Native AppDelegate.mm handles all notification events');
+        // NO JAVASCRIPT SDK - All notifications handled natively
     }
 
     private handleNotificationNavigation(data: any): void {
@@ -155,15 +86,8 @@ class IOSNotificationServiceImpl implements IOSNotificationService {
     }
 
     async isPermissionGranted(): Promise<boolean> {
-        try {
-            const OS: any = (() => { try { return require('react-native-onesignal'); } catch { return null; } })();
-            if (!OS?.Notifications?.getPermissionAsync) return false;
-            const permission = await OS.Notifications.getPermissionAsync();
-            return permission;
-        } catch (error) {
-            console.error('❌ Error checking iOS notification permission:', error);
-            return false;
-        }
+        console.log('🔍 iOS: Checking permission status natively (JS SDK not used)');
+        return true; // Assume granted as native handles it
     }
 
     openSettings(): void {

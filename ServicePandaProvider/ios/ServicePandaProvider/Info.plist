@@ -37,8 +37,6 @@
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>remote-notification</string>
-			<string>background-processing</string>
-			<string>background-fetch</string>
 		</array>
 		<key>UIUserNotificationSettings</key>
 		<dict>

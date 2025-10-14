@@ -32,7 +32,7 @@ class OneSignalAdminService {
   private getExternalUserIds(providerId: number): string[] {
     // DYNAMIC: Always use consistent format - no static mapping needed
     const externalIds = [`provider-${providerId}`];
-    
+
     console.log(`👤 External user IDs for provider ${providerId}:`, externalIds);
     console.log(`✅ Using dynamic external ID: provider-${providerId}`);
     return externalIds;
@@ -49,26 +49,26 @@ class OneSignalAdminService {
       // Create payload with BROADCAST delivery (no external ID needed)
       const payload = {
         app_id: this.appId,
-        
-        // BROADCAST STRATEGY: Send to all users
-        included_segments: ['All'],
-        
+
+        // BROADCAST STRATEGY: Send to subscribed users only (recommended)
+        included_segments: ['Subscribed Users'],
+
         headings: { en: notification.title },
         contents: { en: notification.message },
         data: notification.data || {},
-        
+
         // Android specific settings
         priority: 10,
         android_sound: "default",
         android_vibration_pattern: [1000, 1000],
-        
+
         // Make sure it works when app is closed
         content_available: true,
-        
+
         // Additional settings to ensure delivery
         send_after: new Date().toISOString(),
         ttl: 3600, // 1 hour TTL
-        
+
         // Remove apns_push_type_override - let OneSignal handle it automatically
       };
 
@@ -90,7 +90,7 @@ class OneSignalAdminService {
 
       const result = await response.json();
       console.log(`✅ OneSignal notification sent:`, result);
-      
+
       // Enhanced result logging
       if (result.recipients) {
         console.log(`📊 Notification delivered to ${result.recipients} recipients`);
@@ -98,9 +98,9 @@ class OneSignalAdminService {
       if (result.errors && result.errors.length > 0) {
         console.log(`⚠️ Some errors occurred:`, result.errors);
       }
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         id: result.id,
         recipients: result.recipients || 0,
         errors: result.errors || []
@@ -115,17 +115,17 @@ class OneSignalAdminService {
 
   // Send to multiple providers
   async sendToMultipleProviders(
-    providerIds: number[], 
+    providerIds: number[],
     notification: OneSignalNotification
   ): Promise<OneSignalResult[]> {
     const results = await Promise.all(
       providerIds.map(providerId => this.sendToProvider(providerId, notification))
     );
-    
-    console.log(`📊 Sent notifications to ${providerIds.length} providers:`, 
+
+    console.log(`📊 Sent notifications to ${providerIds.length} providers:`,
       results.filter(r => r.success).length + ' successful'
     );
-    
+
     return results;
   }
 }
