@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TrendingUp, Users, MapPin, Calendar, Filter, Search, X, FileText, Clock, CheckCircle, AlertCircle, Phone, Mail, User, Globe, BarChart3, MoreVertical, MessageSquare, Activity } from "lucide-react";
+import { TrendingUp, Users, MapPin, Calendar, Filter, Search, X, FileText, Clock, CheckCircle, AlertCircle, Phone, Mail, User, Globe, BarChart3, MoreVertical, MessageSquare, Activity, Eye, EyeOff, Columns } from "lucide-react";
 import { format } from "date-fns";
 import { AdminLeadOfferDetails } from "@/components/AdminLeadOfferDetails";
 import { useState, useEffect } from "react";
@@ -92,7 +92,43 @@ export default function AdminLeads() {
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
   const [isInteractionsOpen, setIsInteractionsOpen] = useState(false);
   const [selectedLeadForInteractions, setSelectedLeadForInteractions] = useState<number | null>(null);
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
   const { toast } = useToast();
+
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
+    id: true,
+    customerName: true,
+    state: true,
+    suburb: true,
+    leadDate: true,
+    jobDate: false,
+    email: false,
+    phone: false,
+    type: true,
+    category: true,
+    offered: true,
+    accepted: true,
+    pending: true,
+    status: true,
+    actions: true,
+  });
+
+  const toggleColumn = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
+  };
+
+  // Close column menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showColumnMenu && !target.closest('.column-menu-container')) {
+        setShowColumnMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showColumnMenu]);
 
   // Check admin authentication
   useEffect(() => {
@@ -309,7 +345,7 @@ export default function AdminLeads() {
                 <TrendingUp className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+                <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                   Lead Management
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -325,7 +361,7 @@ export default function AdminLeads() {
           <div className="flex-1 overflow-y-auto p-6">
             {/* Filters */}
             <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -363,30 +399,75 @@ export default function AdminLeads() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Column Visibility Toggle */}
+                <div className="relative column-menu-container">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowColumnMenu(!showColumnMenu)}
+                    className="w-full"
+                  >
+                    <Columns className="h-4 w-4 mr-2" />
+                    Columns
+                  </Button>
+                  
+                  {showColumnMenu && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 z-50 column-menu-dropdown">
+                      <div className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Show/Hide Columns</div>
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {[
+                          { key: 'id', label: 'ID' },
+                          { key: 'customerName', label: 'Customer Name' },
+                          { key: 'state', label: 'State' },
+                          { key: 'suburb', label: 'Suburb' },
+                          { key: 'leadDate', label: 'Lead Date' },
+                          { key: 'jobDate', label: 'Job Date' },
+                          { key: 'email', label: 'Email' },
+                          { key: 'phone', label: 'Phone' },
+                          { key: 'type', label: 'Type' },
+                          { key: 'category', label: 'Category' },
+                          { key: 'offered', label: 'Offered' },
+                          { key: 'accepted', label: 'Accepted' },
+                          { key: 'pending', label: 'Pending' },
+                          { key: 'status', label: 'Status' },
+                        ].map((column) => (
+                          <label key={column.key} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
+                            <input
+                              type="checkbox"
+                              checked={visibleColumns[column.key as keyof typeof visibleColumns]}
+                              onChange={() => toggleColumn(column.key as keyof typeof visibleColumns)}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{column.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-              <table className="w-full text-xs">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
+              <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr className="border-b border-gray-200 dark:border-gray-600">
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">ID</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">State</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Suburb</th>
-                    <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400"><Globe className="h-3 w-3 mx-auto" /></th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Lead Date</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Job Date</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Customer Name</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Email</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Phone</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Type</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Category</th>
-                    <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Offered</th>
-                    <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Accepted</th>
-                    <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Pending</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Status</th>
-                    <th className="px-2 py-2 text-center font-medium text-gray-600 dark:text-gray-400">Actions</th>
+                    {visibleColumns.id && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400 sticky left-0 bg-gray-50 dark:bg-gray-700 z-10">ID</th>}
+                    {visibleColumns.customerName && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400">Customer Name</th>}
+                    {visibleColumns.state && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400">State</th>}
+                    {visibleColumns.suburb && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400">Suburb</th>}
+                    {visibleColumns.leadDate && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400">Lead Date</th>}
+                    {visibleColumns.jobDate && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400">Job Date</th>}
+                    {visibleColumns.email && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400">Email</th>}
+                    {visibleColumns.phone && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400">Phone</th>}
+                    {visibleColumns.type && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400">Type</th>}
+                    {visibleColumns.category && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400">Category</th>}
+                    {visibleColumns.offered && <th className="px-3 py-3 text-center font-medium text-gray-600 dark:text-gray-400">Offered</th>}
+                    {visibleColumns.accepted && <th className="px-3 py-3 text-center font-medium text-gray-600 dark:text-gray-400">Accepted</th>}
+                    {visibleColumns.pending && <th className="px-3 py-3 text-center font-medium text-gray-600 dark:text-gray-400">Pending</th>}
+                    {visibleColumns.status && <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-gray-400">Status</th>}
+                    {visibleColumns.actions && <th className="px-3 py-3 text-center font-medium text-gray-600 dark:text-gray-400">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-600">
@@ -399,61 +480,66 @@ export default function AdminLeads() {
                         className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                         onClick={() => handleLeadClick(lead)}
                       >
-                        <td className="px-2 py-1 font-medium text-blue-600">#{lead.id}</td>
-                        <td className="px-2 py-1">{lead.state || 'NSW'}</td>
-                        <td className="px-2 py-1 max-w-20 truncate">{lead.suburb}</td>
-                        <td className="px-2 py-1 text-center">
-                          <Globe className="h-3 w-3 text-gray-400 mx-auto" />
-                        </td>
-                        <td className="px-2 py-1">{format(new Date(lead.createdAt), "MMM d")}</td>
-                        <td className="px-2 py-1">
-                          {lead.preferredDate ? format(new Date(lead.preferredDate), "MMM d") : '-'}
-                        </td>
-                        <td className="px-2 py-1 font-medium max-w-32 truncate">{lead.customerName}</td>
-                        <td className="px-2 py-1 text-gray-600 max-w-40 truncate">{lead.customerEmail}</td>
-                        <td className="px-2 py-1 text-gray-600 max-w-24 truncate">{lead.customerPhone || '-'}</td>
-                        <td className="px-2 py-1">
-                          <span className="inline-flex items-center gap-1">
-                            {getLeadTypeBadge(lead.bookingType)}
-                            {lead.status === 'active' && <span className="text-green-600 text-xs">●</span>}
-                          </span>
-                        </td>
-                        <td className="px-2 py-1 text-xs text-gray-600 max-w-24 truncate" title={lead.categoryName}>
-                          {lead.categoryName}
-                        </td>
-                        <td className="px-2 py-1 text-center font-medium">{metrics.totalOffered}</td>
-                        <td className="px-2 py-1 text-center font-medium text-green-600">{metrics.totalAccepted}</td>
-                        <td className="px-2 py-1 text-center font-medium text-orange-600">{metrics.totalPending}</td>
-                        <td className="px-2 py-1">{getLeadStatusBadge(lead.status)}</td>
-                        <td className="px-2 py-1 text-center">
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewOfferDetails(lead.id);
-                              }}
-                              className="text-blue-600 border-blue-300 hover:bg-blue-50 text-xs px-2 py-1"
-                            >
-                              <BarChart3 className="h-3 w-3 mr-1" />
-                              Offers
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedLeadForInteractions(lead.id);
-                                setIsInteractionsOpen(true);
-                              }}
-                              className="text-green-600 border-green-300 hover:bg-green-50 text-xs px-2 py-1"
-                            >
-                              <Activity className="h-3 w-3 mr-1" />
-                              Activity
-                            </Button>
-                          </div>
-                        </td>
+                        {visibleColumns.id && (
+                          <td className="px-3 py-2 text-blue-600 font-medium sticky left-0 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            #{lead.id}
+                          </td>
+                        )}
+                        {visibleColumns.customerName && <td className="px-3 py-2 font-medium">{lead.customerName}</td>}
+                        {visibleColumns.state && <td className="px-3 py-2">{lead.state || 'NSW'}</td>}
+                        {visibleColumns.suburb && <td className="px-3 py-2">{lead.suburb}</td>}
+                        {visibleColumns.leadDate && <td className="px-3 py-2 whitespace-nowrap">{format(new Date(lead.createdAt), "MMM d, yy")}</td>}
+                        {visibleColumns.jobDate && (
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            {lead.preferredDate ? format(new Date(lead.preferredDate), "MMM d, yy") : '-'}
+                          </td>
+                        )}
+                        {visibleColumns.email && <td className="px-3 py-2 text-gray-600">{lead.customerEmail}</td>}
+                        {visibleColumns.phone && <td className="px-3 py-2 text-gray-600">{lead.customerPhone || '-'}</td>}
+                        {visibleColumns.type && (
+                          <td className="px-3 py-2">
+                            <span className="inline-flex items-center gap-1">
+                              {getLeadTypeBadge(lead.bookingType)}
+                              {lead.status === 'active' && <span className="text-green-600 text-xs">●</span>}
+                            </span>
+                          </td>
+                        )}
+                        {visibleColumns.category && <td className="px-3 py-2 text-gray-600">{lead.categoryName}</td>}
+                        {visibleColumns.offered && <td className="px-3 py-2 text-center font-medium">{metrics.totalOffered}</td>}
+                        {visibleColumns.accepted && <td className="px-3 py-2 text-center font-medium text-green-600">{metrics.totalAccepted}</td>}
+                        {visibleColumns.pending && <td className="px-3 py-2 text-center font-medium text-orange-600">{metrics.totalPending}</td>}
+                        {visibleColumns.status && <td className="px-3 py-2">{getLeadStatusBadge(lead.status)}</td>}
+                        {visibleColumns.actions && (
+                          <td className="px-3 py-2">
+                            <div className="flex gap-1 justify-center">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewOfferDetails(lead.id);
+                                }}
+                                className="text-blue-600 border-blue-300 hover:bg-blue-50 text-xs px-2 py-1"
+                              >
+                                <BarChart3 className="h-3 w-3 mr-1" />
+                                Offers
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedLeadForInteractions(lead.id);
+                                  setIsInteractionsOpen(true);
+                                }}
+                                className="text-green-600 border-green-300 hover:bg-green-50 text-xs px-2 py-1"
+                              >
+                                <Activity className="h-3 w-3 mr-1" />
+                                Activity
+                              </Button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -476,46 +562,21 @@ export default function AdminLeads() {
 
           {/* Right Side Panel */}
           <Sheet open={isPanelOpen} onOpenChange={setIsPanelOpen}>
-            <SheetContent side="right" className="w-full sm:w-[400px] md:w-[500px] p-0">
+            <SheetContent side="right" className="w-full sm:w-[400px] md:w-[500px] p-0 overflow-hidden">
               {selectedLead && (
-                <div className="h-full flex flex-col">
+                <div className="h-full flex flex-col overflow-hidden">
                   {/* Panel Header */}
-                  <SheetHeader className="p-6 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <SheetTitle className="text-xl">Lead #{selectedLead.id}</SheetTitle>
-                        <p className="text-sm text-gray-500 mt-1">{selectedLead.categoryName}</p>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => setIsPanelOpen(false)}>
-                        <X className="h-4 w-4" />
-                      </Button>
+                  <SheetHeader className="p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                    <div>
+                      <SheetTitle className="text-xl">Lead #{selectedLead.id}</SheetTitle>
+                      <p className="text-sm text-gray-500 mt-1">{selectedLead.categoryName}</p>
                     </div>
                   </SheetHeader>
 
                   {/* Panel Content */}
-                  <div className="flex-1 flex flex-col">
+                  <div className="flex-1 flex flex-col overflow-hidden">
                     {/* Top 65% - Details */}
-                    <div className="flex-1 p-6 overflow-y-auto">
-                      {/* Action Buttons */}
-                      <div className="grid grid-cols-2 gap-3 mb-6">
-                        <Button variant="outline" size="sm" className="justify-start">
-                          <User className="h-4 w-4 mr-2" />
-                          Customer Info
-                        </Button>
-                        <Button variant="outline" size="sm" className="justify-start">
-                          <MapPin className="h-4 w-4 mr-2" />
-                          Location
-                        </Button>
-                        <Button variant="outline" size="sm" className="justify-start">
-                          <Phone className="h-4 w-4 mr-2" />
-                          Call Customer
-                        </Button>
-                        <Button variant="outline" size="sm" className="justify-start">
-                          <Mail className="h-4 w-4 mr-2" />
-                          Email Customer
-                        </Button>
-                      </div>
-
+                    <div className="flex-1 p-6 overflow-y-auto overflow-x-hidden">
                       {/* Lead Details */}
                       <div className="space-y-4">
                         <div>
@@ -582,7 +643,7 @@ export default function AdminLeads() {
                     </div>
 
                     {/* Bottom 35% - Notes Section */}
-                    <div className="border-t border-gray-200 dark:border-gray-700 p-6 space-y-4">
+                    <div className="border-t border-gray-200 dark:border-gray-700 p-6 space-y-4 flex-shrink-0 overflow-y-auto" style={{ maxHeight: '35vh' }}>
                       <div>
                         <Label className="text-sm font-medium text-gray-600">Add Note</Label>
                         <div className="mt-2 flex gap-2">
@@ -605,7 +666,7 @@ export default function AdminLeads() {
                       {/* Existing Notes */}
                       <div>
                         <Label className="text-sm font-medium text-gray-600">Activity & Notes</Label>
-                        <div className="mt-2 max-h-40 overflow-y-auto space-y-2">
+                        <div className="mt-2 space-y-2">
                           {selectedLead.notes && selectedLead.notes.length > 0 ? (
                             selectedLead.notes.map((note) => (
                               <div key={note.id} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">

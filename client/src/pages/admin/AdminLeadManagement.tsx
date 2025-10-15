@@ -416,15 +416,26 @@ export default function AdminLeadManagement() {
       <div className="relative z-20">
         <AdminSidebar onLogout={() => {}} />
       </div>
-      <div className="flex-1 overflow-y-auto relative z-10 p-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Service Type</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Manage service types dynamically
-            </p>
+      <div className="flex-1 overflow-y-auto relative z-10">
+        {/* Header */}
+        <header className="bg-white/95 backdrop-blur-sm dark:bg-gray-800 shadow-lg shadow-slate-200/20 border-b border-slate-200/50 dark:border-gray-700">
+          <div className="px-8 py-3" style={{ paddingTop: '1.2rem', paddingBottom: '0.8rem' }}>
+            <div className="flex items-center">
+              <div className="h-8 w-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
+                <Wrench className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Service Type</h1>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Manage service types dynamically
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
+        </header>
+
+        {/* Content */}
+        <div className="px-8 pt-4 pb-8 min-h-screen space-y-6">
 
         <div className="grid grid-cols-1 gap-6">
           {/* Service Types Management */}
@@ -920,6 +931,7 @@ export default function AdminLeadManagement() {
             )}
           </DialogContent>
         </Dialog>
+        </div>
       </div>
     </div>
   );
