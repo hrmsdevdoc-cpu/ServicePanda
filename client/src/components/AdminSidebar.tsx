@@ -162,8 +162,8 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       permission: "potential_customers",
       subItems: [
         { label: "Import Groups", href: "/admin/potential-customers/imports", permission: "admin_users" },
-        { label: "Customer List", href: "/admin/potential-customers" },
         { label: "SMS Campaigns", href: "/admin/potential-customers/sms" },
+        { label: "Customer List", href: "/admin/potential-customers" },
       ],
     },
     {
@@ -211,11 +211,11 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       href: "/admin/settings",
       permission: "settings",
       subItems: [
-        { label: "Role & Permissions", href: "/admin/settings/roles-permissions", permission: "settings" },
         { label: "Users", href: "#", permission: "admin_users", subItems: [
           { label: "Admin Users", href: "/admin/admin-users", permission: "admin_users" },
           { label: "Departments", href: "/admin/departments", permission: "departments" },
         ]},
+        { label: "Role & Permissions", href: "/admin/settings/roles-permissions", permission: "settings" },
         { label: "Change Password", href: "/admin/change-password", permission: "settings" },
         { label: "Stripe Settings", href: "/admin/settings/stripe", permission: "settings" },
         { label: "Mailgun Settings", href: "/admin/settings/mailgun", permission: "settings" },
@@ -285,7 +285,7 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
         isCollapsed ? 'w-16' : 'w-64 border-slate-700 dark:border-gray-700'
       }`}>
       {/* Header */}
-          <div className={`border-b border-slate-700/50 transition-all duration-300 ${isCollapsed ? 'p-3' : 'p-6'} relative overflow-hidden`}>
+          <div className={`border-b border-slate-700/50 transition-all duration-300 ${isCollapsed ? 'p-3' : 'p-4'} relative overflow-hidden`}>
         {/* Animated background pattern */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 animate-pulse"></div>
         <div className="relative z-10 flex items-center">
