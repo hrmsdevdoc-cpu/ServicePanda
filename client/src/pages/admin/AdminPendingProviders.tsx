@@ -544,112 +544,170 @@ export default function AdminPendingProviders() {
 
         {/* Content */}
         <div className="px-8 pt-4 pb-8 min-h-screen">
-          <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
-            <CardHeader>
-              {/* <CardTitle>Provider Applications Awaiting Review</CardTitle> */}
-              <div className="flex items-center space-x-4">
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search providers..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Badge variant="outline" className="text-orange-600">
-                  {filteredProviders?.length || 0} Pending
+          {/* Header Section */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">Pending Applications</h2>
+                <p className="text-sm text-gray-500">Review and manage provider applications</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge className="bg-gradient-to-r from-orange-500 to-amber-600 text-white px-4 py-2 text-sm shadow-lg shadow-orange-500/30">
+                  {filteredProviders?.length || 0} Pending Review
                 </Badge>
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            
+            {/* Search Bar */}
+            <div className="mt-6">
+              <div className="relative max-w-md">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  placeholder="Search by name, email, or phone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-12 h-12 bg-white border-gray-200 shadow-sm focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div>
               {isLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
-                  <p className="mt-2 text-gray-500">Loading pending providers...</p>
+                <div className="text-center py-16">
+                  <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+                  <p className="mt-4 text-gray-500 font-medium">Loading pending providers...</p>
                 </div>
+              ) : (!filteredProviders || filteredProviders.length === 0) ? (
+                <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+                  <CardContent className="py-16">
+                    <div className="text-center">
+                      <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <User className="h-10 w-10 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">No Pending Applications</h3>
+                      <p className="text-sm text-gray-500">All provider applications have been reviewed</p>
+                    </div>
+                  </CardContent>
+                </Card>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3 w-16">#</th>
-                        <th className="text-left p-3">Provider</th>
-                        <th className="text-left p-3">Email</th>
-                        <th className="text-left p-3">Phone</th>
-                        <th className="text-left p-3">Documents</th>
-                        <th className="text-left p-3">Applied</th>
-                        <th className="text-left p-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredProviders?.map((provider: ServiceProvider, index: number) => (
-                        <tr key={provider.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <td className="p-3">
-                            <span className="font-semibold text-gray-600">{index + 1}</span>
-                          </td>
-                          <td className="p-3">
-                            <div>
-                              <p className="font-medium">{provider.firstName} {provider.lastName}</p>
-                              <p className="text-gray-500 text-xs">{provider.address}</p>
+                <div className="space-y-4">
+                  {filteredProviders?.map((provider: ServiceProvider, index: number) => (
+                    <Card key={provider.id} className="bg-white/80 backdrop-blur-xl border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl overflow-hidden group">
+                      {/* Left Border Gradient */}
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-500 via-amber-500 to-orange-500"></div>
+                      
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-6">
+                          {/* Number Badge */}
+                          <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center">
+                            <span className="text-lg font-bold text-gray-600">#{index + 1}</span>
+                          </div>
+
+                          {/* Avatar */}
+                          <div className="flex-shrink-0">
+                            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-blue-500/30 group-hover:scale-105 transition-transform duration-300">
+                              {provider.firstName?.charAt(0)}{provider.lastName?.charAt(0)}
                             </div>
-                          </td>
-                          <td className="p-3">{provider.email}</td>
-                          <td className="p-3">{provider.mobileNumber}</td>
-                          <td className="p-3">
-                            <Badge variant={provider.documentsUploaded ? "default" : "destructive"}>
-                              {provider.documentsUploaded ? "Complete" : "Missing"}
-                            </Badge>
-                          </td>
-                          <td className="p-3">
-                            {new Date(provider.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="p-3">
-                            <div className="flex space-x-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleViewProvider(provider)}
-                              >
-                                <Eye className="h-3 w-3 mr-1" />
-                                View
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="default"
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => approveProviderMutation.mutate({ providerId: provider.id, action: 'approve' })}
-                                disabled={approveProviderMutation.isPending}
-                              >
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => approveProviderMutation.mutate({ providerId: provider.id, action: 'reject' })}
-                                disabled={approveProviderMutation.isPending}
-                              >
-                                <XCircle className="h-3 w-3 mr-1" />
-                                Reject
-                              </Button>
+                          </div>
+                          
+                          {/* Name & Date */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-bold text-gray-900 mb-1">
+                              {provider.firstName} {provider.lastName}
+                            </h3>
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                <span>{new Date(provider.createdAt).toLocaleDateString()}</span>
+                              </div>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                      {(!filteredProviders || filteredProviders.length === 0) && !isLoading && (
-                        <tr>
-                          <td colSpan={7} className="text-center py-8 text-gray-500">
-                            No pending provider applications found
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                          </div>
+
+                          {/* Contact Info */}
+                          <div className="hidden lg:flex flex-1 items-center gap-6 text-sm">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <User className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <span className="text-gray-600 truncate">{provider.email}</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="w-9 h-9 bg-green-50 rounded-xl flex items-center justify-center">
+                                <Shield className="h-4 w-4 text-green-600" />
+                              </div>
+                              <span className="text-gray-600">{provider.mobileNumber}</span>
+                            </div>
+                          </div>
+
+                          {/* Documents Badge */}
+                          <div className="flex-shrink-0">
+                            {provider.documentsUploaded ? (
+                              <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-md px-4 py-2">
+                                <FileText className="h-4 w-4 mr-1.5" />
+                                Complete
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white border-0 shadow-md px-4 py-2">
+                                <FileText className="h-4 w-4 mr-1.5" />
+                                Missing
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewProvider(provider)}
+                              className="h-10 w-10 p-0 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-colors"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => approveProviderMutation.mutate({ providerId: provider.id, action: 'approve' })}
+                              disabled={approveProviderMutation.isPending}
+                              className="h-10 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 shadow-md hover:shadow-lg transition-all px-4"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1.5" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => approveProviderMutation.mutate({ providerId: provider.id, action: 'reject' })}
+                              disabled={approveProviderMutation.isPending}
+                              className="h-10 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 shadow-md hover:shadow-lg transition-all px-4"
+                            >
+                              <XCircle className="h-4 w-4 mr-1.5" />
+                              Reject
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Mobile Contact Info - Hidden on Desktop */}
+                        <div className="lg:hidden mt-4 pt-4 border-t border-gray-100 flex gap-4 text-sm">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <User className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <span className="text-gray-600 truncate">{provider.email}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
+                              <Shield className="h-4 w-4 text-green-600" />
+                            </div>
+                            <span className="text-gray-600">{provider.mobileNumber}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+          </div>
         </div>
       </div>
 

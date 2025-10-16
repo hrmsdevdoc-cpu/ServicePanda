@@ -854,11 +854,11 @@ export default function AdminEmail() {
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left Sidebar - Email Folders */}
-          <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+          <div className="w-64 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200/50 flex flex-col shadow-lg">
             <div className="p-4">
               <Button
                 onClick={() => setIsComposeDialogOpen(true)}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Compose
@@ -868,75 +868,79 @@ export default function AdminEmail() {
             <div className="flex-1 px-4 space-y-1">
               <div className="space-y-1">
                 <div 
-                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer ${
-                    activeTab === 'inbox' ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50'
+                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                    activeTab === 'inbox' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold shadow-lg shadow-blue-500/30' : 'hover:bg-gray-100 hover:translate-x-1'
                   }`}
                   onClick={() => setActiveTab('inbox')}
                 >
-                  <span>INBOX</span>
-                  <Badge variant="secondary">({getTabCount('inbox')})</Badge>
+                  <span className="text-sm font-medium">INBOX</span>
+                  <Badge variant={activeTab === 'inbox' ? 'secondary' : 'secondary'} className={activeTab === 'inbox' ? 'bg-white/20 text-white border-0' : ''}>({getTabCount('inbox')})</Badge>
                 </div>
                 <div 
-                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer ${
-                    activeTab === 'sent' ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50'
+                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                    activeTab === 'sent' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold shadow-lg shadow-green-500/30' : 'hover:bg-gray-100 hover:translate-x-1'
                   }`}
                   onClick={() => setActiveTab('sent')}
                 >
-                  <span>Sent</span>
-                  <Badge variant="secondary">({getTabCount('sent')})</Badge>
+                  <span className="text-sm font-medium">Sent</span>
+                  <Badge variant="secondary" className={activeTab === 'sent' ? 'bg-white/20 text-white border-0' : ''}>({getTabCount('sent')})</Badge>
                 </div>
                 <div 
-                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer ${
-                    activeTab === 'draft' ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50'
+                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                    activeTab === 'draft' ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white font-semibold shadow-lg shadow-orange-500/30' : 'hover:bg-gray-100 hover:translate-x-1'
                   }`}
                   onClick={() => setActiveTab('draft')}
                 >
-                  <span>Drafts</span>
-                  <Badge variant="secondary">({getTabCount('draft')})</Badge>
+                  <span className="text-sm font-medium">Drafts</span>
+                  <Badge variant="secondary" className={activeTab === 'draft' ? 'bg-white/20 text-white border-0' : ''}>({getTabCount('draft')})</Badge>
                 </div>
                 <div 
-                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer ${
-                    activeTab === 'spam' ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50'
+                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                    activeTab === 'spam' ? 'bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold shadow-lg shadow-red-500/30' : 'hover:bg-gray-100 hover:translate-x-1'
                   }`}
                   onClick={() => setActiveTab('spam')}
                 >
-                  <span>Spam</span>
-                  <Badge variant="secondary">({getTabCount('spam')})</Badge>
+                  <span className="text-sm font-medium">Spam</span>
+                  <Badge variant="secondary" className={activeTab === 'spam' ? 'bg-white/20 text-white border-0' : ''}>({getTabCount('spam')})</Badge>
                 </div>
                 <div 
-                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer ${
-                    activeTab === 'trash' ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50'
+                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                    activeTab === 'trash' ? 'bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold shadow-lg shadow-gray-600/30' : 'hover:bg-gray-100 hover:translate-x-1'
                   }`}
                   onClick={() => setActiveTab('trash')}
                 >
-                  <span>Trash</span>
-                  <Badge variant="secondary">({getTabCount('trash')})</Badge>
+                  <span className="text-sm font-medium">Trash</span>
+                  <Badge variant="secondary" className={activeTab === 'trash' ? 'bg-white/20 text-white border-0' : ''}>({getTabCount('trash')})</Badge>
                 </div>
                 <div 
-                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer ${
-                    activeTab === 'archive' ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50'
+                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                    activeTab === 'archive' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold shadow-lg shadow-purple-500/30' : 'hover:bg-gray-100 hover:translate-x-1'
                   }`}
                   onClick={() => setActiveTab('archive')}
                 >
-                  <span>Archive</span>
-                  <Badge variant="secondary">({getTabCount('archive')})</Badge>
+                  <span className="text-sm font-medium">Archive</span>
+                  <Badge variant="secondary" className={activeTab === 'archive' ? 'bg-white/20 text-white border-0' : ''}>({getTabCount('archive')})</Badge>
                 </div>
                 <div 
-                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer ${
-                    activeTab === 'unread' ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50'
+                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                    activeTab === 'unread' ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold shadow-lg shadow-indigo-500/30' : 'hover:bg-gray-100 hover:translate-x-1'
                   }`}
                   onClick={() => setActiveTab('unread')}
                 >
-                  <span>Unread</span>
-                  <Badge variant="secondary">({getUnreadCount()})</Badge>
+                  <span className="text-sm font-medium">Unread</span>
+                  <Badge variant="secondary" className={activeTab === 'unread' ? 'bg-white/20 text-white border-0' : ''}>({getUnreadCount()})</Badge>
                 </div>
                 <div 
-                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                    activeTab === 'test' ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white font-semibold shadow-lg shadow-cyan-500/30' : 'hover:bg-gray-100 hover:translate-x-1'
+                  }`}
                   onClick={() => setActiveTab('test')}
                 >
-                  <span>Test</span>
-                  <Badge variant="secondary">(0)</Badge>
-                  <ChevronRight className="h-4 w-4" />
+                  <span className="text-sm font-medium">Test</span>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="secondary" className={activeTab === 'test' ? 'bg-white/20 text-white border-0' : ''}>(0)</Badge>
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -999,7 +1003,7 @@ export default function AdminEmail() {
             {/* Email Table */}
             <div className="overflow-x-auto max-h-[80vh] overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200 sticky top-0 z-10">
                   <tr>
                     <th className="px-3 py-3 text-left">
                       <input
@@ -1014,9 +1018,6 @@ export default function AdminEmail() {
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-16">
                       #
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-20">
-                      ID
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       NAME
@@ -1038,7 +1039,7 @@ export default function AdminEmail() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {emails.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-12 text-center">
+                      <td colSpan={7} className="px-4 py-12 text-center">
                         <div className="flex flex-col items-center justify-center">
                           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                             <Mail className="h-8 w-8 text-gray-400" />
@@ -1061,7 +1062,7 @@ export default function AdminEmail() {
                     emails.map((email, index) => (
                       <tr 
                         key={email.id} 
-                        className={`hover:bg-gray-50 cursor-pointer transition-colors ${email.isRead ? '' : 'bg-blue-50/30'}`} 
+                        className={`hover:bg-blue-50/50 cursor-pointer transition-all duration-200 border-b border-gray-100 hover:shadow-md ${email.isRead ? '' : 'bg-blue-50/40 font-semibold'}`} 
                         onClick={() => handleViewEmail(email)}
                       >
                         <td className="px-3 py-3" onClick={(e) => { e.stopPropagation(); }}>
@@ -1078,10 +1079,9 @@ export default function AdminEmail() {
                         <td className="px-3 py-3">
                           <span className="font-semibold text-gray-600">{index + 1}</span>
                         </td>
-                        <td className="px-3 py-3 text-sm text-gray-900">{email.id}</td>
                         <td className="px-3 py-3">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg shadow-blue-500/30 flex-shrink-0">
                               {email.from.charAt(0).toUpperCase()}
                             </div>
                             <span className="text-sm font-medium text-gray-900 truncate">{email.from}</span>
