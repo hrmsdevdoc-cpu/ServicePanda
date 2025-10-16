@@ -33,7 +33,8 @@ interface User {
 class ApiService {
   private async makeRequest<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    attempt: number = 1
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
@@ -46,6 +47,7 @@ class ApiService {
 
     const defaultHeaders = {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
     };
 
     const config: RequestInit = {
@@ -71,22 +73,61 @@ class ApiService {
 
       clearTimeout(timeoutId);
 
+      const status = response.status;
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
 
+      // Handle non-2xx responses
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ API Error: ${response.status} - ${errorText}`);
-        throw new Error(`${response.status}: ${errorText || response.statusText}`);
+        console.error(`❌ API Error: ${status} - ${errorText}`);
+
+        // Retry transient server errors
+        if (attempt < 3 && [502, 503, 504].includes(status)) {
+          const backoffMs = 250 * Math.pow(2, attempt - 1);
+          await new Promise(r => setTimeout(r, backoffMs));
+          return this.makeRequest<T>(endpoint, options, attempt + 1);
+        }
+
+        throw new Error(`${status}: ${errorText || response.statusText}`);
       }
 
-      const data = await response.json();
+      // No content
+      if (status === 204) {
+        // @ts-expect-error allow void return for no content
+        return undefined;
+      }
 
-      return data;
+      // Parse JSON only when content-type is JSON
+      if (contentType.includes('application/json')) {
+        return await response.json();
+      }
+
+      // Fallback: try JSON parse first; if fails, surface text with hint
+      const rawText = await response.text();
+      try {
+        return JSON.parse(rawText);
+      } catch (parseErr) {
+        const snippet = rawText.slice(0, 200);
+        throw new Error(`Unexpected non-JSON response (content-type: ${contentType || 'unknown'}): ${snippet}`);
+      }
     } catch (error) {
       console.error(`💥 API Request Failed:`, error);
 
       // Handle timeout errors specifically
       if (error.name === 'AbortError') {
         throw new Error('Request timeout - please check your connection');
+      }
+
+      // Retry on network errors for first 2 attempts
+      const isNetworkError = typeof error.message === 'string' && (
+        error.message.includes('Network request failed') ||
+        error.message.includes('Could not connect to the server') ||
+        error.message.includes('The Internet connection appears to be offline')
+      );
+      if (attempt < 3 && isNetworkError) {
+        const backoffMs = 250 * Math.pow(2, attempt - 1);
+        await new Promise(r => setTimeout(r, backoffMs));
+        return this.makeRequest<T>(endpoint, options, attempt + 1);
       }
 
       throw error;

@@ -1148,11 +1148,11 @@ export class DatabaseStorage implements IStorage {
          ORDER BY sr.created_at DESC`,
         [customerId]
       );
-      
+
       // Debug: Check if categories exist
       const categoryCheck = await pool.query('SELECT id, name, icon FROM service_categories ORDER BY id');
 
-    
+
       // Get offer metrics for each request
       const requestsWithOffers = await Promise.all(result.rows.map(async (request: any) => {
         // Get offer metrics using direct SQL for maximum compatibility
@@ -1175,7 +1175,7 @@ export class DatabaseStorage implements IStorage {
         // If category_name is null from JOIN, try to fetch it manually
         let finalCategoryName = request.category_name;
         let finalCategoryIcon = request.category_icon;
-        
+
         if (!finalCategoryName && request.category_id) {
           try {
             const categoryResult = await pool.query(
@@ -1215,7 +1215,7 @@ export class DatabaseStorage implements IStorage {
             professionalCount: parseInt(offerMetrics.professional_count) || 0
           }
         };
-      
+
         return finalResult;
       }));
 
@@ -1612,11 +1612,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getServiceProvidersForReport(status?: string, rating?: string): Promise<any[]> {
-    
+
     try {
       // Get providers with services (same as getServiceProvidersForAdmin)
       const providersWithServices = await this.getServiceProvidersForAdmin(status);
-      
+
       // Add service areas for each provider
       const providersWithAreas = await Promise.all(
         providersWithServices.map(async (provider) => {
@@ -1644,7 +1644,7 @@ export class DatabaseStorage implements IStorage {
           }
         })
       );
-      
+
       return providersWithAreas;
     } catch (error) {
       console.error('Error in getServiceProvidersForReport:', error);
@@ -2218,7 +2218,7 @@ export class DatabaseStorage implements IStorage {
         .from(serviceCategories)
         .where(eq(serviceCategories.id, request.categoryId))
         .limit(1);
-      
+
       const categoryName = category.length > 0 ? category[0].name : 'Service';
 
       // Create distribution log
@@ -2392,7 +2392,7 @@ export class DatabaseStorage implements IStorage {
             }
           }
         } else {
-          console.log(`No coordinates found for postcode ${postcode}`);
+          // console.log(`No coordinates found for postcode ${postcode}`);
         }
       } catch (error) {
         console.error('Error in location-based provider matching:', error);
@@ -2622,7 +2622,7 @@ export class DatabaseStorage implements IStorage {
       // Create shared offers only for providers who didn't purchase unique offers
       const offerStartTime = new Date();
       const providerIds: number[] = [];
-      
+
       for (const provider of eligibleProviders) {
         await db.insert(leadOffers).values({
           requestId,
@@ -2635,7 +2635,7 @@ export class DatabaseStorage implements IStorage {
           // Shared offers don't expire individually - only expire 24 hours before job date
           expiresAt: null,
         });
-        
+
         providerIds.push(provider.providerId);
       }
 
@@ -3828,12 +3828,12 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(leadOffers.providerId, providerId),
-            or(
-              // Show all pending offers (both unique and shared)
-              eq(leadOffers.status, 'pending'),
-              // Show purchased offers (for activity history)
-              eq(leadOffers.status, 'purchased')
-            ),
+          or(
+            // Show all pending offers (both unique and shared)
+            eq(leadOffers.status, 'pending'),
+            // Show purchased offers (for activity history)
+            eq(leadOffers.status, 'purchased')
+          ),
           // Only show leads that haven't expired based on job date (2 hours before)
           // Allow leads with null preferred dates or dates more than 2 hours in the future
           or(
@@ -4049,7 +4049,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(leadOffers.providerId, providerId))
         .orderBy(desc(leadOffers.createdAt))
         .limit(50); // Increased limit to show more activities
-      
+
       console.log(`📊 Raw activities from DB: ${activities.length}`);
 
       // Transform activities with proper messages
@@ -5765,7 +5765,7 @@ export class DatabaseStorage implements IStorage {
       const rejectedProviders = providerStats[0]?.rejected || 0;
 
 
-      
+
       // Get new providers this month in a single query
       const currentDate = new Date();
       const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -5800,13 +5800,13 @@ export class DatabaseStorage implements IStorage {
       // Generate last 4 years of data (48 months)
       const now = new Date();
       const last4Years = [];
-      
+
       for (let i = 47; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         // Use UTC to avoid timezone issues
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        
+
         last4Years.push(monthKey);
         monthMap.set(monthKey, {
           month: monthName,
@@ -5949,7 +5949,7 @@ export class DatabaseStorage implements IStorage {
       console.log('Admin username filter:', adminUsername);
       console.log('Is super admin:', isSuperAdmin);
       console.log('Will apply filtering:', adminUsername && !isSuperAdmin);
-      
+
       let query = db
         .select({
           id: potentialProviders.id,
@@ -5985,7 +5985,7 @@ export class DatabaseStorage implements IStorage {
         .from(potentialProviders)
         .leftJoin(potentialProviderTasks, eq(potentialProviders.id, potentialProviderTasks.potentialProviderId))
         .leftJoin(adminUsers, eq(potentialProviderTasks.assignedTo, adminUsers.username));
-      
+
       // Add filtering based on admin username (unless super admin)
       if (adminUsername && !isSuperAdmin) {
         query = query.where(eq(potentialProviderTasks.assignedTo, adminUsername));
@@ -5993,9 +5993,9 @@ export class DatabaseStorage implements IStorage {
       } else if (isSuperAdmin) {
         console.log('Super admin - showing all tasks');
       }
-      
+
       const providers = await query.orderBy(desc(potentialProviders.createdAt));
-      
+
       console.log('=== DEBUG: Query result ===');
       console.log('Total providers found:', providers.length);
       if (providers.length > 0) {
@@ -6008,7 +6008,7 @@ export class DatabaseStorage implements IStorage {
           taskTitle: providers[0].taskTitle
         });
       }
-      
+
       // Debug: Check potential_provider_tasks table
       try {
         console.log('\n=== DEBUG: Checking potential_provider_tasks table ===');
@@ -6024,7 +6024,7 @@ export class DatabaseStorage implements IStorage {
       } catch (error) {
         console.log('Error checking potential_provider_tasks:', error.message);
       }
-      
+
       return providers;
     } catch (error) {
       console.error('Error getting potential providers:', error);
@@ -6188,12 +6188,12 @@ export class DatabaseStorage implements IStorage {
       if (taskData.potentialProviderId) {
         await db
           .update(potentialProviders)
-          .set({ 
+          .set({
             status: 'active',
             updatedAt: new Date()
           })
           .where(eq(potentialProviders.id, taskData.potentialProviderId));
-        
+
         console.log(`✅ Updated provider ${taskData.potentialProviderId} status from 'new' to 'active' after task creation`);
       }
 
@@ -6314,9 +6314,9 @@ export class DatabaseStorage implements IStorage {
       // Update SMS status based on current status
       const currentSmsStatus = (providerRow as any).smsDeliveryStatus || 'not_sent';
       console.log(`📱 Provider ${providerId} current SMS status: ${currentSmsStatus}`);
-      
+
       let newSmsStatus: '1st_sent' | '2nd_sent';
-      
+
       if (currentSmsStatus === 'not_sent') {
         newSmsStatus = '1st_sent';
       } else if (currentSmsStatus === '1st_sent') {
@@ -6325,7 +6325,7 @@ export class DatabaseStorage implements IStorage {
         // If already 2nd_sent, keep it as 2nd_sent
         newSmsStatus = '2nd_sent';
       }
-      
+
       console.log(`📱 Updating provider ${providerId} SMS status to: ${newSmsStatus}`);
       await this.updatePotentialProviderSmsStatus(providerId, newSmsStatus);
 
@@ -6680,7 +6680,7 @@ export class DatabaseStorage implements IStorage {
 
       if (filters) {
         const conditions = [];
-        
+
         if (filters.status) {
           conditions.push(eq(teamTasks.status, filters.status));
         }
@@ -6806,24 +6806,24 @@ export class DatabaseStorage implements IStorage {
 
       // Categorize tasks by CREATION TIME (createdAt) with 24 hour limit
       const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-      
-      const overdue24h = allTasks.filter(task => 
+
+      const overdue24h = allTasks.filter(task =>
         task.createdAt < twentyFourHoursAgo
       );
-      
-      const overdue = allTasks.filter(task => 
+
+      const overdue = allTasks.filter(task =>
         task.createdAt >= twentyFourHoursAgo && task.createdAt < today
       );
-      
-      const todayTasks = allTasks.filter(task => 
+
+      const todayTasks = allTasks.filter(task =>
         task.createdAt >= today && task.createdAt < tomorrow
       );
-      
-      const tomorrowTasks = allTasks.filter(task => 
+
+      const tomorrowTasks = allTasks.filter(task =>
         task.createdAt >= tomorrow && task.createdAt < dayAfterTomorrow
       );
-      
-      const upcoming = allTasks.filter(task => 
+
+      const upcoming = allTasks.filter(task =>
         task.createdAt >= dayAfterTomorrow
       );
 
@@ -6857,14 +6857,14 @@ export class DatabaseStorage implements IStorage {
   async createSmsCampaign(campaignData: any): Promise<any> {
     try {
       // Ensure arrays are properly formatted
-      const selectedStates = Array.isArray(campaignData.selectedStates) 
-        ? campaignData.selectedStates 
+      const selectedStates = Array.isArray(campaignData.selectedStates)
+        ? campaignData.selectedStates
         : [];
-      
-      const selectedStatuses = Array.isArray(campaignData.selectedStatuses) 
-        ? campaignData.selectedStatuses 
+
+      const selectedStatuses = Array.isArray(campaignData.selectedStatuses)
+        ? campaignData.selectedStatuses
         : [];
-      
+
       const selectedRegions = campaignData.selectedRegions && Array.isArray(campaignData.selectedRegions)
         ? campaignData.selectedRegions
         : null;
@@ -6909,7 +6909,7 @@ export class DatabaseStorage implements IStorage {
           totalSent: 0,
         })
         .returning();
-      
+
       console.log('[Storage] Campaign created successfully:', campaign.id);
       return campaign;
     } catch (error: any) {
@@ -6996,11 +6996,11 @@ export class DatabaseStorage implements IStorage {
       const results = [];
 
       console.log(`[Campaign][start] Processing ${customers.length} customers for campaign ${campaignId}`);
-      
+
       for (const customer of customers) {
         try {
           console.log(`[Campaign][processing] Customer ${customer.id} - ${customer.name} (${customer.phone})`);
-          
+
           // Determine SMS type based on current status
           let smsType: '1st_sent' | '2nd_sent';
           if (customer.smsDeliveryStatus === 'not_sent' || !customer.smsDeliveryStatus) {
@@ -7011,7 +7011,7 @@ export class DatabaseStorage implements IStorage {
             console.warn(`[Campaign][skip] Customer ${customer.id} already sent 2 SMS`);
             continue;
           }
-          
+
           console.log(`[Campaign][sms_type] Customer ${customer.id} will receive ${smsType}`);
 
           // Check if campaign has voucher amount - if yes, create unique voucher for each customer
@@ -7021,7 +7021,7 @@ export class DatabaseStorage implements IStorage {
           if (campaign.voucherAmount && campaign.voucherAmount > 0) {
             // Use sendSmsWithVoucher to create unique voucher and send SMS
             console.log(`[Campaign][voucher] Creating unique voucher for ${customer.name} - Amount: $${campaign.voucherAmount}`);
-            
+
             const voucherResult = await smsService.sendSmsWithVoucher(
               customer.phone,
               customer.name,
@@ -7037,10 +7037,10 @@ export class DatabaseStorage implements IStorage {
             if (voucherResult.success) {
               voucherCode = voucherResult.voucherCode || '';
               finalMessage = voucherResult.message || finalMessage;
-              
+
               // Update customer SMS status
               await this.updateCustomerSmsStatus(customer.id, smsType);
-              
+
               // Store SMS message in chat system
               console.log(`[Campaign][storage] Attempting to store SMS message for ${customer.name}`);
               try {
@@ -7054,12 +7054,12 @@ export class DatabaseStorage implements IStorage {
                   smsType: smsType,
                   sentBy: adminName,
                 });
-                
+
                 console.log(`[Campaign][SMS Storage] Successfully recorded SMS message for ${customer.name}`);
               } catch (storageError) {
                 console.error(`[Campaign][SMS Storage] Failed to record SMS message for ${customer.name}:`, storageError);
               }
-              
+
               successCount++;
               results.push({
                 customerId: customer.id,
@@ -7096,13 +7096,13 @@ export class DatabaseStorage implements IStorage {
               customerId: customer.id,
               smsType: smsType,
             });
-            
+
             console.log(`[Campaign][sms_result] SMS result for ${customer.name}: ${success ? 'SUCCESS' : 'FAILED'}`);
-            
+
             if (success) {
               // Update customer SMS status
               await this.updateCustomerSmsStatus(customer.id, smsType);
-              
+
               // Store SMS message in chat system
               try {
                 await smsService.recordOutbound({
@@ -7118,7 +7118,7 @@ export class DatabaseStorage implements IStorage {
               } catch (storageError) {
                 console.error(`[Campaign][SMS Storage] Failed to record SMS message for ${customer.name}:`, storageError);
               }
-              
+
               successCount++;
               results.push({
                 customerId: customer.id,
@@ -7140,9 +7140,9 @@ export class DatabaseStorage implements IStorage {
                 smsType: smsType,
                 sentBy: adminName,
               });
-              
+
               console.log(`[Campaign][SMS Storage] Successfully recorded FAILED SMS message for ${customer.name}`);
-              
+
               failCount++;
               results.push({
                 customerId: customer.id,
@@ -7227,7 +7227,7 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(smsMessages)
         .orderBy(desc(smsMessages.id));
-      
+
       return messages;
     } catch (error) {
       console.error('Error fetching SMS messages:', error);
@@ -7238,7 +7238,7 @@ export class DatabaseStorage implements IStorage {
   async sendIndividualSms(customerId: number, message: string): Promise<any> {
     try {
       console.log(`[SMS Chat] Starting SMS send process for customer ${customerId}: "${message}"`);
-      
+
       // Get customer details
       console.log(`[SMS Chat] Fetching customer details...`);
       const [customer] = await db
@@ -7312,9 +7312,9 @@ export class DatabaseStorage implements IStorage {
     try {
       // Normalize phone number for matching (remove spaces, dashes, parentheses, +61, 0 prefix)
       const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '');
-      
+
       console.log(`[Storage] Finding customer by phone: ${phone} (normalized: ${normalizedPhone})`);
-      
+
       // Try exact match first
       let [customer] = await db
         .select()
@@ -7327,18 +7327,18 @@ export class DatabaseStorage implements IStorage {
         const allCustomers = await db
           .select()
           .from(potentialCustomers);
-        
+
         // Find customer by normalized phone comparison
         customer = allCustomers.find(c => {
           const customerNormalized = c.phone.replace(/[\s\-\(\)\+]/g, '');
-          
+
           // Remove leading 61 or 0 from both numbers for comparison
           const searchDigits = normalizedPhone.replace(/^(61|0)/, '');
           const customerDigits = customerNormalized.replace(/^(61|0)/, '');
-          
+
           return searchDigits === customerDigits;
         });
-        
+
         if (customer) {
           console.log(`[Storage] Found customer by normalized phone: ${customer.name} (${customer.phone})`);
         }
@@ -7357,12 +7357,12 @@ export class DatabaseStorage implements IStorage {
     try {
       await db
         .update(potentialCustomers)
-        .set({ 
+        .set({
           campaignStatus: status as any,
           updatedAt: new Date()
         })
         .where(eq(potentialCustomers.id, customerId));
-      
+
       console.log(`[Storage] Updated customer ${customerId} status to ${status}`);
     } catch (error) {
       console.error('Error updating customer status:', error);
@@ -7411,7 +7411,7 @@ export class DatabaseStorage implements IStorage {
             .select({ permissionId: rolePermissions.permissionId })
             .from(rolePermissions)
             .where(eq(rolePermissions.roleId, role.id));
-          
+
           const userCount = await db
             .select({ count: sql<number>`count(*)` })
             .from(adminUsers)
@@ -7446,7 +7446,7 @@ export class DatabaseStorage implements IStorage {
         .select({ permissionId: rolePermissions.permissionId })
         .from(rolePermissions)
         .where(eq(rolePermissions.roleId, roleId));
-      
+
       return result.map(rp => rp.permissionId);
     } catch (error) {
       console.error('Error fetching role permissions:', error);
@@ -7490,7 +7490,7 @@ export class DatabaseStorage implements IStorage {
 
       // Update permissions
       await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
-      
+
       if (permissions.length > 0) {
         await db.insert(rolePermissions).values(
           permissions.map(permissionId => ({
@@ -7527,7 +7527,7 @@ export class DatabaseStorage implements IStorage {
 
       // Delete role permissions first
       await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
-      
+
       // Delete role
       await db.delete(roles).where(eq(roles.id, roleId));
     } catch (error) {
