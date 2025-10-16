@@ -3,7 +3,7 @@
 #import <React/RCTBridge.h>
 #import <React/RCTBundleURLProvider.h>
 #import <React/RCTRootView.h>
-#import <OneSignal/OneSignal.h>
+#import <UIKit/UIKit.h>
 
 @implementation AppDelegate
 
@@ -26,13 +26,7 @@
   self.window.rootViewController = rootViewController;
   [self.window makeKeyAndVisible];
   
-  // Initialize OneSignal
-  [OneSignal initialize:@"YOUR_ONESIGNAL_APP_ID" withLaunchOptions:launchOptions];
-  
-  // Request notification permissions
-  [OneSignal.Notifications requestPermission:true completion:^(BOOL accepted) {
-    NSLog(@"OneSignal notification permission granted: %@", accepted ? @"YES" : @"NO");
-  }];
+  // OneSignal is initialized from React Native code
   
   return YES;
 }
@@ -47,15 +41,6 @@
 #endif
 }
 
-// OneSignal notification delegate methods
-- (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken
-{
-  [OneSignal.Notifications setDeviceToken:deviceToken];
-}
-
-- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error
-{
-  NSLog(@"Failed to register for remote notifications: %@", error.localizedDescription);
-}
+// Notification registration callbacks (handled by OneSignal React Native SDK)
 
 @end

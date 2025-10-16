@@ -3,10 +3,10 @@
 
 export const ONESIGNAL_CONFIG = {
     // iOS App ID - Get this from your OneSignal dashboard
-    IOS_APP_ID: 'YOUR_ONESIGNAL_APP_ID', // Replace with your actual OneSignal App ID
+    IOS_APP_ID: 'c10624ec-0af6-43ba-a72b-7c778268e861', // OneSignal App ID
 
     // Android App ID - Get this from your OneSignal dashboard (if you have Android)
-    ANDROID_APP_ID: 'YOUR_ANDROID_ONESIGNAL_APP_ID', // Replace with your actual Android OneSignal App ID
+    ANDROID_APP_ID: 'c10624ec-0af6-43ba-a72b-7c778268e861', // OneSignal App ID
 
     // Notification settings
     NOTIFICATION_SETTINGS: {
@@ -31,6 +31,10 @@ export const ONESIGNAL_CONFIG = {
         SYSTEM_UPDATE: 'system_update',
         PROMOTIONAL: 'promotional',
     },
+
+    // Dev-only: automatically run a OneSignal registration test on app start
+    DEBUG_TEST_ON_START: false,
+    TEST_EXTERNAL_ID: 'sp_test_debug',
 };
 
 // Helper function to get the correct App ID based on platform

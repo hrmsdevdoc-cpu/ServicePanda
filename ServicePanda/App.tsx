@@ -109,17 +109,34 @@ const AppContent = () => {
       
       // Get the correct App ID for the current platform
       const oneSignalAppId = getOneSignalAppId(Platform.OS);
+      console.log('OneSignal App ID at runtime:', oneSignalAppId);
       
-      if (oneSignalAppId === 'YOUR_ONESIGNAL_APP_ID') {
-        console.warn('⚠️ OneSignal App ID not configured. Please update src/config/oneSignalConfig.ts with your actual OneSignal App ID');
-        return;
-      }
-      
-      await oneSignalService.initialize({
+      const inited = await oneSignalService.initialize({
         appId: oneSignalAppId,
         ...getNotificationSettings()
       });
-      
+      if (!inited) {
+        console.log('⚠️ OneSignal initialize returned false (native module not ready).');
+        return;
+      }
+      // Permissions are handled inside the service during initialize/ensureStartupRegistration
+
+      // Ensure startup registration always (anonymous id), then optional debug
+      try {
+        await oneSignalService.ensureStartupRegistration();
+      } catch (e) {
+        console.log('OneSignal startup registration failed:', e);
+      }
+
+      // Optional: extra debug
+      if (ONESIGNAL_CONFIG.DEBUG_TEST_ON_START) {
+        try {
+          await oneSignalService.debugTestRegister();
+        } catch (e) {
+          console.log('OneSignal debug test failed:', e);
+        }
+      }
+
       console.log('✅ OneSignal initialized successfully');
     } catch (error) {
       console.error('❌ OneSignal initialization failed:', error);
@@ -156,6 +173,21 @@ const AppContent = () => {
             setIsAuthenticated(true);
             setCurrentScreen('dashboard');
             setNavigationHistory(['dashboard']);
+
+            // Ensure OneSignal is associated with restored user session
+            try {
+              if (currentUser.id) {
+                await oneSignalService.setExternalUserId(currentUser.id.toString());
+                await oneSignalService.setUserTags(getUserTags({
+                  user_id: currentUser.id.toString(),
+                  email: currentUser.email || '',
+                  name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim()
+                }));
+                console.log('✅ OneSignal user identification set (restored session)');
+              }
+            } catch (e) {
+              console.log('⚠️ OneSignal user identification failed (restored):', e);
+            }
           } else {
             console.log('❌ Server verification failed, clearing local data');
             await AsyncStorage.removeItem('customerId');
