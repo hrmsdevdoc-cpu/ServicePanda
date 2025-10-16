@@ -517,57 +517,83 @@ export default function AdminDashboard() {
                 </>
               ) : (
                 <>
-                  <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total Providers</CardTitle>
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{stats?.totalProviders || 0}</div>
-                      <p className="text-xs text-muted-foreground">
-                        Active service providers
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-                      <Clock className="h-4 w-4 text-orange-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-orange-600">{stats?.pendingApprovals || 0}</div>
-                      <p className="text-xs text-muted-foreground">
-                        Waiting for review
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Active Requests</CardTitle>
-                      <Wrench className="h-4 w-4 text-blue-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-blue-600">{stats?.activeRequests || 0}</div>
-                      <p className="text-xs text-muted-foreground">
-                        Current service requests
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 hover:-translate-y-1">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-                      <DollarSign className="h-4 w-4 text-green-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-green-600">
-                        ${stats?.monthlyRevenue?.toLocaleString() || '0'}
+                  {/* Total Providers Card */}
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 border-0 shadow-xl shadow-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/30 transition-all duration-300 hover:-translate-y-1 group">
+                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-blue-100 mb-1">Total Providers</p>
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-4xl font-bold text-white tracking-tight">{stats?.totalProviders || 0}</h3>
+                            <span className="text-xs font-medium text-blue-100 bg-white/20 px-2 py-0.5 rounded-full">+12%</span>
+                          </div>
+                          <p className="text-xs text-blue-100 mt-2">Active service providers</p>
+                        </div>
+                        <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <Users className="h-7 w-7 text-white" />
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Current month
-                      </p>
+                    </CardContent>
+                  </Card>
+
+                  {/* Pending Approvals Card */}
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-orange-600 border-0 shadow-xl shadow-orange-500/20 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 hover:-translate-y-1 group">
+                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-orange-100 mb-1">Pending Approvals</p>
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-4xl font-bold text-white tracking-tight">{stats?.pendingApprovals || 0}</h3>
+                            <span className="text-xs font-medium text-orange-100 bg-white/20 px-2 py-0.5 rounded-full">Review</span>
+                          </div>
+                          <p className="text-xs text-orange-100 mt-2">Waiting for review</p>
+                        </div>
+                        <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <Clock className="h-7 w-7 text-white" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Active Requests Card */}
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 border-0 shadow-xl shadow-purple-500/20 hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 hover:-translate-y-1 group">
+                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-purple-100 mb-1">Active Requests</p>
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-4xl font-bold text-white tracking-tight">{stats?.activeRequests || 0}</h3>
+                            <span className="text-xs font-medium text-purple-100 bg-white/20 px-2 py-0.5 rounded-full">Live</span>
+                          </div>
+                          <p className="text-xs text-purple-100 mt-2">Current service requests</p>
+                        </div>
+                        <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <Wrench className="h-7 w-7 text-white" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Monthly Revenue Card */}
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-green-500 to-emerald-600 border-0 shadow-xl shadow-green-500/20 hover:shadow-2xl hover:shadow-green-500/30 transition-all duration-300 hover:-translate-y-1 group">
+                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-green-100 mb-1">Monthly Revenue</p>
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-4xl font-bold text-white tracking-tight">${stats?.monthlyRevenue?.toLocaleString() || '0'}</h3>
+                            <span className="text-xs font-medium text-green-100 bg-white/20 px-2 py-0.5 rounded-full">+8%</span>
+                          </div>
+                          <p className="text-xs text-green-100 mt-2">Current month</p>
+                        </div>
+                        <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <DollarSign className="h-7 w-7 text-white" />
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </>
@@ -575,14 +601,20 @@ export default function AdminDashboard() {
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-12 gap-4">
+            <div className="grid grid-cols-12 gap-6">
               {/* Provider Join Trends Chart */}
-              <Card className="col-span-6 bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
-              <CardHeader>
+              <Card className="col-span-6 bg-white/80 backdrop-blur-xl border-0 shadow-2xl shadow-slate-200/50 hover:shadow-3xl transition-all duration-500 rounded-2xl overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500"></div>
+              <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-5 w-5 text-purple-600" />
-                    <CardTitle className="text-lg">Provider Join</CardTitle>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                      <Calendar className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Provider Join</CardTitle>
+                      <p className="text-xs text-gray-500 mt-0.5">Monthly registration trends</p>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-4">
                     <Button
@@ -825,12 +857,18 @@ export default function AdminDashboard() {
               </Card>
 
               {/* Service Request Trends Chart */}
-              <Card className="col-span-6 bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
-                <CardHeader>
+              <Card className="col-span-6 bg-white/80 backdrop-blur-xl border-0 shadow-2xl shadow-slate-200/50 hover:shadow-3xl transition-all duration-500 rounded-2xl overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500"></div>
+                <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <BarChart3 className="h-5 w-5 text-blue-600" />
-                      <CardTitle className="text-lg">Service Requests</CardTitle>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <BarChart3 className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">Service Requests</CardTitle>
+                        <p className="text-xs text-gray-500 mt-0.5">Request status by month</p>
+                      </div>
                     </div>
                     <div className="flex items-center space-x-4">
                       <Button
@@ -1101,16 +1139,17 @@ export default function AdminDashboard() {
 
             {/* Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
-                <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-orange-50 to-amber-50">
+              <Card className="bg-white/80 backdrop-blur-xl border-0 shadow-2xl shadow-orange-500/10 hover:shadow-3xl transition-all duration-500 rounded-2xl overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500"></div>
+                <CardHeader className="border-b border-orange-100/50 bg-gradient-to-r from-orange-50/50 to-amber-50/50 backdrop-blur-sm">
                   <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
-                      <UserCheck className="h-5 w-5 text-white" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/30">
+                      <UserCheck className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Recent Provider Applications</CardTitle>
+                      <CardTitle className="text-lg font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">Recent Provider Applications</CardTitle>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {Array.isArray(pendingProviders) ? pendingProviders.length : 0} pending review
+                        <span className="font-semibold text-orange-600">{Array.isArray(pendingProviders) ? pendingProviders.length : 0}</span> pending review
                       </p>
                     </div>
                   </div>
@@ -1154,16 +1193,17 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
-                <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-purple-50 to-pink-50">
+              <Card className="bg-white/80 backdrop-blur-xl border-0 shadow-2xl shadow-purple-500/10 hover:shadow-3xl transition-all duration-500 rounded-2xl overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500"></div>
+                <CardHeader className="border-b border-purple-100/50 bg-gradient-to-r from-purple-50/50 to-pink-50/50 backdrop-blur-sm">
                   <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                      <Wrench className="h-5 w-5 text-white" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                      <Wrench className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Recent Service Requests</CardTitle>
+                      <CardTitle className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Recent Service Requests</CardTitle>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {Array.isArray(serviceRequests) ? serviceRequests.length : 0} total requests
+                        <span className="font-semibold text-purple-600">{Array.isArray(serviceRequests) ? serviceRequests.length : 0}</span> total requests
                       </p>
                     </div>
                   </div>
