@@ -14,6 +14,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AdminSidebar } from "@/components/AdminSidebar";
 // import AdminVoucherManagement from "./admin/AdminVoucherManagement"; // Removed to avoid duplicate sidebar
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -47,6 +53,7 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  Maximize2,
 } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Line, LineChart, Area, AreaChart } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -97,6 +104,8 @@ export default function AdminDashboard() {
   const [isProviderChartExpanded, setIsProviderChartExpanded] = useState(false);
   const [serviceRequestChartType, setServiceRequestChartType] = useState<'bar' | 'line' | 'area'>('bar');
   const [serviceRequestYear, setServiceRequestYear] = useState<string>('2024');
+  const [showProviderChartModal, setShowProviderChartModal] = useState(false);
+  const [showServiceRequestModal, setShowServiceRequestModal] = useState(false);
 
   // Check admin authentication
   useEffect(() => {
@@ -568,7 +577,7 @@ export default function AdminDashboard() {
             {/* Charts Section */}
             <div className="grid grid-cols-12 gap-4">
               {/* Provider Join Trends Chart */}
-              <Card className={`bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 ${isProviderChartExpanded ? "col-span-12" : "col-span-6"}`}>
+              <Card className="col-span-6 bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -579,20 +588,11 @@ export default function AdminDashboard() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setIsProviderChartExpanded(!isProviderChartExpanded)}
+                      onClick={() => setShowProviderChartModal(true)}
                       className="flex items-center space-x-1 text-gray-500 hover:text-gray-700"
                     >
-                      {isProviderChartExpanded ? (
-                        <>
-                          <ChevronUp className="h-4 w-4" />
-                          <span className="text-xs">Collapse</span>
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="h-4 w-4" />
-                          <span className="text-xs">Expand</span>
-                        </>
-                      )}
+                      <Maximize2 className="h-4 w-4" />
+                      <span className="text-xs">Full Screen</span>
                     </Button>
 
                     {/* Year Filter */}
@@ -623,7 +623,7 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className={isProviderChartExpanded ? "h-80" : "h-48"}>
+                <div className="h-48">
                   {reportsLoading ? (
                     <div className="flex flex-col space-y-4 p-4">
                       <Skeleton className="h-6 w-32" />
@@ -825,7 +825,7 @@ export default function AdminDashboard() {
               </Card>
 
               {/* Service Request Trends Chart */}
-              <Card className={`bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 ${isServiceRequestExpanded ? "col-span-12" : "col-span-6"}`}>
+              <Card className="col-span-6 bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -836,20 +836,11 @@ export default function AdminDashboard() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setIsServiceRequestExpanded(!isServiceRequestExpanded)}
+                        onClick={() => setShowServiceRequestModal(true)}
                         className="flex items-center space-x-1 text-gray-500 hover:text-gray-700"
                       >
-                        {isServiceRequestExpanded ? (
-                          <>
-                            <ChevronUp className="h-4 w-4" />
-                            <span className="text-xs">Collapse</span>
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown className="h-4 w-4" />
-                            <span className="text-xs">Expand</span>
-                          </>
-                        )}
+                        <Maximize2 className="h-4 w-4" />
+                        <span className="text-xs">Full Screen</span>
                       </Button>
 
                       {/* Year Filter */}
@@ -880,7 +871,7 @@ export default function AdminDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className={isServiceRequestExpanded ? "h-80" : "h-48"}>
+                  <div className="h-48">
                       {reportsLoading ? (
                         <div className="flex flex-col space-y-4 p-4">
                           <Skeleton className="h-6 w-32" />
@@ -1621,6 +1612,343 @@ export default function AdminDashboard() {
         </Tabs>
         </div>
       </div>
+
+      {/* Provider Chart Full Screen Modal */}
+      <Dialog open={showProviderChartModal} onOpenChange={setShowProviderChartModal}>
+        <DialogContent className="max-w-6xl">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-8">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-5 w-5 text-purple-600" />
+                <DialogTitle className="text-xl">Provider Join - Full View</DialogTitle>
+              </div>
+              <div className="flex items-center space-x-3">
+                {/* Year Filter */}
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2025">2025</SelectItem>
+                    <SelectItem value="2024">2024</SelectItem>
+                    <SelectItem value="2023">2023</SelectItem>
+                    <SelectItem value="2022">2022</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Chart Type Filter */}
+                <Select value={chartType} onValueChange={(value: 'bar' | 'line' | 'area') => setChartType(value)}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue placeholder="Chart" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bar">Bar</SelectItem>
+                    <SelectItem value="line">Line</SelectItem>
+                    <SelectItem value="area">Area</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </DialogHeader>
+          <div>
+            <div className="h-[400px]">
+              {reportsLoading ? (
+                <div className="flex flex-col space-y-4 p-4">
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-full w-full" />
+                </div>
+              ) : monthlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'bar' ? (
+                    <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                <p className="font-semibold">{label}</p>
+                                {payload.map((entry: any, index: number) => (
+                                  <p key={index} className={`font-bold`} style={{ color: entry.color }}>
+                                    {entry.value} {entry.dataKey} providers
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="approved" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} name="Approved" />
+                      <Bar dataKey="pending" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} name="Pending" />
+                      <Bar dataKey="rejected" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} name="Rejected" />
+                    </BarChart>
+                  ) : chartType === 'line' ? (
+                    <LineChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                <p className="font-semibold">{label}</p>
+                                {payload.map((entry: any, index: number) => (
+                                  <p key={index} className={`font-bold`} style={{ color: entry.color }}>
+                                    {entry.value} {entry.dataKey} providers
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Line type="monotone" dataKey="approved" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2 }} name="Approved" />
+                      <Line type="monotone" dataKey="pending" stroke="#f59e0b" strokeWidth={3} dot={false} activeDot={{ r: 6, stroke: '#f59e0b', strokeWidth: 2 }} name="Pending" />
+                      <Line type="monotone" dataKey="rejected" stroke="#ef4444" strokeWidth={3} dot={false} activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }} name="Rejected" />
+                    </LineChart>
+                  ) : (
+                    <AreaChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                <p className="font-semibold">{label}</p>
+                                {payload.map((entry: any, index: number) => (
+                                  <p key={index} className={`font-bold`} style={{ color: entry.color }}>
+                                    {entry.value} {entry.dataKey} providers
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area type="monotone" dataKey="approved" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} strokeWidth={2} name="Approved" />
+                      <Area type="monotone" dataKey="pending" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} strokeWidth={2} name="Pending" />
+                      <Area type="monotone" dataKey="rejected" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} strokeWidth={2} name="Rejected" />
+                    </AreaChart>
+                  )}
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No data available for the selected year</p>
+                    <p className="text-gray-400 text-xs mt-1">Try selecting a different year</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Service Request Chart Full Screen Modal */}
+      <Dialog open={showServiceRequestModal} onOpenChange={setShowServiceRequestModal}>
+        <DialogContent className="max-w-6xl">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-8">
+              <div className="flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                <DialogTitle className="text-xl">Service Requests - Full View</DialogTitle>
+              </div>
+              <div className="flex items-center space-x-3">
+                {/* Year Filter */}
+                <Select value={serviceRequestYear} onValueChange={setServiceRequestYear}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2025">2025</SelectItem>
+                    <SelectItem value="2024">2024</SelectItem>
+                    <SelectItem value="2023">2023</SelectItem>
+                    <SelectItem value="2022">2022</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Chart Type Filter */}
+                <Select value={serviceRequestChartType} onValueChange={(value: 'bar' | 'line' | 'area') => setServiceRequestChartType(value)}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue placeholder="Chart" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bar">Bar</SelectItem>
+                    <SelectItem value="line">Line</SelectItem>
+                    <SelectItem value="area">Area</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </DialogHeader>
+          <div>
+            <div className="h-[400px]">
+              {reportsLoading ? (
+                <div className="flex flex-col space-y-4 p-4">
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-full w-full" />
+                </div>
+              ) : serviceRequestChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  {serviceRequestChartType === 'bar' ? (
+                    <BarChart data={serviceRequestChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                <p className="font-semibold">{label}</p>
+                                {payload.map((entry: any, index: number) => (
+                                  <p key={index} className={`font-bold`} style={{ color: entry.color }}>
+                                    {entry.value} {entry.dataKey} requests
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="pending" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} name="Pending" />
+                      <Bar dataKey="inProgress" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} name="In Progress" />
+                      <Bar dataKey="completed" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} name="Completed" />
+                      <Bar dataKey="cancelled" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} name="Cancelled" />
+                    </BarChart>
+                  ) : serviceRequestChartType === 'line' ? (
+                    <LineChart data={serviceRequestChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                <p className="font-semibold">{label}</p>
+                                {payload.map((entry: any, index: number) => (
+                                  <p key={index} className={`font-bold`} style={{ color: entry.color }}>
+                                    {entry.value} {entry.dataKey} requests
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Line type="monotone" dataKey="pending" stroke="#f59e0b" strokeWidth={3} dot={false} activeDot={{ r: 6, stroke: '#f59e0b', strokeWidth: 2 }} name="Pending" />
+                      <Line type="monotone" dataKey="inProgress" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }} name="In Progress" />
+                      <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2 }} name="Completed" />
+                      <Line type="monotone" dataKey="cancelled" stroke="#ef4444" strokeWidth={3} dot={false} activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }} name="Cancelled" />
+                    </LineChart>
+                  ) : (
+                    <AreaChart data={serviceRequestChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#e5e7eb' }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                      />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                <p className="font-semibold">{label}</p>
+                                {payload.map((entry: any, index: number) => (
+                                  <p key={index} className={`font-bold`} style={{ color: entry.color }}>
+                                    {entry.value} {entry.dataKey} requests
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area type="monotone" dataKey="pending" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} strokeWidth={2} name="Pending" />
+                      <Area type="monotone" dataKey="inProgress" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} strokeWidth={2} name="In Progress" />
+                      <Area type="monotone" dataKey="completed" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} strokeWidth={2} name="Completed" />
+                      <Area type="monotone" dataKey="cancelled" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} strokeWidth={2} name="Cancelled" />
+                    </AreaChart>
+                  )}
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No service request data available for the selected year</p>
+                    <p className="text-gray-400 text-xs mt-1">Try selecting a different year</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
