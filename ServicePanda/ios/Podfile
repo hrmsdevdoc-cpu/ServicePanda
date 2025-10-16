@@ -15,15 +15,44 @@ target 'ServicePanda' do
   
 
   # Add any custom native pods below this line
-  pod 'OneSignal', '>= 3.0.0', '< 4.0'
 
   post_install do |installer|
+    # React Native post install (align with Provider project)
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false
+    )
+
     # Set environment variables to disable new architecture
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['RCT_NEW_ARCH_ENABLED'] = '0'
         config.build_settings['RCT_FABRIC_ENABLED'] = '0'
         config.build_settings['RCT_CODEGEN_ENABLED'] = '0'
+
+        # Ensure modern C++ standard and libc++
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+
+        # Build and archive stability
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+        config.build_settings['ENABLE_BITCODE'] = 'NO'
+
+        # Allow non-modular includes in framework modules (fixes OneSignal umbrella imports)
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+        # Enable dSYM generation for all pods (helps avoid upload symbols issues)
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+        config.build_settings['DWARF_DSYM_FOLDER_PATH'] = '$(CONFIGURATION_BUILD_DIR)'
+        config.build_settings['DWARF_DSYM_FILE_NAME'] = '$(EXECUTABLE_NAME).dSYM'
+
+        # OneSignal Swift frameworks compatibility
+        if target.name.include?('OneSignal')
+          config.build_settings['DEFINES_MODULE'] = 'YES'
+          config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
+        end
       end
     end
     
@@ -76,6 +105,17 @@ target 'ServicePanda' do
             config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
             config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
             config.build_settings['CODE_SIGNING_IDENTITY'] = ''
+          end
+        end
+      end
+    end
+
+    # Ensure app embeds Swift stdlib (needed for OneSignal Swift symbols)
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.user_project.native_targets.each do |native_target|
+        if native_target.name == 'ServicePanda'
+          native_target.build_configurations.each do |config|
+            config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
           end
         end
       end

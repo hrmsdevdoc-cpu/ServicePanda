@@ -1,4 +1,4 @@
-const apiService = require('./api');
+const { apiService } = require('./api');
 const { storage } = require('../utils/storage');
 
 interface Notification {
@@ -82,13 +82,13 @@ class NotificationService {
     try {
       // Add to local read tracking
       this.readNotificationIds.add(notificationId);
-      
+
       // Save to persistent storage
       await this.saveReadNotifications();
-      
+
       // Cleanup old read notifications
       await this.cleanupOldReadNotifications();
-      
+
       // Try to mark as read on server (this might fail for activity-based notifications)
       try {
         await apiService.put(`/api/provider/notifications/${notificationId}/read`);
@@ -96,7 +96,7 @@ class NotificationService {
         // If server call fails, we still mark it as read locally
         console.log('Server notification marking failed, using local tracking only');
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -106,25 +106,25 @@ class NotificationService {
 
   async markAllAsRead(): Promise<boolean> {
     try {
-      
+
       // Get current notifications to mark them all as read locally
       const notifications = await this.getNotifications();
-      
+
       notifications.forEach(notification => {
         this.readNotificationIds.add(notification.id);
       });
-      
-      
+
+
       // Save to persistent storage
       await this.saveReadNotifications();
-      
+
       // Try to mark all as read on server
       try {
         await apiService.put('/api/provider/notifications/read-all');
       } catch (serverError) {
         // If server call fails, we still mark them as read locally
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -158,8 +158,8 @@ class NotificationService {
     const notifications = serviceRequests.slice(0, 10).map((request, index) => {
       const notificationId = request.id || index + 1000;
       const isRead = this.readNotificationIds.has(notificationId);
-      
-      
+
+
       return {
         id: notificationId,
         title: this.getServiceRequestTitle(request),
@@ -175,7 +175,7 @@ class NotificationService {
         }
       };
     });
-    
+
     return notifications;
   }
 
@@ -183,7 +183,7 @@ class NotificationService {
     const serviceType = request.serviceType || request.categoryName || 'Service';
     const location = request.suburb && request.postcode ? `${request.suburb}, ${request.postcode}` : 'Location not specified';
     const status = request.status || 'pending';
-    
+
     return `${serviceType} request in ${location} - Status: ${status}`;
   }
 
@@ -208,7 +208,7 @@ class NotificationService {
 
   private formatActivityMessage(activity: any): string {
     const baseMessage = activity.message || activity.description || 'No description available';
-    
+
     // Add additional context based on activity type
     switch (activity.activityType) {
       case 'lead_purchased':
