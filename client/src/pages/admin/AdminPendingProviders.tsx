@@ -546,7 +546,7 @@ export default function AdminPendingProviders() {
         <div className="px-8 pt-4 pb-8 min-h-screen">
           <Card className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
             <CardHeader>
-              <CardTitle>Provider Applications Awaiting Review</CardTitle>
+              {/* <CardTitle>Provider Applications Awaiting Review</CardTitle> */}
               <div className="flex items-center space-x-4">
                 <div className="relative flex-1 max-w-sm">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />

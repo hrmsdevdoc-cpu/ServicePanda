@@ -12,6 +12,7 @@ import { db } from "./db";
 import { eq, and, or, desc, sql } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail, sendEmail } from "./emailService";
 import { smsService } from "./smsService";
 import { notificationRoutes } from "./notificationBridge";
@@ -26,7 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware for admins
   setupAdminAuth(app);
 
-  // Configure multer for file uploads
+  // Configure multer for file uploads (documents, images)
   const upload = multer({
     dest: "uploads/",
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -39,6 +40,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return cb(null, true);
       } else {
         cb(new Error("Only .png, .jpg, .jpeg and .pdf files are allowed"));
+      }
+    },
+  });
+
+  // Configure multer for CSV imports
+  const csvUpload = multer({
+    dest: "uploads/",
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = /csv|xlsx|xls/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'text/csv' || file.mimetype === 'application/vnd.ms-excel' || file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+      if (mimetype || extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error("Only .csv, .xlsx and .xls files are allowed"));
       }
     },
   });
@@ -3298,45 +3316,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/potential-customers/import', isAdminAuthenticated, async (req, res) => {
+  app.post('/api/admin/potential-customers/import', isAdminAuthenticated, csvUpload.single('file'), async (req, res) => {
     try {
-      console.log('Import request received:');
-      console.log('req.body:', req.body);
-      console.log('req.files:', req.files ? Object.keys(req.files) : 'No files');
+      console.log('📥 Import request received:');
+      console.log('  req.body:', req.body);
+      console.log('  req.file:', req.file ? { name: req.file.originalname, size: req.file.size } : 'No file');
+      console.log('  req.body keys:', Object.keys(req.body));
+      console.log('  req.body.importName:', req.body.importName);
 
-      // Get importName from FormData fields
-      let importName = null;
-
-      // With parseNested: true, FormData fields should be available in req.files
-      if (req.files && req.files.importName) {
-        // For text fields in FormData, the data is in the data property
-        if (req.files.importName.data) {
-          importName = req.files.importName.data.toString();
-          console.log('Found importName in req.files.data:', importName);
-        } else {
-          // If it's not a file, it might be directly available
-          importName = req.files.importName.toString();
-          console.log('Found importName in req.files (direct):', importName);
-        }
-      } else if (req.body && req.body.importName) {
-        // Fallback to req.body if not in FormData
-        importName = req.body.importName;
-        console.log('Found importName in req.body:', importName);
-      } else {
-        console.log('No importName found in any location');
-        console.log('Available in req.files:', req.files ? Object.keys(req.files) : 'No files');
-        console.log('Available in req.body:', Object.keys(req.body));
-      }
+      // Get importName from FormData fields (multer puts non-file fields in req.body)
+      const importName = req.body.importName;
 
       if (!importName) {
-        console.log('Returning error: Import name is required');
+        console.log('❌ Returning error: Import name is required');
+        console.log('  Available in req.body:', Object.keys(req.body));
+        console.log('  req.body content:', req.body);
         return res.status(400).json({ message: 'Import name is required' });
       }
 
       console.log('Processing import with name:', importName);
 
       // Check if this is a test import (no file)
-      if (!req.files || !req.files.file) {
+      if (!req.file) {
         console.log('No file provided, using sample data');
         // Use sample data for test imports
         const result = await storage.importPotentialCustomers(null, importName);
@@ -3344,22 +3345,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      // Handle file upload
-      const uploadedFile = req.files.file;
-
-      if (!uploadedFile) {
-        return res.status(400).json({ message: 'No file uploaded' });
-      }
+      // Handle file upload - convert multer file format to expected format
+      const uploadedFile = {
+        name: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        data: fs.readFileSync(req.file.path)
+      };
 
       console.log('Processing file upload:', uploadedFile.name);
       console.log('File object details:', {
         name: uploadedFile.name,
         size: uploadedFile.size,
-        tempFilePath: uploadedFile.tempFilePath,
         mimetype: uploadedFile.mimetype
       });
 
       const result = await storage.importPotentialCustomers(uploadedFile, importName);
+      
+      // Clean up uploaded file
+      fs.unlinkSync(req.file.path);
+      
       res.json(result);
     } catch (error) {
       console.error('Error importing potential customers:', error);

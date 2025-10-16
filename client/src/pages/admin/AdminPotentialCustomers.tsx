@@ -386,14 +386,22 @@ export default function AdminPotentialCustomers() {
     console.log('  - Selected states:', newCampaign.selectedStates);
     console.log('  - Selected statuses:', newCampaign.selectedStatuses);
     console.log('  - Total customers:', potentialCustomers.length);
+    console.log('  - All states available:', allStates.map(s => ({ name: s.name, abbr: s.abbreviation })));
+    console.log('  - Customer states:', [...new Set(potentialCustomers.map((c: PotentialCustomer) => c.state))]);
     
     const filtered = potentialCustomers.filter((customer: PotentialCustomer) => {
       // Check if customer state matches selected states
       const customerStateObj = allStates.find(state => state.abbreviation === customer.state);
-      if (!customerStateObj) return false;
+      if (!customerStateObj) {
+        console.log(`  ❌ Customer ${customer.name} - State "${customer.state}" not found in allStates`);
+        return false;
+      }
       
       const stateMatches = newCampaign.selectedStates.includes(customerStateObj.name);
-      if (!stateMatches) return false;
+      if (!stateMatches) {
+        console.log(`  ⚠️  Customer ${customer.name} - State "${customerStateObj.name}" not in selected states`);
+        return false;
+      }
       
       // Region filtering disabled - using state-based filtering only
       
@@ -401,9 +409,13 @@ export default function AdminPotentialCustomers() {
       if (newCampaign.selectedStatuses.length > 0) {
         const currentStatus = customerStatusMap[customer.id] ?? 'New';
         const statusMatches = newCampaign.selectedStatuses.includes(currentStatus);
-        if (!statusMatches) return false;
+        if (!statusMatches) {
+          console.log(`  ⚠️  Customer ${customer.name} - Status "${currentStatus}" not in selected statuses`);
+          return false;
+        }
       }
       
+      console.log(`  ✅ Customer ${customer.name} - MATCHED!`);
       return true;
     });
     
@@ -731,6 +743,14 @@ export default function AdminPotentialCustomers() {
     formData.append('file', selectedFile);
     formData.append('importName', importName);
 
+    console.log('📤 Sending import request:');
+    console.log('  - Import Name:', importName);
+    console.log('  - File:', selectedFile.name);
+    console.log('  - FormData entries:');
+    for (let pair of formData.entries()) {
+      console.log(`    ${pair[0]}:`, pair[1]);
+    }
+
     try {
       await importCustomersMutation.mutateAsync(formData);
     } finally {
@@ -974,9 +994,9 @@ export default function AdminPotentialCustomers() {
       case 'not_sent':
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Not Sent</Badge>;
       case '1st_sent':
-        return <Badge className="bg-blue-100 text-blue-800"><CheckCircle className="h-3 w-3 mr-1" />1st</Badge>;
+        return <Badge className="bg-indigo-500 text-white"><CheckCircle className="h-3 w-3 mr-1" />1st SMS</Badge>;
       case '2nd_sent':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />2nd</Badge>;
+        return <Badge className="bg-indigo-600 text-white"><CheckCircle className="h-3 w-3 mr-1" />2nd SMS</Badge>;
       case 'unsubscribed':
         return <Badge className="bg-red-100 text-red-800"><X className="h-3 w-3 mr-1" />Unsubscribed</Badge>;
       default:
@@ -1407,9 +1427,8 @@ export default function AdminPotentialCustomers() {
                                         <SelectContent>
                                           <SelectItem value="New">New</SelectItem>
                                           <SelectItem value="Added to Campaign">Added to Campaign</SelectItem>
-                                          <SelectItem value="SMS Sent">SMS Sent</SelectItem>
+                                          <SelectItem value="1st SMS">1st SMS</SelectItem>
                                           <SelectItem value="2nd SMS">2nd SMS</SelectItem>
-                                          <SelectItem value="3rd Sent">3rd Sent</SelectItem>
                                           <SelectItem value="Lost">Lost</SelectItem>
                                           <SelectItem value="Won">Won</SelectItem>
                                           <SelectItem value="Unsubscribe">Unsubscribe</SelectItem>
@@ -1809,6 +1828,51 @@ export default function AdminPotentialCustomers() {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  {/* CSV Format Information */}
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-blue-900 mb-2">Required CSV Columns</h4>
+                        <p className="text-xs text-blue-700 mb-3">Your CSV file must include these columns in this order:</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                            <span className="text-xs font-mono font-medium text-blue-900">name</span>
+                            <p className="text-xs text-gray-500 mt-1">Full name</p>
+                          </div>
+                          <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                            <span className="text-xs font-mono font-medium text-blue-900">email</span>
+                            <p className="text-xs text-gray-500 mt-1">Email address</p>
+                          </div>
+                          <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                            <span className="text-xs font-mono font-medium text-blue-900">phone</span>
+                            <p className="text-xs text-gray-500 mt-1">Phone number</p>
+                          </div>
+                          <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                            <span className="text-xs font-mono font-medium text-blue-900">state</span>
+                            <p className="text-xs text-gray-500 mt-1">State (NSW, VIC, QLD, etc.)</p>
+                          </div>
+                          <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                            <span className="text-xs font-mono font-medium text-blue-900">city</span>
+                            <p className="text-xs text-gray-500 mt-1">City name</p>
+                          </div>
+                          <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                            <span className="text-xs font-mono font-medium text-blue-900">address</span>
+                            <p className="text-xs text-gray-500 mt-1">Street address</p>
+                          </div>
+                          <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                            <span className="text-xs font-mono font-medium text-blue-900">region</span>
+                            <Badge variant="secondary" className="text-xs">Optional</Badge>
+                            <p className="text-xs text-gray-500 mt-1">Region/area</p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-blue-600 mt-3">
+                          💡 Example: <code className="bg-white px-1 py-0.5 rounded text-xs">John Smith,john@email.com,0412345678,NSW,Sydney,123 Main St,Greater Sydney</code>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   {importGroups.length === 0 ? (
                     <div className="text-center py-8">
                       <Database className="h-12 w-12 text-gray-400 mx-auto mb-4" />

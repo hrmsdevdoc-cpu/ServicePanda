@@ -229,16 +229,18 @@ export default function AdminProviderReport() {
       {/* Main content area */}
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-6">
+        <header className="bg-white/95 backdrop-blur-sm dark:bg-gray-800 shadow-lg shadow-slate-200/20 border-b border-slate-200/50 dark:border-gray-700">
+          <div className="px-8 py-3" style={{ paddingTop: '1.2rem', paddingBottom: '0.8rem' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <BarChart3 className="h-8 w-8 text-purple-600 mr-3" />
+                <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center mr-3">
+                  <BarChart3 className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                  <h4 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                     Provider Report
-                  </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  </h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Comprehensive provider analytics and performance metrics
                   </p>
                 </div>
