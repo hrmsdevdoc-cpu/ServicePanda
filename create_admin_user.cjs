@@ -1,56 +1,62 @@
-const { Pool } = require('pg');
-require('dotenv').config();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : false,
-});
+const axios = require('axios');
 
 async function createAdminUser() {
+  const baseUrl = 'http://localhost:3000';
+  
+  console.log('🔧 Creating Admin User...');
+  
   try {
-    console.log('Creating admin user...\n');
-
-    // Check if admin_users table exists
-    const tableCheck = await pool.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'admin_users'
-      );
-    `);
-    
-    if (!tableCheck.rows[0].exists) {
-      console.log('❌ admin_users table does not exist');
-      return;
-    }
-
-    // Check if admin user already exists
-    const existingAdmin = await pool.query(`
-      SELECT * FROM admin_users WHERE username = 'admin'
-    `);
-
-    if (existingAdmin.rows.length > 0) {
-      console.log('✅ Admin user already exists');
-      console.log('Username: admin');
-      console.log('Password: admin123');
-      return;
-    }
-
     // Create admin user
-    await pool.query(`
-      INSERT INTO admin_users (username, password, role, created_at, updated_at)
-      VALUES ('admin', 'admin123', 'admin', NOW(), NOW())
-    `);
-
+    console.log('1. Creating admin user...');
+    
+    const createResponse = await axios.post(`${baseUrl}/api/setup/admin-user`, {
+      username: 'admin',
+      password: 'admin123'
+    });
+    
     console.log('✅ Admin user created successfully!');
-    console.log('Username: admin');
-    console.log('Password: admin123');
-
+    console.log('Response:', createResponse.data);
+    
+    // Test login
+    console.log('\n2. Testing admin login...');
+    
+    const loginResponse = await axios.post(`${baseUrl}/api/admin/login`, {
+      username: 'admin',
+      password: 'admin123'
+    });
+    
+    const token = loginResponse.data.token;
+    console.log('✅ Admin login successful!');
+    console.log(`   Token: ${token.substring(0, 30)}...`);
+    
+    console.log('\n🎉 Admin setup complete! You can now:');
+    console.log('   1. Go to your admin panel');
+    console.log('   2. Login with username: admin, password: admin123');
+    console.log('   3. Send SMS campaigns successfully!');
+    
   } catch (error) {
-    console.error('❌ Error creating admin user:', error.message);
-  } finally {
-    await pool.end();
+    console.error('❌ Error:', error.response?.data || error.message);
+    
+    if (error.response?.status === 400 && error.response?.data?.message?.includes('already exists')) {
+      console.log('\n💡 Admin user already exists. Trying to login...');
+      
+      try {
+        const loginResponse = await axios.post(`${baseUrl}/api/admin/login`, {
+          username: 'admin',
+          password: 'admin123'
+        });
+        
+        const token = loginResponse.data.token;
+        console.log('✅ Admin login successful!');
+        console.log(`   Token: ${token.substring(0, 30)}...`);
+        
+        console.log('\n🎉 Admin is ready! You can now send campaigns.');
+        
+      } catch (loginError) {
+        console.error('❌ Login failed:', loginError.response?.data || loginError.message);
+      }
+    }
   }
 }
 
-createAdminUser(); 
+createAdminUser();

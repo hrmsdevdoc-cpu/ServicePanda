@@ -1,13 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { adminApiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -46,6 +49,7 @@ import {
   CheckCircle,
   XCircle,
   MoreHorizontal,
+  MoreVertical,
   Edit,
   Trash2,
   Eye,
@@ -64,6 +68,10 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
+  User,
+  Tag,
+  RefreshCw,
+  Crown,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -87,10 +95,32 @@ interface PotentialProvider {
   status: string;
   priority: string;
   assignedTo?: string;
+  assignedAdminName?: string;
+  taskTitle?: string;
   notes?: string;
   nextFollowUpDate?: string;
   lastContactDate?: string;
   lastContactType?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface TeamTask {
+  id: number;
+  title: string;
+  description?: string;
+  status: string;
+  priority: string;
+  dueDate: string;
+  completedAt?: string;
+  potentialProviderId?: number;
+  providerId?: number;
+  customerId?: string;
+  adminId: string;
+  assignedTo?: string;
+  comments?: string;
+  taskType: string;
+  tags?: any[];
   createdAt: string;
   updatedAt: string;
 }
@@ -100,6 +130,7 @@ interface KanbanColumn {
   title: string;
   color: string;
   providers: PotentialProvider[];
+  tasks: TeamTask[];
 }
 
 interface PendingImport {
@@ -110,22 +141,21 @@ interface PendingImport {
 }
 
 const KANBAN_COLUMNS: KanbanColumn[] = [
-  { id: "new", title: "New", color: "bg-gray-100", providers: [] },
-  { id: "first_call", title: "First Call", color: "bg-blue-100", providers: [] },
-  { id: "follow_up", title: "Follow Up", color: "bg-yellow-100", providers: [] },
-  { id: "email", title: "Email", color: "bg-purple-100", providers: [] },
-  { id: "won", title: "Won", color: "bg-green-100", providers: [] },
-  { id: "lost", title: "Lost", color: "bg-red-100", providers: [] },
+  { id: "overdue24h", title: "Overdue + 24h", color: "bg-red-200", providers: [], tasks: [] },
+  { id: "overdue", title: "Overdue", color: "bg-red-100", providers: [], tasks: [] },
+  { id: "today", title: "Today", color: "bg-blue-100", providers: [], tasks: [] },
+  { id: "tomorrow", title: "Tomorrow", color: "bg-yellow-100", providers: [], tasks: [] },
+  { id: "upcoming", title: "Upcoming", color: "bg-green-100", providers: [], tasks: [] },
 ];
 
-type ViewMode = 'member-list' | 'list' | 'kanban' | 'completed';
+type ViewMode = 'member-list' | 'list' | 'kanban' | 'completed' | 'lost' | 'new-member-list';
 
 export default function AdminPotentialProviders() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   
   // State management
-  const [viewMode, setViewMode] = useState<ViewMode>('member-list');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -138,7 +168,42 @@ export default function AdminPotentialProviders() {
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
   const [isConvertDialogOpen, setIsConvertDialogOpen] = useState(false);
+  const [isWonAlertOpen, setIsWonAlertOpen] = useState(false);
+  const [isLostAlertOpen, setIsLostAlertOpen] = useState(false);
+  const [isViewDetailsDialogOpen, setIsViewDetailsDialogOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<PotentialProvider | null>(null);
+  
+  // Team task state
+  const [teamTasks, setTeamTasks] = useState<TeamTask[]>([]);
+  const [selectedTask, setSelectedTask] = useState<TeamTask | null>(null);
+  const [taskPriorityFilter, setTaskPriorityFilter] = useState("all");
+  const [taskCustomerTypeFilter, setTaskCustomerTypeFilter] = useState("all");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isManager, setIsManager] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState('admin');
+  
+  // Toast hook
+  const { toast } = useToast();
+  
+  // Toast state for mutations
+  const [toastMessage, setToastMessage] = useState<{type: 'success' | 'error', title: string, description: string} | null>(null);
+  
+  // Handle toast messages
+  useEffect(() => {
+    if (toastMessage) {
+      toast({
+        title: toastMessage.title,
+        description: toastMessage.description,
+        variant: toastMessage.type === 'error' ? 'destructive' : 'default'
+      });
+      setToastMessage(null);
+    }
+  }, [toastMessage, toast]);
+  
+  // Kanban scroll functionality
+  const kanbanRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
 
   // New state for member confirmation and pagination
   const [pendingImports, setPendingImports] = useState<PendingImport[]>([]);
@@ -161,6 +226,7 @@ export default function AdminPotentialProviders() {
     postcode: "",
     serviceCategories: "",
     priority: "medium",
+    assignedTo: "",
     notes: "",
   });
 
@@ -170,629 +236,194 @@ export default function AdminPotentialProviders() {
   });
 
   const [taskData, setTaskData] = useState({
-    taskType: "",
+    taskType: "general",
     title: "",
     description: "",
     scheduledDate: "",
     assignedTo: "",
+    priority: "P3",
+    customerType: "all",
+    comments: "",
+    taskOwner: "admin", // Default to current admin
   });
+
+  // Fetch admin users for task assignment
+  const { data: adminUsers = [] } = useQuery({
+    queryKey: ['/api/admin/users'],
+    queryFn: async () => {
+      const response = await adminApiRequest('GET', '/api/admin/users');
+      return response.json();
+    },
+  });
+
+  // Fetch all roles to get permissions for current user's role
+  const { data: roles } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const response = await adminApiRequest("GET", "/api/admin/roles");
+      return response.json();
+    },
+  });
+
+  // Get current admin user info
+  const { data: currentAdminUser } = useQuery({
+    queryKey: ["/api/admin/current-user"],
+    queryFn: async () => {
+      const response = await adminApiRequest("GET", "/api/admin/current-user");
+      return response.json();
+    },
+  });
+
+  // Update taskData when currentAdminUser is loaded
+  useEffect(() => {
+    if (currentAdminUser?.username) {
+      console.log('=== DEBUG: Current admin user loaded ===');
+      console.log('Current admin user:', currentAdminUser);
+      setTaskData(prev => ({
+        ...prev,
+        assignedTo: currentAdminUser.username
+      }));
+    }
+  }, [currentAdminUser]);
+
+  // Get current user's permissions
+  const getUserPermissions = () => {
+    if (!currentUserRole || !roles) return [];
+    
+    // Special case for super_admin - give all permissions
+    if (currentUserRole === 'super_admin') {
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]; // All permission IDs
+    }
+    
+    const userRole = roles.find((role: any) => role.name === currentUserRole);
+    return userRole ? userRole.permissions : [];
+  };
+
+  const userPermissions = getUserPermissions();
+
+  // Check if user has a specific permission
+  const hasPermission = (permissionName: string) => {
+    if (!userPermissions.length) return false;
+    
+    // Map permission names to IDs (this should match the database)
+    const permissionMap: { [key: string]: number } = {
+      'dashboard': 1,
+      'providers': 2,
+      'leads': 5,
+      'potential_customers': 7,
+      'potential_providers': 8,
+      'vouchers': 9,
+      'email': 10,
+      'sms': 11,
+      'reports': 12,
+      'settings': 14,
+      'admin_users': 15,
+      'departments': 16,
+      'manage_new_members': 8, // Use potential_providers permission for now
+    };
+
+    const permissionId = permissionMap[permissionName];
+    return permissionId ? userPermissions.includes(permissionId) : false;
+  };
+
+
 
   const [emailData, setEmailData] = useState({
     subject: "",
     content: "",
   });
+  const [emailMode, setEmailMode] = useState<'followup' | 'custom'>('followup');
 
   const [smsData, setSmsData] = useState({
     content: "",
   });
 
-  // Check admin authentication
+  // Check admin authentication and role
   useEffect(() => {
     const adminToken = localStorage.getItem('adminToken');
     if (!adminToken) {
       navigate('/admin-login');
+      return;
     }
-  }, [navigate]);
 
-  // Dummy data for development/testing
-  const dummyProviders: PotentialProvider[] = [
-    // New providers (for member list)
-    {
-      id: 1,
-      firstName: "John",
-      lastName: "Smith",
-      email: "john.smith@example.com",
-      phone: "0412 345 678",
-      businessName: "Smith Plumbing Services",
-      businessAbn: "12 345 678 901",
-      address: "123 Main Street",
-      state: "NSW",
-      city: "Sydney",
-      postcode: "2000",
-      serviceCategories: "Plumbing, Emergency Repairs",
-      source: "Website",
-      status: "new",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "Interested in emergency plumbing services. Has 10 years experience.",
-      nextFollowUpDate: "2024-01-15",
-      lastContactDate: "2024-01-10",
-      lastContactType: "email",
-      createdAt: "2024-01-08T10:00:00Z",
-      updatedAt: "2024-01-10T14:30:00Z"
-    },
-    {
-      id: 2,
-      firstName: "Maria",
-      lastName: "Garcia",
-      email: "maria.garcia@example.com",
-      phone: "0423 456 789",
-      businessName: "Garcia Electrical",
-      businessAbn: "23 456 789 012",
-      address: "456 Oak Avenue",
-      state: "VIC",
-      city: "Melbourne",
-      postcode: "3000",
-      serviceCategories: "Electrical, Installation",
-      source: "Referral",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Specializes in residential electrical work. Licensed electrician.",
-      nextFollowUpDate: "2024-01-16",
-      lastContactDate: "2024-01-11",
-      lastContactType: "phone",
-      createdAt: "2024-01-09T09:15:00Z",
-      updatedAt: "2024-01-11T16:45:00Z"
-    },
-    {
-      id: 3,
-      firstName: "David",
-      lastName: "Wilson",
-      email: "david.wilson@example.com",
-      phone: "0434 567 890",
-      businessName: "Wilson Cleaning Services",
-      businessAbn: "34 567 890 123",
-      address: "789 Pine Road",
-      state: "QLD",
-      city: "Brisbane",
-      postcode: "4000",
-      serviceCategories: "Cleaning, Commercial",
-      source: "Social Media",
-      status: "new",
-      priority: "low",
-      assignedTo: "Lisa Wang",
-      notes: "Focuses on commercial cleaning. Has 5 employees.",
-      nextFollowUpDate: "2024-01-18",
-      lastContactDate: "2024-01-12",
-      lastContactType: "email",
-      createdAt: "2024-01-10T11:30:00Z",
-      updatedAt: "2024-01-12T10:20:00Z"
-    },
-    {
-      id: 4,
-      firstName: "Emma",
-      lastName: "Thompson",
-      email: "emma.thompson@example.com",
-      phone: "0445 678 901",
-      businessName: "Thompson Gardening",
-      businessAbn: "45 678 901 234",
-      address: "321 Garden Street",
-      state: "WA",
-      city: "Perth",
-      postcode: "6000",
-      serviceCategories: "Gardening, Landscaping",
-      source: "Website",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Tom Anderson",
-      notes: "Specializes in sustainable gardening. Certified horticulturist.",
-      nextFollowUpDate: "2024-01-17",
-      lastContactDate: "2024-01-13",
-      lastContactType: "phone",
-      createdAt: "2024-01-11T13:45:00Z",
-      updatedAt: "2024-01-13T15:10:00Z"
-    },
-    {
-      id: 5,
-      firstName: "James",
-      lastName: "Brown",
-      email: "james.brown@example.com",
-      phone: "0456 789 012",
-      businessName: "Brown Carpentry",
-      businessAbn: "56 789 012 345",
-      address: "654 Wood Lane",
-      state: "SA",
-      city: "Adelaide",
-      postcode: "5000",
-      serviceCategories: "Carpentry, Renovations",
-      source: "Referral",
-      status: "new",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "Expert in custom furniture and home renovations. 15 years experience.",
-      nextFollowUpDate: "2024-01-14",
-      lastContactDate: "2024-01-12",
-      lastContactType: "email",
-      createdAt: "2024-01-12T08:20:00Z",
-      updatedAt: "2024-01-12T17:30:00Z"
-    },
-    {
-      id: 6,
-      firstName: "Sophie",
-      lastName: "Davis",
-      email: "sophie.davis@example.com",
-      phone: "0467 890 123",
-      businessName: "Davis Painting Co",
-      businessAbn: "67 890 123 456",
-      address: "987 Color Street",
-      state: "TAS",
-      city: "Hobart",
-      postcode: "7000",
-      serviceCategories: "Painting, Interior Design",
-      source: "Social Media",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Specializes in interior and exterior painting. Uses eco-friendly paints.",
-      nextFollowUpDate: "2024-01-19",
-      lastContactDate: "2024-01-14",
-      lastContactType: "phone",
-      createdAt: "2024-01-13T10:15:00Z",
-      updatedAt: "2024-01-14T11:45:00Z"
-    },
-    {
-      id: 7,
-      firstName: "Michael",
-      lastName: "Johnson",
-      email: "michael.johnson@example.com",
-      phone: "0478 901 234",
-      businessName: "Johnson Security",
-      businessAbn: "78 901 234 567",
-      address: "147 Security Blvd",
-      state: "NT",
-      city: "Darwin",
-      postcode: "0800",
-      serviceCategories: "Security, CCTV Installation",
-      source: "Website",
-      status: "new",
-      priority: "high",
-      assignedTo: "Lisa Wang",
-      notes: "Provides security systems for homes and businesses. Licensed security provider.",
-      nextFollowUpDate: "2024-01-15",
-      lastContactDate: "2024-01-13",
-      lastContactType: "email",
-      createdAt: "2024-01-14T09:30:00Z",
-      updatedAt: "2024-01-13T14:20:00Z"
-    },
-    {
-      id: 8,
-      firstName: "Amanda",
-      lastName: "Lee",
-      email: "amanda.lee@example.com",
-      phone: "0489 012 345",
-      businessName: "Lee Photography",
-      businessAbn: "89 012 345 678",
-      address: "258 Camera Road",
-      state: "ACT",
-      city: "Canberra",
-      postcode: "2600",
-      serviceCategories: "Photography, Events",
-      source: "Referral",
-      status: "new",
-      priority: "low",
-      assignedTo: "Tom Anderson",
-      notes: "Specializes in wedding and event photography. Professional equipment.",
-      nextFollowUpDate: "2024-01-20",
-      lastContactDate: "2024-01-15",
-      lastContactType: "phone",
-      createdAt: "2024-01-15T12:00:00Z",
-      updatedAt: "2024-01-15T16:30:00Z"
-    },
-    // First call status providers
-    {
-      id: 9,
-      firstName: "Robert",
-      lastName: "Taylor",
-      email: "robert.taylor@example.com",
-      phone: "0490 123 456",
-      businessName: "Taylor HVAC",
-      businessAbn: "90 123 456 789",
-      address: "369 Air Street",
-      state: "NSW",
-      city: "Newcastle",
-      postcode: "2300",
-      serviceCategories: "HVAC, Air Conditioning",
-      source: "Website",
-      status: "first_call",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "Specializes in commercial HVAC systems. Available for emergency calls.",
-      nextFollowUpDate: "2024-01-16",
-      lastContactDate: "2024-01-14",
-      lastContactType: "phone",
-      createdAt: "2024-01-13T14:20:00Z",
-      updatedAt: "2024-01-14T09:15:00Z"
-    },
-    {
-      id: 10,
-      firstName: "Jennifer",
-      lastName: "White",
-      email: "jennifer.white@example.com",
-      phone: "0491 234 567",
-      businessName: "White Landscaping",
-      businessAbn: "91 234 567 890",
-      address: "741 Nature Way",
-      state: "VIC",
-      city: "Geelong",
-      postcode: "3220",
-      serviceCategories: "Landscaping, Garden Design",
-      source: "Referral",
-      status: "first_call",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Creates beautiful outdoor spaces. Uses sustainable materials.",
-      nextFollowUpDate: "2024-01-17",
-      lastContactDate: "2024-01-15",
-      lastContactType: "email",
-      createdAt: "2024-01-14T11:30:00Z",
-      updatedAt: "2024-01-15T16:45:00Z"
-    },
-    // Follow up status providers
-    {
-      id: 11,
-      firstName: "Christopher",
-      lastName: "Anderson",
-      email: "christopher.anderson@example.com",
-      phone: "0492 345 678",
-      businessName: "Anderson Roofing",
-      businessAbn: "92 345 678 901",
-      address: "852 Roof Road",
-      state: "QLD",
-      city: "Gold Coast",
-      postcode: "4215",
-      serviceCategories: "Roofing, Repairs",
-      source: "Social Media",
-      status: "follow_up",
-      priority: "high",
-      assignedTo: "Lisa Wang",
-      notes: "Expert in all types of roofing. Licensed and insured.",
-      nextFollowUpDate: "2024-01-18",
-      lastContactDate: "2024-01-16",
-      lastContactType: "phone",
-      createdAt: "2024-01-15T09:45:00Z",
-      updatedAt: "2024-01-16T14:20:00Z"
-    },
-    {
-      id: 12,
-      firstName: "Nicole",
-      lastName: "Martinez",
-      email: "nicole.martinez@example.com",
-      phone: "0493 456 789",
-      businessName: "Martinez Cleaning",
-      businessAbn: "93 456 789 012",
-      address: "963 Clean Street",
-      state: "WA",
-      city: "Fremantle",
-      postcode: "6160",
-      serviceCategories: "Cleaning, Domestic",
-      source: "Website",
-      status: "follow_up",
-      priority: "medium",
-      assignedTo: "Tom Anderson",
-      notes: "Provides regular cleaning services. Uses eco-friendly products.",
-      nextFollowUpDate: "2024-01-19",
-      lastContactDate: "2024-01-17",
-      lastContactType: "email",
-      createdAt: "2024-01-16T13:15:00Z",
-      updatedAt: "2024-01-17T10:30:00Z"
-    },
-    // Email status providers
-    {
-      id: 13,
-      firstName: "Daniel",
-      lastName: "Clark",
-      email: "daniel.clark@example.com",
-      phone: "0494 567 890",
-      businessName: "Clark Plumbing",
-      businessAbn: "94 567 890 123",
-      address: "147 Pipe Lane",
-      state: "SA",
-      city: "Mount Gambier",
-      postcode: "5290",
-      serviceCategories: "Plumbing, Emergency",
-      source: "Referral",
-      status: "email",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "24/7 emergency plumbing services. Licensed plumber.",
-      nextFollowUpDate: "2024-01-20",
-      lastContactDate: "2024-01-18",
-      lastContactType: "email",
-      createdAt: "2024-01-17T08:30:00Z",
-      updatedAt: "2024-01-18T15:45:00Z"
-    },
-    {
-      id: 14,
-      firstName: "Rachel",
-      lastName: "Gonzalez",
-      email: "rachel.gonzalez@example.com",
-      phone: "0495 678 901",
-      businessName: "Gonzalez Electrical",
-      businessAbn: "95 678 901 234",
-      address: "258 Wire Street",
-      state: "TAS",
-      city: "Launceston",
-      postcode: "7250",
-      serviceCategories: "Electrical, Commercial",
-      source: "Social Media",
-      status: "email",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Specializes in commercial electrical work. Certified electrician.",
-      nextFollowUpDate: "2024-01-21",
-      lastContactDate: "2024-01-19",
-      lastContactType: "email",
-      createdAt: "2024-01-18T12:00:00Z",
-      updatedAt: "2024-01-19T11:20:00Z"
-    },
-    // Won status providers
-    {
-      id: 15,
-      firstName: "Steven",
-      lastName: "Rodriguez",
-      email: "steven.rodriguez@example.com",
-      phone: "0496 789 012",
-      businessName: "Rodriguez Construction",
-      businessAbn: "96 789 012 345",
-      address: "369 Build Street",
-      state: "NT",
-      city: "Alice Springs",
-      postcode: "0870",
-      serviceCategories: "Construction, Renovations",
-      source: "Website",
-      status: "won",
-      priority: "high",
-      assignedTo: "Lisa Wang",
-      notes: "Full-service construction company. Licensed builder.",
-      nextFollowUpDate: "2024-01-22",
-      lastContactDate: "2024-01-20",
-      lastContactType: "phone",
-      createdAt: "2024-01-19T10:15:00Z",
-      updatedAt: "2024-01-20T13:30:00Z"
-    },
-    {
-      id: 16,
-      firstName: "Melissa",
-      lastName: "Turner",
-      email: "melissa.turner@example.com",
-      phone: "0497 890 123",
-      businessName: "Turner Photography",
-      businessAbn: "97 890 123 456",
-      address: "741 Photo Lane",
-      state: "ACT",
-      city: "Belconnen",
-      postcode: "2617",
-      serviceCategories: "Photography, Portraits",
-      source: "Referral",
-      status: "won",
-      priority: "medium",
-      assignedTo: "Tom Anderson",
-      notes: "Professional portrait photographer. Studio available.",
-      nextFollowUpDate: "2024-01-23",
-      lastContactDate: "2024-01-21",
-      lastContactType: "email",
-      createdAt: "2024-01-20T14:45:00Z",
-      updatedAt: "2024-01-21T09:15:00Z"
-    },
-    {
-      id: 1,
-      firstName: "John",
-      lastName: "Smith",
-      email: "john.smith@example.com",
-      phone: "0412 345 678",
-      businessName: "Smith Plumbing Services",
-      businessAbn: "12 345 678 901",
-      address: "123 Main Street",
-      state: "NSW",
-      city: "Sydney",
-      postcode: "2000",
-      serviceCategories: "Plumbing, Emergency Repairs",
-      source: "Website",
-      status: "new",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "Interested in emergency plumbing services. Has 10 years experience.",
-      nextFollowUpDate: "2024-01-15",
-      lastContactDate: "2024-01-10",
-      lastContactType: "email",
-      createdAt: "2024-01-08T10:00:00Z",
-      updatedAt: "2024-01-10T14:30:00Z"
-    },
-    {
-      id: 2,
-      firstName: "Maria",
-      lastName: "Garcia",
-      email: "maria.garcia@example.com",
-      phone: "0423 456 789",
-      businessName: "Garcia Electrical",
-      businessAbn: "23 456 789 012",
-      address: "456 Oak Avenue",
-      state: "VIC",
-      city: "Melbourne",
-      postcode: "3000",
-      serviceCategories: "Electrical, Installation",
-      source: "Referral",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Specializes in residential electrical work. Licensed electrician.",
-      nextFollowUpDate: "2024-01-16",
-      lastContactDate: "2024-01-11",
-      lastContactType: "phone",
-      createdAt: "2024-01-09T09:15:00Z",
-      updatedAt: "2024-01-11T16:45:00Z"
-    },
-    {
-      id: 3,
-      firstName: "David",
-      lastName: "Wilson",
-      email: "david.wilson@example.com",
-      phone: "0434 567 890",
-      businessName: "Wilson Cleaning Services",
-      businessAbn: "34 567 890 123",
-      address: "789 Pine Road",
-      state: "QLD",
-      city: "Brisbane",
-      postcode: "4000",
-      serviceCategories: "Cleaning, Commercial",
-      source: "Social Media",
-      status: "new",
-      priority: "low",
-      assignedTo: "Lisa Wang",
-      notes: "Focuses on commercial cleaning. Has 5 employees.",
-      nextFollowUpDate: "2024-01-18",
-      lastContactDate: "2024-01-12",
-      lastContactType: "email",
-      createdAt: "2024-01-10T11:30:00Z",
-      updatedAt: "2024-01-12T10:20:00Z"
-    },
-    {
-      id: 4,
-      firstName: "Emma",
-      lastName: "Thompson",
-      email: "emma.thompson@example.com",
-      phone: "0445 678 901",
-      businessName: "Thompson Gardening",
-      businessAbn: "45 678 901 234",
-      address: "321 Garden Street",
-      state: "WA",
-      city: "Perth",
-      postcode: "6000",
-      serviceCategories: "Gardening, Landscaping",
-      source: "Website",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Tom Anderson",
-      notes: "Specializes in sustainable gardening. Certified horticulturist.",
-      nextFollowUpDate: "2024-01-17",
-      lastContactDate: "2024-01-13",
-      lastContactType: "phone",
-      createdAt: "2024-01-11T13:45:00Z",
-      updatedAt: "2024-01-13T15:10:00Z"
-    },
-    {
-      id: 5,
-      firstName: "James",
-      lastName: "Brown",
-      email: "james.brown@example.com",
-      phone: "0456 789 012",
-      businessName: "Brown Carpentry",
-      businessAbn: "56 789 012 345",
-      address: "654 Wood Lane",
-      state: "SA",
-      city: "Adelaide",
-      postcode: "5000",
-      serviceCategories: "Carpentry, Renovations",
-      source: "Referral",
-      status: "new",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-      notes: "Expert in custom furniture and home renovations. 15 years experience.",
-      nextFollowUpDate: "2024-01-14",
-      lastContactDate: "2024-01-12",
-      lastContactType: "email",
-      createdAt: "2024-01-12T08:20:00Z",
-      updatedAt: "2024-01-12T17:30:00Z"
-    },
-    {
-      id: 6,
-      firstName: "Sophie",
-      lastName: "Davis",
-      email: "sophie.davis@example.com",
-      phone: "0467 890 123",
-      businessName: "Davis Painting Co",
-      businessAbn: "67 890 123 456",
-      address: "987 Color Street",
-      state: "TAS",
-      city: "Hobart",
-      postcode: "7000",
-      serviceCategories: "Painting, Interior Design",
-      source: "Social Media",
-      status: "new",
-      priority: "medium",
-      assignedTo: "Mike Chen",
-      notes: "Specializes in interior and exterior painting. Uses eco-friendly paints.",
-      nextFollowUpDate: "2024-01-19",
-      lastContactDate: "2024-01-14",
-      lastContactType: "phone",
-      createdAt: "2024-01-13T10:15:00Z",
-      updatedAt: "2024-01-14T11:45:00Z"
-    },
-    {
-      id: 7,
-      firstName: "Michael",
-      lastName: "Johnson",
-      email: "michael.johnson@example.com",
-      phone: "0478 901 234",
-      businessName: "Johnson Security",
-      businessAbn: "78 901 234 567",
-      address: "147 Security Blvd",
-      state: "NT",
-      city: "Darwin",
-      postcode: "0800",
-      serviceCategories: "Security, CCTV Installation",
-      source: "Website",
-      status: "new",
-      priority: "high",
-      assignedTo: "Lisa Wang",
-      notes: "Provides security systems for homes and businesses. Licensed security provider.",
-      nextFollowUpDate: "2024-01-15",
-      lastContactDate: "2024-01-13",
-      lastContactType: "email",
-      createdAt: "2024-01-14T09:30:00Z",
-      updatedAt: "2024-01-13T14:20:00Z"
-    },
-    {
-      id: 8,
-      firstName: "Amanda",
-      lastName: "Lee",
-      email: "amanda.lee@example.com",
-      phone: "0489 012 345",
-      businessName: "Lee Photography",
-      businessAbn: "89 012 345 678",
-      address: "258 Camera Road",
-      state: "ACT",
-      city: "Canberra",
-      postcode: "2600",
-      serviceCategories: "Photography, Events",
-      source: "Referral",
-      status: "new",
-      priority: "low",
-      assignedTo: "Tom Anderson",
-      notes: "Specializes in wedding and event photography. Professional equipment.",
-      nextFollowUpDate: "2024-01-20",
-      lastContactDate: "2024-01-15",
-      lastContactType: "phone",
-      createdAt: "2024-01-15T12:00:00Z",
-      updatedAt: "2024-01-15T16:30:00Z"
+    // Decode token to check role
+    try {
+      const tokenPayload = JSON.parse(atob(adminToken.split('.')[1]));
+      const role = tokenPayload.role;
+      setCurrentUserRole(role);
+      setIsSuperAdmin(role === 'administrator' || role === 'super_admin');
+      setIsManager(role === 'manager');
+      
+      console.log('=== DEBUG: User role loaded ===');
+      console.log('User role:', role);
+      console.log('Is super admin:', role === 'administrator' || role === 'super_admin');
+      
+      // If team member is on member-list view, redirect to list view
+      if (currentAdminUser?.role === 'Team Member' && viewMode === 'member-list') {
+        setViewMode('list');
+      }
+    } catch (error) {
+      console.error('Error decoding admin token:', error);
+      setIsSuperAdmin(false);
+      setIsManager(false);
+      setCurrentUserRole('admin');
     }
-  ];
+  }, [navigate, viewMode]);
+
+  // Dummy data for development/testing - DISABLED (using dynamic data from database)
+  // All dummy data has been removed to use real database data
 
   // Fetch potential providers
-  const { data: potentialProviders, isLoading } = useQuery({
+  const { data: potentialProviders = [], isLoading } = useQuery({
     queryKey: ['/api/admin/potential-providers'],
     queryFn: async () => {
-      try {
-        const response = await adminApiRequest('GET', '/api/admin/potential-providers');
-        const data = await response.json();
-        return data;
-      } catch (error) {
-        console.log('Using dummy data due to API error:', error);
-        return dummyProviders;
+      const response = await adminApiRequest('GET', '/api/admin/potential-providers');
+      const data = await response.json();
+      console.log('=== DEBUG: Potential providers from API ===');
+      console.log('Total providers:', data.length);
+      if (data.length > 0) {
+        console.log('First provider:', {
+          id: data[0].id,
+          name: `${data[0].firstName} ${data[0].lastName}`,
+          assignedTo: data[0].assignedTo,
+          taskTitle: data[0].taskTitle
+        });
       }
+      return data;
     },
     staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch team tasks for Kanban view
+  const { data: kanbanTasks, isLoading: tasksLoading } = useQuery({
+    queryKey: ['/api/admin/team-tasks/kanban', isSuperAdmin, currentUserRole],
+    queryFn: async () => {
+      try {
+        let url = '/api/admin/team-tasks/kanban';
+        
+        // If super admin, fetch all tasks
+        if (isSuperAdmin) {
+          url += '?all=true';
+        }
+        // For all other users (managers, team members, etc), server will automatically
+        // filter by assignedTo field to show only their assigned tasks
+        
+        console.log('Fetching kanban tasks for user role:', currentUserRole, 'isSuperAdmin:', isSuperAdmin);
+        
+        const response = await adminApiRequest('GET', url);
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching team tasks:', error);
+        return {
+          overdue24h: [],
+          overdue: [],
+          today: [],
+          tomorrow: [],
+          upcoming: []
+        };
+      }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Create potential provider mutation
@@ -817,8 +448,23 @@ export default function AdminPotentialProviders() {
         postcode: "",
         serviceCategories: "",
         priority: "medium",
+        assignedTo: "",
         notes: "",
       });
+    },
+  });
+
+  // Update potential provider mutation
+  const updateProviderMutation = useMutation({
+    mutationFn: async (updateData: { id: number; status?: string; nextFollowUpDate?: string }) => {
+      const response = await adminApiRequest('PATCH', `/api/admin/potential-providers/${updateData.id}`, {
+        ...(updateData.status && { status: updateData.status }),
+        ...(updateData.nextFollowUpDate && { nextFollowUpDate: updateData.nextFollowUpDate }),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
     },
   });
 
@@ -871,16 +517,6 @@ export default function AdminPotentialProviders() {
     },
   });
 
-  // Update provider status mutation
-  const updateProviderStatusMutation = useMutation({
-    mutationFn: async ({ providerId, status }: { providerId: number; status: string }) => {
-      const response = await adminApiRequest('PATCH', `/api/admin/potential-providers/${providerId}`, { status });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
-    },
-  });
 
   // Convert to actual provider mutation
   const convertToProviderMutation = useMutation({
@@ -904,12 +540,17 @@ export default function AdminPotentialProviders() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
       setIsTaskDialogOpen(false);
+      setSelectedProvider(null);
       setTaskData({
-        taskType: "call",
+        taskType: "general",
         title: "",
         description: "",
         scheduledDate: "",
-        assignedTo: "",
+        assignedTo: currentAdminUser?.username || "",
+        priority: "P3",
+        customerType: "all",
+        comments: "",
+        taskOwner: "admin"
       });
     },
   });
@@ -920,9 +561,32 @@ export default function AdminPotentialProviders() {
       const response = await adminApiRequest('POST', '/api/admin/potential-providers/email', emailData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       setIsEmailDialogOpen(false);
       setEmailData({ subject: "", content: "" });
+      setEmailMode('followup');
+      
+      // Update provider status based on email mode
+      if (selectedProvider) {
+        const newStatus = variables.emailMode === 'followup' ? 'follow_up' : 'email';
+        updateProviderMutation.mutate({
+          id: selectedProvider.id,
+          status: newStatus
+        });
+      }
+      
+      setToastMessage({
+        type: 'success',
+        title: "Email Sent",
+        description: `Email sent successfully to ${selectedProvider?.firstName} ${selectedProvider?.lastName}`,
+      });
+    },
+    onError: (error) => {
+      setToastMessage({
+        type: 'error',
+        title: "Email Failed",
+        description: error.message || "Failed to send email",
+      });
     },
   });
 
@@ -935,12 +599,78 @@ export default function AdminPotentialProviders() {
     onSuccess: () => {
       setIsSmsDialogOpen(false);
       setSmsData({ content: "" });
+      
+      // Update provider status to "SMS Sent"
+      if (selectedProvider) {
+        updateProviderMutation.mutate({
+          id: selectedProvider.id,
+          status: 'sms_sent'
+        });
+      }
+      
+      setToastMessage({
+        type: 'success',
+        title: "SMS Sent",
+        description: `SMS sent successfully to ${selectedProvider?.firstName} ${selectedProvider?.lastName}`,
+      });
+    },
+    onError: (error) => {
+      setToastMessage({
+        type: 'error',
+        title: "SMS Failed",
+        description: error.message || "Failed to send SMS",
+      });
+    },
+  });
+
+  // Create team task mutation
+  const createTeamTaskMutation = useMutation({
+    mutationFn: async (taskData: any) => {
+      console.log('Mutation called with data:', taskData);
+      const response = await adminApiRequest('POST', '/api/admin/team-tasks', taskData);
+      const result = await response.json();
+      console.log('Mutation response:', result);
+      return result;
+    },
+    onSuccess: (data) => {
+      console.log('Task created successfully:', data);
+      // Invalidate all queries that start with the kanban key
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          return query.queryKey[0] === '/api/admin/team-tasks/kanban';
+        }
+      });
+      setIsTaskDialogOpen(false);
+      setTaskData({
+        taskType: "general",
+        title: "",
+        description: "",
+        scheduledDate: "",
+        assignedTo: "",
+        priority: "P3",
+        customerType: "all",
+        comments: "",
+        taskOwner: "admin"
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Error creating team task:', error);
     },
   });
 
   // Filter and organize providers into kanban columns
   useEffect(() => {
+    console.log('🔥 useEffect TRIGGERED for Kanban!');
+    console.log('potentialProviders:', potentialProviders?.length || 0);
+    console.log('currentAdminUser:', currentAdminUser?.username);
+    console.log('isSuperAdmin:', isSuperAdmin);
+    
     if (potentialProviders) {
+      console.log('=== DEBUG: Kanban columns update ===');
+      console.log('Current user:', currentAdminUser?.username);
+      console.log('Is super admin:', isSuperAdmin);
+      console.log('Total providers:', potentialProviders.length);
+      
       // Apply the same filtering logic as getFilteredProviders but for kanban view
       const filtered = potentialProviders.filter((provider: PotentialProvider) => {
         const matchesSearch = searchTerm === "" || 
@@ -950,33 +680,149 @@ export default function AdminPotentialProviders() {
           provider.phone.includes(searchTerm) ||
           (provider.businessName && provider.businessName.toLowerCase().includes(searchTerm.toLowerCase()));
 
-        const matchesStatus = statusFilter === "all" || provider.status === statusFilter;
+        const matchesStatus = statusFilter === "all" || 
+          provider.status === statusFilter ||
+          (statusFilter === "sms_1st" && (provider as any).smsDeliveryStatus === "1st_sent") ||
+          (statusFilter === "sms_2nd" && (provider as any).smsDeliveryStatus === "2nd_sent");
         const matchesPriority = priorityFilter === "all" || provider.priority === priorityFilter;
-        const matchesAssignedTo = assignedToFilter === "all" || provider.assignedTo === assignedToFilter;
+        const matchesAssignedTo = assignedToFilter === "all" || 
+          (assignedToFilter === "unassigned" && (!provider.assignedTo || provider.assignedTo === "")) ||
+          provider.assignedTo === assignedToFilter;
         const matchesSource = sourceFilter === "all" || provider.source === sourceFilter;
+        
+        // Exclude won, lost, and new providers from kanban view, and only show providers with tasks
+        const isNotWonOrLost = provider.status !== 'won' && provider.status !== 'lost' && provider.status !== 'new';
+        const hasTask = provider.taskTitle && provider.taskTitle.trim() !== '';
+        
+        // For non-super-admin users, show providers assigned to them OR unassigned (null)
+        const isAssignedToCurrentUser = isSuperAdmin || !currentAdminUser?.username || 
+          provider.assignedTo === currentAdminUser.username || 
+          provider.assignedTo === null || 
+          provider.assignedTo === '';
 
-        return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource;
+        // Debug filtering for first few providers
+        if (potentialProviders.indexOf(provider) < 3) {
+          console.log(`Provider ${provider.firstName}:`, {
+            matchesSearch,
+            matchesStatus,
+            matchesPriority,
+            matchesAssignedTo,
+            matchesSource,
+            isNotWonOrLost,
+            hasTask: !!hasTask,
+            taskTitle: provider.taskTitle,
+            isAssignedToCurrentUser,
+            assignedTo: provider.assignedTo,
+            currentUser: currentAdminUser?.username,
+            status: provider.status,
+            PASSES: matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && isNotWonOrLost && hasTask && isAssignedToCurrentUser
+          });
+        }
+
+        return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && isNotWonOrLost && hasTask && isAssignedToCurrentUser;
       });
+      
+      console.log('Filtered providers for Kanban:', filtered.length);
+      if (filtered.length > 0) {
+        console.log('First filtered provider:', {
+          name: `${filtered[0].firstName} ${filtered[0].lastName}`,
+          assignedTo: filtered[0].assignedTo,
+          taskTitle: filtered[0].taskTitle
+        });
+      }
 
       const updatedColumns = KANBAN_COLUMNS.map(column => ({
         ...column,
-        providers: filtered.filter((provider: PotentialProvider) => provider.status === column.id)
+        providers: filtered.filter((provider: PotentialProvider) => {
+          // Organize providers by time/urgency based on their nextFollowUpDate or createdAt
+          const now = new Date();
+          const providerDate = provider.nextFollowUpDate ? new Date(provider.nextFollowUpDate) : new Date(provider.createdAt);
+          const daysDiff = Math.ceil((providerDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Debug first provider in each iteration
+          if (filtered.indexOf(provider) === 0) {
+            console.log('Sample provider date calculation:', {
+              provider: `${provider.firstName} ${provider.lastName}`,
+              nextFollowUpDate: provider.nextFollowUpDate,
+              createdAt: provider.createdAt,
+              providerDate: providerDate.toISOString(),
+              daysDiff,
+              column: column.id
+            });
+          }
+          
+          switch (column.id) {
+            case 'overdue24h':
+              return daysDiff < -1; // Overdue by more than 24 hours
+            case 'overdue':
+              return daysDiff >= -1 && daysDiff < 0; // Overdue but within 24 hours
+            case 'today':
+              return daysDiff === 0; // Due today
+            case 'tomorrow':
+              return daysDiff === 1; // Due tomorrow
+            case 'upcoming':
+              return daysDiff > 1; // Due in the future
+            default:
+              return false;
+          }
+        })
       }));
+      
+      console.log('Updated Kanban columns:', updatedColumns.map(col => ({
+        id: col.id,
+        title: col.title,
+        count: col.providers.length
+      })));
 
       setKanbanColumns(updatedColumns);
+      
+      // Update arrow visibility after columns are updated
+      setTimeout(() => {
+        updateArrowVisibility();
+      }, 100);
     }
-  }, [potentialProviders, searchTerm, statusFilter, priorityFilter, assignedToFilter, sourceFilter]);
+  }, [potentialProviders, searchTerm, statusFilter, priorityFilter, assignedToFilter, sourceFilter, isSuperAdmin, currentAdminUser]);
+
+  // Update arrow visibility based on scroll position
+  const updateArrowVisibility = () => {
+    if (!kanbanRef.current) return;
+    
+    const { scrollLeft, scrollWidth, clientWidth } = kanbanRef.current;
+    const isAtStart = scrollLeft <= 0;
+    const isAtEnd = scrollLeft >= scrollWidth - clientWidth - 1; // -1 for rounding errors
+    
+    setShowLeftArrow(!isAtStart);
+    setShowRightArrow(!isAtEnd);
+  };
+
+  // Add scroll event listener
+  useEffect(() => {
+    if (viewMode !== 'kanban' || !kanbanRef.current) return;
+    
+    const handleScroll = () => {
+      updateArrowVisibility();
+    };
+    
+    kanbanRef.current.addEventListener('scroll', handleScroll);
+    
+    // Initial check
+    updateArrowVisibility();
+    
+    // Add resize observer to handle window resizing
+    const resizeObserver = new ResizeObserver(() => {
+      updateArrowVisibility();
+    });
+    resizeObserver.observe(kanbanRef.current);
+    
+    return () => {
+      if (kanbanRef.current) {
+        kanbanRef.current.removeEventListener('scroll', handleScroll);
+      }
+      resizeObserver.disconnect();
+    };
+  }, [viewMode, kanbanColumns]);
 
   // Handle drag and drop
-  const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
-
-    const { source, destination, draggableId } = result;
-    const providerId = parseInt(draggableId);
-    const newStatus = destination.droppableId;
-
-    updateProviderStatusMutation.mutate({ providerId, status: newStatus });
-  };
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -1023,11 +869,52 @@ export default function AdminPotentialProviders() {
     }
   };
 
+  const handleProviderStatusChange = (providerId: number, newStatus: string) => {
+    // Update provider status via API
+    updateProviderMutation.mutate({
+      id: providerId,
+      status: newStatus,
+    });
+  };
+
+  const handleProviderTimeChange = (providerId: number, columnId: string) => {
+    // Calculate new follow-up date based on column
+    const now = new Date();
+    let newFollowUpDate;
+    
+    switch (columnId) {
+      case 'overdue24h':
+        newFollowUpDate = new Date(now.getTime() - (2 * 24 * 60 * 60 * 1000)); // 2 days ago
+        break;
+      case 'overdue':
+        newFollowUpDate = new Date(now.getTime() - (12 * 60 * 60 * 1000)); // 12 hours ago
+        break;
+      case 'today':
+        newFollowUpDate = new Date(now.getTime()); // Today
+        break;
+      case 'tomorrow':
+        newFollowUpDate = new Date(now.getTime() + (24 * 60 * 60 * 1000)); // Tomorrow
+        break;
+      case 'upcoming':
+        newFollowUpDate = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000)); // 3 days from now
+        break;
+      default:
+        return;
+    }
+
+    // Update provider follow-up date via API
+    updateProviderMutation.mutate({
+      id: providerId,
+      nextFollowUpDate: newFollowUpDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+    });
+  };
+
   const handleSendEmail = () => {
     if (selectedProvider) {
       sendEmailMutation.mutate({
         ...emailData,
         potentialProviderId: selectedProvider.id,
+        emailMode: emailMode, // Include email mode for status update
       });
     }
   };
@@ -1047,9 +934,70 @@ export default function AdminPotentialProviders() {
     }
   };
 
-  const handleStatusChange = (providerId: number, newStatus: string) => {
-    updateProviderStatusMutation.mutate({ providerId, status: newStatus });
+  const handleCreateTeamTask = () => {
+    // Validate required fields
+    if (!taskData.title || !taskData.scheduledDate) {
+      alert('Please fill in all required fields (Title and Due Date)');
+      return;
+    }
+
+    // Prepare task data for API
+    const teamTaskData = {
+      title: taskData.title,
+      description: taskData.description || '',
+      priority: taskData.priority || 'P3',
+      dueDate: new Date(taskData.scheduledDate).toISOString(), // Convert to ISO string
+      adminId: taskData.taskOwner || 'admin', // Use selected task owner or default to admin
+      assignedTo: taskData.assignedTo || null,
+      taskType: taskData.taskType || 'general',
+      comments: taskData.comments || '',
+      status: 'pending',
+      // Set customer type based on selection
+      ...(taskData.customerType === 'potential_provider' && { potentialProviderId: null }),
+      ...(taskData.customerType === 'provider' && { providerId: null }),
+      ...(taskData.customerType === 'customer' && { customerId: null }),
+    };
+
+    console.log('Creating team task with data:', teamTaskData);
+    createTeamTaskMutation.mutate(teamTaskData);
   };
+
+  const handleTaskMove = async (taskId: number, fromColumn: string, toColumn: string) => {
+    if (fromColumn === toColumn) return;
+
+    try {
+      // Update task status based on the new column
+      let newStatus = 'pending';
+      switch (toColumn) {
+        case 'overdue24h':
+        case 'overdue':
+          newStatus = 'overdue';
+          break;
+        case 'today':
+          newStatus = 'today';
+          break;
+        case 'tomorrow':
+          newStatus = 'tomorrow';
+          break;
+        case 'upcoming':
+          newStatus = 'upcoming';
+          break;
+        default:
+          newStatus = 'pending';
+      }
+
+      // Call API to update task status
+      await adminApiRequest('PUT', `/api/admin/team-tasks/${taskId}`, {
+        status: newStatus
+      });
+
+      // Refresh the kanban data
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/team-tasks/kanban'] });
+    } catch (error) {
+      console.error('Error moving task:', error);
+    }
+  };
+
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -1061,13 +1009,56 @@ export default function AdminPotentialProviders() {
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "new": return "bg-blue-500";
+      case "active": return "bg-green-500";
+      case "first_call": return "bg-purple-500";
+      case "follow_up": return "bg-orange-500";
+      case "email": return "bg-indigo-500";
+      case "sms_1st": return "bg-cyan-500";
+      case "sms_2nd": return "bg-teal-500";
+      case "won": return "bg-emerald-500";
+      case "lost": return "bg-red-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+  const getStatusLabel = (provider: any) => {
+    if (provider.smsDeliveryStatus === '1st_sent') return '1st SMS';
+    if (provider.smsDeliveryStatus === '2nd_sent') return '2nd SMS';
+    
+    switch (provider.status) {
+      case "new": return "New";
+      case "active": return "Active";
+      case "first_call": return "First Call";
+      case "follow_up": return "Follow Up";
+      case "email": return "Email";
+      case "won": return "Won";
+      case "lost": return "Lost";
+      default: return provider.status;
+    }
+  };
+
   const getStatusCount = (status: string) => {
     return kanbanColumns.find(col => col.id === status)?.providers.length || 0;
+  };
+
+  // Get team member name from username
+  const getTeamMemberName = (username: string) => {
+    const user = adminUsers.find((user: any) => user.username === username);
+    return user ? `${user.firstName} ${user.lastName}` : username;
+  };
+
+  // Get team member object from username
+  const getTeamMember = (username: string) => {
+    return adminUsers.find((user: any) => user.username === username);
   };
 
   const totalProviders = potentialProviders?.length || 0;
   const filteredCount = kanbanColumns.reduce((sum, col) => sum + col.providers.length, 0);
   const wonProviders = potentialProviders?.filter((p: PotentialProvider) => p.status === 'won') || [];
+  const lostProviders = potentialProviders?.filter((p: PotentialProvider) => p.status === 'lost') || [];
   const activeProviders = potentialProviders?.filter((p: PotentialProvider) => p.status !== 'won' && p.status !== 'lost') || [];
   const newProviders = potentialProviders?.filter((p: PotentialProvider) => p.status === 'new') || [];
 
@@ -1083,59 +1074,150 @@ export default function AdminPotentialProviders() {
         provider.phone.includes(searchTerm) ||
         (provider.businessName && provider.businessName.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      const matchesStatus = statusFilter === "all" || provider.status === statusFilter;
+      const matchesStatus = statusFilter === "all" || 
+        provider.status === statusFilter ||
+        (statusFilter === "sms_1st" && (provider as any).smsDeliveryStatus === "1st_sent") ||
+        (statusFilter === "sms_2nd" && (provider as any).smsDeliveryStatus === "2nd_sent");
       const matchesPriority = priorityFilter === "all" || provider.priority === priorityFilter;
-      const matchesAssignedTo = assignedToFilter === "all" || provider.assignedTo === assignedToFilter;
+      const matchesAssignedTo = assignedToFilter === "all" || 
+        (assignedToFilter === "unassigned" && (!provider.assignedTo || provider.assignedTo === "")) ||
+        provider.assignedTo === assignedToFilter;
       const matchesSource = sourceFilter === "all" || provider.source === sourceFilter;
 
       return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource;
     });
 
+    // Debug: Log current state
+    console.log('=== DEBUG: Filtering logic ===');
+    console.log('Current user:', currentAdminUser?.username);
+    console.log('Current user role:', currentAdminUser?.role);
+    console.log('Is super admin:', isSuperAdmin);
+    console.log('Filtered providers before user filter:', filtered.length);
+    
+    // Apply user filtering logic (same as Kanban view)
+    const userFiltered = filtered.filter((provider: PotentialProvider) => {
+      // If super admin, show all
+      if (isSuperAdmin) {
+        return true;
+      }
+      
+      // If user data not loaded yet, show all
+      if (!currentAdminUser?.username) {
+        return true;
+      }
+      
+      // Show if assigned to current user OR if not assigned to anyone (null/empty)
+      const isAssignedToCurrentUser = provider.assignedTo === currentAdminUser.username || 
+        provider.assignedTo === null || 
+        provider.assignedTo === '';
+      console.log('Provider assignedTo:', provider.assignedTo, 'Current user:', currentAdminUser?.username, 'Is super admin:', isSuperAdmin, 'Show:', isAssignedToCurrentUser);
+      return isAssignedToCurrentUser;
+    });
+    
+    console.log('Filtered providers after user filter:', userFiltered.length);
+
     if (viewMode === 'completed') {
-      return filtered.filter((p: PotentialProvider) => p.status === 'won');
+      return userFiltered.filter((p: PotentialProvider) => p.status === 'won');
+    }
+    
+    if (viewMode === 'lost') {
+      return userFiltered.filter((p: PotentialProvider) => p.status === 'lost');
     }
     
     if (viewMode === 'member-list') {
-      return filtered.filter((p: PotentialProvider) => p.status === 'new');
+      return userFiltered.filter((p: PotentialProvider) => p.status === 'new');
     }
     
     if (viewMode === 'kanban') {
-      return filtered; // Return all filtered providers for kanban view
+      return userFiltered.filter((p: PotentialProvider) => 
+        p.status !== 'won' && 
+        p.status !== 'lost' && 
+        p.status !== 'new' && 
+        p.taskTitle && 
+        p.taskTitle.trim() !== ''
+      );
     }
     
-    return filtered.filter((p: PotentialProvider) => p.status !== 'won' && p.status !== 'lost' && p.status !== 'new');
+    return userFiltered.filter((p: PotentialProvider) => 
+      p.status !== 'won' && 
+      p.status !== 'lost' && 
+      p.status !== 'new' && 
+      p.taskTitle && 
+      p.taskTitle.trim() !== ''
+    );
   };
 
   const filteredProviders = getFilteredProviders();
+  
+  // Debug: Log filtered providers
+  console.log('=== DEBUG: Filtered providers for List View ===');
+  console.log('View mode:', viewMode);
+  console.log('Total filtered providers:', filteredProviders.length);
+  console.log('Current page:', currentPage);
+  console.log('Items per page:', itemsPerPage);
+  if (filteredProviders.length > 0) {
+    console.log('First filtered provider:', {
+      id: filteredProviders[0].id,
+      name: `${filteredProviders[0].firstName} ${filteredProviders[0].lastName}`,
+      assignedTo: filteredProviders[0].assignedTo,
+      taskTitle: filteredProviders[0].taskTitle,
+      status: filteredProviders[0].status
+    });
+  } else {
+    console.log('No filtered providers found!');
+  }
 
   // Pagination logic
   const totalPages = Math.ceil(filteredProviders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedProviders = filteredProviders.slice(startIndex, endIndex);
+  
+  // Debug: Log pagination
+  console.log('=== DEBUG: Pagination ===');
+  console.log('Total pages:', totalPages);
+  console.log('Start index:', startIndex);
+  console.log('End index:', endIndex);
+  console.log('Paginated providers:', paginatedProviders.length);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(156, 146, 172, 0.15) 1px, transparent 0)`,
+          backgroundSize: '20px 20px'
+        }}></div>
+      </div>
+      {/* Subtle Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-blue-100/20 pointer-events-none"></div>
       {/* Sidebar */}
-      <AdminSidebar onLogout={handleLogout} />
+      <div className="relative z-20">
+        <AdminSidebar 
+          onLogout={handleLogout} 
+          adminUser={currentAdminUser}
+        />
+      </div>
       
       {/* Main content area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto relative z-10">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-6">
+        <header className="bg-white/95 backdrop-blur-sm dark:bg-gray-800 shadow-lg shadow-slate-200/20 border-b border-slate-200/50 dark:border-gray-700">
+          <div className="px-8 py-3" style={{ paddingTop: '1.2rem', paddingBottom: '0.8rem' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <UserSearch className="h-8 w-8 text-purple-600 mr-3" />
+                <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center mr-3">
+                  <UserSearch className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                  <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                     Potential Providers
                   </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Manage potential service providers before they become actual providers
                   </p>
                 </div>
@@ -1155,22 +1237,25 @@ export default function AdminPotentialProviders() {
         </header>
 
         {/* View Mode Tabs */}
-        <div className="px-8 py-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="px-8 py-4 bg-white/95 backdrop-blur-sm dark:bg-gray-800 border-b border-slate-200/50 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-              <Button
-                variant={viewMode === 'member-list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('member-list')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
-                  viewMode === 'member-list' 
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <Users className="h-4 w-4" />
-                <span className="font-medium">Member List ({newProviders.length})</span>
-              </Button>
+              {/* Hide "New Members" tab for team members only */}
+              {currentAdminUser?.role !== 'Team Member' && (
+                <Button
+                  variant={viewMode === 'member-list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('member-list')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
+                    viewMode === 'member-list' 
+                      ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="font-medium">New Members (New) ({newProviders.length})</span>
+                </Button>
+              )}
               <Button
                 variant={viewMode === 'list' ? 'default' : 'ghost'}
                 size="sm"
@@ -1197,7 +1282,44 @@ export default function AdminPotentialProviders() {
                 <Kanban className="h-4 w-4" />
                 <span className="font-medium">Kanban View</span>
               </Button>
+              
+              {/* New Member List - only show for managers */}
+              {isManager && (
+                <Button
+                  variant={viewMode === 'new-member-list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('new-member-list')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
+                    viewMode === 'new-member-list' 
+                      ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="font-medium">New Member List</span>
+                </Button>
+              )}
             </div>
+            
+            {/* Create Task Button - Hidden as per user request */}
+            {/* {viewMode === 'kanban' && (
+              <div className="flex items-center space-x-3">
+                <Button
+                  onClick={() => setIsTaskDialogOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  size="sm"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Create Task
+                </Button>
+                {isSuperAdmin && (
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                    <Crown className="h-3 w-3 mr-1" />
+                    Super Admin - All Tasks
+                  </Badge>
+                )}
+              </div>
+            )} */}
             
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
@@ -1213,7 +1335,23 @@ export default function AdminPotentialProviders() {
                   }}
                 />
                 <Label htmlFor="completed-filter" className="text-sm font-medium">
-                  Completed ({wonProviders.length})
+                  Won ({wonProviders.length})
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="lost-filter"
+                  checked={viewMode === 'lost'}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setViewMode('lost');
+                    } else {
+                      setViewMode('member-list');
+                    }
+                  }}
+                />
+                <Label htmlFor="lost-filter" className="text-sm font-medium">
+                  Lost ({lostProviders.length})
                 </Label>
               </div>
             </div>
@@ -1221,7 +1359,7 @@ export default function AdminPotentialProviders() {
         </div>
 
         {/* Filters and Search */}
-        <div className="px-8 py-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="px-8 py-6 bg-white/95 backdrop-blur-sm dark:bg-gray-800 border-b border-slate-200/50 dark:border-gray-700">
           <div className="flex flex-wrap items-center gap-6">
             {/* Search */}
             <div className="relative flex-1 max-w-md">
@@ -1236,6 +1374,17 @@ export default function AdminPotentialProviders() {
 
             {/* Filters */}
             <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
+                }}
+                className="h-10"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-36 h-10">
                   <SelectValue placeholder="All Status" />
@@ -1243,11 +1392,14 @@ export default function AdminPotentialProviders() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="first_call">First Call</SelectItem>
                   <SelectItem value="follow_up">Follow Up</SelectItem>
                   <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="won">Won</SelectItem>
-                  <SelectItem value="lost">Lost</SelectItem>
+                  <SelectItem value="sms_1st">1st SMS</SelectItem>
+                  <SelectItem value="sms_2nd">2nd SMS</SelectItem>
+                  {/* <SelectItem value="won">Won</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem> */}
                 </SelectContent>
               </Select>
 
@@ -1275,20 +1427,66 @@ export default function AdminPotentialProviders() {
                   <SelectItem value="referral">Referral</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select value={assignedToFilter} onValueChange={setAssignedToFilter}>
+                <SelectTrigger className="w-40 h-10">
+                  <SelectValue placeholder="All Assigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {adminUsers.map((user: any) => (
+                    <SelectItem key={user.id} value={user.username}>
+                      {user.firstName} {user.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Task-specific filters for Kanban view */}
+              {viewMode === 'kanban' && (
+                <>
+                  <Select value={taskPriorityFilter} onValueChange={setTaskPriorityFilter}>
+                    <SelectTrigger className="w-36 h-10">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priority</SelectItem>
+                      <SelectItem value="P1">P1</SelectItem>
+                      <SelectItem value="P2">P2</SelectItem>
+                      <SelectItem value="P3">P3</SelectItem>
+                      <SelectItem value="P4">P4</SelectItem>
+                      <SelectItem value="P5">P5</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={taskCustomerTypeFilter} onValueChange={setTaskCustomerTypeFilter}>
+                    <SelectTrigger className="w-40 h-10">
+                      <SelectValue placeholder="Customer Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="potential_provider">Potential Provider</SelectItem>
+                      <SelectItem value="provider">Provider</SelectItem>
+                      <SelectItem value="customer">Customer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
             </div>
 
-            {/* Counts */}
-            <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400 font-medium">
+            {/* Counts - Hidden as per user request */}
+            {/* <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400 font-medium">
               <span>Total: {totalProviders}</span>
               <span>New: {newProviders.length}</span>
               <span>Active: {activeProviders.length}</span>
               <span>Won: {wonProviders.length}</span>
-            </div>
+            </div> */}
           </div>
         </div>
 
         {/* Content */}
-        <div className="px-8 py-8">
+        <div className="px-8 pt-4 pb-8 min-h-screen">
           {isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
@@ -1296,7 +1494,23 @@ export default function AdminPotentialProviders() {
             </div>
           ) : (
             <>
-              {viewMode === 'member-list' && (
+              {/* Show message for team members */}
+              {currentAdminUser?.role === 'Team Member' && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
+                  <div className="flex items-center justify-center mb-4">
+                    <Users className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                    Team Member Access
+                  </h3>
+                  <p className="text-blue-700 dark:text-blue-300">
+                    As a team member, you can view and manage tasks assigned to you. 
+                    Use the List View or Kanban View to see your assigned tasks.
+                  </p>
+                </div>
+              )}
+
+              {viewMode === 'member-list' && currentAdminUser?.role !== 'Team Member' && (
                 <div className="space-y-6">
                   {/* Pending Imports Section */}
                   {pendingImports.length > 0 && (
@@ -1342,14 +1556,14 @@ export default function AdminPotentialProviders() {
                     </div>
                   )}
 
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                  <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                         <Users className="h-5 w-5 text-blue-600 mr-2" />
-                        Member List ({filteredProviders.length})
+                        New Members (New) ({filteredProviders.length})
                       </h2>
                       <p className="text-sm text-gray-500 mt-1">
-                        Review and approve new potential providers
+                        Review new potential providers and create tasks for follow-up
                       </p>
                     </div>
                     <div className="p-6">
@@ -1408,20 +1622,26 @@ export default function AdminPotentialProviders() {
                                 
                                 <div className="flex flex-col space-y-2 ml-4">
                                   <Button
-                                    onClick={() => handleStatusChange(provider.id, 'first_call')}
-                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                    onClick={() => {
+                                      setSelectedProvider(provider);
+                                      setTaskData({
+                                        taskType: "follow_up",
+                                        title: `Follow up with ${provider.firstName} ${provider.lastName}`,
+                                        description: `Contact ${provider.firstName} ${provider.lastName} regarding their potential provider application.`,
+                                        scheduledDate: "",
+                                        assignedTo: "",
+                                        priority: "P3",
+                                        customerType: "potential_provider",
+                                        comments: "",
+                                        taskOwner: "admin"
+                                      });
+                                      setIsTaskDialogOpen(true);
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
                                     size="sm"
                                   >
-                                    <Check className="h-4 w-4 mr-1" />
-                                    Yes
-                                  </Button>
-                                  <Button
-                                    onClick={() => handleStatusChange(provider.id, 'lost')}
-                                    variant="destructive"
-                                    size="sm"
-                                  >
-                                    <X className="h-4 w-4 mr-1" />
-                                    No
+                                    <Calendar className="h-4 w-4 mr-1" />
+                                    Create Task
                                   </Button>
                                 </div>
                               </div>
@@ -1480,12 +1700,13 @@ export default function AdminPotentialProviders() {
               )}
 
               {viewMode === 'list' && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Task</TableHead>
                         <TableHead>Name</TableHead>
-                        <TableHead>Business</TableHead>
                         <TableHead>Contact</TableHead>
                         <TableHead>Location</TableHead>
                         <TableHead>Status</TableHead>
@@ -1495,8 +1716,18 @@ export default function AdminPotentialProviders() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {paginatedProviders.map((provider: PotentialProvider) => (
+                      {paginatedProviders.map((provider: PotentialProvider, index: number) => (
                         <TableRow key={provider.id}>
+                          <TableCell>
+                            <div className="text-sm font-medium text-gray-500">
+                              {(currentPage - 1) * itemsPerPage + index + 1}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-bold text-sm">
+                              {provider.taskTitle || '-'}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div>
                               <div className="font-medium">
@@ -1506,9 +1737,6 @@ export default function AdminPotentialProviders() {
                                 {provider.email}
                               </div>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {provider.businessName || '-'}
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
@@ -1523,22 +1751,13 @@ export default function AdminPotentialProviders() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Select 
-                              value={provider.status} 
-                              onValueChange={(value) => handleStatusChange(provider.id, value)}
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="new">New</SelectItem>
-                                <SelectItem value="first_call">First Call</SelectItem>
-                                <SelectItem value="follow_up">Follow Up</SelectItem>
-                                <SelectItem value="email">Email</SelectItem>
-                                <SelectItem value="won">Won</SelectItem>
-                                <SelectItem value="lost">Lost</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <Badge className={`${getStatusColor(
+                              (provider as any).smsDeliveryStatus === '1st_sent' ? 'sms_1st' :
+                              (provider as any).smsDeliveryStatus === '2nd_sent' ? 'sms_2nd' :
+                              provider.status
+                            )} text-white`}>
+                              {getStatusLabel(provider)}
+                            </Badge>
                           </TableCell>
                           <TableCell>
                             <Badge className={`${getPriorityColor(provider.priority)} text-white`}>
@@ -1546,29 +1765,61 @@ export default function AdminPotentialProviders() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {provider.assignedTo || '-'}
+                            <div className="flex items-center space-x-2">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Avatar className="h-8 w-8">
+                                      {provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? (
+                                        <>
+                                          <AvatarImage 
+                                            src={getTeamMember(provider.assignedTo)?.profileImage || ''} 
+                                            alt={provider.assignedAdminName}
+                                          />
+                                          <AvatarFallback className="bg-blue-500 text-white text-sm">
+                                            {provider.assignedAdminName.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+                                          </AvatarFallback>
+                                        </>
+                                      ) : (
+                                        <AvatarFallback className="bg-gray-400 text-white text-sm">
+                                          ?
+                                        </AvatarFallback>
+                                      )}
+                                    </Avatar>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? provider.assignedAdminName : 'Unassigned'}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
+                                  <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => {
-                                  setSelectedProvider(provider);
-                                  setIsTaskDialogOpen(true);
+                                  // Update status to "First Call" before opening phone
+                                  updateProviderMutation.mutate({
+                                    id: provider.id,
+                                    status: 'first_call'
+                                  });
+                                  // Open phone dialer
+                                  window.open(`tel:${provider.phone}`, '_self');
                                 }}>
-                                  <Calendar className="h-4 w-4 mr-2" />
-                                  Add Task
+                                  <Phone className="h-4 w-4 mr-2" />
+                                  Call
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => {
                                   setSelectedProvider(provider);
                                   setIsEmailDialogOpen(true);
                                 }}>
                                   <Mail className="h-4 w-4 mr-2" />
-                                  Send Email
+                                  Follow Up
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => {
                                   setSelectedProvider(provider);
@@ -1577,20 +1828,33 @@ export default function AdminPotentialProviders() {
                                   <MessageSquare className="h-4 w-4 mr-2" />
                                   Send SMS
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
+                                {/* <DropdownMenuItem onClick={() => {
                                   setSelectedProvider(provider);
                                   setIsConvertDialogOpen(true);
                                 }}>
                                   <UserPlus className="h-4 w-4 mr-2" />
                                   Convert to Provider
+                                </DropdownMenuItem> */}
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedProvider(provider);
+                                  setIsWonAlertOpen(true);
+                                }}>
+                                  <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                                  Mark as Won
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedProvider(provider);
+                                  setIsLostAlertOpen(true);
+                                }}>
+                                  <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                                  Mark as Lost
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedProvider(provider);
+                                  setIsViewDetailsDialogOpen(true);
+                                }}>
                                   <Eye className="h-4 w-4 mr-2" />
                                   View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -1648,151 +1912,285 @@ export default function AdminPotentialProviders() {
               )}
 
               {viewMode === 'kanban' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-8">
-                  {kanbanColumns.filter(col => col.id !== 'won' && col.id !== 'lost').map((column) => (
-                    <div key={column.id} className="space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {column.title}
-                        </h3>
-                        <Badge variant="secondary" className="ml-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                          {column.providers.length}
-                        </Badge>
-                      </div>
-                      
-                      <div className={`min-h-[500px] max-h-[600px] p-4 rounded-xl ${column.color} dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden`}>
-                        {column.providers.length === 0 ? (
-                          <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400">
-                            <p className="text-sm">No providers in this stage</p>
+                <div className="relative">
+                  {/* Left Arrow Button - Auto Hide/Show */}
+                  {showLeftArrow && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (kanbanRef.current) {
+                          kanbanRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+                        }
+                      }}
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 z-20 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full p-2 shadow-lg transition-all duration-200 hover:shadow-xl"
+                      title="Scroll Left"
+                    >
+                      <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                    </button>
+                  )}
+
+                  {/* Right Arrow Button - Auto Hide/Show */}
+                  {showRightArrow && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (kanbanRef.current) {
+                          kanbanRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+                        }
+                      }}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 z-20 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full p-2 shadow-lg transition-all duration-200 hover:shadow-xl"
+                      title="Scroll Right"
+                    >
+                      <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                    </button>
+                  )}
+
+                  <div 
+                    ref={kanbanRef}
+                    className="flex space-x-6 overflow-x-auto scrollbar-hide pb-4"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                  >
+                    {/* Original time-based columns for providers */}
+                    {kanbanColumns.map((column) => {
+                      const columnProviders = column.providers;
+                      return (
+                        <div key={column.id} className="flex-shrink-0 w-80 space-y-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                              {column.title}
+                            </h3>
+                            <Badge variant="secondary" className="ml-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                              {columnProviders.length}
+                            </Badge>
                           </div>
-                        ) : (
-                          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f1f5f9' }}>
-                            {column.providers.map((provider) => (
-                              <div
-                                key={provider.id}
-                                className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200 cursor-move group"
-                                draggable
-                                onDragStart={(e) => {
-                                  e.dataTransfer.setData('text/plain', provider.id.toString());
-                                }}
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  const providerId = parseInt(e.dataTransfer.getData('text/plain'));
-                                  if (providerId !== provider.id) {
-                                    handleStatusChange(providerId, column.id);
-                                  }
-                                }}
-                              >
-                                <div className="flex items-start justify-between mb-3">
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-gray-900 dark:text-white truncate">
-                                      {provider.firstName} {provider.lastName}
-                                    </h4>
-                                    {provider.businessName && (
-                                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                                        {provider.businessName}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                      >
-                                        <MoreHorizontal className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedProvider(provider);
-                                        setIsTaskDialogOpen(true);
-                                      }}>
-                                        <Calendar className="h-4 w-4 mr-2" />
-                                        Add Task
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedProvider(provider);
-                                        setIsEmailDialogOpen(true);
-                                      }}>
-                                        <Mail className="h-4 w-4 mr-2" />
-                                        Send Email
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedProvider(provider);
-                                        setIsSmsDialogOpen(true);
-                                      }}>
-                                        <MessageSquare className="h-4 w-4 mr-2" />
-                                        Send SMS
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedProvider(provider);
-                                        setIsConvertDialogOpen(true);
-                                      }}>
-                                        <UserPlus className="h-4 w-4 mr-2" />
-                                        Convert to Provider
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem>
-                                        <Eye className="h-4 w-4 mr-2" />
-                                        View Details
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem>
-                                        <Edit className="h-4 w-4 mr-2" />
-                                        Edit
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                    <Mail className="h-3 w-3 mr-2 flex-shrink-0" />
-                                    <span className="truncate">{provider.email}</span>
-                                  </div>
-                                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                    <Phone className="h-3 w-3 mr-2 flex-shrink-0" />
-                                    <span className="truncate">{provider.phone}</span>
-                                  </div>
-                                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                    <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
-                                    <span className="truncate">{provider.city}, {provider.state}</span>
-                                  </div>
-                                  
-                                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 dark:border-gray-600">
-                                    <Badge 
-                                      className={`${getPriorityColor(provider.priority)} text-white text-xs font-medium`}
-                                    >
-                                      {provider.priority}
-                                    </Badge>
-                                    {provider.assignedTo && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {provider.assignedTo}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  
-                                  {provider.nextFollowUpDate && (
-                                    <div className="flex items-center text-xs text-gray-500 mt-2">
-                                      <Clock className="h-3 w-3 mr-1" />
-                                      Follow up: {new Date(provider.nextFollowUpDate).toLocaleDateString()}
+                          
+                          <div 
+                            className={`min-h-[500px] max-h-[600px] p-4 rounded-xl ${column.color} dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden`}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const providerId = parseInt(e.dataTransfer.getData('text/plain'));
+                              handleProviderTimeChange(providerId, column.id);
+                            }}
+                          >
+                          {columnProviders.length === 0 ? (
+                            <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400">
+                              <p className="text-sm">No providers in this status</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f1f5f9' }}>
+                              {columnProviders.map((provider: PotentialProvider) => (
+                                <div
+                                  key={provider.id}
+                                  className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200 group cursor-move"
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData('text/plain', provider.id.toString());
+                                  }}
+                                >
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-gray-900 dark:text-white truncate">
+                                        {provider.firstName} {provider.lastName}
+                                      </h4>
+                                      {provider.businessName && (
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate mt-1">
+                                          {provider.businessName}
+                                        </p>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
+                                     <div className="flex items-center space-x-2">
+                                       <Badge 
+                                         className={`${
+                                           provider.priority === 'high' ? 'bg-red-500' :
+                                           provider.priority === 'medium' ? 'bg-yellow-500' :
+                                           'bg-gray-500'
+                                         } text-white text-xs font-medium`}
+                                       >
+                                         {provider.priority}
+                                       </Badge>
+                                       {/* Status Badge - Show SMS status if available, otherwise show regular status */}
+                                       {((provider as any).smsDeliveryStatus && (provider as any).smsDeliveryStatus !== 'not_sent') ? (
+                                         <Badge 
+                                           className={`${
+                                             (provider as any).smsDeliveryStatus === '1st_sent' ? 'bg-indigo-500' :
+                                             (provider as any).smsDeliveryStatus === '2nd_sent' ? 'bg-indigo-600' :
+                                             'bg-gray-400'
+                                           } text-white text-xs font-medium`}
+                                         >
+                                           {(provider as any).smsDeliveryStatus === '1st_sent' ? '1st SMS' :
+                                            (provider as any).smsDeliveryStatus === '2nd_sent' ? '2nd SMS' :
+                                            'SMS'}
+                                         </Badge>
+                                       ) : (
+                                         <Badge 
+                                           className={`${
+                                             provider.status === 'email' ? 'bg-blue-500' :
+                                             provider.status === 'email_sent' ? 'bg-blue-500' :
+                                             provider.status === 'follow_up' ? 'bg-green-500' :
+                                             provider.status === 'first_call' ? 'bg-purple-500' :
+                                             provider.status === 'active' ? 'bg-blue-400' :
+                                             provider.status === 'won' ? 'bg-green-600' :
+                                             provider.status === 'lost' ? 'bg-red-500' :
+                                             'bg-gray-400'
+                                           } text-white text-xs font-medium`}
+                                         >
+                                           {provider.status === 'email' ? 'Email' :
+                                            provider.status === 'email_sent' ? 'Email' :
+                                            provider.status === 'follow_up' ? 'Follow Up' :
+                                            provider.status === 'first_call' ? 'First Call' :
+                                            provider.status === 'active' ? 'Active' :
+                                            provider.status === 'won' ? 'Won' :
+                                            provider.status === 'lost' ? 'Lost' :
+                                            'New'}
+                                         </Badge>
+                                       )}
+                                       
+                                       {/* Actions Dropdown - Top Right */}
+                                       <DropdownMenu>
+                                         <DropdownMenuTrigger asChild>
+                                           <Button 
+                                             variant="ghost" 
+                                             size="sm" 
+                                             className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-600"
+                                             onClick={(e) => e.stopPropagation()}
+                                           >
+                                             <MoreVertical className="h-4 w-4" />
+                                           </Button>
+                                         </DropdownMenuTrigger>
+                                         <DropdownMenuContent align="end">
+                                           <DropdownMenuItem onClick={() => {
+                                             // Update status to "First Call" before opening phone
+                                             updateProviderMutation.mutate({
+                                               id: provider.id,
+                                               status: 'first_call'
+                                             });
+                                             // Open phone dialer
+                                             window.open(`tel:${provider.phone}`, '_self');
+                                           }}>
+                                             <Phone className="h-4 w-4 mr-2" />
+                                             Call
+                                           </DropdownMenuItem>
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsEmailDialogOpen(true);
+                                           }}>
+                                             <Mail className="h-4 w-4 mr-2" />
+                                             Follow Up
+                                           </DropdownMenuItem>
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsSmsDialogOpen(true);
+                                           }}>
+                                             <MessageSquare className="h-4 w-4 mr-2" />
+                                             Send SMS
+                                           </DropdownMenuItem>
+                                           {/* <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsConvertDialogOpen(true);
+                                           }}>
+                                             <UserPlus className="h-4 w-4 mr-2" />
+                                             Convert to Provider
+                                           </DropdownMenuItem> */}
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsWonAlertOpen(true);
+                                           }}>
+                                             <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                                             Mark as Won
+                                           </DropdownMenuItem>
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsLostAlertOpen(true);
+                                           }}>
+                                             <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                                             Mark as Lost
+                                           </DropdownMenuItem>
+                                           <DropdownMenuItem onClick={() => {
+                                             setSelectedProvider(provider);
+                                             setIsViewDetailsDialogOpen(true);
+                                           }}>
+                                             <Eye className="h-4 w-4 mr-2" />
+                                             View Details
+                                           </DropdownMenuItem>
+                                         </DropdownMenuContent>
+                                       </DropdownMenu>
+                                     </div>
+                                  </div>
+                                  
+                                  <div className="space-y-2">
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                      <Mail className="h-3 w-3 mr-2 flex-shrink-0" />
+                                      <span className="truncate">{provider.email}</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                      <Phone className="h-3 w-3 mr-2 flex-shrink-0" />
+                                      <span className="truncate">{provider.phone}</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                      <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
+                                      <span className="truncate">{provider.city}, {provider.state}</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Avatar className="h-6 w-6 mr-2">
+                                              {provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? (
+                                                <>
+                                                  <AvatarImage 
+                                                    src={getTeamMember(provider.assignedTo)?.profileImage || ''} 
+                                                    alt={provider.assignedAdminName}
+                                                  />
+                                                  <AvatarFallback className="bg-blue-500 text-white text-xs">
+                                                    {provider.assignedAdminName.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+                                                  </AvatarFallback>
+                                                </>
+                                              ) : (
+                                                <AvatarFallback className="bg-gray-400 text-white text-xs">
+                                                  ?
+                                                </AvatarFallback>
+                                              )}
+                                            </Avatar>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>{provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? provider.assignedAdminName : 'Unassigned'}</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    </div>
+                                    
+                                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 dark:border-gray-600">
+                                      <Badge variant="outline" className="text-xs">
+                                        {provider.source}
+                                      </Badge>
+                                      <div className="flex items-center text-xs text-gray-500">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        {new Date(provider.createdAt).toLocaleDateString()}
+                                      </div>
+                                    </div>
+                                    
+                                  </div>
                               </div>
                             ))}
                           </div>
                         )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  </div>
                 </div>
               )}
 
               {viewMode === 'completed' && (
                 <div className="space-y-6">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                  <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                         <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
@@ -1856,16 +2254,114 @@ export default function AdminPotentialProviders() {
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
+                                    <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => {
+                                  {/* <DropdownMenuItem onClick={() => {
                                     setSelectedProvider(provider);
                                     setIsConvertDialogOpen(true);
                                   }}>
                                     <UserPlus className="h-4 w-4 mr-2" />
                                     Convert to Provider
+                                  </DropdownMenuItem> */}
+                                  <DropdownMenuItem>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {viewMode === 'lost' && (
+                <div className="space-y-6">
+                  <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
+                    <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+                        <XCircle className="h-5 w-5 text-red-600 mr-2" />
+                        Lost Providers ({lostProviders.length})
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Potential providers that were not converted
+                      </p>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Business</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Location</TableHead>
+                          <TableHead>Lost Date</TableHead>
+                          <TableHead>Source</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredProviders.map((provider: PotentialProvider) => (
+                          <TableRow key={provider.id}>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {provider.firstName} {provider.lastName}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {provider.email}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {provider.businessName || '-'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                <div>{provider.phone}</div>
+                                <div className="text-gray-500">{provider.email}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                <div>{provider.city}, {provider.state}</div>
+                                <div className="text-gray-500">{provider.postcode}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {new Date(provider.updatedAt).toLocaleDateString()}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {provider.source}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => {
+                                    updateProviderMutation.mutate({
+                                      id: provider.id,
+                                      status: 'new'
+                                    });
+                                  }}>
+                                    <ArrowLeft className="h-4 w-4 mr-2" />
+                                    Reactivate
                                   </DropdownMenuItem>
                                   <DropdownMenuItem>
                                     <Eye className="h-4 w-4 mr-2" />
@@ -1885,6 +2381,160 @@ export default function AdminPotentialProviders() {
                   </div>
                 </div>
               )}
+
+              {/* New Member List View - for managers */}
+              {viewMode === 'new-member-list' && (
+                <div className="space-y-6">
+                  <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
+                    <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+                        <Users className="h-5 w-5 text-blue-600 mr-2" />
+                        New Member List - My Tasks
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Tasks assigned to you as a manager
+                      </p>
+                    </div>
+                    
+                    {/* Task filters for managers */}
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex items-center space-x-2">
+                          <label className="text-sm font-medium">Priority:</label>
+                          <Select value={taskPriorityFilter} onValueChange={setTaskPriorityFilter}>
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All</SelectItem>
+                              <SelectItem value="P1">P1</SelectItem>
+                              <SelectItem value="P2">P2</SelectItem>
+                              <SelectItem value="P3">P3</SelectItem>
+                              <SelectItem value="P4">P4</SelectItem>
+                              <SelectItem value="P5">P5</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <label className="text-sm font-medium">Status:</label>
+                          <Select value={taskCustomerTypeFilter} onValueChange={setTaskCustomerTypeFilter}>
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All</SelectItem>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tasks list */}
+                    <div className="p-6">
+                      {tasksLoading ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                          <p className="text-gray-500 mt-2">Loading tasks...</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {kanbanTasks && Object.values(kanbanTasks).flat().length > 0 ? (
+                            (Object.values(kanbanTasks).flat() as TeamTask[])
+                              .filter((task: TeamTask) => {
+                                const matchesPriority = taskPriorityFilter === "all" || task.priority === taskPriorityFilter;
+                                const matchesStatus = taskCustomerTypeFilter === "all" || task.status === taskCustomerTypeFilter;
+                                return matchesPriority && matchesStatus;
+                              })
+                              .map((task: TeamTask) => (
+                                <div key={task.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-3 mb-2">
+                                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                                          {task.title}
+                                        </h3>
+                                        <Badge 
+                                          className={`${getPriorityColor(task.priority)} text-white text-xs`}
+                                        >
+                                          {task.priority}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs">
+                                          {task.status}
+                                        </Badge>
+                                      </div>
+                                      
+                                      {task.description && (
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                          {task.description}
+                                        </p>
+                                      )}
+                                      
+                                      <div className="flex items-center space-x-6 text-sm text-gray-500">
+                                        <div className="flex items-center space-x-1">
+                                          <Calendar className="h-4 w-4" />
+                                          <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                                        </div>
+                                        <div className="flex items-center space-x-1">
+                                          <Tag className="h-4 w-4" />
+                                          <span className="capitalize">{task.taskType}</span>
+                                        </div>
+                                        {task.assignedTo && (
+                                          <div className="flex items-center space-x-1">
+                                            <User className="h-4 w-4" />
+                                            <span>Assigned to: {task.assignedTo}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      {task.comments && (
+                                        <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-700 rounded text-sm">
+                                          <span className="font-medium">Comments:</span> {task.comments}
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center space-x-2 ml-4">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          // Mark as in progress
+                                          handleTaskMove(task.id, 'pending', 'in_progress');
+                                        }}
+                                      >
+                                        Start
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          // Mark as completed
+                                          handleTaskMove(task.id, task.status, 'completed');
+                                        }}
+                                      >
+                                        Complete
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                          ) : (
+                            <div className="text-center py-12">
+                              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No tasks assigned</h3>
+                              <p className="text-gray-500">You don't have any tasks assigned to you yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1892,7 +2542,7 @@ export default function AdminPotentialProviders() {
 
       {/* Create Provider Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Potential Provider</DialogTitle>
             <DialogDescription>
@@ -1995,6 +2645,22 @@ export default function AdminPotentialProviders() {
                 </SelectContent>
               </Select>
             </div>
+            {/* <div>
+              <label className="text-sm font-medium">Assigned To</label>
+              <Select value={newProvider.assignedTo} onValueChange={(value) => setNewProvider({...newProvider, assignedTo: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team member" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {adminUsers.map((user: any) => (
+                    <SelectItem key={user.id} value={user.username}>
+                      {user.firstName} {user.lastName} ({user.username})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div> */}
             <div className="col-span-2">
               <label className="text-sm font-medium">Service Categories</label>
               <Input
@@ -2063,62 +2729,154 @@ export default function AdminPotentialProviders() {
         </DialogContent>
       </Dialog>
 
-      {/* Task Dialog */}
+      {/* Team Task Dialog */}
       <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Task</DialogTitle>
             <DialogDescription>
-              Create a new task for {selectedProvider?.firstName} {selectedProvider?.lastName}
+              {selectedProvider ? 
+                `Create a task for ${selectedProvider.firstName} ${selectedProvider.lastName}` :
+                'Create a new task for team management'
+              }
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Task Type</label>
-              <Select value={taskData.taskType} onValueChange={(value) => setTaskData({...taskData, taskType: value})}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="call">Call</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
-                  <SelectItem value="follow_up">Follow Up</SelectItem>
-                  <SelectItem value="note">Note</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="space-y-4 pr-2">
+            {/* Show selected provider info */}
+            {selectedProvider && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Creating task for:</h4>
+                <div className="text-sm text-blue-800 dark:text-blue-200">
+                  <p><strong>Name:</strong> {selectedProvider.firstName} {selectedProvider.lastName}</p>
+                  <p><strong>Email:</strong> {selectedProvider.email}</p>
+                  <p><strong>Phone:</strong> {selectedProvider.phone}</p>
+                  {selectedProvider.businessName && <p><strong>Business:</strong> {selectedProvider.businessName}</p>}
+                </div>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Task Title *</label>
+                <Input
+                  value={taskData.title}
+                  onChange={(e) => setTaskData({...taskData, title: e.target.value})}
+                  placeholder="Enter task title"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Priority *</label>
+                <Select value={taskData.priority || "P3"} onValueChange={(value) => setTaskData({...taskData, priority: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="P1">P1 - Critical</SelectItem>
+                    <SelectItem value="P2">P2 - High</SelectItem>
+                    <SelectItem value="P3">P3 - Medium</SelectItem>
+                    <SelectItem value="P4">P4 - Low</SelectItem>
+                    <SelectItem value="P5">P5 - Very Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium">Title</label>
-              <Input
-                value={taskData.title}
-                onChange={(e) => setTaskData({...taskData, title: e.target.value})}
-                placeholder="Task title"
-              />
-            </div>
+            
             <div>
               <label className="text-sm font-medium">Description</label>
               <Textarea
                 value={taskData.description}
                 onChange={(e) => setTaskData({...taskData, description: e.target.value})}
-                placeholder="Task description"
+                placeholder="Enter task description"
                 rows={3}
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Scheduled Date</label>
-              <Input
-                type="datetime-local"
-                value={taskData.scheduledDate}
-                onChange={(e) => setTaskData({...taskData, scheduledDate: e.target.value})}
-              />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Due Date *</label>
+                <Input
+                  type="datetime-local"
+                  value={taskData.scheduledDate}
+                  onChange={(e) => setTaskData({...taskData, scheduledDate: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Task Type</label>
+                <Select value={taskData.taskType} onValueChange={(value) => setTaskData({...taskData, taskType: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select task type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="follow_up">Follow Up</SelectItem>
+                    <SelectItem value="call">Call</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="meeting">Meeting</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Customer Type</label>
+                <Select value={taskData.customerType || "all"} onValueChange={(value) => setTaskData({...taskData, customerType: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select customer type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="potential_provider">Potential Provider</SelectItem>
+                    <SelectItem value="provider">Provider</SelectItem>
+                    <SelectItem value="customer">Customer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Assigned To</label>
+                <Select value={taskData.assignedTo} onValueChange={(value) => setTaskData({...taskData, assignedTo: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select team member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {adminUsers.map((user: any) => (
+                      <SelectItem key={user.id} value={user.username}>
+                        {user.firstName} {user.lastName} ({user.username})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {/* Super Admin: Task Owner Selection */}
+            {isSuperAdmin && (
+              <div>
+                <label className="text-sm font-medium">Task Owner (Admin)</label>
+                <Select value={taskData.taskOwner || "admin"} onValueChange={(value) => setTaskData({...taskData, taskOwner: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select task owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {adminUsers.map((user: any) => (
+                      <SelectItem key={user.id} value={user.username}>
+                        {user.firstName} {user.lastName} ({user.username}) - {user.role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">Super Admin can assign tasks to any admin</p>
+              </div>
+            )}
+            
             <div>
-              <label className="text-sm font-medium">Assigned To</label>
-              <Input
-                value={taskData.assignedTo}
-                onChange={(e) => setTaskData({...taskData, assignedTo: e.target.value})}
-                placeholder="Admin username"
+              <label className="text-sm font-medium">Comments</label>
+              <Textarea
+                value={taskData.comments || ""}
+                onChange={(e) => setTaskData({...taskData, comments: e.target.value})}
+                placeholder="Add any additional comments or notes"
+                rows={2}
               />
             </div>
           </div>
@@ -2135,20 +2893,43 @@ export default function AdminPotentialProviders() {
 
       {/* Email Dialog */}
       <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Send Email</DialogTitle>
             <DialogDescription>
               Send an email to {selectedProvider?.firstName} {selectedProvider?.lastName} ({selectedProvider?.email})
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Email Mode Switch */}
+          <div className="flex items-center justify-center space-x-4 py-4">
+            <span className={`text-sm font-medium ${emailMode === 'followup' ? 'text-blue-600' : 'text-gray-500'}`}>
+              Follow Up
+            </span>
+            <button
+              onClick={() => setEmailMode(emailMode === 'followup' ? 'custom' : 'followup')}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                emailMode === 'followup' ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  emailMode === 'followup' ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            <span className={`text-sm font-medium ${emailMode === 'custom' ? 'text-blue-600' : 'text-gray-500'}`}>
+              Custom Email
+            </span>
+          </div>
+
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium">Subject</label>
               <Input
                 value={emailData.subject}
                 onChange={(e) => setEmailData({...emailData, subject: e.target.value})}
-                placeholder="Email subject"
+                placeholder={emailMode === 'followup' ? "Follow up on your application" : "Email subject"}
               />
             </div>
             <div>
@@ -2156,13 +2937,32 @@ export default function AdminPotentialProviders() {
               <Textarea
                 value={emailData.content}
                 onChange={(e) => setEmailData({...emailData, content: e.target.value})}
-                placeholder="Email content..."
-                rows={6}
+                placeholder={
+                  emailMode === 'followup' 
+                    ? `Hi ${selectedProvider?.firstName},\n\nThank you for your interest in joining ServicePanda as a service provider. We would like to follow up on your application.\n\nPlease let us know if you have any questions or if you need any additional information.\n\nBest regards,\nServicePanda Team`
+                    : "Email content..."
+                }
+                rows={8}
               />
             </div>
+            
+            {/* Template Preview */}
+            {emailMode === 'followup' && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">Follow Up Template</h4>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  This template will automatically update the provider status to "Follow Up" after sending.
+                </p>
+              </div>
+            )}
           </div>
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsEmailDialogOpen(false);
+              setEmailData({ subject: "", content: "" });
+              setEmailMode('followup');
+            }}>
               Cancel
             </Button>
             <Button onClick={handleSendEmail} disabled={sendEmailMutation.isPending}>
@@ -2298,6 +3098,294 @@ export default function AdminPotentialProviders() {
             </Button>
             <Button onClick={handleConfirmImportYes} disabled={confirmImportMutation.isPending}>
               {confirmImportMutation.isPending ? "Confirming..." : "Yes, Add to System"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Won Alert Dialog */}
+      <Dialog open={isWonAlertOpen} onOpenChange={setIsWonAlertOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <DialogTitle className="text-center text-2xl font-bold text-green-800">
+              🎉 Congratulations!
+            </DialogTitle>
+            <DialogDescription className="text-center text-lg text-gray-600">
+              You've successfully won <strong>{selectedProvider?.firstName} {selectedProvider?.lastName}</strong>!
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <p className="text-green-800 font-medium">
+                {selectedProvider?.businessName ? `${selectedProvider.businessName} - ` : ''}
+                {selectedProvider?.firstName} {selectedProvider?.lastName}
+              </p>
+              <p className="text-green-600 text-sm mt-1">
+                Status updated to <span className="font-semibold">Won</span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex justify-center">
+            <Button 
+              onClick={() => {
+                updateProviderMutation.mutate({
+                  id: selectedProvider?.id!,
+                  status: 'won'
+                });
+                setIsWonAlertOpen(false);
+                setSelectedProvider(null);
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-2"
+            >
+              Confirm & Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lost Alert Dialog */}
+      <Dialog open={isLostAlertOpen} onOpenChange={setIsLostAlertOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full">
+              <XCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <DialogTitle className="text-center text-2xl font-bold text-red-800">
+              Provider Lost
+            </DialogTitle>
+            <DialogDescription className="text-center text-lg text-gray-600">
+              <strong>{selectedProvider?.firstName} {selectedProvider?.lastName}</strong> has been marked as lost.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+              <p className="text-red-800 font-medium">
+                {selectedProvider?.businessName ? `${selectedProvider.businessName} - ` : ''}
+                {selectedProvider?.firstName} {selectedProvider?.lastName}
+              </p>
+              <p className="text-red-600 text-sm mt-1">
+                Status updated to <span className="font-semibold">Lost</span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex justify-center">
+            <Button 
+              onClick={() => {
+                updateProviderMutation.mutate({
+                  id: selectedProvider?.id!,
+                  status: 'lost'
+                });
+                setIsLostAlertOpen(false);
+                setSelectedProvider(null);
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white px-8 py-2"
+            >
+              Confirm & Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details Dialog */}
+      <Dialog open={isViewDetailsDialogOpen} onOpenChange={setIsViewDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Provider Details</DialogTitle>
+            <DialogDescription>
+              Complete information for {selectedProvider?.firstName} {selectedProvider?.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedProvider && (
+            <div className="space-y-6">
+              {/* Header Section */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {selectedProvider.firstName} {selectedProvider.lastName}
+                  </h3>
+                  {selectedProvider.businessName && (
+                    <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">
+                      {selectedProvider.businessName}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge 
+                    className={`${
+                      selectedProvider.priority === 'high' ? 'bg-red-500' :
+                      selectedProvider.priority === 'medium' ? 'bg-yellow-500' :
+                      'bg-gray-500'
+                    } text-white text-sm font-medium`}
+                  >
+                    {selectedProvider.priority}
+                  </Badge>
+                  {((selectedProvider as any).smsDeliveryStatus && (selectedProvider as any).smsDeliveryStatus !== 'not_sent') ? (
+                    <Badge 
+                      className={`${
+                        (selectedProvider as any).smsDeliveryStatus === '1st_sent' ? 'bg-indigo-500' :
+                        (selectedProvider as any).smsDeliveryStatus === '2nd_sent' ? 'bg-indigo-600' :
+                        'bg-gray-400'
+                      } text-white text-sm font-medium`}
+                    >
+                      {(selectedProvider as any).smsDeliveryStatus === '1st_sent' ? '1st SMS' :
+                       (selectedProvider as any).smsDeliveryStatus === '2nd_sent' ? '2nd SMS' :
+                       'SMS'}
+                    </Badge>
+                  ) : (
+                    <Badge 
+                      className={`${
+                        selectedProvider.status === 'email' ? 'bg-blue-500' :
+                        selectedProvider.status === 'email_sent' ? 'bg-blue-500' :
+                        selectedProvider.status === 'follow_up' ? 'bg-green-500' :
+                        selectedProvider.status === 'first_call' ? 'bg-purple-500' :
+                        selectedProvider.status === 'active' ? 'bg-blue-400' :
+                        selectedProvider.status === 'won' ? 'bg-green-600' :
+                        selectedProvider.status === 'lost' ? 'bg-red-500' :
+                        'bg-gray-400'
+                      } text-white text-sm font-medium`}
+                    >
+                      {selectedProvider.status === 'email' ? 'Email' :
+                       selectedProvider.status === 'email_sent' ? 'Email' :
+                       selectedProvider.status === 'follow_up' ? 'Follow Up' :
+                       selectedProvider.status === 'first_call' ? 'First Call' :
+                       selectedProvider.status === 'active' ? 'Active' :
+                       selectedProvider.status === 'won' ? 'Won' :
+                       selectedProvider.status === 'lost' ? 'Lost' :
+                       'New'}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Contact Information</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <Mail className="h-5 w-5 text-gray-400 mr-3" />
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="text-gray-900 dark:text-white">{selectedProvider.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      <Phone className="h-5 w-5 text-gray-400 mr-3" />
+                      <div>
+                        <p className="text-sm text-gray-500">Phone</p>
+                        <p className="text-gray-900 dark:text-white">{selectedProvider.phone}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      <MapPin className="h-5 w-5 text-gray-400 mr-3" />
+                      <div>
+                        <p className="text-sm text-gray-500">Location</p>
+                        <p className="text-gray-900 dark:text-white">
+                          {selectedProvider.city}, {selectedProvider.state} {selectedProvider.postcode}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Business Information</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm text-gray-500">Business Name</p>
+                      <p className="text-gray-900 dark:text-white">{selectedProvider.businessName || 'N/A'}</p>
+                    </div>
+                    {selectedProvider.businessAbn && (
+                      <div>
+                        <p className="text-sm text-gray-500">ABN</p>
+                        <p className="text-gray-900 dark:text-white">{selectedProvider.businessAbn}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm text-gray-500">Service Categories</p>
+                      <p className="text-gray-900 dark:text-white">{selectedProvider.serviceCategories || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Source</p>
+                      <Badge variant="outline" className="text-xs">
+                        {selectedProvider.source}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Additional Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Assigned To</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Avatar className="h-8 w-8">
+                              {selectedProvider.assignedAdminName && selectedProvider.assignedAdminName.trim() !== '' ? (
+                                <>
+                                  <AvatarImage 
+                                    src={getTeamMember(selectedProvider.assignedTo)?.profileImage || ''} 
+                                    alt={selectedProvider.assignedAdminName}
+                                  />
+                                  <AvatarFallback className="bg-blue-500 text-white text-sm">
+                                    {selectedProvider.assignedAdminName.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+                                  </AvatarFallback>
+                                </>
+                              ) : (
+                                <AvatarFallback className="bg-gray-400 text-white text-sm">
+                                  ?
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{selectedProvider.assignedAdminName && selectedProvider.assignedAdminName.trim() !== '' ? selectedProvider.assignedAdminName : 'Unassigned'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Created Date</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {new Date(selectedProvider.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Last Updated</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {new Date(selectedProvider.updatedAt || selectedProvider.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes Section */}
+              {selectedProvider.notes && (
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Notes</h4>
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <p className="text-gray-900 dark:text-white whitespace-pre-wrap">
+                      {selectedProvider.notes}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewDetailsDialogOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

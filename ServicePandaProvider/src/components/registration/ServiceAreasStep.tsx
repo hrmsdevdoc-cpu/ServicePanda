@@ -9,14 +9,26 @@ const {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
 } = require('react-native');
 const { colors } = require('../../utils/theme');
+const CustomAddressAutocomplete = require('../CustomAddressAutocomplete').default;
+const SimpleAddressInput = require('../SimpleAddressInput').default;
+const ServiceAreaMapFallback = require('../ServiceAreaMapFallback').default;
 
-const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading }) => {
+// Maps removed to fix build issues - using fallback only
+let ServiceAreaMap = null;
+
+const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading, formData }) => {
   const [serviceAreas, setServiceAreas] = useState([]);
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState(formData?.address || '');
+  const [addressDetails, setAddressDetails] = useState(null);
   const [radius, setRadius] = useState('25');
   const [areaName, setAreaName] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [useSimpleInput, setUseSimpleInput] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
 
   const radiusOptions = [
     { value: '5', label: '5 km radius' },
@@ -25,9 +37,37 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading }) => {
     { value: '20', label: '20 km radius' },
     { value: '25', label: '25 km radius' },
     { value: '30', label: '30 km radius' },
+    { value: '35', label: '35 km radius' },
     { value: '40', label: '40 km radius' },
+    { value: '45', label: '45 km radius' },
     { value: '50', label: '50 km radius' },
+    { value: '55', label: '55 km radius' },
+    { value: '60', label: '60 km radius' },
+    { value: '65', label: '65 km radius' },
+    { value: '70', label: '70 km radius' },
   ];
+
+  const handleLocate = () => {
+    if (addressDetails && addressDetails.geometry) {
+      const lat = addressDetails.geometry.location.lat;
+      const lng = addressDetails.geometry.location.lng;
+      
+      // Update the selected location for map preview
+      setSelectedLocation({
+        lat: lat,
+        lng: lng,
+        address: address
+      });
+      
+      Alert.alert(
+        'Location Found', 
+        `Address located on map!\n\nCoordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}\nAddress: ${address}`,
+        [{ text: 'OK' }]
+      );
+    } else {
+      Alert.alert('Location', 'Please select an address from the suggestions first');
+    }
+  };
 
   const addServiceArea = () => {
     if (!address.trim()) {
@@ -45,13 +85,19 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading }) => {
       address: address.trim(),
       radius: parseInt(radius),
       areaName: areaName.trim() || null,
+      coordinates: addressDetails?.geometry ? {
+        lat: addressDetails.geometry.location.lat,
+        lng: addressDetails.geometry.location.lng
+      } : null,
     };
 
     setServiceAreas(prev => [...prev, newServiceArea]);
     
     // Reset form
     setAddress('');
+    setAddressDetails(null);
     setAreaName('');
+    setSelectedLocation(null);
     
     Alert.alert('Success', 'Service area added successfully!');
   };
@@ -77,7 +123,18 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading }) => {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <TouchableWithoutFeedback 
+      onPress={() => {
+        Keyboard.dismiss();
+        setIsDropdownOpen(false);
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <ScrollView 
+          style={styles.container} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
       <View style={styles.header}>
         <Text style={styles.title}>Service Areas</Text>
         <Text style={styles.subtitle}>Define your service locations with coverage radius</Text>
@@ -93,53 +150,103 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading }) => {
         {/* Service Location Address */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Service Location Address *</Text>
-          <View style={styles.addressRow}>
-            <TextInput
-              style={styles.addressInput}
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Enter full Australian address (e.g., 123 Main Street, Brisbane QLD 4000)"
-              multiline
-              numberOfLines={2}
-            />
-            <TouchableOpacity style={styles.locateButton}>
-              <Text style={styles.locateButtonText}>Locate</Text>
-            </TouchableOpacity>
+          <View style={styles.addressInputContainer}>
+            {useSimpleInput ? (
+              <SimpleAddressInput
+                value={address}
+                onChange={setAddress}
+                placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                style={styles.addressInput}
+              />
+            ) : (
+              <CustomAddressAutocomplete
+                value={address}
+                onChange={(newAddress, details) => {
+                  setAddress(newAddress);
+                  setAddressDetails(details);
+                  // Clear selected location when typing new address
+                  if (newAddress !== address) {
+                    setSelectedLocation(null);
+                  }
+                  // If there's an error, switch to simple input
+                  if (details === null && newAddress && newAddress.length > 3) {
+                    setUseSimpleInput(true);
+                  }
+                }}
+                placeholder="Enter full address (e.g., 123 Main St, Brisbane QLD 4000)"
+                style={styles.addressInput}
+              />
+            )}
           </View>
+          <TouchableOpacity style={styles.locateButton} onPress={handleLocate}>
+            <Text style={styles.locateButtonText}>Locate</Text>
+          </TouchableOpacity>
           <Text style={styles.hint}>
-            Start typing an Australian address to see suggestions, or use "Locate" to find manually entered addresses
+            Start typing an address to see suggestions. Select from the dropdown to verify the location.
           </Text>
+          <TouchableOpacity 
+            style={styles.switchInputButton}
+            onPress={() => setUseSimpleInput(!useSimpleInput)}
+          >
+            <Text style={styles.switchInputText}>
+              {useSimpleInput ? 'Use Address Suggestions' : 'Manual Entry'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Service Radius */}
-        <View style={styles.inputGroup}>
+        <View style={[styles.inputGroup, { zIndex: isDropdownOpen ? 1000 : 1 }]}>
           <Text style={styles.label}>Service Radius *</Text>
-          <View style={styles.dropdownContainer}>
-            <Text style={styles.dropdownText}>
+          <TouchableOpacity 
+            style={styles.simpleDropdown}
+            onPress={() => {
+              // Dismiss keyboard first
+              Keyboard.dismiss();
+              setTimeout(() => {
+                setIsDropdownOpen(!isDropdownOpen);
+              }, 100);
+            }}
+          >
+            <Text style={styles.simpleDropdownText}>
               {radiusOptions.find(opt => opt.value === radius)?.label || 'Select radius'}
             </Text>
-            <Text style={styles.dropdownArrow}>▼</Text>
-          </View>
-          {/* Simple dropdown simulation - in real app you'd use a proper dropdown */}
-          <ScrollView style={styles.dropdownOptions} nestedScrollEnabled>
-            {radiusOptions.map(option => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.dropdownOption,
-                  radius === option.value && styles.dropdownOptionSelected
-                ]}
-                onPress={() => setRadius(option.value)}
+            <Text style={styles.simpleDropdownArrow}>▼</Text>
+          </TouchableOpacity>
+          
+          {/* Simple Dropdown Options */}
+          {isDropdownOpen && (
+            <View style={styles.simpleDropdownOptions}>
+              <ScrollView 
+                style={styles.dropdownScrollView}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                keyboardShouldPersistTaps="handled"
+                scrollEnabled={true}
               >
-                <Text style={[
-                  styles.dropdownOptionText,
-                  radius === option.value && styles.dropdownOptionTextSelected
-                ]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+                {radiusOptions.map(option => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.simpleDropdownOption,
+                      radius === option.value && styles.simpleDropdownOptionSelected
+                    ]}
+                    onPress={() => {
+                      setRadius(option.value);
+                      setIsDropdownOpen(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[
+                      styles.simpleDropdownOptionText,
+                      radius === option.value && styles.simpleDropdownOptionTextSelected
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         {/* Area Name */}
@@ -168,19 +275,39 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading }) => {
         {/* Info Box */}
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            Maps unavailable: You can still add service areas by typing the full address manually (e.g., "123 Main Street, Brisbane QLD 4000")
+            💡 Start typing an address to see suggestions. Select from the dropdown to verify the location.
           </Text>
         </View>
       </View>
 
       {/* Service Area Preview */}
-      <View style={styles.previewCard}>
+      <View style={styles.addCard}>
         <Text style={styles.previewTitle}>Service Area Preview</Text>
         <Text style={styles.previewDescription}>
           The green zone shows your service coverage area
         </Text>
 
-        {serviceAreas.length === 0 ? (
+        {selectedLocation ? (
+          <View style={styles.mapContainer}>
+            <ServiceAreaMapFallback
+              latitude={selectedLocation.lat}
+              longitude={selectedLocation.lng}
+              radius={parseInt(radius)}
+              address={selectedLocation.address}
+            />
+            <View style={styles.mapInfo}>
+              <Text style={styles.mapAddress}>
+                📍 {selectedLocation.address}
+              </Text>
+              <Text style={styles.mapCoords}>
+                {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
+              </Text>
+              <Text style={styles.mapRadius}>
+                Service radius: {radius} km
+              </Text>
+            </View>
+          </View>
+        ) : serviceAreas.length === 0 ? (
           <View style={styles.emptyPreview}>
             <Text style={styles.emptyText}>No service areas added yet</Text>
             <Text style={styles.emptySubtext}>Add your first service area above</Text>
@@ -226,7 +353,9 @@ const ServiceAreasStep = ({ providerId, onSubmit, onBack, isLoading }) => {
           )}
         </TouchableOpacity>
       </View>
-    </ScrollView>
+        </ScrollView>
+      </View>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -236,11 +365,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    padding: 20,
-    paddingBottom: 10,
+    alignItems: 'center',
+    marginBottom: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
@@ -248,13 +377,16 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: colors.textSecondary,
+    textAlign: 'center',
     lineHeight: 22,
   },
   addCard: {
     backgroundColor: colors.white,
-    margin: 20,
+    margin: 5,
     marginTop: 0,
-    padding: 20,
+    marginBottom: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 20,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -276,6 +408,7 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 20,
+    position: 'relative',
   },
   label: {
     fontSize: 14,
@@ -285,10 +418,15 @@ const styles = StyleSheet.create({
   },
   addressRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+  },
+  addressInputContainer: {
+    width: '100%',
+    marginBottom: 10,
+    zIndex: 10,
+    position: 'relative',
   },
   addressInput: {
-    flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
@@ -296,7 +434,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 50,
     textAlignVertical: 'top',
-    marginRight: 10,
   },
   locateButton: {
     backgroundColor: colors.primary,
@@ -304,6 +441,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     justifyContent: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 10,
   },
   locateButtonText: {
     color: colors.white,
@@ -316,7 +455,23 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 16,
   },
-  dropdownContainer: {
+  switchInputButton: {
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: colors.background,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignSelf: 'flex-start',
+  },
+  switchInputText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  // Simple dropdown styles
+  simpleDropdown: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -325,38 +480,53 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     backgroundColor: colors.white,
+    minHeight: 48,
   },
-  dropdownText: {
+  simpleDropdownText: {
     fontSize: 16,
     color: colors.text,
+    flex: 1,
   },
-  dropdownArrow: {
-    fontSize: 12,
+  simpleDropdownArrow: {
+    fontSize: 14,
     color: colors.textSecondary,
   },
-  dropdownOptions: {
-    maxHeight: 150,
-    marginTop: 5,
+  simpleDropdownOptions: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     backgroundColor: colors.white,
+    marginTop: 4,
+    maxHeight: 200,
+    zIndex: 1000,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  dropdownOption: {
+  dropdownScrollView: {
+    maxHeight: 200,
+  },
+  simpleDropdownOption: {
     padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.borderLight,
   },
-  dropdownOptionSelected: {
-    backgroundColor: colors.primaryLight,
+  simpleDropdownOptionSelected: {
+    backgroundColor: colors.primary + '10',
   },
-  dropdownOptionText: {
+  simpleDropdownOptionText: {
     fontSize: 16,
     color: colors.text,
   },
-  dropdownOptionTextSelected: {
+  simpleDropdownOptionTextSelected: {
     color: colors.primary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   textInput: {
     borderWidth: 1,
@@ -387,15 +557,44 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: colors.warning,
+    color: '#0c4a6e',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  mapContainer: {
+    marginTop: 16,
+  },
+  mapInfo: {
+    backgroundColor: colors.surface,
+    padding: 12,
+    marginTop: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mapAddress: {
+    color: colors.text,
+    fontWeight: '500',
+    marginBottom: 4,
+    fontSize: 14,
+  },
+  mapCoords: {
+    color: colors.textSecondary,
+    marginBottom: 4,
+    fontFamily: 'monospace',
+    fontSize: 12,
+  },
+  mapRadius: {
+    color: colors.primary,
+    fontWeight: '500',
+    fontSize: 12,
   },
   previewCard: {
     backgroundColor: colors.white,
     margin: 20,
     marginTop: 0,
-    padding: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 20,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

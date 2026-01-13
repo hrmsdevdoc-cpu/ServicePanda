@@ -5,6 +5,10 @@ const {
   StyleSheet,
   TextInput,
   Alert,
+  TouchableOpacity,
+  Animated,
+  Dimensions,
+  Platform,
 } = require('react-native');
 const { Button } = require('react-native-paper');
 const { useMutation, useQueryClient } = require('@tanstack/react-query');
@@ -12,7 +16,14 @@ const { useAuth } = require('../contexts/AuthContext');
 const apiService = require('../services/api');
 const { colors } = require('../utils/theme');
 
-const SimplePaymentForm = ({ onSuccess, onCancel }) => {
+const { width } = Dimensions.get('window');
+
+interface SimplePaymentFormProps {
+  onSuccess: () => void;
+  onCancel: () => void;
+}
+
+const SimplePaymentForm: React.FC<SimplePaymentFormProps> = ({ onSuccess, onCancel }) => {
   const { providerData } = useAuth();
   const queryClient = useQueryClient();
   
@@ -26,34 +37,61 @@ const SimplePaymentForm = ({ onSuccess, onCancel }) => {
   
   const [isProcessing, setIsProcessing] = React.useState(false);
 
+  // Animation values
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(30)).current;
+
   const addPaymentMethodMutation = useMutation({
-    mutationFn: async (paymentData) => {
-      // For now, just simulate adding a payment method
-      // Later you can integrate with your actual payment API
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({ success: true, id: Date.now() });
-        }, 1000);
-      });
+    mutationFn: async (paymentData: any) => {
+      try {
+        console.log('🔍 Creating payment method with data:', paymentData);
+        console.log('🔍 Provider ID:', providerData?.id);
+        
+        // For now, let's use a test payment method ID that works with Stripe
+        // In a real app, you'd use Stripe Elements to create this securely
+        const testPaymentMethodId = 'pm_card_visa'; // This is a test payment method ID
+        
+        console.log('🔍 Using test payment method ID:', testPaymentMethodId);
+        
+        // Call the secure API endpoint that just attaches the payment method
+        const result = await apiService.addPaymentMethod(providerData?.id, testPaymentMethodId);
+        console.log('✅ API response:', result);
+        
+        return result;
+      } catch (error) {
+        console.error('❌ Payment method creation failed:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/provider/payment-methods'] });
       Alert.alert('Success', 'Payment method added successfully!');
       onSuccess();
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('❌ Payment method addition error:', error);
       Alert.alert('Error', error.message || 'Failed to add payment method.');
     },
   });
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
+  // Helper function to detect card brand
+  const getCardBrand = (cardNumber: string) => {
+    const cleaned = cardNumber.replace(/\s/g, '');
+    if (cleaned.startsWith('4')) return 'Visa';
+    if (cleaned.startsWith('5') || cleaned.startsWith('2')) return 'Mastercard';
+    if (cleaned.startsWith('3')) return 'American Express';
+    if (cleaned.startsWith('6')) return 'Discover';
+    return 'Unknown';
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev: any) => ({
       ...prev,
       [field]: value
     }));
   };
 
-  const formatCardNumber = (text) => {
+  const formatCardNumber = (text: string) => {
     // Remove all non-digits
     const cleaned = text.replace(/\D/g, '');
     // Add spaces every 4 digits
@@ -61,7 +99,7 @@ const SimplePaymentForm = ({ onSuccess, onCancel }) => {
     return formatted;
   };
 
-  const formatExpiry = (text) => {
+  const formatExpiry = (text: string) => {
     // Remove all non-digits
     const cleaned = text.replace(/\D/g, '');
     // Add slash after 2 digits
@@ -97,159 +135,171 @@ const SimplePaymentForm = ({ onSuccess, onCancel }) => {
     setIsProcessing(true);
     
     try {
-      // Create a mock payment method object
+      console.log('🔍 Starting payment method submission...');
+      console.log('🔍 Form data:', formData);
+      console.log('🔍 Provider data:', providerData);
+      
+      // Create payment method object with all required data
       const paymentMethod = {
         cardholderName: formData.cardholderName,
+        cardNumber: formData.cardNumber.replace(/\s/g, ''),
+        expiryMonth: formData.expiryMonth,
+        expiryYear: formData.expiryYear,
+        cvv: formData.cvv,
         cardLastFour: formData.cardNumber.slice(-4),
-        cardBrand: 'Visa', // You can detect this based on card number
-        cardExpMonth: formData.expiryMonth,
-        cardExpYear: formData.expiryYear,
+        cardBrand: getCardBrand(formData.cardNumber),
       };
+      
+      console.log('🔍 Payment method object:', paymentMethod);
       
       await addPaymentMethodMutation.mutateAsync(paymentMethod);
     } catch (error) {
+      console.error('❌ Submit error:', error);
       Alert.alert('Error', 'Failed to add payment method');
     } finally {
       setIsProcessing(false);
     }
   };
 
+  // Animation effect on mount
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.formContent}>
-                <View style={styles.formHeader}>
-          <Text style={styles.title}>Add New Payment Method</Text>
-          <Text style={styles.subtitle}>
-            Enter your card details to add a new payment method
-          </Text>
+    <Animated.View 
+      style={[
+        styles.container,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }
+      ]}
+    >
+      {/* Cardholder Name */}
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Cardholder Name *</Text>
+        <TextInput
+          style={styles.textInput}
+          placeholder="John Smith"
+          placeholderTextColor="#9ca3af"
+          value={formData.cardholderName}
+          onChangeText={(value: string) => handleInputChange('cardholderName', value)}
+          autoCapitalize="words"
+          autoCorrect={false}
+        />
+      </View>
+
+      {/* Card Number */}
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Card Number *</Text>
+        <TextInput
+          style={styles.textInput}
+          placeholder="1234 5678 9012 3456"
+          placeholderTextColor="#9ca3af"
+          value={formData.cardNumber}
+          onChangeText={(value: string) => handleInputChange('cardNumber', formatCardNumber(value))}
+          keyboardType="numeric"
+          maxLength={19} // 16 digits + 3 spaces
+        />
+      </View>
+
+      {/* Expiry and CVV Row */}
+      <View style={styles.row}>
+        {/* Expiry Month */}
+        <View style={[styles.inputContainer, styles.halfWidth]}>
+          <Text style={styles.label}>Expiry Month *</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="MM"
+            placeholderTextColor="#9ca3af"
+            value={formData.expiryMonth}
+            onChangeText={(value: string) => handleInputChange('expiryMonth', value.replace(/\D/g, '').slice(0, 2))}
+            keyboardType="numeric"
+            maxLength={2}
+          />
         </View>
 
-            {/* Cardholder Name */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Cardholder Name *</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="John Smith"
-                value={formData.cardholderName}
-                onChangeText={(value) => handleInputChange('cardholderName', value)}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            </View>
+        {/* Expiry Year */}
+        <View style={[styles.inputContainer, styles.halfWidth]}>
+          <Text style={styles.label}>Expiry Year *</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="YY"
+            placeholderTextColor="#9ca3af"
+            value={formData.expiryYear}
+            onChangeText={(value: string) => handleInputChange('expiryYear', value.replace(/\D/g, '').slice(0, 2))}
+            keyboardType="numeric"
+            maxLength={2}
+          />
+        </View>
 
-            {/* Card Number */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Card Number *</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="1234 5678 9012 3456"
-                value={formData.cardNumber}
-                onChangeText={(value) => handleInputChange('cardNumber', formatCardNumber(value))}
-                keyboardType="numeric"
-                maxLength={19} // 16 digits + 3 spaces
-              />
-            </View>
+        {/* CVV */}
+        <View style={[styles.inputContainer, styles.halfWidth]}>
+          <Text style={styles.label}>CVV *</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="123"
+            placeholderTextColor="#9ca3af"
+            value={formData.cvv}
+            onChangeText={(value: string) => handleInputChange('cvv', value.replace(/\D/g, '').slice(0, 4))}
+            keyboardType="numeric"
+            maxLength={4}
+            secureTextEntry={true}
+          />
+        </View>
+      </View>
 
-            {/* Expiry and CVV Row */}
-            <View style={styles.row}>
-              {/* Expiry Month */}
-              <View style={[styles.inputContainer, styles.halfWidth]}>
-                <Text style={styles.label}>Expiry Month *</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="MM"
-                  value={formData.expiryMonth}
-                  onChangeText={(value) => handleInputChange('expiryMonth', value.replace(/\D/g, '').slice(0, 2))}
-                  keyboardType="numeric"
-                  maxLength={2}
-                />
-              </View>
 
-              {/* Expiry Year */}
-              <View style={[styles.inputContainer, styles.halfWidth]}>
-                <Text style={styles.label}>Expiry Year *</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="YY"
-                  value={formData.expiryYear}
-                  onChangeText={(value) => handleInputChange('expiryYear', value.replace(/\D/g, '').slice(0, 2))}
-                  keyboardType="numeric"
-                  maxLength={2}
-                />
-              </View>
 
-              {/* CVV */}
-              <View style={[styles.inputContainer, styles.halfWidth]}>
-                <Text style={styles.label}>CVV *</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="123"
-                  value={formData.cvv}
-                  onChangeText={(value) => handleInputChange('cvv', value.replace(/\D/g, '').slice(0, 4))}
-                  keyboardType="numeric"
-                  maxLength={4}
-                  secureTextEntry={true}
-                />
-              </View>
-            </View>
+      {/* Test Mode Notice */}
+      <View style={styles.testModeNotice}>
+        <Text style={styles.testModeText}>
+          🧪 Test Mode: This will add a test Visa card for development purposes
+        </Text>
+      </View>
 
-            {/* Information */}
-            <View style={styles.infoContainer}>
-              <Text style={styles.infoText}>
-                • Your card information is securely processed{'\n'}
-                • You will be charged only when you accept a lead{'\n'}
-                • Your first 3 leads are completely FREE
-              </Text>
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
-              <Button
-                mode="outlined"
-                onPress={onCancel}
-                disabled={isProcessing}
-                style={styles.cancelButton}
-              >
-                Cancel
-              </Button>
-              <Button
-                mode="contained"
-                onPress={handleSubmit}
-                disabled={isProcessing}
-                style={styles.submitButton}
-                loading={isProcessing}
-              >
-                {isProcessing ? 'Adding...' : 'Add Payment Method'}
-              </Button>
-            </View>
-                 </View>
-     </View>
+      {/* Action Buttons */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={onCancel}
+          disabled={isProcessing}
+        >
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.submitButton, isProcessing && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={isProcessing}
+        >
+          <Text style={styles.submitButtonText}>
+            {isProcessing ? 'Adding...' : 'Add Test Payment Method'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.background,
-  },
-  formContent: {
-    padding: 16,
-  },
-  formHeader: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: colors.text,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 0,
+    backgroundColor: 'transparent',
+    padding: 0,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   halfWidth: {
     flex: 1,
@@ -258,43 +308,106 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 12,
   },
   label: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
     color: colors.text,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#d1d5db',
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: colors.surface,
-    color: colors.text,
-  },
-  infoContainer: {
-    backgroundColor: colors.surface + '20',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 24,
-  },
-  infoText: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
+    backgroundColor: '#ffffff',
+    color: colors.text,
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: 12,
+    marginTop: 8,
   },
   cancelButton: {
     flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
   submitButton: {
     flex: 2,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#9ca3af',
+  },
+  submitButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  testModeNotice: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  testModeText: {
+    fontSize: 12,
+    color: '#92400e',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  // Debug styles
+  debugSection: {
+    backgroundColor: colors.background,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  debugTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  debugText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  debugButton: {
+    backgroundColor: colors.primary + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  debugButtonText: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
 

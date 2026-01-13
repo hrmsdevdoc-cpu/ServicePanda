@@ -13,6 +13,7 @@ const AuthNavigator = ({ onLoginSuccess, onNavigate }) => {
   return (
     <Stack.Navigator 
       initialRouteName="Login"
+      initialRouteName="Login"
       screenOptions={{
         headerShown: true,
         headerStyle: {
@@ -31,10 +32,14 @@ const AuthNavigator = ({ onLoginSuccess, onNavigate }) => {
         {(props) => <SignupScreen {...props} onLoginSuccess={onLoginSuccess} />}
       </Stack.Screen>
       <Stack.Screen name="ProviderRegistration">
-        {(props) => <ProviderRegistrationScreen {...props} />}
+        {(props) => <ProviderRegistrationScreen {...props} onNavigate={(screen) => props.navigation.navigate(screen)} />}
       </Stack.Screen>
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <Stack.Screen name="ForgotPassword">
+        {(props) => <ForgotPasswordScreen {...props} onNavigate={(screen) => props.navigation.navigate(screen)} />}
+      </Stack.Screen>
+      <Stack.Screen name="ResetPassword">
+        {(props) => <ResetPasswordScreen {...props} onNavigate={(screen) => props.navigation.navigate(screen)} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };

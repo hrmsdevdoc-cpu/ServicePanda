@@ -1,7 +1,8 @@
+import { getApiUrl } from "./apiConfig";
+
 // Admin authentication utility for handling token expiration
 export const adminApiRequest = async (method: string, url: string, data?: any) => {
   const token = localStorage.getItem('adminToken');
-  console.log("Frontend sending admin token:", token ? `${token.substring(0, 20)}...` : "None");
   
   // Check if data is FormData
   const isFormData = data instanceof FormData;
@@ -15,7 +16,7 @@ export const adminApiRequest = async (method: string, url: string, data?: any) =
     headers['Content-Type'] = 'application/json';
   }
   
-  const response = await fetch(url, {
+  const response = await fetch(getApiUrl(url), {
     method,
     headers,
     body: data ? (isFormData ? data : JSON.stringify(data)) : undefined,
@@ -23,10 +24,8 @@ export const adminApiRequest = async (method: string, url: string, data?: any) =
   
   // Check for 401 Unauthorized (token expired)
   if (response.status === 401) {
-    console.log("Admin session expired, clearing token and redirecting to login");
+    console.log("Admin session expired, clearing token");
     localStorage.removeItem('adminToken');
-    // Use window.location to ensure page reload and clear any cached state
-    window.location.href = '/admin-login';
     throw new Error('Session expired');
   }
   

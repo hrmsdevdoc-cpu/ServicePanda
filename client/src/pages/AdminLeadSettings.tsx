@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getApiUrl } from "@/lib/apiConfig";
 import { Settings, Clock, DollarSign, Users, Star } from "lucide-react";
 import { AdminSidebar } from "@/components/AdminSidebar";
 
@@ -16,7 +17,7 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 const adminApiRequest = async (method: string, url: string, data?: any) => {
   const token = localStorage.getItem('adminToken');
   
-  const response = await fetch(url, {
+  const response = await fetch(getApiUrl(url), {
     method,
     headers: {
       'Content-Type': 'application/json',

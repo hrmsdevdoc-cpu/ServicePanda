@@ -1,5 +1,5 @@
 const React = require('react');
-const { useState } = require('react');
+const { useState, useEffect } = require('react');
 const {
   View,
   Text,
@@ -8,18 +8,47 @@ const {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
+  Dimensions,
+  StatusBar,
+  TouchableOpacity,
 } = require('react-native');
-const { TextInput, Button, Card, Title, Paragraph } = require('react-native-paper');
+const { TextInput, Button, Card, Title, Paragraph, Checkbox } = require('react-native-paper');
 const { useMutation } = require('@tanstack/react-query');
 const { useAuth } = require('../../contexts/AuthContext');
 const { colors } = require('../../utils/theme');
+const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+
+const { width, height } = Dimensions.get('window');
 
 const LoginScreen = ({ onNavigate }) => {
   console.log('🔍 LoginScreen rendered with onNavigate:', !!onNavigate, onNavigate);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const { login } = useAuth();
+
+  // Load saved credentials on component mount
+  useEffect(() => {
+    loadSavedCredentials();
+  }, []);
+
+  const loadSavedCredentials = async () => {
+    try {
+      const savedEmail = await AsyncStorage.getItem('rememberedEmail');
+      const savedPassword = await AsyncStorage.getItem('rememberedPassword');
+      const rememberMeStatus = await AsyncStorage.getItem('rememberMe');
+      
+      if (savedEmail && rememberMeStatus === 'true') {
+        setEmail(savedEmail);
+        setPassword(savedPassword || '');
+        setRememberMe(true);
+      }
+    } catch (error) {
+      console.error('Error loading saved credentials:', error);
+    }
+  };
 
   const loginMutation = useMutation({
     mutationFn: async (credentials) => {
@@ -28,7 +57,7 @@ const LoginScreen = ({ onNavigate }) => {
       console.log('🔗 API Endpoint: /api/provider/login');
 
       try {
-        const result = await login(credentials.email, credentials.password);
+        const result = await login(credentials.email, credentials.password, credentials.rememberMe);
         console.log('✅ Login successful:', result);
         return result;
       } catch (error) {
@@ -75,96 +104,176 @@ const LoginScreen = ({ onNavigate }) => {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert("Missing Information", "Please enter both email and password.");
       return;
     }
 
-    loginMutation.mutate({ email: email.trim(), password });
+    // Save credentials if remember me is checked
+    if (rememberMe) {
+      try {
+        await AsyncStorage.setItem('rememberedEmail', email.trim());
+        await AsyncStorage.setItem('rememberedPassword', password);
+        await AsyncStorage.setItem('rememberMe', 'true');
+      } catch (error) {
+        console.error('Error saving credentials:', error);
+      }
+    } else {
+      // Clear saved credentials if remember me is unchecked
+      try {
+        await AsyncStorage.removeItem('rememberedEmail');
+        await AsyncStorage.removeItem('rememberedPassword');
+        await AsyncStorage.removeItem('rememberMe');
+      } catch (error) {
+        console.error('Error clearing credentials:', error);
+      }
+    }
+
+    loginMutation.mutate({ email: email.trim(), password, rememberMe });
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          {/* Panda Logo with title - matching web design */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoRow}>
-              <Text style={styles.logo}>🐼</Text>
-              <Text style={styles.title}>ServicePanda</Text>
-            </View>
-          </View>
-          <Text style={styles.subtitle}>Partner Login</Text>
-          <Text style={styles.description}>
-            Access your provider dashboard to manage leads and grow your business
-          </Text>
-        </View>
-
-        <Card style={styles.card} contentStyle={styles.cardContentStyle}>
-          <Card.Content style={styles.cardContent}>
-            <Title style={styles.cardTitle}>Sign in to your account</Title>
-            
-            {/* Email Input - matching web design */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Email Address <Text style={styles.required}>*</Text></Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  mode="outlined"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  placeholder="Enter your email address"
-                  style={styles.input}
-                  left={<TextInput.Icon icon="email" iconColor="#9CA3AF" />}
-                  outlineColor="#D1D5DB"
-                  activeOutlineColor={colors.primary}
-                />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      
+      {/* Gradient Background */}
+      <View style={styles.gradientBackground} />
+      
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header Section */}
+            <View style={styles.header}>
+              <View style={styles.logoContainer}>
+                <View style={styles.logoCircle}>
+                  <Text style={styles.logo}>🐼</Text>
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.title}>ServicePanda</Text>
+                  <Text style={styles.tagline}>Partner Portal</Text>
+                </View>
               </View>
             </View>
 
-            {/* Password Input - matching web design */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Password <Text style={styles.required}>*</Text></Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  mode="outlined"
-                  secureTextEntry={!showPassword}
-                  placeholder="Enter your password"
-                  style={styles.input}
-                  left={<TextInput.Icon icon="lock" iconColor="#9CA3AF" />}
-                  right={
-                    <TextInput.Icon 
-                      icon={showPassword ? "eye-off" : "eye"} 
-                      iconColor="#9CA3AF"
-                      onPress={() => setShowPassword(!showPassword)}
-                    />
-                  }
-                  outlineColor="#D1D5DB"
-                  activeOutlineColor={colors.primary}
-                />
-              </View>
-            </View>
+            {/* Login Form Card */}
+            <View style={styles.formContainer}>
+              <Card style={styles.card} elevation={0}>
+                <Card.Content style={styles.cardContent}>
+                  <View style={styles.formHeader}>
+                    <Text style={styles.formTitle}>Sign In</Text>
+                    <Text style={styles.formSubtitle}>Enter your credentials to continue</Text>
+                  </View>
 
-            {/* Sign In Button - blue color matching web */}
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              loading={loginMutation.isPending}
-              disabled={loginMutation.isPending}
-              style={styles.button}
-              labelStyle={styles.buttonLabel}
-              buttonColor={colors.primary}
-            >
-              {loginMutation.isPending ? "Signing in..." : "Sign In"}
-            </Button>
+                  {/* Email Input */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>
+                      Email Address <Text style={styles.required}>*</Text>
+                    </Text>
+                    <View style={styles.inputContainer}>
+                      <TextInput
+                        value={email}
+                        onChangeText={setEmail}
+                        mode="outlined"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        placeholder="Enter your email address"
+                        style={styles.input}
+                        left={<TextInput.Icon icon="email" iconColor={colors.textTertiary} />}
+                        outlineColor={colors.border}
+                        activeOutlineColor={colors.primary}
+                        contentStyle={styles.inputContent}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Password Input */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>
+                      Password <Text style={styles.required}>*</Text>
+                    </Text>
+                    <View style={styles.inputContainer}>
+                      <TextInput
+                        value={password}
+                        onChangeText={setPassword}
+                        mode="outlined"
+                        secureTextEntry={!showPassword}
+                        placeholder="Enter your password"
+                        style={styles.input}
+                        left={<TextInput.Icon icon="lock" iconColor={colors.textTertiary} />}
+                        right={
+                          <TextInput.Icon 
+                            icon={showPassword ? "eye-off" : "eye"} 
+                            iconColor={colors.textTertiary}
+                            onPress={() => setShowPassword(!showPassword)}
+                          />
+                        }
+                        outlineColor={colors.border}
+                        activeOutlineColor={colors.primary}
+                        contentStyle={styles.inputContent}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Remember Me Checkbox */}
+                  <View style={styles.rememberMeContainer}>
+                    <TouchableOpacity
+                      style={styles.rememberMeRow}
+                      onPress={() => setRememberMe(!rememberMe)}
+                      activeOpacity={0.7}
+                    >
+                      <TouchableOpacity
+                        style={styles.customCheckbox}
+                        onPress={() => setRememberMe(!rememberMe)}
+                      >
+                        <View style={[
+                          styles.checkboxSquare,
+                          rememberMe && styles.checkboxChecked
+                        ]}>
+                          {rememberMe && (
+                            <Text style={styles.checkmark}>✓</Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                      <Text style={styles.rememberMeText}>Remember me</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Forgot Password Link */}
+                  <View style={styles.forgotPasswordContainer}>
+                    <Button
+                      mode="text"
+                      onPress={() => {
+                        console.log('🔍 Forgot password button pressed!');
+                        onNavigate('forgotPassword');
+                      }}
+                      style={styles.forgotPasswordButton}
+                      labelStyle={styles.forgotPasswordLabel}
+                    >
+                      Forgot your password?
+                    </Button>
+                  </View>
+
+                  {/* Sign In Button */}
+                  <Button
+                    mode="contained"
+                    onPress={handleSubmit}
+                    loading={loginMutation.isPending}
+                    disabled={loginMutation.isPending}
+                    style={styles.signInButton}
+                    labelStyle={styles.signInButtonLabel}
+                    buttonColor={colors.primary}
+                    contentStyle={styles.signInButtonContent}
+                  >
+                    {loginMutation.isPending ? "Signing in..." : "Sign In"}
+                  </Button>
 
             {/* Links - matching web design */}
             <View style={styles.links}>
@@ -204,17 +313,33 @@ const LoginScreen = ({ onNavigate }) => {
                   </Button>
               </View>
             </View>
-          </Card.Content>
-        </Card>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB', // Exact web background color
+    backgroundColor: colors.primary,
+  },
+  gradientBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.primary,
+    // Note: For a true gradient, you'd need react-native-linear-gradient
+    // For now, we'll use a solid color with some visual elements
+  },
+  safeArea: {
+    flex: 1,
+  },
+  keyboardContainer: {
+    flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -222,6 +347,8 @@ const styles = StyleSheet.create({
     padding: 16, // Reduced from 20
     paddingTop: 16, // Reduced from 20
   },
+  
+  // Header Styles
   header: {
     alignItems: 'center',
     marginBottom: 12, // Reduced from 16
@@ -233,6 +360,12 @@ const styles = StyleSheet.create({
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 0, // No bottom margin since it's horizontal
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   logo: {
     fontSize: 36, // Reduced from 48
@@ -258,7 +391,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, // Add horizontal padding for better text wrapping
   },
   card: {
-    elevation: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -269,14 +403,23 @@ const styles = StyleSheet.create({
     marginTop: 2, // Reduced from 4
   },
   cardContent: {
-    backgroundColor: '#FFFFFF', // Ensure pure white background for content
-    padding: 0, // Remove default padding to match web
+    padding: 20, // Reduced padding
   },
-  cardContentStyle: {
-    backgroundColor: '#FFFFFF', // Ensure pure white background for content
-    padding: 0, // Remove default padding to match web
+
+  // Form Header
+  formHeader: {
+    alignItems: 'center',
+    marginBottom: 20, // Reduced margin
   },
-  cardTitle: {
+  formTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  formSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20, // Reduced from 24
     fontSize: 18, // Reduced from 20
@@ -292,9 +435,9 @@ const styles = StyleSheet.create({
     marginBottom: 6, // Reduced from 8
   },
   required: {
-    color: '#EF4444', // Red color matching web
+    color: colors.error,
   },
-  inputWrapper: {
+  inputContainer: {
     position: 'relative',
   },
   input: {
@@ -311,14 +454,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  links: {
+
+  // Divider
+  dividerContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 12, // Reduced from 16
   },
   linkButton: {
     marginVertical: 0,
   },
-  divider: {
+  dividerLine: {
+    flex: 1,
     height: 1,
     backgroundColor: '#E5E7EB', // Light gray matching web
     width: '100%',
@@ -326,9 +473,6 @@ const styles = StyleSheet.create({
   },
   registerContainer: {
     alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
   },
   registerText: {
     color: '#6B7280', // Medium gray matching web
@@ -340,4 +484,3 @@ const styles = StyleSheet.create({
 });
 
 module.exports = LoginScreen;
-

@@ -8,41 +8,140 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { Card, Title, Paragraph, Button } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 const { colors } = require('../../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 const apiService = require('../../services/api');
 
 const { width } = Dimensions.get('window');
 
-// Service icons mapping - same as web version
-const serviceIcons = {
-  'Domestic Cleaning': '✨',
-  'Bond Cleaning': '🏢',
-  'Carpet Cleaning': '🏠',
-  'Pest Control': '🐛',
-  'Gardening': '🌱',
-  'Removals': '🚚',
-  'Handyman': '🔧',
-  'Electrical': '⚡',
-  'Air Conditioning': '🔧',
-  'Plumbing': '💧',
-  'Appliance Repair': '🏠',
-  'Demo': '🏠',
-  'Gutter Cleaning': '🏠',
-  'Locksmith': '🔒',
-  'Painting': '🏠',
-  'Pool Maintenance': '🏊',
-  'Roofing': '🏠',
-  'Security Systems': '🏠',
-  'Solar Installation': '🏠',
-  'Test Service': '🏠',
-  'Tree Services': '🌳',
-  'Window Cleaning': '🏠',
+// Service icons mapping - comprehensive service categories with vector icons
+const getServiceIcon = (serviceName: string) => {
+  const service = serviceName.toLowerCase();
+  
+  // Cleaning Services
+  if (service.includes('cleaning') || service.includes('clean')) {
+    return { name: 'cleaning-services', color: '#3B82F6' };
+  }
+  
+  // Home Maintenance
+  if (service.includes('handyman') || service.includes('repair')) {
+    return { name: 'build', color: '#8B5CF6' };
+  }
+  if (service.includes('electrical') || service.includes('electric')) {
+    return { name: 'electrical-services', color: '#F59E0B' };
+  }
+  if (service.includes('plumbing') || service.includes('water')) {
+    return { name: 'plumbing', color: '#06B6D4' };
+  }
+  if (service.includes('air conditioning') || service.includes('ac')) {
+    return { name: 'ac-unit', color: '#10B981' };
+  }
+  if (service.includes('locksmith') || service.includes('lock')) {
+    return { name: 'lock', color: '#EF4444' };
+  }
+  if (service.includes('painting') || service.includes('paint')) {
+    return { name: 'format-paint', color: '#EC4899' };
+  }
+  if (service.includes('roofing') || service.includes('roof')) {
+    return { name: 'home', color: '#6B7280' };
+  }
+  
+  // Garden & Landscaping
+  if (service.includes('garden') || service.includes('landscap') || service.includes('lawn')) {
+    return { name: 'park', color: '#10B981' };
+  }
+  if (service.includes('tree') || service.includes('pruning') || service.includes('hedge')) {
+    return { name: 'park', color: '#059669' };
+  }
+  if (service.includes('irrigation') || service.includes('water')) {
+    return { name: 'water-drop', color: '#06B6D4' };
+  }
+  
+  // Construction & Renovation
+  if (service.includes('fencing') || service.includes('fence')) {
+    return { name: 'fence', color: '#8B5CF6' };
+  }
+  if (service.includes('tiling') || service.includes('tile')) {
+    return { name: 'grid-on', color: '#6B7280' };
+  }
+  if (service.includes('carpentry') || service.includes('wood')) {
+    return { name: 'carpenter', color: '#D97706' };
+  }
+  if (service.includes('flooring') || service.includes('floor')) {
+    return { name: 'layers', color: '#6B7280' };
+  }
+  if (service.includes('decking') || service.includes('deck')) {
+    return { name: 'deck', color: '#D97706' };
+  }
+  if (service.includes('concrete') || service.includes('construction')) {
+    return { name: 'construction', color: '#6B7280' };
+  }
+  
+  // Pool Services
+  if (service.includes('pool')) {
+    return { name: 'pool', color: '#06B6D4' };
+  }
+  
+  // Security & Safety
+  if (service.includes('security') || service.includes('safety')) {
+    return { name: 'security', color: '#EF4444' };
+  }
+  if (service.includes('garage') || service.includes('gate')) {
+    return { name: 'garage', color: '#6B7280' };
+  }
+  
+  // Energy & Technology
+  if (service.includes('solar') || service.includes('energy')) {
+    return { name: 'solar-power', color: '#F59E0B' };
+  }
+  if (service.includes('tv') || service.includes('mounting')) {
+    return { name: 'tv', color: '#3B82F6' };
+  }
+  if (service.includes('lighting') || service.includes('light')) {
+    return { name: 'lightbulb', color: '#F59E0B' };
+  }
+  
+  // Moving & Transport
+  if (service.includes('removal') || service.includes('moving')) {
+    return { name: 'local-shipping', color: '#8B5CF6' };
+  }
+  if (service.includes('rubbish') || service.includes('waste')) {
+    return { name: 'delete', color: '#6B7280' };
+  }
+  if (service.includes('furniture') || service.includes('assembly')) {
+    return { name: 'chair', color: '#D97706' };
+  }
+  
+  // Specialized Services
+  if (service.includes('pest') || service.includes('control')) {
+    return { name: 'bug-report', color: '#EF4444' };
+  }
+  if (service.includes('curtain') || service.includes('blind')) {
+    return { name: 'curtains', color: '#8B5CF6' };
+  }
+  if (service.includes('driveway') || service.includes('pathway')) {
+    return { name: 'road', color: '#6B7280' };
+  }
+  if (service.includes('bbq') || service.includes('fire')) {
+    return { name: 'outdoor-grill', color: '#EF4444' };
+  }
+  if (service.includes('kitchen') || service.includes('outdoor')) {
+    return { name: 'kitchen', color: '#F59E0B' };
+  }
+  if (service.includes('spa') || service.includes('pond')) {
+    return { name: 'spa', color: '#06B6D4' };
+  }
+  
+  // Default fallback
+  return { name: 'build', color: '#6B7280' };
 };
 
-const ServicesScreen = () => {
+const ServicesScreen = ({ onNavigate, onBack }: { onNavigate?: (screen: string) => void; onBack?: () => void }) => {
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const queryClient = useQueryClient();
@@ -140,17 +239,24 @@ const ServicesScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Title style={styles.title}>Services</Title>
-        <Paragraph style={styles.subtitle}>Manage your service offerings.</Paragraph>
-      </View>
+    <View style={styles.container}>
+      {/* Header with Navigation */}
+      {/* <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Services</Text>
+          <Text style={styles.headerSubtitle}>Manage your service offerings</Text>
+        </View>
+      </View> */}
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
 
       {/* Main Services Card */}
       <Card style={styles.mainCard}>
         <Card.Content>
-          <View style={styles.cardHeader}>
+          {/* <View style={styles.cardHeader}>
             <View style={styles.cardTitleContainer}>
               <Text style={styles.cardTitle}>Manage Your Services</Text>
               <Text style={styles.cardSubtitle}>
@@ -166,7 +272,7 @@ const ServicesScreen = () => {
             >
               {updateServicesMutation.isPending ? 'Saving...' : 'Save Services'}
             </Button>
-          </View>
+          </View> */}
 
           {/* Validation message */}
           {hasAttemptedSubmit && selectedServices.length === 0 && (
@@ -180,7 +286,7 @@ const ServicesScreen = () => {
           {/* Services Grid */}
           <View style={styles.servicesGrid}>
             {categories.map((category: any) => {
-              const icon = serviceIcons[category.name as keyof typeof serviceIcons] || '🔧';
+              const iconInfo = getServiceIcon(category.name);
               const isSelected = selectedServices.includes(category.id);
               
               return (
@@ -197,7 +303,12 @@ const ServicesScreen = () => {
                     styles.serviceIcon,
                     isSelected && styles.serviceIconSelected
                   ]}>
-                    <Text style={styles.serviceIconText}>{icon}</Text>
+                    <Icon 
+                      name={iconInfo.name} 
+                      size={24} 
+                      color={isSelected ? '#FFFFFF' : iconInfo.color} 
+                      style={styles.serviceIconText} 
+                    />
                   </View>
                   <Text style={[
                     styles.serviceName,
@@ -247,7 +358,8 @@ const ServicesScreen = () => {
           </View>
         </Card.Content>
       </Card>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -255,6 +367,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  scrollView: {
+    flex: 1,
     padding: 16,
   },
   loadingContainer: {
@@ -267,21 +405,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: colors.textSecondary,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
   },
   mainCard: {
     elevation: 4,
@@ -431,11 +554,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ServicesScreen;
-
-
-
-
-
-
-
+module.exports = ServicesScreen;

@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
@@ -11,20 +12,22 @@ import { db } from "./db";
 import { eq, and, or, desc, sql } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail, sendEmail } from "./emailService";
 import { smsService } from "./smsService";
+import { notificationRoutes } from "./notificationBridge";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware for customers
   setupAuth(app);
-  
+
   // Auth middleware for providers
   setupProviderAuth(app);
-  
+
   // Auth middleware for admins
   setupAdminAuth(app);
 
-  // Configure multer for file uploads
+  // Configure multer for file uploads (documents, images)
   const upload = multer({
     dest: "uploads/",
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -32,7 +35,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allowedTypes = /jpeg|jpg|png|pdf/;
       const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
       const mimetype = allowedTypes.test(file.mimetype);
-      
+
       if (mimetype && extname) {
         return cb(null, true);
       } else {
@@ -40,6 +43,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     },
   });
+
+  // Configure multer for CSV imports
+  const csvUpload = multer({
+    dest: "uploads/",
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = /csv|xlsx|xls/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'text/csv' || file.mimetype === 'application/vnd.ms-excel' || file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+      if (mimetype || extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error("Only .csv, .xlsx and .xls files are allowed"));
+      }
+    },
+  });
+
+  // Serve static files from uploads directory
+  app.use('/uploads', express.static('uploads'));
 
   // Service categories
   app.get('/api/service-categories', async (req, res) => {
@@ -52,15 +75,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Trending service categories
+  app.get('/api/service-categories/trending', async (req, res) => {
+
+    try {
+      const trendingCategories = await storage.getTrendingServiceCategories();
+      res.json(trendingCategories);
+    } catch (error) {
+      console.error("Error fetching trending service categories:", error);
+      res.status(500).json({ message: "Failed to fetch trending service categories" });
+    }
+  });
+
   // Admin endpoint to get all service categories (including inactive)
   app.get('/api/admin/service-categories', async (req, res) => {
     try {
       console.log('Admin service categories endpoint called');
-      
+
       // Check admin authentication
       const adminToken = req.headers['x-admin-token'] as string;
       console.log('Admin token provided:', !!adminToken);
-      
+
       if (!adminToken) {
         console.log('No admin token provided');
         return res.status(401).json({ message: 'Admin authentication required' });
@@ -84,9 +119,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId,
       });
-      
+
       const provider = await storage.createServiceProvider(providerData);
-      
+
       // Log user activity
       await storage.logUserActivity({
         userId,
@@ -96,11 +131,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent') || '',
       });
-      
+
       res.json(provider);
     } catch (error) {
       console.error("Error creating service provider:", error);
       res.status(500).json({ message: "Failed to create service provider" });
+    }
+  });
+
+  // Get all service providers (public endpoint for lead distribution)
+  app.get('/api/service-providers', async (req: any, res) => {
+    try {
+      const providers = await storage.getServiceProvidersByStatus('approved');
+      res.json(providers);
+    } catch (error) {
+      console.error("Error fetching service providers:", error);
+      res.status(500).json({ message: "Failed to fetch service providers" });
     }
   });
 
@@ -109,11 +155,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const provider = await storage.getServiceProviderByEmail(req.user.email);
-      
+
       if (!provider) {
         return res.status(404).json({ message: "Service provider not found" });
       }
-      
+
       res.json(provider);
     } catch (error) {
       console.error("Error fetching service provider:", error);
@@ -126,13 +172,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const userId = req.user.id;
-      
+
       // Verify ownership
       const provider = await storage.getServiceProvider(id);
       if (!provider || provider.email !== req.user.email) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const updatedProvider = await storage.updateServiceProvider(id, req.body);
       res.json(updatedProvider);
     } catch (error) {
@@ -146,18 +192,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const { categoryIds } = req.body;
-      
+
       // Remove duplicates from category IDs for safety
       const uniqueCategoryIds = Array.from(new Set(categoryIds as number[]));
-      
+
       console.log(`Replacing services for provider ${providerId}:`);
       console.log(`Original categoryIds:`, categoryIds);
       console.log(`Deduplicated categoryIds:`, uniqueCategoryIds);
-      
+
       if (!Array.isArray(categoryIds) || uniqueCategoryIds.length === 0) {
         return res.status(400).json({ message: "Category IDs are required" });
       }
-      
+
       // Verify provider exists
       const provider = await storage.getServiceProvider(providerId);
       if (!provider) {
@@ -167,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get current services for activity logging
       const currentServices = await storage.getProviderServices(providerId);
       const currentServiceNames = currentServices.map(s => s.name).sort().join(', ');
-      
+
       // Get new service names for logging
       const allCategories = await storage.getServiceCategories();
       const newServiceNames = allCategories
@@ -175,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .map(cat => cat.name)
         .sort()
         .join(', ');
-      
+
       // Replace all services for this provider
       await storage.replaceProviderServices(providerId, uniqueCategoryIds);
 
@@ -192,7 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           newValue: newServiceNames,
         });
       }
-      
+
       res.json({ message: "Services updated successfully" });
     } catch (error) {
       console.error("Error updating provider services:", error);
@@ -272,7 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const areaId = parseInt(req.params.areaId);
-      
+
       await storage.deleteProviderLocationServiceArea(providerId, areaId);
       res.json({ message: 'Service area deleted successfully' });
     } catch (error: any) {
@@ -287,22 +333,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const providerId = parseInt(req.params.id);
       const userId = req.user.id;
       const { suburbIds } = req.body;
-      
+
       // Verify ownership
       const provider = await storage.getServiceProvider(providerId);
       if (!provider || provider.email !== req.user.email) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       // Add service areas (legacy approach - need to provide centerAddress)
       for (const suburbId of suburbIds) {
-        await storage.addProviderServiceArea({ 
-          providerId, 
+        await storage.addProviderServiceArea({
+          providerId,
           centerAddress: "Legacy suburb-based area", // Temporary workaround
           radiusKm: 10 // Default radius for legacy areas
         });
       }
-      
+
       res.json({ message: "Service areas added successfully" });
     } catch (error) {
       console.error("Error adding provider service areas:", error);
@@ -319,15 +365,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
+
       // Verify provider exists
       const provider = await storage.getServiceProvider(providerId);
       if (!provider) {
         return res.status(404).json({ message: "Provider not found" });
       }
-      
+
       const uploadedDocs = [];
-      
+
       // Process each document type
       if (files.license && files.license[0]) {
         const file = files.license[0];
@@ -341,7 +387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         uploadedDocs.push(doc);
       }
-      
+
       if (files.policeCheck && files.policeCheck[0]) {
         const file = files.policeCheck[0];
         const doc = await storage.uploadProviderDocument({
@@ -354,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         uploadedDocs.push(doc);
       }
-      
+
       if (files.insuranceCertificate && files.insuranceCertificate[0]) {
         const file = files.insuranceCertificate[0];
         const doc = await storage.uploadProviderDocument({
@@ -367,10 +413,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         uploadedDocs.push(doc);
       }
-      
+
       // Update provider status
       await storage.updateServiceProvider(providerId, { documentsUploaded: true });
-      
+
       // Send application submitted email after document upload completion
       try {
         await sendProviderApplicationSubmittedEmail(provider.email, provider.firstName);
@@ -379,10 +425,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`Failed to send application submitted email to ${provider.email}:`, emailError);
         // Don't fail document upload if email fails
       }
-      
-      res.json({ 
+
+      res.json({
         message: "Documents uploaded successfully",
-        documents: uploadedDocs 
+        documents: uploadedDocs
       });
     } catch (error) {
       console.error("Error uploading registration documents:", error);
@@ -399,15 +445,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
+
       // Verify provider exists
       const provider = await storage.getServiceProvider(providerId);
       if (!provider) {
         return res.status(404).json({ message: "Provider not found" });
       }
-      
+
       const uploadedDocs = [];
-      
+
       // Process each document type
       if (files.license && files.license[0]) {
         const file = files.license[0];
@@ -421,7 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         uploadedDocs.push(doc);
       }
-      
+
       if (files.policeCheck && files.policeCheck[0]) {
         const file = files.policeCheck[0];
         const doc = await storage.uploadProviderDocument({
@@ -434,7 +480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         uploadedDocs.push(doc);
       }
-      
+
       if (files.insuranceCertificate && files.insuranceCertificate[0]) {
         const file = files.insuranceCertificate[0];
         const doc = await storage.uploadProviderDocument({
@@ -447,10 +493,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         uploadedDocs.push(doc);
       }
-      
+
       // Update provider status
       await storage.updateServiceProvider(providerId, { documentsUploaded: true });
-      
+
       // Send application submitted email after document upload completion
       try {
         await sendProviderApplicationSubmittedEmail(provider.email, provider.firstName);
@@ -459,10 +505,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`Failed to send application submitted email to ${provider.email}:`, emailError);
         // Don't fail document upload if email fails
       }
-      
-      res.json({ 
+
+      res.json({
         message: "Documents uploaded successfully",
-        documents: uploadedDocs 
+        documents: uploadedDocs
       });
     } catch (error) {
       console.error("Error uploading documents:", error);
@@ -479,15 +525,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
+
       // Verify provider exists
       const provider = await storage.getServiceProvider(providerId);
       if (!provider) {
         return res.status(404).json({ message: "Provider not found" });
       }
-      
+
       const uploadedDocs = [];
-      
+
       // Process each document type
       if (files.license && files.license[0]) {
         const file = files.license[0];
@@ -501,7 +547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         uploadedDocs.push(doc);
       }
-      
+
       if (files.policeCheck && files.policeCheck[0]) {
         const file = files.policeCheck[0];
         const doc = await storage.uploadProviderDocument({
@@ -514,7 +560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         uploadedDocs.push(doc);
       }
-      
+
       if (files.insuranceCertificate && files.insuranceCertificate[0]) {
         const file = files.insuranceCertificate[0];
         const doc = await storage.uploadProviderDocument({
@@ -527,10 +573,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         uploadedDocs.push(doc);
       }
-      
+
       // Update provider status
       await storage.updateServiceProvider(providerId, { documentsUploaded: true });
-      
+
       // Send application submitted email after document upload completion
       try {
         await sendProviderApplicationSubmittedEmail(provider.email, provider.firstName);
@@ -539,10 +585,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`Failed to send application submitted email to ${provider.email}:`, emailError);
         // Don't fail document upload if email fails
       }
-      
-      res.json({ 
+
+      res.json({
         message: "Registration documents uploaded successfully",
-        documents: uploadedDocs 
+        documents: uploadedDocs
       });
     } catch (error) {
       console.error("Error uploading registration documents:", error);
@@ -554,12 +600,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/service-providers/:id/documents', isProviderAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      
+
       // Verify provider ownership
       if (req.provider.id !== providerId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const documents = await storage.getProviderDocuments(providerId);
       res.json(documents);
     } catch (error) {
@@ -572,7 +618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/address/autocomplete', async (req, res) => {
     try {
       const { input, types = 'address', components = 'country:AU' } = req.query;
-      
+
       if (!input || typeof input !== 'string') {
         return res.status(400).json({ error: 'Input parameter is required' });
       }
@@ -606,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/address/details', async (req, res) => {
     try {
       const { place_id } = req.query;
-      
+
       if (!place_id || typeof place_id !== 'string') {
         return res.status(400).json({ error: 'place_id parameter is required' });
       }
@@ -647,15 +693,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         customerId: userId,
       });
-      
+
       const request = await storage.createServiceRequest(requestData);
-      
+
+      // 🎯 Check if customer is in potential_customers and update to "Won"
+      try {
+        const customer = await storage.getUser(userId);
+        if (customer && customer.phoneNumber) {
+          console.log(`[Won Status] Checking if customer ${customer.email} is in potential customers...`);
+          const potentialCustomer = await storage.findPotentialCustomerByPhone(customer.phoneNumber);
+          
+          if (potentialCustomer && potentialCustomer.campaignStatus !== 'Won') {
+            console.log(`[Won Status] Customer found! Updating ${potentialCustomer.name} (ID: ${potentialCustomer.id}) to Won`);
+            await storage.updatePotentialCustomerStatus(potentialCustomer.id, 'Won');
+            console.log(`✅ [Won Status] Customer ${potentialCustomer.name} marked as Won!`);
+          } else if (potentialCustomer) {
+            console.log(`[Won Status] Customer ${potentialCustomer.name} already has status: ${potentialCustomer.campaignStatus}`);
+          } else {
+            console.log(`[Won Status] Customer not found in potential customers`);
+          }
+        }
+      } catch (wonError) {
+        console.error('[Won Status] Error updating potential customer to Won:', wonError);
+        // Don't fail the service request if this fails
+      }
+
       // Log user activity
       await storage.logUserActivity({
         userId,
         userType: "customer",
         action: "service_request_created",
-        details: { 
+        details: {
           requestId: request.id,
           postcode: request.postcode,
           categoryId: request.categoryId
@@ -663,8 +731,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent') || '',
       });
-      
-      res.json({ 
+
+      res.json({
         request,
         message: "Service request created successfully! We'll be in touch soon."
       });
@@ -678,9 +746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/service-requests/my-requests', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      console.log(`Fetching service requests for user: ${userId}, email: ${req.user.email}`);
       const requests = await storage.getCustomerServiceRequestsWithOffers(userId);
-      console.log(`Found ${requests.length} service requests for user ${userId}`);
       res.json(requests);
     } catch (error) {
       console.error("Error fetching service requests:", error);
@@ -693,13 +759,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const requestId = parseInt(req.params.id);
       const userId = req.user.id;
-      
+
       // Verify the request belongs to this user
       const request = await storage.getServiceRequest(requestId);
       if (!request || request.customerId !== userId) {
         return res.status(404).json({ message: "Service request not found" });
       }
-      
+
       const details = await storage.getServiceRequestDetails(requestId);
       res.json(details);
     } catch (error) {
@@ -713,13 +779,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const requestId = parseInt(req.params.id);
       const userId = req.user.id;
-      
+
       // Verify the request belongs to this user
       const request = await storage.getServiceRequest(requestId);
       if (!request || request.customerId !== userId) {
         return res.status(404).json({ message: "Service request not found" });
       }
-      
+
       const professionals = await storage.getServiceRequestProfessionals(requestId);
       res.json(professionals);
     } catch (error) {
@@ -733,13 +799,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const requestId = parseInt(req.params.id);
       const userId = req.user.id;
-      
+
       // Verify the request belongs to this user
       const request = await storage.getServiceRequest(requestId);
       if (!request || request.customerId !== userId) {
         return res.status(404).json({ message: "Service request not found" });
       }
-      
+
       const acceptedProfessionals = await storage.getServiceRequestAcceptedProfessionals(requestId);
       res.json(acceptedProfessionals);
     } catch (error) {
@@ -753,11 +819,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const provider = await storage.getServiceProviderByEmail(req.user.email);
-      
+
       if (!provider) {
         return res.status(404).json({ message: "Service provider not found" });
       }
-      
+
       const leads = await storage.getProviderLeads(provider.id, "pending");
       res.json(leads);
     } catch (error) {
@@ -771,15 +837,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const leadId = parseInt(req.params.id);
       const userId = req.user.id;
-      
+
       // Verify ownership
       const provider = await storage.getServiceProviderByEmail(req.user.email);
       if (!provider) {
         return res.status(404).json({ message: "Service provider not found" });
       }
-      
+
       await storage.updateLeadStatus(leadId, "accepted");
-      
+
       // Log user activity
       await storage.logUserActivity({
         userId,
@@ -789,7 +855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent') || '',
       });
-      
+
       res.json({ message: "Lead accepted successfully" });
     } catch (error) {
       console.error("Error accepting lead:", error);
@@ -804,13 +870,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const { firstName, lastName, phoneNumber } = req.body;
-      
+
       if (!firstName || !lastName) {
         return res.status(400).json({ message: "First name and last name are required" });
       }
-      
+
       const updatedUser = await storage.updateUser(userId, { firstName, lastName, phoneNumber });
-      
+
       // Log user activity
       await storage.logUserActivity({
         userId,
@@ -820,11 +886,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent') || '',
       });
-      
+
       res.json(updatedUser);
     } catch (error) {
       console.error("Error updating user profile:", error);
       res.status(500).json({ message: "Failed to update user profile" });
+    }
+  });
+
+  // Customer change password endpoint
+  app.post('/api/change-password', isAuthenticated, async (req: any, res) => {
+    try {
+      console.log('🔐 Password change request received:', { userId: req.user.id, email: req.user.email });
+      
+      const userId = req.user.id;
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        console.log('❌ Missing password fields');
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+
+      if (newPassword.length < 6) {
+        console.log('❌ New password too short');
+        return res.status(400).json({ message: "New password must be at least 6 characters long" });
+      }
+
+      if (currentPassword === newPassword) {
+        console.log('❌ Same password provided');
+        return res.status(400).json({ message: "New password must be different from current password" });
+      }
+
+      // Get user from database
+      console.log('📝 Getting user from database...');
+      const user = await storage.getUser(userId);
+      if (!user) {
+        console.log('❌ User not found in database');
+        return res.status(404).json({ message: "User not found" });
+      }
+      console.log('✅ User found:', { id: user.id, email: user.email });
+
+      // Verify current password
+      console.log('🔍 Verifying current password...');
+      const bcrypt = await import('bcrypt');
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isCurrentPasswordValid) {
+        console.log('❌ Current password is incorrect');
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      console.log('✅ Current password verified');
+
+      // Hash new password
+      console.log('🔐 Hashing new password...');
+      const saltRounds = 10;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+      console.log('✅ New password hashed');
+
+      // Update password in database
+      console.log('💾 Updating password in database...');
+      await storage.updateUserPassword(userId, hashedNewPassword);
+      console.log('✅ Password updated in database');
+
+      // Log user activity
+      console.log('📝 Logging user activity...');
+      await storage.logUserActivity({
+        userId,
+        userType: "customer",
+        action: "password_changed",
+        details: { passwordChanged: true },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+      });
+      console.log('✅ Activity logged');
+
+      console.log('🎉 Password change successful');
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("💥 Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
     }
   });
 
@@ -833,7 +972,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const { action, details, userType } = req.body;
-      
+
       await storage.logUserActivity({
         userId,
         userType,
@@ -842,7 +981,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent') || '',
       });
-      
+
       res.json({ message: "Activity logged successfully" });
     } catch (error) {
       console.error("Error logging user activity:", error);
@@ -891,18 +1030,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const totalProviders = await storage.getServiceProviderCount();
       const activeProviders = await storage.getServiceProviderCount('approved');
-      const pendingProviders = await storage.getServiceProviderCount('pending');
+      const pendingApprovals = await storage.getServiceProviderCount('pending');
       const totalCustomers = await storage.getUserCount();
       const totalRequests = await storage.getServiceRequestCount();
-      const pendingRequests = await storage.getServiceRequestCount('pending');
+      const activeRequests = await storage.getActiveServiceRequestCount();
+      const completedJobs = await storage.getServiceRequestCount('completed');
+      const monthlyRevenue = await storage.getMonthlyRevenue();
 
       res.json({
         totalProviders,
         activeProviders,
-        pendingProviders,
+        pendingApprovals,
         totalCustomers,
         totalRequests,
-        pendingRequests,
+        activeRequests,
+        monthlyRevenue,
+        completedJobs,
       });
     } catch (error) {
       console.error('Error fetching admin stats:', error);
@@ -921,21 +1064,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Provider Report API endpoint with ratings and status data
+  app.get('/api/admin/providers/report', isAdminAuthenticated, async (req, res) => {
+    console.log('🚀 API route /api/admin/providers/report called');
+    try {
+      const status = req.query.status as string;
+      const rating = req.query.rating as string;
+      console.log('📊 Calling getServiceProvidersForReport with:', { status, rating });
+      const providers = await storage.getServiceProvidersForReport(status, rating);
+      console.log('✅ Got providers:', providers.length);
+      res.json(providers);
+    } catch (error) {
+      console.error('❌ Error fetching provider report data:', error);
+      res.status(500).json({ message: 'Failed to fetch provider report data' });
+    }
+  });
+
   app.post('/api/admin/providers/:id/approve', isAdminAuthenticated, async (req, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      
+
       // Get current status for activity logging
       const currentProvider = await storage.getServiceProviderById(providerId);
       const oldStatus = currentProvider?.status || 'pending';
       const oldProviderStatus = currentProvider?.providerStatus || 'deactivated';
-      
+
       await storage.updateServiceProviderStatus(providerId, 'approved');
 
       // Automatically activate provider when approved (if currently pending)
       if (oldStatus === 'pending' && oldProviderStatus === 'deactivated') {
         await storage.updateProviderStatus(providerId, 'activated');
-        
+
         // Log provider activation activity
         await storage.logProviderActivity({
           providerId,
@@ -980,11 +1139,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/providers/:id/reject', isAdminAuthenticated, async (req, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      
+
       // Get current status for activity logging
       const currentProvider = await storage.getServiceProviderById(providerId);
       const oldStatus = currentProvider?.status || 'pending';
-      
+
       await storage.updateServiceProviderStatus(providerId, 'rejected');
 
       // Log rejection activity
@@ -1023,7 +1182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const { centerAddress, radiusKm } = req.body;
-      
+
       const serviceArea = await storage.addProviderLocationServiceArea({
         providerId,
         centerAddress,
@@ -1045,7 +1204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         oldValue: null,
         newValue: `${centerAddress} - ${radiusKm}km radius`,
       });
-      
+
       res.json(serviceArea);
     } catch (error) {
       console.error('Error adding service area:', error);
@@ -1057,10 +1216,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/admin/service-areas/:id', isAdminAuthenticated, async (req, res) => {
     try {
       const areaId = parseInt(req.params.id);
-      
+
       // Get service area details before deletion for activity logging
       const serviceAreaDetails = await storage.getServiceAreaById(areaId);
-      
+
       await storage.removeProviderServiceArea(areaId);
 
       // Log service area removal activity
@@ -1076,7 +1235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           newValue: null,
         });
       }
-      
+
       res.json({ message: 'Service area removed successfully' });
     } catch (error) {
       console.error('Error removing service area:', error);
@@ -1089,12 +1248,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const { adminNotes, insuranceExpiryDate } = req.body;
-      
+
       // Get current provider data for activity logging
       const currentProvider = await storage.getServiceProviderById(providerId);
       const oldNotes = currentProvider?.adminNotes || '';
       const oldInsuranceDate = currentProvider?.insuranceExpiryDate;
-      
+
       await storage.updateProviderAdminFields(providerId, {
         adminNotes,
         insuranceExpiryDate: insuranceExpiryDate ? new Date(insuranceExpiryDate) : null,
@@ -1116,11 +1275,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Log insurance expiry activity if changed
       const newInsuranceDate = insuranceExpiryDate ? new Date(insuranceExpiryDate) : null;
-      
+
       // More robust date comparison that handles both Date objects and strings
       const oldDateString = oldInsuranceDate ? new Date(oldInsuranceDate).toISOString().split('T')[0] : null;
       const newDateString = newInsuranceDate ? newInsuranceDate.toISOString().split('T')[0] : null;
-      
+
       if (oldDateString !== newDateString) {
         await storage.logProviderActivity({
           providerId,
@@ -1133,7 +1292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           newValue: newDateString,
         });
       }
-      
+
       res.json({ message: 'Provider admin fields updated successfully' });
     } catch (error) {
       console.error('Error updating provider admin fields:', error);
@@ -1147,7 +1306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const providerId = parseInt(req.params.providerId);
       const documentId = parseInt(req.params.documentId);
       const { status } = req.body;
-      
+
       if (!['pending', 'approved'].includes(status)) {
         return res.status(400).json({ message: 'Invalid status. Must be pending or approved.' });
       }
@@ -1172,7 +1331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         oldValue: currentDocument.status,
         newValue: status,
       });
-      
+
       res.json({ message: 'Document status updated successfully' });
     } catch (error) {
       console.error('Error updating document status:', error);
@@ -1185,7 +1344,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/service-requests', isAdminAuthenticated, async (req, res) => {
     try {
       const serviceRequests = await storage.getAllServiceRequestsForAdmin();
-      res.json(serviceRequests);
+      
+      // Get customer and category details for each request
+      const requestsWithDetails = await Promise.all(
+        serviceRequests.map(async (request) => {
+          // Get customer details
+          const customer = await storage.getUser(request.customerId);
+          
+          // Get category details
+          const category = await storage.getServiceCategory(request.categoryId);
+          
+          return {
+            id: request.id,
+            customerName: customer ? `${customer.firstName} ${customer.lastName}` : 'Unknown Customer',
+            customerEmail: customer?.email || 'No email',
+            serviceCategory: category?.name || 'Unknown Category',
+            location: request.suburb || request.postcode || 'Unknown Location',
+            status: request.status,
+            createdAt: request.createdAt,
+            budget: request.budget,
+            description: request.description
+          };
+        })
+      );
+      
+      res.json(requestsWithDetails);
     } catch (error) {
       console.error('Error fetching service requests:', error);
       res.status(500).json({ message: 'Failed to fetch service requests' });
@@ -1197,14 +1380,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const { categoryIds } = req.body;
-      
+
       // Remove duplicates from category IDs for safety
       const uniqueCategoryIds = Array.from(new Set(categoryIds as number[]));
-      
+
       if (!Array.isArray(categoryIds) || uniqueCategoryIds.length === 0) {
         return res.status(400).json({ message: "Category IDs are required" });
       }
-      
+
       // Verify provider exists
       const provider = await storage.getServiceProviderById(providerId);
       if (!provider) {
@@ -1214,7 +1397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get current services for activity logging with deduplication
       const currentServices = await storage.getProviderServices(providerId);
       const currentServiceNames = Array.from(new Set(currentServices.map(s => s.name))).sort().join(', ');
-      
+
       // Get new service names for logging with deduplication
       const allCategories = await storage.getServiceCategories();
       const newServiceNames = Array.from(new Set(
@@ -1222,7 +1405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .filter(cat => uniqueCategoryIds.includes(cat.id))
           .map(cat => cat.name)
       )).sort().join(', ');
-      
+
       // Replace all services for this provider
       await storage.replaceProviderServices(providerId, uniqueCategoryIds);
 
@@ -1239,7 +1422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           newValue: newServiceNames,
         });
       }
-      
+
       res.json({ message: "Services updated successfully" });
     } catch (error) {
       console.error("Error updating provider services:", error);
@@ -1252,19 +1435,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const { providerStatus } = req.body;
-      
+
       if (!providerStatus || !['activated', 'deactivated'].includes(providerStatus)) {
         return res.status(400).json({ message: "Valid provider status is required (activated or deactivated)" });
       }
-      
+
       // Get current provider for activity logging
       const currentProvider = await storage.getServiceProviderById(providerId);
       if (!currentProvider) {
         return res.status(404).json({ message: "Provider not found" });
       }
-      
+
       const oldStatus = currentProvider.providerStatus || 'deactivated';
-      
+
       // Update provider status
       await storage.updateProviderStatus(providerId, providerStatus);
 
@@ -1279,7 +1462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         oldValue: oldStatus,
         newValue: providerStatus,
       });
-      
+
       res.json({ message: 'Provider status updated successfully' });
     } catch (error) {
       console.error('Error updating provider status:', error);
@@ -1292,7 +1475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const actorType = req.query.actorType as 'admin' | 'provider' | undefined;
-      
+
       const activities = await storage.getProviderActivityLogs(providerId, actorType);
       res.json(activities);
     } catch (error) {
@@ -1328,11 +1511,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const leadId = parseInt(req.params.id);
       const { note } = req.body;
-      
+
       if (!note || !note.trim()) {
         return res.status(400).json({ message: 'Note content is required' });
       }
-      
+
       const newNote = await storage.addLeadNote(leadId, note.trim(), 'admin');
       res.json(newNote);
     } catch (error) {
@@ -1395,7 +1578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/config/stripe', async (req, res) => {
     try {
       const stripeKeys = await storage.getDecryptedStripeKeys();
-      
+
       if (stripeKeys && stripeKeys.publicKey) {
         res.json({
           publicKey: stripeKeys.publicKey,
@@ -1417,7 +1600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/stripe-settings', isAdminAuthenticated, async (req, res) => {
     try {
       const stripeKeys = await storage.getDecryptedStripeKeys();
-      
+
       if (stripeKeys) {
         res.json({
           secretKey: '****' + stripeKeys.secretKey.slice(-4),
@@ -1441,7 +1624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/mailgun-settings', isAdminAuthenticated, async (req, res) => {
     try {
       const mailgunKeys = await storage.getDecryptedMailgunKeys();
-      
+
       if (mailgunKeys) {
         res.json({
           apiKey: '****' + mailgunKeys.apiKey.slice(-4),
@@ -1486,7 +1669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Stripe keys saved successfully via setup route - Secret key starts with:', secretKey.substring(0, 10) + '...');
 
-      res.json({ 
+      res.json({
         message: 'Stripe settings configured successfully',
         isConfigured: true
       });
@@ -1519,7 +1702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Stripe keys saved successfully - Secret key starts with:', secretKey.substring(0, 10) + '...');
 
-      res.json({ 
+      res.json({
         message: 'Settings updated successfully',
         isConfigured: true
       });
@@ -1545,7 +1728,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Mailgun keys saved successfully via setup route - API key starts with:', apiKey.substring(0, 10) + '...', 'Domain:', domain);
 
-      res.json({ 
+      res.json({
         message: 'Mailgun configuration updated successfully',
         isConfigured: true
       });
@@ -1590,7 +1773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Mailgun keys saved successfully - API key starts with:', apiKey.substring(0, 10) + '...', 'Domain:', domain);
 
-      res.json({ 
+      res.json({
         message: 'Mailgun configuration updated successfully',
         isConfigured: true
       });
@@ -1604,20 +1787,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/test-email', async (req, res) => {
     try {
       const { email } = req.body;
-      
+
       if (!email) {
         return res.status(400).json({ message: 'Email address required' });
       }
 
       // Get Mailgun credentials to verify setup
       const mailgunKeys = await storage.getDecryptedMailgunKeys();
-      
+
       if (!mailgunKeys) {
         return res.status(400).json({ message: 'Mailgun not configured' });
       }
 
       const { apiKey, domain, domainSendingKey } = mailgunKeys;
-      
+
       // Test the Mailgun API connection without sending
       const testResponse = await fetch(`https://api.mailgun.net/v3/${domain}`, {
         method: 'GET',
@@ -1628,8 +1811,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!testResponse.ok) {
         const errorText = await testResponse.text();
-        return res.status(400).json({ 
-          message: 'Mailgun API connection failed', 
+        return res.status(400).json({
+          message: 'Mailgun API connection failed',
           error: errorText,
           domain: domain
         });
@@ -1659,7 +1842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (e) {
           errorData = { message: errorText };
         }
-        
+
         // Check if it's the sandbox limitation
         if (errorData.message && errorData.message.includes('Sandbox subdomains are for test purposes only')) {
           return res.json({
@@ -1671,11 +1854,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             needsAuthorizedRecipients: true
           });
         }
-        
-        return res.status(400).json({ 
-          message: 'Email send failed', 
+
+        return res.status(400).json({
+          message: 'Email send failed',
           error: errorData,
-          domain: domain 
+          domain: domain
         });
       }
 
@@ -1697,12 +1880,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/provider/:id/payment-methods', isProviderAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      
+
       // Verify provider ownership
       if (req.provider.id !== providerId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const paymentMethods = await storage.getProviderPaymentMethods(providerId);
       res.json(paymentMethods);
     } catch (error) {
@@ -1715,7 +1898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/provider/:id/stripe-payment-methods', isProviderAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      
+
       // Verify provider ownership
       if (req.provider.id !== providerId) {
         return res.status(403).json({ message: "Access denied" });
@@ -1752,7 +1935,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
         stripeCustomerId = customer.id;
-        
+
         // Update provider with Stripe customer ID
         await storage.updateProviderStripeCustomerId(providerId, stripeCustomerId);
       }
@@ -1783,12 +1966,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const newPaymentMethod = await storage.addProviderPaymentMethod(paymentMethodData);
-      
+
       // If this was set as primary, update other methods
       if (isFirstCard) {
         await storage.updateProviderPaymentMethodPrimary(providerId, newPaymentMethod.id);
       }
-      
+
       res.json(newPaymentMethod);
     } catch (error: any) {
       console.error("Error adding payment method:", error);
@@ -1800,7 +1983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/provider/:id/payment-methods', isProviderAuthenticated, async (req: any, res) => {
     try {
       const providerId = parseInt(req.params.id);
-      
+
       // Verify provider ownership
       if (req.provider.id !== providerId) {
         return res.status(403).json({ message: "Access denied" });
@@ -1815,10 +1998,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stripe = new (await import('stripe')).default(stripeKeys.secretKey);
 
       // Extract payment method data from frontend
-      const { 
-        cardNumber, 
-        cardholderName, 
-        expiryMonth, 
+      const {
+        cardNumber,
+        cardholderName,
+        expiryMonth,
         expiryYear,
         cvv,
         isPrimary = false
@@ -1846,7 +2029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
         stripeCustomerId = customer.id;
-        
+
         // Update provider with Stripe customer ID
         await storage.updateProviderStripeCustomerId(providerId, stripeCustomerId);
       }
@@ -1888,12 +2071,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const newPaymentMethod = await storage.addProviderPaymentMethod(paymentMethodData);
-      
+
       // If this was set as primary, update other methods
       if (isFirstCard || isPrimary) {
         await storage.updateProviderPaymentMethodPrimary(providerId, newPaymentMethod.id);
       }
-      
+
       res.json(newPaymentMethod);
     } catch (error: any) {
       console.error("Error adding payment method:", error);
@@ -1905,12 +2088,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const paymentMethodId = parseInt(req.params.paymentMethodId);
-      
+
       // Verify provider ownership
       if (req.provider.id !== providerId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       await storage.updateProviderPaymentMethodPrimary(providerId, paymentMethodId);
       res.json({ message: "Primary payment method updated successfully" });
     } catch (error) {
@@ -1923,12 +2106,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const providerId = parseInt(req.params.id);
       const paymentMethodId = parseInt(req.params.paymentMethodId);
-      
+
       // Verify provider ownership
       if (req.provider.id !== providerId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       await storage.deleteProviderPaymentMethod(paymentMethodId);
       res.json({ message: "Payment method removed successfully" });
     } catch (error) {
@@ -1942,10 +2125,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const serviceRequestData = insertServiceRequestSchema.parse(req.body);
       const newRequest = await storage.createServiceRequest(serviceRequestData);
-      
+
       // Initialize lead distribution automatically
       await storage.initializeLeadDistribution(newRequest.id);
-      
+
       res.status(201).json(newRequest);
     } catch (error: any) {
       console.error('Error creating service request:', error);
@@ -1981,7 +2164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!providerId) {
         return res.status(401).json({ message: 'Provider authentication required' });
       }
-      
+
       const activeLeads = await storage.getProviderActiveLeads(providerId);
       res.json(activeLeads);
     } catch (error: any) {
@@ -1996,7 +2179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!providerId) {
         return res.status(401).json({ message: 'Provider authentication required' });
       }
-      
+
       const closedLeads = await storage.getProviderClosedLeads(providerId);
       res.json(closedLeads);
     } catch (error: any) {
@@ -2011,7 +2194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!providerId) {
         return res.status(401).json({ message: 'Provider authentication required' });
       }
-      
+
       const activities = await storage.getProviderActivityHistory(providerId);
       res.json(activities);
     } catch (error: any) {
@@ -2020,15 +2203,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🔔 REAL-TIME NOTIFICATION ROUTES
+  // Provider app polls these endpoints for notifications
+  app.get('/api/provider/notifications/poll', notificationRoutes.poll);
+  app.get('/api/provider/notifications/long-poll', notificationRoutes.longPoll);
+  app.get('/api/provider/notifications/stats', notificationRoutes.stats);
+
   app.post('/api/provider/leads/:requestId/purchase', isProviderAuthenticated, async (req, res) => {
     try {
       const requestId = parseInt(req.params.requestId);
       const providerId = (req as any).provider?.id;
-      
+
       if (!providerId) {
         return res.status(401).json({ message: 'Provider authentication required' });
       }
-      
+
       // Find the active offer for this request and provider directly from database
       const [activeOffer] = await db
         .select()
@@ -2045,13 +2234,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         )
         .limit(1);
-      
+
       if (!activeOffer) {
         return res.status(400).json({ success: false, message: 'No active offer found for this provider' });
       }
-      
+
       const result = await storage.purchaseLeadWithCredit(providerId, activeOffer.id);
-      
+
       if (result.success) {
         res.json(result);
       } else {
@@ -2170,27 +2359,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status === 'closed' && wasJobBooked === true) {
         try {
           const { sendCustomerFeedbackEmail } = await import('./emailService');
-          
+
           // Get lead and provider details for the email
           const leadDetails = await storage.getServiceRequest(leadId);
           const providerDetails = await storage.getServiceProvider(providerId);
           const categoryDetails = await storage.getServiceCategory(leadDetails?.categoryId);
-          
+
           if (leadDetails && providerDetails && categoryDetails) {
             // Get customer details including email
             const customerDetails = await storage.getUser(leadDetails.customerId);
-            
+
             if (customerDetails) {
               const customerName = `${customerDetails.firstName || ''} ${customerDetails.lastName || ''}`.trim();
               const providerName = `${providerDetails.firstName || ''} ${providerDetails.lastName || ''}`.trim();
-              
+
               // Create secure review token
               const reviewToken = await storage.createReviewToken(
-                leadDetails.customerId, 
-                providerId, 
+                leadDetails.customerId,
+                providerId,
                 leadId
               );
-              
+
               await sendCustomerFeedbackEmail(
                 customerDetails.email,
                 customerName,
@@ -2199,7 +2388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 leadDetails.suburb,
                 reviewToken
               );
-              
+
               console.log(`Feedback email sent to ${customerDetails.email} for completed ${categoryDetails.name} job`);
             } else {
               console.error(`Customer not found for customerId: ${leadDetails.customerId}`);
@@ -2311,7 +2500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/vouchers/bulk', isAdminAuthenticated, async (req, res) => {
     try {
       const { vouchers } = req.body;
-      
+
       if (!vouchers || !Array.isArray(vouchers) || vouchers.length === 0) {
         return res.status(400).json({ message: 'Vouchers array is required' });
       }
@@ -2327,7 +2516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const vouchersWithDefaults = vouchers.map((voucher: any) => {
         const now = new Date();
         const expiryDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days from now
-        
+
         return {
           ...voucher,
           code: voucher.code.toUpperCase(),
@@ -2352,7 +2541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/vouchers', isAdminAuthenticated, async (req, res) => {
     try {
       const { code, value, description } = req.body;
-      
+
       // Validate required fields
       if (!code || !value || !description) {
         return res.status(400).json({ message: 'Code, value, and description are required' });
@@ -2395,7 +2584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isActive !== undefined) updates.isActive = isActive;
 
       const updatedVoucher = await storage.updateVoucherAdmin(parseInt(id), updates);
-      
+
       if (!updatedVoucher) {
         return res.status(404).json({ message: 'Voucher not found' });
       }
@@ -2415,7 +2604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const resetVoucher = await storage.resetVoucherAdmin(parseInt(id));
-      
+
       if (!resetVoucher) {
         return res.status(404).json({ message: 'Voucher not found' });
       }
@@ -2431,7 +2620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const success = await storage.deleteVoucherAdmin(parseInt(id));
-      
+
       if (!success) {
         return res.status(404).json({ message: 'Voucher not found' });
       }
@@ -2453,7 +2642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { leadId } = req.body;
-      
+
       if (!leadId) {
         return res.status(400).json({ message: "Lead ID required" });
       }
@@ -2465,20 +2654,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`Admin test: Processing lead ${leadId} for postcode ${lead.postcode}, category ${lead.categoryId}`);
-      
+
       // Initialize lead distribution manually (bypassing 24-hour restriction)
       await storage.initializeLeadDistribution(leadId);
-      
+
       // Get results to show what happened  
       const distributionLogs = await db.select()
         .from(leadDistributionLog)
         .where(eq(leadDistributionLog.requestId, leadId));
-        
+
       const offers = await db.select()
         .from(leadOffers)
         .where(eq(leadOffers.requestId, leadId));
-      
-      res.json({ 
+
+      res.json({
         message: `Lead ${leadId} processed successfully`,
         leadDetails: {
           id: lead.id,
@@ -2498,6 +2687,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin test endpoint for push notifications
+  app.post("/api/admin/test-push-notification", async (req: any, res) => {
+    try {
+      const token = req.headers['x-admin-token'];
+      if (!token) {
+        return res.status(401).json({ message: "Admin token required" });
+      }
+
+      const { providerId, title, message } = req.body;
+
+      if (!providerId) {
+        return res.status(400).json({ message: "Provider ID required" });
+      }
+
+      console.log(`🧪 Admin test: Sending push notification to provider ${providerId}`);
+
+      // Import and use the notification service
+      const { providerNotificationService } = await import('./providerNotificationService');
+      
+      const result = await providerNotificationService.sendNotificationToProvider(parseInt(providerId), {
+        title: title || "Test Notification from Admin",
+        message: message || `Test push notification sent at ${new Date().toLocaleTimeString()}`,
+        type: 'system',
+        data: {
+          test: true,
+          timestamp: new Date().toISOString(),
+          adminTriggered: true
+        }
+      });
+
+      if (result) {
+        res.json({ 
+          message: `Push notification sent to provider ${providerId}`,
+          success: true 
+        });
+      } else {
+        res.status(500).json({ 
+          message: "Failed to send push notification",
+          success: false 
+        });
+      }
+
+    } catch (error) {
+      console.error("Error in test push notification:", error);
+      res.status(500).json({ message: "Failed to send test notification" });
+    }
+  });
+
   // Admin department management endpoints
   app.get('/api/admin/departments', isAdminAuthenticated, async (req, res) => {
     try {
@@ -2512,7 +2749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/departments', isAdminAuthenticated, async (req, res) => {
     try {
       const { name } = req.body;
-      
+
       if (!name || typeof name !== 'string' || name.trim().length === 0) {
         return res.status(400).json({ message: 'Department name is required' });
       }
@@ -2555,7 +2792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const success = await storage.deleteDepartment(parseInt(id));
-      
+
       if (!success) {
         return res.status(404).json({ message: 'Department not found' });
       }
@@ -2568,12 +2805,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get current admin user endpoint
-  app.get('/api/admin/current-user', isAdminAuthenticated, async (req, res) => {
+  app.get('/api/admin/current-user', isAdminAuthenticated, async (req: any, res) => {
     try {
-      const adminToken = req.headers['x-admin-token'] as string;
-      const decoded = jwt.verify(adminToken, process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-key') as any;
-      const username = decoded.username;
-      
+      // The admin info is already available from the middleware
+      const adminInfo = req.admin;
+      const username = adminInfo.username;
+
       const user = await storage.getAdminUserByUsername(username);
       if (!user) {
         return res.status(404).json({ message: "Admin user not found" });
@@ -2592,7 +2829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/users', isAdminAuthenticated, async (req, res) => {
     try {
       const users = await storage.getAllAdminUsers();
-      
+
       // Get departments for each user
       const usersWithDepartments = await Promise.all(
         users.map(async (user) => {
@@ -2612,7 +2849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const user = await storage.getAdminUser(parseInt(id));
-      
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -2628,19 +2865,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/users', isAdminAuthenticated, async (req, res) => {
     try {
       const { username, firstName, lastName, email, password, role, departmentIds = [] } = req.body;
-      
+
       // Validate required fields
       if (!username || !firstName || !lastName || !email || !password || !role) {
-        return res.status(400).json({ 
-          message: 'Username, first name, last name, email, password, and role are required' 
+        return res.status(400).json({
+          message: 'Username, first name, last name, email, password, and role are required'
         });
       }
 
       // Validate role
       const validRoles = ['Administrator', 'Manager', 'Team Member'];
       if (!validRoles.includes(role)) {
-        return res.status(400).json({ 
-          message: 'Role must be Administrator, Manager, or Team Member' 
+        return res.status(400).json({
+          message: 'Role must be Administrator, Manager, or Team Member'
         });
       }
 
@@ -2688,24 +2925,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate required fields
       if (!username || !firstName || !lastName || !email || !role || !status) {
-        return res.status(400).json({ 
-          message: 'Username, first name, last name, email, role, and status are required' 
+        return res.status(400).json({
+          message: 'Username, first name, last name, email, role, and status are required'
         });
       }
 
       // Validate role
       const validRoles = ['Administrator', 'Manager', 'Team Member'];
       if (!validRoles.includes(role)) {
-        return res.status(400).json({ 
-          message: 'Role must be Administrator, Manager, or Team Member' 
+        return res.status(400).json({
+          message: 'Role must be Administrator, Manager, or Team Member'
         });
       }
 
       // Validate status
       const validStatuses = ['active', 'inactive'];
       if (!validStatuses.includes(status)) {
-        return res.status(400).json({ 
-          message: 'Status must be active or inactive' 
+        return res.status(400).json({
+          message: 'Status must be active or inactive'
         });
       }
 
@@ -2741,15 +2978,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/admin/users/:id', isAdminAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // Prevent deletion of main admin user (id: 1 or username: 'admin')
       const user = await storage.getAdminUser(parseInt(id));
       if (user && (user.id === 1 || user.username === 'admin')) {
         return res.status(403).json({ message: 'Cannot delete main admin user' });
       }
-      
+
       const success = await storage.deleteAdminUser(parseInt(id));
-      
+
       if (!success) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -2766,7 +3003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { currentPassword, newPassword } = req.body;
       const token = req.headers['x-admin-token'] as string;
-      
+
       if (!currentPassword || !newPassword) {
         return res.status(400).json({ message: 'Current password and new password are required' });
       }
@@ -2803,94 +3040,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Provider change password endpoint
+  app.post('/api/provider/change-password', isProviderAuthenticated, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const providerId = (req as any).provider?.id;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current password and new password are required' });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+      }
+
+      if (!providerId) {
+        return res.status(401).json({ message: 'Provider authentication required' });
+      }
+
+      // Get current provider
+      const provider = await storage.getProviderById(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: 'Provider not found' });
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await comparePasswords(currentPassword, provider.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await hashPassword(newPassword);
+
+      // Update password
+      await storage.updateProvider(providerId, { password: hashedNewPassword });
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('Error changing provider password:', error);
+      res.status(500).json({ message: 'Failed to change password' });
+    }
+  });
+
   // Review System API endpoints
-  
+
   // Get review details by token (for review submission page)
   app.get('/api/review/:token', async (req, res) => {
     try {
       const { token } = req.params;
-      
+
       const reviewData = await storage.getReviewToken(token);
-      
+
       if (!reviewData) {
         return res.status(404).json({ message: 'Review token not found or expired' });
       }
-      
+
       // Check if token is already used
       if (reviewData.isUsed) {
         return res.status(400).json({ message: 'Review has already been submitted' });
       }
-      
+
       // Check if token is expired
       const now = new Date();
       if (new Date(reviewData.expiresAt) < now) {
         return res.status(400).json({ message: 'Review token has expired' });
       }
-      
+
       res.json(reviewData);
     } catch (error) {
       console.error('Error getting review token:', error);
       res.status(500).json({ message: 'Failed to get review details' });
     }
   });
-  
+
   // Submit customer review
   app.post('/api/review/submit', async (req, res) => {
     try {
       const reviewData = req.body;
-      
+
       // Validate required fields
-      if (!reviewData.token || !reviewData.overallRating || !reviewData.qualityRating || 
-          !reviewData.professionalismRating || !reviewData.timelinessRating || !reviewData.valueRating) {
+      if (!reviewData.token || !reviewData.overallRating || !reviewData.qualityRating ||
+        !reviewData.professionalismRating || !reviewData.timelinessRating || !reviewData.valueRating) {
         return res.status(400).json({ message: 'All rating fields are required' });
       }
-      
+
       // Validate rating values (1-5)
       const ratings = [
         reviewData.overallRating, reviewData.qualityRating, reviewData.professionalismRating,
         reviewData.timelinessRating, reviewData.valueRating
       ];
-      
+
       for (const rating of ratings) {
         if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
           return res.status(400).json({ message: 'Ratings must be integers between 1 and 5' });
         }
       }
-      
+
       // Get token details first
       const tokenData = await storage.getReviewToken(reviewData.token);
       if (!tokenData) {
         return res.status(404).json({ message: 'Invalid review token' });
       }
-      
+
       if (tokenData.isUsed) {
         return res.status(400).json({ message: 'Review has already been submitted' });
       }
-      
+
       if (new Date(tokenData.expiresAt) < new Date()) {
         return res.status(400).json({ message: 'Review token has expired' });
       }
-      
+
       // Add token data to review
       reviewData.customerId = tokenData.customerId;
       reviewData.providerId = tokenData.providerId;
       reviewData.requestId = tokenData.requestId;
-      
+
       const review = await storage.submitCustomerReview(reviewData);
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         message: 'Thank you for your review! Your feedback helps improve our service quality.',
-        review 
+        review
       });
     } catch (error) {
       console.error('Error submitting review:', error);
-      res.status(500).json({ 
-        message: error.message.includes('already submitted') ? error.message : 'Failed to submit review' 
+      res.status(500).json({
+        message: error.message.includes('already submitted') ? error.message : 'Failed to submit review'
       });
     }
   });
-  
+
   // Get provider reviews (public endpoint)
   app.get('/api/provider/:id/reviews', async (req, res) => {
     try {
@@ -3020,45 +3299,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/potential-customers/import', isAdminAuthenticated, async (req, res) => {
+  app.put('/api/admin/potential-customers/:id/status', isAdminAuthenticated, async (req, res) => {
     try {
-      console.log('Import request received:');
-      console.log('req.body:', req.body);
-      console.log('req.files:', req.files ? Object.keys(req.files) : 'No files');
-      
-      // Get importName from FormData fields
-      let importName = null;
-      
-      // With parseNested: true, FormData fields should be available in req.files
-      if (req.files && req.files.importName) {
-        // For text fields in FormData, the data is in the data property
-        if (req.files.importName.data) {
-          importName = req.files.importName.data.toString();
-          console.log('Found importName in req.files.data:', importName);
-        } else {
-          // If it's not a file, it might be directly available
-          importName = req.files.importName.toString();
-          console.log('Found importName in req.files (direct):', importName);
-        }
-      } else if (req.body && req.body.importName) {
-        // Fallback to req.body if not in FormData
-        importName = req.body.importName;
-        console.log('Found importName in req.body:', importName);
-      } else {
-        console.log('No importName found in any location');
-        console.log('Available in req.files:', req.files ? Object.keys(req.files) : 'No files');
-        console.log('Available in req.body:', Object.keys(req.body));
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!id || !status) {
+        return res.status(400).json({ error: 'Customer ID and status are required' });
       }
-      
+
+      await storage.updatePotentialCustomerCampaignStatus(parseInt(id), status);
+      res.json({ success: true, message: 'Customer status updated successfully' });
+    } catch (error) {
+      console.error('Error updating customer status:', error);
+      res.status(500).json({ error: 'Failed to update customer status' });
+    }
+  });
+
+  app.post('/api/admin/potential-customers/import', isAdminAuthenticated, csvUpload.single('file'), async (req, res) => {
+    try {
+      console.log('📥 Import request received:');
+      console.log('  req.body:', req.body);
+      console.log('  req.file:', req.file ? { name: req.file.originalname, size: req.file.size } : 'No file');
+      console.log('  req.body keys:', Object.keys(req.body));
+      console.log('  req.body.importName:', req.body.importName);
+
+      // Get importName from FormData fields (multer puts non-file fields in req.body)
+      const importName = req.body.importName;
+
       if (!importName) {
-        console.log('Returning error: Import name is required');
+        console.log('❌ Returning error: Import name is required');
+        console.log('  Available in req.body:', Object.keys(req.body));
+        console.log('  req.body content:', req.body);
         return res.status(400).json({ message: 'Import name is required' });
       }
 
       console.log('Processing import with name:', importName);
 
       // Check if this is a test import (no file)
-      if (!req.files || !req.files.file) {
+      if (!req.file) {
         console.log('No file provided, using sample data');
         // Use sample data for test imports
         const result = await storage.importPotentialCustomers(null, importName);
@@ -3066,22 +3345,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      // Handle file upload
-      const uploadedFile = req.files.file;
-      
-      if (!uploadedFile) {
-        return res.status(400).json({ message: 'No file uploaded' });
-      }
+      // Handle file upload - convert multer file format to expected format
+      const uploadedFile = {
+        name: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        data: fs.readFileSync(req.file.path)
+      };
 
       console.log('Processing file upload:', uploadedFile.name);
       console.log('File object details:', {
         name: uploadedFile.name,
         size: uploadedFile.size,
-        tempFilePath: uploadedFile.tempFilePath,
         mimetype: uploadedFile.mimetype
       });
-      
+
       const result = await storage.importPotentialCustomers(uploadedFile, importName);
+      
+      // Clean up uploaded file
+      fs.unlinkSync(req.file.path);
+      
       res.json(result);
     } catch (error) {
       console.error('Error importing potential customers:', error);
@@ -3095,14 +3378,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const { customerIds } = req.body;
-  
+
         console.log("📩 Incoming SMS Request - Customer IDs:", customerIds); // 👈 log request body
-  
+
         if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
           console.warn("⚠️ No customer IDs provided in SMS request"); // 👈 log warning
           return res.status(400).json({ message: 'No customer IDs provided' });
         }
-  
+
         const result = await storage.sendSmsToPotentialCustomers(customerIds);
         console.log("✅ SMS Sending Result (summary):", { count: result.count });
         console.table(result.details || []);
@@ -3113,7 +3396,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
-  
+
+
+  // Execute campaign with unique vouchers
+  app.post(
+    '/api/admin/campaigns/execute',
+    isAdminAuthenticated,
+    async (req, res) => {
+      try {
+        const { 
+          campaignId, 
+          messageTemplate, 
+          voucherAmount, 
+          customerIds, 
+          adminName 
+        } = req.body;
+
+        console.log("🎯 Executing campaign with unique vouchers:", { 
+          campaignId, 
+          voucherAmount, 
+          customerCount: customerIds?.length 
+        });
+
+        if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
+          return res.status(400).json({ message: 'No customer IDs provided' });
+        }
+
+        if (!messageTemplate || !voucherAmount) {
+          return res.status(400).json({ message: 'Message template and voucher amount are required' });
+        }
+
+        const results = [];
+        let successCount = 0;
+        let failureCount = 0;
+
+        // Process each customer individually to generate unique vouchers
+        for (const customerId of customerIds) {
+          try {
+            // Get customer details
+            const [customer] = await db
+              .select()
+              .from(potentialCustomers)
+              .where(eq(potentialCustomers.id, customerId));
+
+            if (!customer) {
+              console.warn(`[Campaign] Customer not found: id=${customerId}`);
+              results.push({
+                customerId,
+                name: '',
+                phone: '',
+                status: 'skipped',
+                sent: false,
+                reason: 'not_found',
+                voucherCode: null
+              });
+              failureCount++;
+              continue;
+            }
+
+            // Normalize phone number
+            const raw = (customer.phone || '').toString();
+            const digits = raw.replace(/[^0-9+]/g, '');
+            const normalizedPhone = digits.startsWith('+61') ? digits : 
+                                  digits.startsWith('61') ? `+${digits}` : 
+                                  digits.startsWith('0') ? `+61${digits.slice(1)}` : null;
+
+            if (!normalizedPhone) {
+              console.warn(`[Campaign] Invalid phone format: id=${customer.id} phone=${customer.phone}`);
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: 'skipped',
+                sent: false,
+                reason: 'invalid_phone',
+                voucherCode: null
+              });
+              failureCount++;
+              continue;
+            }
+
+            // Send SMS with unique voucher
+            const voucherResult = await smsService.sendSmsWithVoucher(
+              normalizedPhone,
+              customer.name,
+              messageTemplate,
+              voucherAmount,
+              {
+                customerId: customer.id,
+                adminName: adminName || 'admin',
+                smsType: 'campaign'
+              }
+            );
+
+            if (voucherResult.success) {
+              // Update customer SMS status
+              await storage.updatePotentialCustomerSmsStatus(customer.id, '1st_sent');
+              
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: 'sent',
+                sent: true,
+                voucherCode: voucherResult.voucherCode,
+                message: voucherResult.message
+              });
+              successCount++;
+              
+              console.log(`[Campaign] ✅ Sent to ${customer.name} with voucher ${voucherResult.voucherCode}`);
+            } else {
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: 'failed',
+                sent: false,
+                reason: voucherResult.message || 'SMS send failed',
+                voucherCode: null
+              });
+              failureCount++;
+              
+              console.log(`[Campaign] ❌ Failed to send to ${customer.name}: ${voucherResult.message}`);
+            }
+
+          } catch (error) {
+            console.error(`[Campaign] Error processing customer ${customerId}:`, error);
+            results.push({
+              customerId,
+              name: '',
+              phone: '',
+              status: 'failed',
+              sent: false,
+              reason: 'processing_error',
+              voucherCode: null
+            });
+            failureCount++;
+          }
+        }
+
+        console.log(`[Campaign] Execution complete: ${successCount} sent, ${failureCount} failed`);
+
+        res.json({
+          success: true,
+          campaignId,
+          totalCustomers: customerIds.length,
+          sent: successCount,
+          failed: failureCount,
+          results
+        });
+
+      } catch (error) {
+        console.error("❌ Error executing campaign:", error);
+        res.status(500).json({ message: 'Failed to execute campaign' });
+      }
+    }
+  );
+
 
   // Admin User Reports endpoint
   app.post('/api/admin/reports/users', async (req, res) => {
@@ -3126,9 +3565,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify admin token (you can implement proper admin auth here)
       // For now, we'll assume any token is valid for demo purposes
-      
+
       const { fromDate, toDate } = req.body;
-      
+
       if (!fromDate || !toDate) {
         return res.status(400).json({ message: 'Date range is required' });
       }
@@ -3138,7 +3577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user reports data for the specified date range
       const userReports = await storage.getUserReports(from, to);
-      
+
       res.json(userReports);
     } catch (error) {
       console.error('Error getting user reports:', error);
@@ -3172,13 +3611,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { providersTerms, customersTerms, websiteTerms } = req.body;
-      
+
       const updatedTerms = await storage.updateTermsAndConditions({
         providersTerms,
         customersTerms,
         websiteTerms,
       });
-      
+
       res.json(updatedTerms);
     } catch (error) {
       console.error('Error updating terms and conditions:', error);
@@ -3196,7 +3635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const settings = await storage.getLeadSettings();
       // Return settings that providers need to know about
-      res.json({ 
+      res.json({
         freeLeadsEnabled: settings.freeLeadsEnabled,
         providersCanRedeemCredits: settings.providersCanRedeemCredits
       });
@@ -3285,7 +3724,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const categoryId = parseInt(req.params.id);
       const deleted = await storage.deleteServiceCategory(categoryId);
-      
+
       if (deleted) {
         res.json({ message: 'Service category deleted successfully' });
       } else {
@@ -3294,6 +3733,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting service category:', error);
       res.status(500).json({ message: error.message || 'Failed to delete service category' });
+    }
+  });
+
+  // Service category image upload endpoint
+  app.post('/api/admin/service-categories/:id/image', isAdminAuthenticated, upload.single('image'), async (req, res) => {
+    try {
+      console.log('Image upload endpoint called');
+      console.log('Headers:', req.headers);
+      console.log('File:', req.file);
+      console.log('Body:', req.body);
+
+      if (!req.file) {
+        console.log('No file provided');
+        return res.status(400).json({ message: 'No image file provided' });
+      }
+
+      const categoryId = parseInt(req.params.id);
+      console.log('Category ID:', categoryId);
+      const imageUrl = `/uploads/${req.file.filename}`;
+      console.log('Image URL:', imageUrl);
+
+      // Update the service category with the image URL
+      const updatedCategory = await storage.updateServiceCategoryImage(categoryId, imageUrl);
+      console.log('Updated category:', updatedCategory);
+
+      if (updatedCategory) {
+        res.json({ 
+          message: 'Image uploaded successfully', 
+          imageUrl: imageUrl,
+          category: updatedCategory 
+        });
+      } else {
+        res.status(404).json({ message: 'Service category not found' });
+      }
+    } catch (error) {
+      console.error('Error uploading service category image:', error);
+      res.status(500).json({ message: error.message || 'Failed to upload image' });
     }
   });
 
@@ -3322,7 +3798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { importName } = req.body;
       const file = req.files?.file;
-      
+
       if (!file || !importName) {
         return res.status(400).json({ message: 'File and import name are required' });
       }
@@ -3342,7 +3818,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { message, customMessage } = req.body;
-      
+
       if (!id) {
         return res.status(400).json({ message: 'Customer ID is required' });
       }
@@ -3413,7 +3889,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (smsSent) {
         // Update SMS status
         await storage.updatePotentialCustomerSmsStatus(parseInt(id), smsType);
-        
+
         res.json({
           success: true,
           message: `SMS ${smsType} sent successfully to ${customer.name}`,
@@ -3545,7 +4021,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Potential Providers endpoints
   app.get('/api/admin/potential-providers', isAdminAuthenticated, async (req, res) => {
     try {
-      const providers = await storage.getAllPotentialProviders();
+      // Get the admin username and role from the authenticated user
+      const adminUsername = (req as any).admin?.username;
+      const adminRole = (req as any).admin?.role;
+      const isSuperAdmin = adminRole === 'administrator' || adminRole === 'super_admin';
+      
+      console.log('Admin username from request:', adminUsername);
+      console.log('Admin role:', adminRole);
+      console.log('Is super admin:', isSuperAdmin);
+      
+      const providers = await storage.getAllPotentialProviders(adminUsername, isSuperAdmin);
       res.json(providers);
     } catch (error) {
       console.error('Error getting potential providers:', error);
@@ -3567,11 +4052,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/potential-providers/import', isAdminAuthenticated, async (req, res) => {
     try {
       const { importName, csvData } = req.body;
-      
+
       if (!importName) {
         return res.status(400).json({ message: 'Import name is required' });
       }
-      
+
 
       const result = await storage.importPotentialProviders(csvData, importName);
       res.json(result);
@@ -3584,7 +4069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/potential-providers/confirm-import', isAdminAuthenticated, async (req, res) => {
     try {
       const { importId, providers } = req.body;
-      
+
       if (!providers || !Array.isArray(providers)) {
         return res.status(400).json({ message: 'Providers data is required' });
       }
@@ -3668,7 +4153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/emails', isAdminAuthenticated, async (req, res) => {
     try {
       const { tab, user, search, fromDate, toDate } = req.query;
-      
+
       // Get emails based on filters
       const emails = await storage.getEmails({
         tab: tab as string || 'inbox',
@@ -3678,7 +4163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         toDate: toDate as string || '',
         isAdmin: true
       });
-      
+
       res.json(emails);
     } catch (error) {
       console.error('Error fetching emails:', error);
@@ -3690,7 +4175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/test/email', async (req, res) => {
     try {
       const { to, subject, body } = req.body;
-      
+
       if (!to || !subject || !body) {
         return res.status(400).json({ message: 'To, subject, and body are required' });
       }
@@ -3698,7 +4183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check Mailgun configuration
       const mailgunKeys = await storage.getDecryptedMailgunKeys();
       if (!mailgunKeys) {
-        return res.status(500).json({ 
+        return res.status(500).json({
           message: 'Email service not configured. Please configure Mailgun settings first.',
           mailgunConfigured: false
         });
@@ -3713,20 +4198,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (emailSent) {
-        res.json({ 
-          success: true, 
+        res.json({
+          success: true,
           message: 'Test email sent successfully',
           mailgunConfigured: true
         });
       } else {
-        res.status(500).json({ 
+        res.status(500).json({
           message: 'Test email failed to send',
           mailgunConfigured: true
         });
       }
     } catch (error) {
       console.error('Error in test email:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: 'Test email error: ' + (error instanceof Error ? error.message : 'Unknown error'),
         mailgunConfigured: false
       });
@@ -3746,9 +4231,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update email status in database
       const updatedEmail = await storage.updateEmailStatus(parseInt(id), status);
 
-      res.json({ 
-        message: 'Email status updated successfully', 
-        email: updatedEmail 
+      res.json({
+        message: 'Email status updated successfully',
+        email: updatedEmail
       });
     } catch (error) {
       console.error('Error updating email status:', error);
@@ -3761,10 +4246,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log("Hello");
     try {
       const { to, cc, bcc, subject, body, template, status } = req.body;
-      
+
       if (!to || !subject || !body) {
         return res.status(400).json({ message: 'To, subject, and body are required' });
       }
+
+      // Get the admin user's ID from the database
+      const adminUser = await storage.getAdminUserByUsername((req as any).admin?.username);
+      const adminUserId = adminUser?.id?.toString() || (req as any).admin?.username || "admin";
+      console.log('Admin user lookup:', { username: (req as any).admin?.username, adminUser, adminUserId });
 
       // Check if this is a draft (don't send via email service)
       if (status === 'draft') {
@@ -3784,16 +4274,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'draft',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: null,
         };
 
         await storage.createEmail(emailData);
-        
-        res.json({ 
-          success: true, 
-          message: 'Draft saved successfully' 
+
+        res.json({
+          success: true,
+          message: 'Draft saved successfully'
         });
         return;
       }
@@ -3826,16 +4316,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'sent',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: new Date(),
         };
 
         await storage.createEmail(emailData);
-        
-        res.json({ 
-          success: true, 
-          message: 'Email sent successfully' 
+
+        res.json({
+          success: true,
+          message: 'Email sent successfully',
+          debug: { adminUserId, adminUsername: (req as any).admin?.username }
         });
       } else {
         // Ensure the composed message is still visible in Sent even if delivery fails
@@ -3854,23 +4345,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'sent',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: new Date(),
         };
 
         await storage.createEmail(emailData);
-        
-        res.json({ 
-          success: false, 
-          message: 'Email could not be delivered via Mailgun, but has been saved in Sent. dddd' 
+
+        res.json({
+          success: false,
+          message: 'Email could not be delivered via Mailgun, but has been saved in Sent. dddd'
         });
       }
     } catch (error) {
       console.error('Error sending email:', error);
-      
+
       // Try to save the email as failed for debugging
       try {
+        // Get the admin user's ID from the database for error case
+        const adminUser = await storage.getAdminUserByUsername((req as any).admin?.username);
+        const adminUserId = adminUser?.id?.toString() || (req as any).admin?.username || "admin";
+        
         const { to, cc, bcc, subject, body } = req.body;
         const emailData = {
           from: 'hrms.devdoc@gmail.com',
@@ -3887,7 +4382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priority: 'normal',
           folder: 'sent',
           // Scope email to the logged-in admin user
-          userId: (req as any).admin?.username || null,
+          userId: adminUserId,
           userType: 'admin',
           sentAt: new Date(),
         };
@@ -3896,10 +4391,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (saveError) {
         console.error('Failed to save failed email:', saveError);
       }
-      
-      res.json({ 
+
+      res.json({
         success: false,
-        message: 'Email delivery failed, but the message has been saved in Sent.' 
+        message: 'Email delivery failed, but the message has been saved in Sent.'
       });
     }
   });
@@ -3942,7 +4437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      
+
       if (!status) {
         return res.status(400).json({ message: 'Status is required' });
       }
@@ -3959,11 +4454,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const email = await storage.getEmail(parseInt(id));
-      
+
       if (!email) {
         return res.status(404).json({ message: 'Email not found' });
       }
-      
+
       res.json(email);
     } catch (error) {
       console.error('Error fetching email:', error);
@@ -3976,11 +4471,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const email = await storage.markEmailAsRead(parseInt(id));
-      
+
       if (!email) {
         return res.status(404).json({ message: 'Email not found' });
       }
-      
+
       res.json({ message: 'Email marked as read', email });
     } catch (error) {
       console.error('Error marking email as read:', error);
@@ -4005,6 +4500,394 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating read state:', error);
       res.status(500).json({ message: 'Failed to update read state' });
+    }
+  });
+
+  // ============================================================================
+  // TEAM TASK MANAGEMENT API ROUTES
+  // ============================================================================
+
+  // Get all team tasks with optional filters
+  app.get('/api/admin/team-tasks', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { status, priority, customerType, assignedTo, adminId } = req.query;
+      const filters = {
+        status: status as string,
+        priority: priority as string,
+        customerType: customerType as string,
+        assignedTo: assignedTo as string,
+        adminId: adminId as string,
+      };
+      
+      const tasks = await storage.getTeamTasks(filters);
+      res.json(tasks);
+    } catch (error) {
+      console.error('Error fetching team tasks:', error);
+      res.status(500).json({ message: 'Failed to fetch team tasks' });
+    }
+  });
+
+  // Get team tasks for Kanban view
+  app.get('/api/admin/team-tasks/kanban', isAdminAuthenticated, async (req, res) => {
+    try {
+      const showAll = req.query.all === 'true';
+      const adminInfo = (req as any).admin;
+      
+      let filterBy = null;
+      
+      if (showAll && (adminInfo.role === 'administrator' || adminInfo.role === 'super_admin')) {
+        // Super admin can see all tasks
+        filterBy = null;
+      } else {
+        // For all other users (managers, team members, etc), filter by assignedTo field
+        // This ensures they see tasks assigned to them, regardless of who created them
+        filterBy = 'assignedTo:' + adminInfo.username;
+      }
+      
+      console.log('Kanban tasks - User:', adminInfo.username, 'Role:', adminInfo.role, 'FilterBy:', filterBy);
+      
+      const kanbanData = await storage.getTeamTasksForKanban(filterBy);
+      res.json(kanbanData);
+    } catch (error) {
+      console.error('Error fetching team tasks for kanban:', error);
+      res.status(500).json({ message: 'Failed to fetch kanban data' });
+    }
+  });
+
+  // Get single team task
+  app.get('/api/admin/team-tasks/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const task = await storage.getTeamTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ message: 'Task not found' });
+      }
+      
+      res.json(task);
+    } catch (error) {
+      console.error('Error fetching team task:', error);
+      res.status(500).json({ message: 'Failed to fetch team task' });
+    }
+  });
+
+  // Create new team task
+  app.post('/api/admin/team-tasks', isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskData = req.body;
+      console.log('Received task data:', taskData);
+      
+      // Validate required fields
+      if (!taskData.title || !taskData.dueDate || !taskData.adminId) {
+        console.log('Missing required fields:', {
+          title: taskData.title,
+          dueDate: taskData.dueDate,
+          adminId: taskData.adminId
+        });
+        return res.status(400).json({ 
+          message: 'Missing required fields: title, dueDate, adminId' 
+        });
+      }
+
+      // Ensure only one customer type is set
+      const customerTypes = [
+        taskData.potentialProviderId,
+        taskData.providerId,
+        taskData.customerId
+      ].filter(Boolean);
+      
+      if (customerTypes.length > 1) {
+        return res.status(400).json({ 
+          message: 'Only one customer type can be set per task' 
+        });
+      }
+
+      // Convert dueDate to proper format for database
+      const taskDataForDb = {
+        ...taskData,
+        dueDate: new Date(taskData.dueDate)
+      };
+      
+      console.log('Task data for database:', taskDataForDb);
+      const newTask = await storage.createTeamTask(taskDataForDb);
+      res.status(201).json(newTask);
+    } catch (error) {
+      console.error('Error creating team task:', error);
+      res.status(500).json({ message: 'Failed to create team task' });
+    }
+  });
+
+  // Update team task
+  app.put('/api/admin/team-tasks/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const updates = req.body;
+      
+      // Remove fields that shouldn't be updated directly
+      delete updates.id;
+      delete updates.createdAt;
+      delete updates.updatedAt;
+
+      const updatedTask = await storage.updateTeamTask(taskId, updates);
+      res.json(updatedTask);
+    } catch (error) {
+      console.error('Error updating team task:', error);
+      res.status(500).json({ message: 'Failed to update team task' });
+    }
+  });
+
+  // Delete team task
+  app.delete('/api/admin/team-tasks/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      await storage.deleteTeamTask(taskId);
+      res.json({ message: 'Task deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting team task:', error);
+      res.status(500).json({ message: 'Failed to delete team task' });
+    }
+  });
+
+  // SMS Campaigns API endpoints
+  // Get all SMS campaigns
+  app.get('/api/admin/sms/campaigns', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaigns = await storage.getSmsCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error('Error fetching SMS campaigns:', error);
+      res.status(500).json({ message: 'Failed to fetch SMS campaigns' });
+    }
+  });
+
+  // Create new SMS campaign
+  app.post('/api/admin/sms/campaigns', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignData = req.body;
+      
+      // Validate required fields
+      if (!campaignData.name || !campaignData.name.trim()) {
+        return res.status(400).json({ message: 'Campaign name is required' });
+      }
+      
+      if (!campaignData.message || !campaignData.message.trim()) {
+        return res.status(400).json({ message: 'Campaign message is required' });
+      }
+      
+      // Ensure selectedStates and selectedStatuses are arrays
+      if (!Array.isArray(campaignData.selectedStates)) {
+        campaignData.selectedStates = [];
+      }
+      
+      if (!Array.isArray(campaignData.selectedStatuses)) {
+        campaignData.selectedStatuses = [];
+      }
+      
+      console.log('[SMS Campaign] Creating campaign with data:', JSON.stringify(campaignData, null, 2));
+      
+      const campaign = await storage.createSmsCampaign(campaignData);
+      
+      console.log('[SMS Campaign] Campaign created successfully:', campaign.id);
+      res.status(201).json(campaign);
+    } catch (error: any) {
+      console.error('[SMS Campaign] Error creating SMS campaign:', error);
+      console.error('[SMS Campaign] Error details:', error.message);
+      console.error('[SMS Campaign] Error stack:', error.stack);
+      res.status(500).json({ 
+        message: 'Failed to create SMS campaign',
+        error: error.message || 'Unknown error'
+      });
+    }
+  });
+
+  // Update SMS campaign
+  app.put('/api/admin/sms/campaigns/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaignData = req.body;
+      const campaign = await storage.updateSmsCampaign(campaignId, campaignData);
+      res.json(campaign);
+    } catch (error) {
+      console.error('Error updating SMS campaign:', error);
+      res.status(500).json({ message: 'Failed to update SMS campaign' });
+    }
+  });
+
+  // Delete SMS campaign
+  app.delete('/api/admin/sms/campaigns/:id', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      await storage.deleteSmsCampaign(campaignId);
+      res.json({ message: 'Campaign deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting SMS campaign:', error);
+      res.status(500).json({ message: 'Failed to delete SMS campaign' });
+    }
+  });
+
+  // Send SMS campaign
+  app.post('/api/admin/sms/campaigns/:id/send', isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const { customerIds, adminName } = req.body;
+      
+      const result = await storage.sendSmsCampaign(campaignId, customerIds, adminName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error sending SMS campaign:', error);
+      res.status(500).json({ message: 'Failed to send SMS campaign' });
+    }
+  });
+
+  // SMS Messages API endpoints for chat functionality
+  // Get all SMS messages
+  app.get('/api/admin/sms/messages', isAdminAuthenticated, async (req, res) => {
+    try {
+      const messages = await storage.getSmsMessages();
+      res.json(messages);
+    } catch (error) {
+      console.error('Error fetching SMS messages:', error);
+      res.status(500).json({ message: 'Failed to fetch SMS messages' });
+    }
+  });
+
+  // Send individual SMS message
+  app.post('/api/admin/sms/send', isAdminAuthenticated, async (req, res) => {
+    try {
+      console.log('📱 [Route] SMS send request received:', req.body);
+      const { customerId, message } = req.body;
+      
+      if (!customerId || !message) {
+        console.error('📱 [Route] Missing required fields:', { customerId, message });
+        return res.status(400).json({ message: 'Missing customerId or message' });
+      }
+      
+      console.log('📱 [Route] Calling storage.sendIndividualSms...');
+      const result = await storage.sendIndividualSms(customerId, message);
+      console.log('📱 [Route] SMS send result:', result);
+      res.json(result);
+    } catch (error) {
+      console.error('📱 [Route] Error sending SMS:', error);
+      console.error('📱 [Route] Error stack:', error.stack);
+      res.status(500).json({ message: 'Failed to send SMS' });
+    }
+  });
+
+  // Webhook endpoint for incoming SMS replies (from Dialpad)
+  app.post('/api/sms/webhook', async (req, res) => {
+    try {
+      console.log('📨 [Webhook] Received SMS webhook:', JSON.stringify(req.body, null, 2));
+      
+      // Handle different Dialpad payload formats
+      const { from, to, body, messageId, text, sender, recipient } = req.body;
+      
+      // Extract phone numbers and message from different possible formats
+      const fromPhone = from || sender;
+      const toPhone = to || recipient;
+      const messageText = body || text;
+      
+      if (!fromPhone || !messageText) {
+        console.error('❌ [Webhook] Missing required fields:', { fromPhone, messageText });
+        return res.status(400).json({ 
+          message: 'Missing required fields: from/sender and body/text' 
+        });
+      }
+      
+      console.log(`📱 [Webhook] Processing SMS from ${fromPhone}: "${messageText}"`);
+      
+      // Check if customer replied with STOP (case-insensitive)
+      const isStopRequest = messageText.trim().toUpperCase() === 'STOP';
+      
+      if (isStopRequest) {
+        console.log('🛑 [Webhook] Customer requested to STOP - processing unsubscribe...');
+        
+        // Find customer and update status to Unsubscribe
+        const customer = await storage.findPotentialCustomerByPhone(fromPhone);
+        if (customer) {
+          await storage.updatePotentialCustomerStatus(customer.id, 'Unsubscribe');
+          console.log(`✅ [Webhook] Customer ${customer.name} (ID: ${customer.id}) unsubscribed successfully`);
+        } else {
+          console.warn(`⚠️ [Webhook] Customer not found for phone: ${fromPhone}`);
+        }
+      }
+      
+      // Store incoming message (with unsubscribe status if applicable)
+      await storage.storeIncomingSms(fromPhone, toPhone, messageText, messageId, isStopRequest);
+      
+      console.log('✅ [Webhook] SMS stored successfully' + (isStopRequest ? ' - Customer unsubscribed' : ''));
+      res.status(200).json({ 
+        message: 'SMS received successfully',
+        unsubscribed: isStopRequest 
+      });
+    } catch (error) {
+      console.error('❌ [Webhook] Error processing incoming SMS:', error);
+      res.status(500).json({ message: 'Failed to process SMS' });
+    }
+  });
+
+  // Role and Permission Management API endpoints
+  app.get("/api/admin/roles", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roles = await storage.getRoles();
+      res.json(roles);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      res.status(500).json({ message: "Failed to fetch roles" });
+    }
+  });
+
+  app.get("/api/admin/permissions", isAdminAuthenticated, async (req, res) => {
+    try {
+      const permissions = await storage.getPermissions();
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching permissions:", error);
+      res.status(500).json({ message: "Failed to fetch permissions" });
+    }
+  });
+
+  app.get("/api/admin/roles/:id/permissions", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      const permissions = await storage.getRolePermissions(roleId);
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ message: "Failed to fetch role permissions" });
+    }
+  });
+
+  app.post("/api/admin/roles", isAdminAuthenticated, async (req, res) => {
+    try {
+      const { name, description, permissions } = req.body;
+      const role = await storage.createRole({ name, description, permissions });
+      res.json(role);
+    } catch (error) {
+      console.error("Error creating role:", error);
+      res.status(500).json({ message: "Failed to create role" });
+    }
+  });
+
+  app.put("/api/admin/roles/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      const { name, description, permissions } = req.body;
+      const role = await storage.updateRole(roleId, { name, description, permissions });
+      res.json(role);
+    } catch (error) {
+      console.error("Error updating role:", error);
+      res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+
+  app.delete("/api/admin/roles/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      await storage.deleteRole(roleId);
+      res.json({ message: "Role deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting role:", error);
+      res.status(500).json({ message: "Failed to delete role" });
     }
   });
 

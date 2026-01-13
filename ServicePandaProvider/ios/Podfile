@@ -1,0 +1,138 @@
+platform :ios, '16.0'
+
+require_relative '../node_modules/react-native/scripts/react_native_pods'
+
+target 'ServicePandaProvider' do
+  config = use_native_modules!
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    :fabric_enabled => false,
+    :new_arch_enabled => false,
+    :hermes_enabled => true
+  )
+
+  # Maps dependency removed to fix build issues
+
+  
+
+  # Add any custom native pods below this line
+  # OneSignal is automatically included via react-native-onesignal
+
+  post_install do |installer|
+    # React Native common post install setup
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false
+    )
+    
+    # Set environment variables to disable new architecture
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['RCT_NEW_ARCH_ENABLED'] = '0'
+        config.build_settings['RCT_FABRIC_ENABLED'] = '0'
+        
+        # Fix compilation issues - React Native 0.74+ requires C++20
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+        
+        # Fix archive issues
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+        
+        # Fix virtual filesystem overlay issues
+        config.build_settings['ENABLE_BITCODE'] = 'NO'
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = ['-DFOLLY_NO_CONFIG', '-DFOLLY_MOBILE=1', '-DFOLLY_USE_LIBCPP=1']
+
+        # Match working project behaviour: allow non-modular includes in framework modules
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        
+        # Enable dSYM generation for all pods (fixes Upload Symbols Failed error)
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+        config.build_settings['DWARF_DSYM_FOLDER_PATH'] = '$(CONFIGURATION_BUILD_DIR)'
+        config.build_settings['DWARF_DSYM_FILE_NAME'] = '$(EXECUTABLE_NAME).dSYM'
+
+        # Ensure OneSignal Swift frameworks are module-stable and importable from ObjC
+        if target.name.include?('OneSignal')
+          config.build_settings['DEFINES_MODULE'] = 'YES'
+          config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
+        end
+      end
+    end
+    
+    # Fix for RCT-Folly build issues
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        # Fix for RCT-Folly
+        if target.name == 'RCT-Folly'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_MOBILE=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_USE_LIBCPP=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_LIBGFLAGS=0'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_LIBJEMALLOC=0'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_PREADV=0'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_PWRITEV=0'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAVE_TFO=0'
+        end
+        
+        # Fix ReactCommon compilation issues
+        if target.name == 'ReactCommon'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_MOBILE=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_USE_LIBCPP=1'
+        end
+        
+        
+        # Disable React-Codegen build but keep the target
+        if target.name == 'React-Codegen'
+          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+          config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+          config.build_settings['CODE_SIGNING_IDENTITY'] = ''
+          config.build_settings['SKIP_INSTALL'] = 'YES'
+        end
+        
+        # Disable code signing for hermes-engine to prevent signing errors
+        if target.name == 'hermes-engine'
+          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+          config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+          config.build_settings['CODE_SIGNING_IDENTITY'] = ''
+        end
+      end
+    end
+    
+    # Remove problematic build phases
+    installer.pods_project.targets.each do |target|
+      if target.name == 'React-Fabric'
+        target.build_phases.each do |phase|
+          if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase) && 
+             phase.name && phase.name.include?('Check rncore')
+            target.build_phases.delete(phase)
+          end
+        end
+      end
+
+      if target.name == 'hermes-engine'
+        target.build_phases.each do |phase|
+          if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase) &&
+             phase.name && phase.name.include?('[Hermes]')
+            target.build_phases.delete(phase)
+          end
+        end
+      end
+    end
+
+    # Ensure app embeds Swift stdlib (needed for OneSignal Swift parts)
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.user_project.native_targets.each do |native_target|
+        if native_target.name == 'ServicePandaProvider'
+          native_target.build_configurations.each do |config|
+            config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
+          end
+        end
+      end
+    end
+  end
+end

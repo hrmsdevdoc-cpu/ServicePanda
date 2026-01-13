@@ -9,6 +9,8 @@ const {
   Dimensions 
 } = require('react-native');
 const { colors } = require('../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,6 +31,7 @@ interface NotificationListProps {
   onClose: () => void;
   onNotificationPress: (notification: Notification) => void;
   onMarkAllAsRead: () => void;
+  onResetNotifications?: () => void; // Optional debug function
 }
 
 function NotificationList({ 
@@ -36,24 +39,26 @@ function NotificationList({
   notifications, 
   onClose, 
   onNotificationPress, 
-  onMarkAllAsRead 
+  onMarkAllAsRead,
+  onResetNotifications
 }: NotificationListProps) {
   const [isMarkingAllRead, setIsMarkingAllRead] = React.useState(false);
   const [markingAsReadIds, setMarkingAsReadIds] = React.useState(new Set());
+  const [showReadNotifications, setShowReadNotifications] = React.useState(false);
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const readCount = notifications.filter(n => n.isRead).length;
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'success':
-        return '✅';
+        return { name: 'check-circle', color: '#10B981' };
       case 'warning':
-        return '⚠️';
+        return { name: 'warning', color: '#F59E0B' };
       case 'error':
-        return '❌';
+        return { name: 'error', color: '#EF4444' };
       case 'info':
       default:
-        return 'ℹ️';
+        return { name: 'info', color: '#3B82F6' };
     }
   };
 
@@ -125,9 +130,12 @@ function NotificationList({
     >
       <View style={styles.notificationHeader}>
         <View style={styles.notificationIconContainer}>
-          <Text style={styles.notificationIcon}>
-            {getNotificationIcon(notification.type)}
-          </Text>
+          <Icon 
+            name={getNotificationIcon(notification.type).name} 
+            size={20} 
+            color={getNotificationIcon(notification.type).color} 
+            style={styles.notificationIcon} 
+          />
         </View>
         <View style={styles.notificationContent}>
           <Text style={[
@@ -187,17 +195,40 @@ function NotificationList({
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            {unreadCount > 0 && (
-              <TouchableOpacity 
-                style={[styles.markAllReadButton, isMarkingAllRead && styles.markAllReadButtonDisabled]} 
-                onPress={handleMarkAllAsReadWithLoading}
-                disabled={isMarkingAllRead}
-              >
-                <Text style={[styles.markAllReadText, isMarkingAllRead && styles.markAllReadTextDisabled]}>
-                  {isMarkingAllRead ? 'Marking...' : 'Mark All as Read'}
-                </Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.actionButtonsRow}>
+              {unreadCount > 0 && (
+                <TouchableOpacity 
+                  style={[styles.markAllReadButton, isMarkingAllRead && styles.markAllReadButtonDisabled]} 
+                  onPress={handleMarkAllAsReadWithLoading}
+                  disabled={isMarkingAllRead}
+                >
+                  <Text style={[styles.markAllReadText, isMarkingAllRead && styles.markAllReadTextDisabled]}>
+                    {isMarkingAllRead ? 'Marking...' : 'Mark All as Read'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              
+              {readCount > 0 && (
+                <TouchableOpacity 
+                  style={styles.toggleReadButton} 
+                  onPress={() => setShowReadNotifications(!showReadNotifications)}
+                >
+                  <Text style={styles.toggleReadText}>
+                    {showReadNotifications ? 'Hide Read' : `Show ${readCount} Read`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              
+              {/* Debug Reset Button - only show in development */}
+              {__DEV__ && onResetNotifications && (
+                <TouchableOpacity 
+                  style={styles.debugResetButton} 
+                  onPress={onResetNotifications}
+                >
+                  <Text style={styles.debugResetText}>🔄 Reset</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {/* Notifications List */}
@@ -210,13 +241,21 @@ function NotificationList({
                   You're all caught up! New notifications will appear here.
                 </Text>
               </View>
+            ) : unreadCount === 0 && !showReadNotifications ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateIcon}>✅</Text>
+                <Text style={styles.emptyStateTitle}>All caught up!</Text>
+                <Text style={styles.emptyStateMessage}>
+                  You have no unread notifications. All {readCount} notifications have been read.
+                </Text>
+              </View>
             ) : (
               <>
                 {/* Unread notifications first */}
                 {notifications.filter(n => !n.isRead).map(renderNotification)}
                 
-                {/* Read notifications */}
-                {notifications.filter(n => n.isRead).map(renderNotification)}
+                {/* Read notifications - only show if toggle is on */}
+                {showReadNotifications && notifications.filter(n => n.isRead).map(renderNotification)}
               </>
             )}
           </ScrollView>
@@ -238,7 +277,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 16,
     maxHeight: height * 0.98,
     minHeight: height * 0.8,
-    marginTop: 80,
+    marginTop: 130,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
@@ -289,8 +328,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   markAllReadButton: {
-    alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: colors.primary,
@@ -307,6 +352,28 @@ const styles = StyleSheet.create({
   },
   markAllReadTextDisabled: {
     color: colors.textSecondary,
+  },
+  toggleReadButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.borderLight,
+    borderRadius: 16,
+  },
+  toggleReadText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  debugResetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 16,
+  },
+  debugResetText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   notificationsList: {
     flex: 1,

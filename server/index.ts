@@ -17,16 +17,52 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'development';
 }
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-// CORS middleware for development
+// CORS middleware for development and production
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = [
+    'https://staging.servicepanda.com.au',
+    'https://servicepanda.com.au',
+    'https://www.servicepanda.com.au',
+    'https://api.servicepanda.com.au',
+    'http://localhost:4000',
+    'http://localhost:3000',
+    'http://127.0.0.1:4000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173', // Vite dev server
+    'http://127.0.0.1:5173'
+  ];
+
+  const origin = req.headers.origin;
+  console.log('CORS request from origin:', origin);
+  
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    console.log('CORS: Allowed origin:', origin);
+  } else if (process.env.NODE_ENV === 'development' || (origin && origin.includes('servicepanda.com.au'))) {
+    // Allow all origins in development OR any servicepanda.com.au subdomain
+    if (origin) {
+      res.header('Access-Control-Allow-Origin', origin);
+      console.log('CORS: Allowed servicepanda domain or development mode:', origin);
+    } else {
+      // No origin header - allow for development
+      res.header('Access-Control-Allow-Origin', '*');
+      console.log('CORS: No origin header - allowing all in development');
+    }
+  } else {
+    console.log('CORS: Blocked origin:', origin);
+    // Don't set Access-Control-Allow-Origin for blocked origins
+    return res.status(403).json({ message: 'CORS: Origin not allowed' });
+  }
+
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
-  
+  res.header('Access-Control-Allow-Credentials', 'true');
+
   if (req.method === 'OPTIONS') {
+    console.log('CORS: Handling preflight request');
     res.sendStatus(200);
   } else {
     next();
@@ -35,8 +71,8 @@ app.use((req, res, next) => {
 
 // Health check endpoint for mobile app connectivity testing - must be before Vite setup
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     message: 'ServicePanda API is running'
   });
@@ -67,7 +103,7 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+       // log(logLine); // Disabled to reduce console noise
     }
   });
 
@@ -77,7 +113,7 @@ app.use((req, res, next) => {
 (async () => {
   // Import storage for the expiration checker
   const { storage } = await import("./storage");
-  
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -101,7 +137,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '3000', 10);
-  
+
   // Start expired lead and offer checker - runs every 5 minutes instead of every minute
   setInterval(async () => {
     try {
@@ -118,14 +154,26 @@ app.use((req, res, next) => {
       console.error('Error in expired lead checker:', error);
       // Don't let errors crash the interval
     }
-  }, 300000); // Check every 5 minutes instead of every minute
+  }, 60000); // Check every 1 minute for faster updates
+
+  // Windows-compatible server configuration
+  const isWindows = process.platform === 'win32';
   
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
-    log('Lead and offer expiration checker started - checking every minute');
-  });
+  if (isWindows) {
+    // On Windows, use localhost instead of 0.0.0.0 and remove reusePort
+    server.listen(port, 'localhost', () => {
+      log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
+      log('Lead and offer expiration checker started - checking every 5 minutes');
+    });
+  } else {
+    // On Unix systems, use the original configuration
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
+      log('Lead and offer expiration checker started - checking every 5 minutes');
+    });
+  }
 })();

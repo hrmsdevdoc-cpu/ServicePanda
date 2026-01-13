@@ -28,7 +28,7 @@ const getStripe = async () => {
   if (!stripePromise) {
     try {
       // Get Stripe public key from backend
-      const response = await fetch('/api/config/stripe');
+      const response = await apiRequest('GET', '/api/config/stripe');
       const config = await response.json();
       
       if (config.publicKey && config.configured) {
@@ -182,7 +182,6 @@ export default function ProviderPayment() {
           isMobileMenuOpen={isMobileMenuOpen}
           setIsMobileMenuOpen={setIsMobileMenuOpen}
           newLeadsCount={newLeadsCount}
-          navigate={navigate}
         />
 
         {/* Main Content */}

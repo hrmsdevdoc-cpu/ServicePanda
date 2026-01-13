@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { adminApiRequest } from "@/lib/adminAuth";
+import { apiRequest } from "@/lib/queryClient";
 import {
   Shield,
   Search,
@@ -269,11 +270,7 @@ export default function AdminViewProviders() {
   const { data: allProviders, isLoading } = useQuery({
     queryKey: ['/api/admin/providers', 'all'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/providers', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
+      const response = await adminApiRequest('GET', '/api/admin/providers');
       return response.json();
     },
   });
@@ -282,7 +279,7 @@ export default function AdminViewProviders() {
   const { data: serviceCategories } = useQuery({
     queryKey: ['/api/service-categories'],
     queryFn: async () => {
-      const response = await fetch('/api/service-categories');
+      const response = await apiRequest('GET', '/api/service-categories');
       return response.json();
     },
   });
@@ -497,22 +494,35 @@ export default function AdminViewProviders() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(156, 146, 172, 0.15) 1px, transparent 0)`,
+          backgroundSize: '20px 20px'
+        }}></div>
+      </div>
+      {/* Subtle Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-blue-100/20 pointer-events-none"></div>
       {/* Sidebar */}
-      <AdminSidebar onLogout={handleLogout} />
+      <div className="relative z-20">
+        <AdminSidebar onLogout={handleLogout} />
+      </div>
       
       {/* Main content area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto relative z-10">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-6">
+        <header className="bg-white/95 backdrop-blur-sm dark:bg-gray-800 shadow-lg shadow-slate-200/20 border-b border-slate-200/50 dark:border-gray-700">
+          <div className="px-8 py-3" style={{ paddingTop: '1.2rem', paddingBottom: '0.8rem' }}>
             <div className="flex items-center">
-              <Users className="h-8 w-8 text-blue-600 mr-3" />
+              <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center mr-3">
+                <Users className="h-5 w-5 text-white" />
+              </div>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                   All Service Providers
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Manage and view all registered service providers
                 </p>
               </div>
@@ -521,10 +531,10 @@ export default function AdminViewProviders() {
         </header>
 
         {/* Content */}
-        <div className="px-8 py-8">
+        <div className="px-8 pt-4 pb-8 min-h-screen">
           <Card>
             <CardHeader>
-              <CardTitle>Service Provider Directory</CardTitle>
+              {/* <CardTitle>Service Provider Directory</CardTitle> */}
               <div className="flex items-center space-x-4">
                 <div className="relative flex-1 max-w-sm">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />

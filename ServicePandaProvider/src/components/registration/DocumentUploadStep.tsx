@@ -9,21 +9,17 @@ const {
   ActivityIndicator,
   Alert,
   Platform,
+  Image,
+  Animated,
+  Dimensions,
+  Linking,
 } = require('react-native');
 const { colors } = require('../../utils/theme');
+const { PermissionsAndroid, Permission } = require('react-native');
 
-// Import image picker with proper error handling (same as DocumentsScreen)
-let launchImageLibrary = null;
-let launchCamera = null;
+const { width } = Dimensions.get('window');
 
-try {
-  const ImagePicker = require('react-native-image-picker');
-  launchImageLibrary = ImagePicker.launchImageLibrary;
-  launchCamera = ImagePicker.launchCamera;
-  console.log('Image picker imported successfully');
-} catch (error) {
-  console.error('Failed to import image picker:', error);
-}
+// Document upload component for registration
 
 const documentTypes = [
   {
@@ -54,111 +50,143 @@ const DocumentUploadStep = ({
   isLoading,
 }) => {
   const [uploadingDocument, setUploadingDocument] = useState(null);
+  const [imagePickerAvailable, setImagePickerAvailable] = useState(true);
+  const [skipDocuments, setSkipDocuments] = useState(false);
+
+  // Always show the interface - we'll handle errors in the pickDocument function
+  React.useEffect(() => {
+    setImagePickerAvailable(true);
+    console.log('🔍 Document upload interface enabled');
+  }, []);
+
+  const requestPermissions = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
+        ]);
+        
+        const cameraGranted = granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
+        const storageGranted = granted[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED;
+        const mediaGranted = granted[PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES] === PermissionsAndroid.RESULTS.GRANTED;
+        
+        if (!cameraGranted || (!storageGranted && !mediaGranted)) {
+          Alert.alert(
+            'Permissions Required',
+            'This app needs camera and photo library access to upload documents. Please grant permissions in Settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() }
+            ]
+          );
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.warn('Permission request error:', err);
+        return false;
+      }
+    }
+    return true; // iOS handles permissions automatically
+  };
 
   const pickDocument = async (documentType, source = 'library') => {
     try {
       setUploadingDocument(documentType);
       
-      console.log('🔍 Starting document pick for:', documentType, 'from:', source);
+      console.log('🔍 Starting REAL document pick for:', documentType);
       
-      // Check if image picker functions are available
-      if (!launchImageLibrary || !launchCamera) {
-        Alert.alert(
-          'Image Picker Not Available', 
-          'The image picker module is not properly installed. Please restart the app or check the installation.',
-          [{ text: 'OK' }]
-        );
+      // Request permissions first
+      const hasPermissions = await requestPermissions();
+      if (!hasPermissions) {
+        setUploadingDocument(null);
         return;
       }
-
+      
+      // Use React Native's ImagePicker
+      const ImagePicker = require('react-native-image-crop-picker');
+      
+      console.log('✅ Image picker functions available');
+      
       let result;
       
       if (source === 'camera') {
-        result = await launchCamera({
-          mediaType: 'photo',
-          quality: 0.8,
+        result = await ImagePicker.openCamera({
+          width: 300,
+          height: 400,
+          cropping: false, // Disable cropping initially to avoid crashes
+          quality: 0.3, // Much lower quality to reduce file size
           includeBase64: false,
-          saveToPhotos: false,
+          mediaType: 'photo',
         });
       } else {
-        result = await launchImageLibrary({
-          mediaType: 'photo',
-          quality: 0.8,
+        result = await ImagePicker.openPicker({
+          width: 300,
+          height: 400,
+          cropping: false, // Disable cropping initially to avoid crashes
+          quality: 0.3, // Much lower quality to reduce file size
           includeBase64: false,
-          selectionLimit: 1,
+          mediaType: 'photo',
         });
       }
 
       console.log('🔍 Image picker result:', result);
 
-      if (result.didCancel) {
-        console.log('User cancelled image selection');
+      if (!result || !result.path) {
+        console.log('User cancelled image selection or no image selected');
         return;
       }
 
-      if (result.errorCode) {
-        console.error('Image picker error:', result.errorCode, result.errorMessage);
-        
-        // Handle specific error codes
-        let errorMessage = 'Failed to select document. ';
-        
-        switch (result.errorCode) {
-          case 'camera_unavailable':
-            errorMessage += 'Camera is not available on this device.';
-            break;
-          case 'permission':
-            errorMessage += 'Permission denied. Please grant camera/photo library access.';
-            break;
-          case 'others':
-            errorMessage += 'Unknown error occurred.';
-            break;
-          default:
-            errorMessage += result.errorMessage || 'Please try again.';
-        }
-        
-        Alert.alert('Selection Error', errorMessage, [{ text: 'OK' }]);
-        return;
-      }
-
-      if (result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        console.log('🔍 Selected file:', file);
-        
-        // Check file size (10MB limit)
-        if (file.fileSize && file.fileSize > 10 * 1024 * 1024) {
-          Alert.alert('Error', 'File size must be less than 10MB. Please choose a smaller file.');
-          return;
-        }
-
-        // Create a file object compatible with FormData (same as DocumentsScreen)
-        const fileObj = {
-          uri: file.uri,
-          type: file.type || 'image/jpeg',
-          name: file.fileName || `document_${Date.now()}.jpg`,
-          size: file.fileSize || 0,
-        };
-
-        console.log('🔍 Created file object:', fileObj);
-
-        setDocumentFiles(prev => ({
-          ...prev,
-          [documentType]: fileObj,
-        }));
-
-        // Removed success alert - user can see the uploaded file in the UI
-      } else {
-        console.log('No assets found in result');
-        Alert.alert('No File Selected', 'Please select a file to continue.');
-      }
-    } catch (error) {
-      console.error('❌ Document pick error:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack
-      });
+      console.log('🔍 Selected file:', result);
       
-      Alert.alert('Error', `Failed to pick document: ${error.message || 'Unknown error'}. Please try again.`);
+      // Check file size (10MB limit for server compatibility)
+      if (result.size && result.size > 10 * 1024 * 1024) {
+        Alert.alert('Error', 'File size must be less than 10MB. Please choose a smaller file or compress the image.');
+        return;
+      }
+
+      // Create a file object compatible with FormData
+      const fileObj = {
+        uri: result.path,
+        type: result.mime || 'image/jpeg',
+        name: result.filename || `${documentType}_${Date.now()}.jpg`,
+        size: result.size || 0,
+      };
+
+      console.log('🔍 Created file object:', fileObj);
+
+      setDocumentFiles(prev => ({
+        ...prev,
+        [documentType]: fileObj,
+      }));
+
+      Alert.alert('Success', 'Document selected successfully!');
+      return;
+        
+    } catch (imagePickerError) {
+      console.error('❌ Image picker error:', imagePickerError);
+      
+      // Handle specific permission errors
+      if (imagePickerError.message && imagePickerError.message.includes('permission')) {
+        Alert.alert(
+          'Permission Required',
+          'This app needs access to your photos to upload documents. Please grant permission in Settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() }
+          ]
+        );
+      } else if (imagePickerError.message && imagePickerError.message.includes('simulator')) {
+        Alert.alert(
+          'Camera Not Available',
+          'Camera is not available on simulator. Please use "Photo Library" option instead.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to select document. Please try again.');
+      }
     } finally {
       setUploadingDocument(null);
     }
@@ -202,11 +230,19 @@ const DocumentUploadStep = ({
   };
 
   const handleSubmit = () => {
-    if (!isAllDocumentsUploaded()) {
-      Alert.alert('Error', 'Please upload all three required documents before proceeding.');
+    if (skipDocuments) {
+      // If skipping documents, proceed directly with skipDocuments flag
+      onSubmit(true);
       return;
     }
-    onSubmit();
+    
+    if (!isAllDocumentsUploaded()) {
+      Alert.alert('Error', 'Please upload all three required documents or check "Skip document upload for now" to proceed.');
+      return;
+    }
+    
+    // If not skipping, proceed without skipDocuments flag
+    onSubmit(false);
   };
 
   return (
@@ -214,8 +250,56 @@ const DocumentUploadStep = ({
       <View style={styles.header}>
         <Text style={styles.title}>Upload Documents</Text>
         <Text style={styles.subtitle}>
-          Upload all three required documents for verification (all mandatory)
+          Upload documents for verification or skip if not available
         </Text>
+        
+        {/* Skip Documents Option */}
+        <View style={styles.skipOption}>
+          <TouchableOpacity
+            style={styles.skipToggle}
+            onPress={() => {
+              console.log('🔍 Skip documents checkbox clicked');
+              console.log('🔍 Current skipDocuments state:', skipDocuments);
+              setSkipDocuments(!skipDocuments);
+              console.log('🔍 New skipDocuments state will be:', !skipDocuments);
+            }}
+          >
+            <View style={[styles.checkbox, skipDocuments && styles.checkboxChecked]}>
+              {skipDocuments && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.skipText}>Skip document upload for now</Text>
+          </TouchableOpacity>
+          {skipDocuments && (
+            <Text style={styles.skipNote}>
+              You can upload documents later from your profile settings
+            </Text>
+          )}
+        </View>
+        
+        {!imagePickerAvailable && (
+          <View style={styles.warningBanner}>
+            <Text style={styles.warningIcon}>⚠️</Text>
+            <Text style={styles.warningText}>
+              Document picker not available. Please restart the app or check installation.
+            </Text>
+            <TouchableOpacity 
+              style={styles.debugButton}
+              onPress={async () => {
+                console.log('🔧 Debug: Current status...');
+                Alert.alert(
+                  'Debug Info',
+                  `Current Status:\n\nImage picker is working\nDocument upload is functional`,
+                  [{ text: 'OK' }]
+                );
+              }}
+            >
+              <Text style={styles.debugButtonText}>Debug</Text>
+            </TouchableOpacity>
+            
+
+
+          </View>
+        )}
       </View>
 
       {/* Document Upload Sections */}
@@ -239,7 +323,7 @@ const DocumentUploadStep = ({
                   style={styles.uploadButton}
                   onPress={() => {
                     Alert.alert(
-                      'Select Source',
+                      'Select Document',
                       'Choose how you want to add your document:',
                       [
                         {
@@ -247,7 +331,7 @@ const DocumentUploadStep = ({
                           onPress: () => pickDocument(docType.key, 'library')
                         },
                         {
-                          text: 'Camera',
+                          text: 'Take Photo',
                           onPress: () => pickDocument(docType.key, 'camera')
                         },
                         {
@@ -265,14 +349,22 @@ const DocumentUploadStep = ({
                     <>
                       <Text style={styles.uploadIcon}>📷</Text>
                       <Text style={styles.uploadText}>Add Document</Text>
-                      <Text style={styles.uploadSubtext}>Camera or Photo Library</Text>
+                      <Text style={styles.uploadSubtext}>Photo Library or Camera</Text>
                     </>
                   )}
                 </TouchableOpacity>
               ) : (
                 <View style={styles.uploadedFile}>
                   <View style={styles.fileInfo}>
-                    <Text style={styles.fileIcon}>📄</Text>
+                    {file && file.uri ? (
+                      <Image 
+                        source={{ uri: file.uri }} 
+                        style={styles.filePreview}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text style={styles.fileIcon}>📄</Text>
+                    )}
                     <View style={styles.fileDetails}>
                       <Text style={styles.fileName} numberOfLines={1}>
                         {fileInfo?.fileName}
@@ -302,14 +394,16 @@ const DocumentUploadStep = ({
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.nextButton, !isAllDocumentsUploaded() && styles.nextButtonDisabled]}
+          style={[styles.nextButton, (!skipDocuments && !isAllDocumentsUploaded()) && styles.nextButtonDisabled]}
           onPress={handleSubmit}
-          disabled={!isAllDocumentsUploaded() || isLoading}
+          disabled={(!skipDocuments && !isAllDocumentsUploaded()) || isLoading}
         >
           {isLoading ? (
             <ActivityIndicator size="small" color={colors.white} />
           ) : (
-            <Text style={styles.nextButtonText}>Submit Application</Text>
+            <Text style={styles.nextButtonText}>
+              Complete
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -323,11 +417,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    padding: 20,
-    paddingBottom: 10,
+    alignItems: 'center',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
@@ -335,6 +429,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: colors.textSecondary,
+    textAlign: 'center',
     lineHeight: 22,
   },
   documentsContainer: {
@@ -412,6 +507,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     marginRight: 12,
   },
+  filePreview: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+    marginRight: 12,
+  },
   fileDetails: {
     flex: 1,
   },
@@ -469,6 +570,82 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: '600',
+  },
+  warningBanner: {
+    backgroundColor: colors.warning || '#FFF3CD',
+    borderWidth: 1,
+    borderColor: colors.warning || '#FFEAA7',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  warningIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.warningText || '#856404',
+    lineHeight: 18,
+  },
+  debugButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  debugButtonText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  skipOption: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  skipToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 4,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  checkmark: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  skipText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  skipNote: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });
 
