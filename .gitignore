@@ -1,6 +1,7 @@
 # Node.js dependencies
 node_modules/
 ServicePandaProvider/node_modules/
+ServicePandaProvider/node_modules.zip
 
 # Build and distribution folders
 dist/
