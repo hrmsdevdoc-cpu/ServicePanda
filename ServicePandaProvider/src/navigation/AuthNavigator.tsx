@@ -9,7 +9,8 @@ const ProviderRegistrationScreen = require('../screens/auth/ProviderRegistration
 
 const Stack = createStackNavigator();
 
-const AuthNavigator = ({ onLoginSuccess, onNavigate }) => {
+const AuthNavigator = ({ onLoginSuccess }) => {
+  console.log('🔍 AuthNavigator is being rendered!');
   return (
     <Stack.Navigator 
       initialRouteName="Login"
@@ -25,16 +26,28 @@ const AuthNavigator = ({ onLoginSuccess, onNavigate }) => {
       }}
     >
       <Stack.Screen name="Login">
-        {(props) => <LoginScreen {...props} onNavigate={onNavigate} />}
+        {(props) => {
+          console.log('🔍 AuthNavigator Login screen props:', props);
+          console.log('🔍 AuthNavigator navigation prop:', props.navigation);
+          const onNavigateFunction = (screen) => {
+            console.log('🔍 AuthNavigator onNavigate called with:', screen);
+            props.navigation.navigate(screen);
+          };
+          return <LoginScreen {...props} navigation={props.navigation} onNavigate={onNavigateFunction} />;
+        }}
       </Stack.Screen>
       <Stack.Screen name="Signup">
         {(props) => <SignupScreen {...props} onLoginSuccess={onLoginSuccess} />}
       </Stack.Screen>
       <Stack.Screen name="ProviderRegistration">
-        {(props) => <ProviderRegistrationScreen {...props} />}
+        {(props) => <ProviderRegistrationScreen {...props} onNavigate={(screen) => props.navigation.navigate(screen)} />}
       </Stack.Screen>
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <Stack.Screen name="ForgotPassword">
+        {(props) => <ForgotPasswordScreen {...props} onNavigate={(screen) => props.navigation.navigate(screen)} />}
+      </Stack.Screen>
+      <Stack.Screen name="ResetPassword">
+        {(props) => <ResetPasswordScreen {...props} onNavigate={(screen) => props.navigation.navigate(screen)} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };

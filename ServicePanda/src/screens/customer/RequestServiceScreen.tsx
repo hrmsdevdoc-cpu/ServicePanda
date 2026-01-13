@@ -1,0 +1,1497 @@
+const React = require('react');
+const { useState, useEffect } = require('react');
+const { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  TextInput, 
+  ScrollView, 
+  Alert,
+  SafeAreaView,
+  Animated,
+  Dimensions,
+  StatusBar,
+  Platform,
+  ImageBackground
+} = require('react-native');
+// Using built-in date picker instead of external package
+const { colors } = require('../../utils/theme');
+const { apiService } = require('../../services/api');
+const { API_BASE_URL } = require('../../config/api');
+const { getServiceImageWithFallback } = require('../../utils/serviceImages');
+
+const { width, height } = Dimensions.get('window');
+
+const RequestServiceScreen = ({ onNavigate, onBack, navigationData = {} }) => {
+  const [serviceType, setServiceType] = useState('');
+  const [description, setDescription] = useState('');
+  const [postcode, setPostcode] = useState('');
+  const [suburb, setSuburb] = useState('');
+  const [postcodeSearch, setPostcodeSearch] = useState('');
+  const [suburbs, setSuburbs] = useState([]);
+  const [preferredDate, setPreferredDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [bookingType, setBookingType] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serviceCategories, setServiceCategories] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Animation values
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.95)).current;
+  const selectedServiceAnim = React.useRef(new Animated.Value(1)).current;
+
+  // Fetch service categories
+  const fetchServiceCategories = async () => {
+    try {
+      console.log('🔄 Fetching service categories...');
+      const categories = await apiService.getServiceCategories();
+      console.log('✅ Fetched service categories:', categories);
+      
+      // Map API data to our expected format
+      const mappedCategories = categories.map((category, index) => {
+        const serviceName = category.name || category.title || category.categoryName || 'Service';
+        return {
+          id: category.id || category._id || index + 1,
+          name: serviceName,
+          color: category.color || '#3B82F6',
+          image: getServiceImageWithFallback(category.imageUrl || category.image_url || category.image, serviceName, index, API_BASE_URL),
+        };
+      });
+      
+      setServiceCategories(mappedCategories);
+    } catch (error) {
+      console.error('❌ Error fetching service categories:', error);
+      // Fallback to static categories
+      const fallbackCategories = [
+        { id: 1, name: 'Plumbing', color: '#3B82F6', image: getServiceImageWithFallback(null, 'Plumbing', 0) },
+        { id: 2, name: 'Electrical', color: '#F59E0B', image: getServiceImageWithFallback(null, 'Electrical', 1) },
+        { id: 3, name: 'HVAC', color: '#10B981', image: getServiceImageWithFallback(null, 'HVAC', 2) },
+        { id: 4, name: 'Cleaning', color: '#8B5CF6', image: getServiceImageWithFallback(null, 'Cleaning', 3) },
+        { id: 5, name: 'Landscaping', color: '#06B6D4', image: getServiceImageWithFallback(null, 'Landscaping', 4) },
+        { id: 6, name: 'Painting', color: '#EF4444', image: getServiceImageWithFallback(null, 'Painting', 5) },
+        { id: 7, name: 'Carpentry', color: '#84CC16', image: getServiceImageWithFallback(null, 'Carpentry', 6) },
+        { id: 8, name: 'Appliance Repair', color: '#F97316', image: getServiceImageWithFallback(null, 'Appliance Repair', 7) },
+        { id: 9, name: 'Roofing', color: '#6B7280', image: getServiceImageWithFallback(null, 'Roofing', 8) },
+        { id: 10, name: 'Other', color: '#9CA3AF', image: getServiceImageWithFallback(null, 'Other', 9) }
+      ];
+      setServiceCategories(fallbackCategories);
+    }
+  };
+
+  // Load service categories on component mount
+  useEffect(() => {
+    fetchServiceCategories();
+  }, []);
+
+  // Pre-select service if passed from navigation
+  useEffect(() => {
+    console.log('🔍 Navigation data received:', navigationData);
+    if (navigationData.selectedCategory) {
+      console.log('🎯 Pre-selecting service:', navigationData.selectedCategory);
+      console.log('🎯 Service ID:', navigationData.selectedCategory.id);
+      setServiceType(navigationData.selectedCategory.id);
+      
+      // Animate the selected service
+      Animated.sequence([
+        Animated.timing(selectedServiceAnim, {
+          toValue: 1.1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(selectedServiceAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [navigationData]);
+
+  // Fetch suburbs based on postcode
+  const fetchSuburbs = async (postcode) => {
+    if (postcode.length < 4) {
+      setSuburbs([]);
+      return;
+    }
+    
+    try {
+      const response = await apiService.get(`/api/suburbs/${postcode}`);
+      setSuburbs(response || []);
+    } catch (error) {
+      console.error('Error fetching suburbs:', error);
+      setSuburbs([]);
+    }
+  };
+
+  React.useEffect(() => {
+    const startAnimations = () => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    };
+
+    startAnimations();
+  }, []);
+
+  React.useEffect(() => {
+    if (postcodeSearch) {
+      const timeoutId = setTimeout(() => {
+        fetchSuburbs(postcodeSearch);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSuburbs([]);
+    }
+  }, [postcodeSearch]);
+
+  const getCalendarDays = () => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    // Get first day of current month
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    
+    // Get first day of the week (Sunday = 0)
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    // Get last day of the week
+    const endDate = new Date(lastDay);
+    endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()));
+    
+    const days = [];
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+      const isCurrentMonth = currentDate.getMonth() === currentMonth;
+      const isToday = currentDate.toDateString() === today.toDateString();
+      const isPast = currentDate < today && !isToday;
+      
+      days.push({
+        date: new Date(currentDate),
+        day: currentDate.getDate(),
+        isCurrentMonth,
+        isToday,
+        isPast,
+        value: currentDate.toISOString().split('T')[0],
+        display: currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      });
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return days;
+  };
+
+  const selectDate = (dateValue) => {
+    setPreferredDate(dateValue);
+    setShowDatePicker(false);
+  };
+
+  const showDatePickerModal = () => {
+    setShowDatePicker(true);
+  };
+
+
+  const bookingTypes = [
+    { id: 'one-time', name: 'One-time Service', description: 'Single service request' },
+    { id: 'regular', name: 'Regular/Recurring Service', description: 'Ongoing service needs' },
+    { id: 'emergency', name: 'Emergency Service', description: 'Urgent service required' },
+    { id: 'quote', name: 'Quote Only', description: 'Just need a price estimate' }
+  ];
+
+
+  const handleSubmit = async () => {
+    if (!serviceType || !description || !postcode || !suburb) {
+      Alert.alert('Missing Information', 'Please fill in all required fields.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      // Prepare form data
+      const formData = {
+        categoryId: serviceType, // Map serviceType to categoryId
+        description,
+        postcode,
+        suburb,
+        preferredDate: preferredDate || null,
+        bookingType: bookingType || null,
+        customerId: 'customer_001' // This should come from auth context
+      };
+
+      console.log('Submitting form data:', formData);
+
+      // Make API call using the proper method
+      console.log('🚀 Calling createServiceRequest API...');
+      const response = await apiService.createServiceRequest(formData);
+      
+      console.log('✅ Service request created successfully:', response);
+      console.log('📡 Server should now be sending notifications to providers...');
+      
+      Alert.alert(
+        'Service Request Submitted! 🎉', 
+        'Your service request has been submitted successfully. Providers in your area will be notified and you will receive quotes soon.',
+        [
+          {
+            text: 'Track Request',
+            onPress: () => {
+              // Navigate to track request screen
+              onNavigate('TrackRequest', { requestId: response.request?.id });
+            }
+          },
+          {
+            text: 'OK',
+            onPress: () => onBack()
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('❌ Form submission error:', error);
+      console.error('❌ Error details:', error.message);
+      console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+      
+      let errorMessage = 'Failed to submit request. Please try again.';
+      
+      if (error.message?.includes('Network')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        errorMessage = 'Please log in again to submit a service request.';
+      } else if (error.message?.includes('400') || error.message?.includes('validation')) {
+        errorMessage = 'Please check your information and try again.';
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderServiceTypeSelector = () => {
+    console.log('🎨 Rendering service type selector, current serviceType:', serviceType);
+    return (
+      <Animated.View 
+        style={[
+          styles.section,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
+
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.serviceTypeContainer}
+        >
+          {serviceCategories
+            .filter(category => 
+              category.name.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            .map((type, index) => {
+            const isSelected = serviceType === type.id;
+            console.log(`🔍 Service ${type.name} (ID: ${type.id}): isSelected=${isSelected}, serviceType=${serviceType}, type=${typeof serviceType}, typeId=${type.id}, typeIdType=${typeof type.id}`);
+            return (
+            <Animated.View
+              key={type.id}
+              style={[
+                styles.serviceTypeCard,
+                {
+                  opacity: fadeAnim,
+                  transform: [
+                    { translateY: slideAnim },
+                    { scale: scaleAnim }
+                  ]
+                }
+              ]}
+            >
+              <Animated.View
+                style={[
+                  serviceType === type.id && {
+                    transform: [{ scale: selectedServiceAnim }]
+                  }
+                ]}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.serviceTypeButton,
+                    serviceType === type.id && styles.serviceTypeButtonSelected,
+                    { borderColor: type.color + '30' }
+                  ]}
+                  onPress={() => {
+                    console.log('🔘 Service type selected:', type.id, type.name);
+                    setServiceType(type.id);
+                  }}
+                  activeOpacity={0.8}
+                >
+                {serviceType === type.id && (
+                  <View style={[styles.selectedIndicator, { backgroundColor: type.color }]} />
+                )}
+                <ImageBackground
+                  source={{ uri: type.image }}
+                  style={[
+                    styles.serviceTypeImage,
+                    serviceType === type.id && { 
+                      shadowColor: type.color,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 6,
+                    }
+                  ]}
+                  imageStyle={styles.serviceTypeImageStyle}
+                >
+                  {serviceType === type.id && (
+                    <View style={[styles.checkmark, { backgroundColor: type.color }]}>
+                      <Text style={styles.checkmarkText}>✓</Text>
+                    </View>
+                  )}
+                </ImageBackground>
+                <Text style={[
+                  styles.serviceTypeText,
+                  serviceType === type.id && styles.serviceTypeTextSelected
+                ]}>
+                  {type.name}
+                </Text>
+                {serviceType === type.id && (
+                  <View style={[styles.selectedGlow, { backgroundColor: type.color + '20' }]} />
+                )}
+                </TouchableOpacity>
+              </Animated.View>
+            </Animated.View>
+            );
+          })}
+        </ScrollView>
+      </Animated.View>
+    );
+  };
+
+  const renderSelectedServiceDisplay = () => {
+    const selectedCategory = serviceCategories.find(cat => cat.id === serviceType);
+    if (!selectedCategory) return null;
+
+    return (
+      <Animated.View 
+        style={[
+          styles.selectedServiceContainer,
+          {
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ]
+          }
+        ]}
+      >
+        <View style={styles.selectedServiceCard}>
+          <View style={styles.selectedServiceHeader}>
+            <Text style={styles.selectedServiceLabel}>Selected Service</Text>
+            <TouchableOpacity
+              style={styles.changeServiceButton}
+              onPress={() => setServiceType('')}
+            >
+              <Text style={styles.changeServiceText}>Change</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.selectedServiceContent}>
+            <ImageBackground
+              source={{ uri: selectedCategory.image }}
+              style={[
+                styles.selectedServiceImage,
+                { borderColor: selectedCategory.color + '40' }
+              ]}
+              imageStyle={styles.selectedServiceImageStyle}
+            >
+              <View style={[styles.selectedServiceIcon, { backgroundColor: selectedCategory.color }]}>
+                <Text style={styles.selectedServiceIconText}>✓</Text>
+              </View>
+            </ImageBackground>
+            
+            <View style={styles.selectedServiceInfo}>
+              <Text style={[styles.selectedServiceName, { color: selectedCategory.color }]}>
+                {selectedCategory.name}
+              </Text>
+              <Text style={styles.selectedServiceDescription}>
+                You've selected this service for your request
+              </Text>
+            </View>
+          </View>
+          
+          <View style={[styles.selectedServiceGlow, { backgroundColor: selectedCategory.color + '15' }]} />
+        </View>
+      </Animated.View>
+    );
+  };
+
+  const renderFormFields = () => {
+    return (
+      <Animated.View 
+        style={[
+          styles.formSection,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
+        {/* Location */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Location *</Text>
+          <View style={styles.locationContainer}>
+            <TextInput
+              style={[
+                styles.input,
+                suburbs.length > 0 && styles.inputWithDropdown
+              ]}
+              value={postcodeSearch}
+              onChangeText={(text) => {
+                setPostcodeSearch(text);
+                setPostcode(text);
+                setSuburb('');
+              }}
+              placeholder="Enter postcode (e.g., 2000, 3000, 4000)"
+              maxLength={4}
+              keyboardType="numeric"
+            />
+            
+            {suburbs.length > 0 && (
+              <View style={styles.suburbsDropdown}>
+                {suburbs.map((suburbItem) => (
+                  <TouchableOpacity
+                    key={suburbItem.id}
+                    style={styles.suburbItem}
+                    onPress={() => {
+                      setSuburb(suburbItem.suburb);
+                      setPostcode(suburbItem.postcode);
+                      setPostcodeSearch('');
+                      setSuburbs([]);
+                    }}
+                  >
+                    <Text style={styles.suburbName}>
+                      {suburbItem.suburb}
+                    </Text>
+                    <Text style={styles.suburbPostcode}>
+                      {suburbItem.postcode}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+          
+          {suburb && (
+            <View style={styles.selectedLocation}>
+              <Text style={styles.selectedLocationText}>
+                Selected: {suburb}, {postcode}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setSuburb('');
+                  setPostcode('');
+                  setPostcodeSearch('');
+                }}
+              >
+                <Text style={styles.clearLocationText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* Preferred Date */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Preferred Date</Text>
+          <Text style={styles.inputSubLabel}>When do you need this service? (optional)</Text>
+          <TouchableOpacity
+            style={styles.datePickerButton}
+            onPress={showDatePickerModal}
+          >
+            <Text style={[
+              styles.datePickerText,
+              !preferredDate && styles.datePickerPlaceholder
+            ]}>
+              {preferredDate || 'Select a date'}
+            </Text>
+            <Text style={styles.datePickerIcon}>📅</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Type of Booking */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Type of Booking *</Text>
+          <Text style={styles.inputSubLabel}>What type of booking do you need?</Text>
+          <View style={styles.bookingTypeContainer}>
+            {bookingTypes.map((type) => (
+              <TouchableOpacity
+                key={type.id}
+                style={[
+                  styles.bookingTypeButton,
+                  bookingType === type.id && styles.bookingTypeButtonSelected
+                ]}
+                onPress={() => setBookingType(type.id)}
+              >
+                <Text style={[
+                  styles.bookingTypeText,
+                  bookingType === type.id && styles.bookingTypeTextSelected
+                ]}>
+                  {type.name}
+                </Text>
+                <Text style={[
+                  styles.bookingTypeDescription,
+                  bookingType === type.id && styles.bookingTypeDescriptionSelected
+                ]}>
+                  {type.description}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Description */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Description *</Text>
+          <View style={styles.textAreaContainer}>
+            <TextInput
+              style={styles.textArea}
+              placeholder="Describe what you need done in detail..."
+              placeholderTextColor={colors.textTertiary}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+            <View style={styles.characterCount}>
+              <Text style={styles.characterCountText}>{description.length}/500</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Date Picker Modal */}
+        {showDatePicker && (
+          <View style={styles.datePickerModal}>
+            <View style={styles.datePickerContent}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select Preferred Date</Text>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(false)}
+                  style={styles.datePickerCloseButton}
+                >
+                  <Text style={styles.datePickerCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.calendarContainer}>
+                {/* Calendar Header */}
+                <View style={styles.calendarHeader}>
+                  <Text style={styles.calendarMonth}>
+                    {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </Text>
+                </View>
+                
+                {/* Day Headers */}
+                <View style={styles.dayHeaders}>
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                    <Text key={day} style={styles.dayHeaderText}>{day}</Text>
+                  ))}
+                </View>
+                
+                {/* Calendar Grid */}
+                <View style={styles.calendarGrid}>
+                  {getCalendarDays().map((day, index) => (
+                    <TouchableOpacity
+                      key={day.value}
+                      style={[
+                        styles.calendarDay,
+                        !day.isCurrentMonth && styles.calendarDayOtherMonth,
+                        day.isToday && styles.calendarDayToday,
+                        day.isPast && styles.calendarDayPast,
+                        preferredDate === day.value && styles.calendarDaySelected
+                      ]}
+                      onPress={() => !day.isPast && selectDate(day.value)}
+                      disabled={day.isPast}
+                    >
+                      <Text style={[
+                        styles.calendarDayText,
+                        !day.isCurrentMonth && styles.calendarDayTextOtherMonth,
+                        day.isToday && styles.calendarDayTextToday,
+                        day.isPast && styles.calendarDayTextPast,
+                        preferredDate === day.value && styles.calendarDayTextSelected
+                      ]}>
+                        {day.day}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
+      </Animated.View>
+    );
+  };
+
+
+  const renderSubmitButton = () => {
+    return (
+      <Animated.View 
+        style={[
+          styles.submitContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
+        <TouchableOpacity 
+          style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} 
+          onPress={handleSubmit}
+          disabled={isSubmitting}
+        >
+          <View style={styles.submitButtonContent}>
+            {isSubmitting ? (
+              <View style={styles.loadingSpinner} />
+            ) : (
+              <>
+                <Text style={styles.submitButtonIcon}>🚀</Text>
+                <Text style={styles.submitButtonText}>Submit Request</Text>
+              </>
+            )}
+          </View>
+          <View style={styles.submitButtonGlow} />
+        </TouchableOpacity>
+        
+        <Text style={styles.submitNote}>
+          You'll receive quotes from qualified providers within 24 hours
+        </Text>
+      </Animated.View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header with Background */}
+        <View style={styles.headerContainer}>
+          <View style={styles.backgroundGradient} />
+          <View style={styles.headerDecorations}>
+            <View style={styles.decorationCircle1} />
+            <View style={styles.decorationCircle2} />
+            <View style={styles.decorationCircle3} />
+            <View style={styles.decorationWave} />
+          </View>
+          <Animated.View 
+            style={[
+              styles.header,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  { translateY: slideAnim },
+                  { scale: scaleAnim }
+                ]
+              }
+            ]}
+          >
+            <View style={styles.headerContent}>
+              {/* <View style={styles.headerIconContainer}>
+                <Text style={styles.headerIcon}>🔧</Text>
+              </View> */}
+              <Text style={styles.headerTitle}>Request a Service</Text>
+              <Text style={styles.headerSubtitle}>Tell us what you need and we'll connect you with the best providers</Text>
+              <View style={styles.headerStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>1000+</Text>
+                  <Text style={styles.statLabel}>Providers</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>4.9</Text>
+                  <Text style={styles.statLabel}>Rating</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>24/7</Text>
+                  <Text style={styles.statLabel}>Support</Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+        </View>
+
+        {/* Service Type Selector */}
+        {renderServiceTypeSelector()}
+
+        {/* Selected Service Display */}
+        {serviceType && renderSelectedServiceDisplay()}
+
+        {/* Form Fields */}
+        {renderFormFields()}
+
+        {/* Submit Button */}
+        {renderSubmitButton()}
+      </ScrollView>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  headerContainer: {
+    position: 'relative',
+    height: 320,
+    marginBottom: 0,
+    overflow: 'hidden',
+  },
+  backgroundGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 280,
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  headerDecorations: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  decorationCircle1: {
+    position: 'absolute',
+    top: -50,
+    right: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  decorationCircle2: {
+    position: 'absolute',
+    top: 20,
+    right: 60,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  decorationCircle3: {
+    position: 'absolute',
+    bottom: -20,
+    left: -40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  decorationWave: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: Platform.OS === 'ios' ? 40 : 20,
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  headerContent: {
+    alignItems: 'center',
+  },
+  headerIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  headerIcon: {
+    fontSize: 28,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.surface,
+    marginBottom: 8,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: colors.surface,
+    opacity: 0.9,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 10,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.surface,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.surface,
+    opacity: 0.8,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    marginHorizontal: 8,
+  },
+  section: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  formSection: {
+    backgroundColor: colors.surface,
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  searchContainer: {
+    marginBottom: 16,
+  },
+  searchInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  serviceTypeContainer: {
+    paddingRight: 20,
+    paddingVertical: 8,
+  },
+  serviceTypeCard: {
+    marginRight: 16,
+    marginVertical: 8,
+  },
+  serviceTypeButton: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    minWidth: 120,
+    minHeight: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  serviceTypeButtonSelected: {
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+    transform: [{ scale: 1.05 }],
+  },
+  selectedIndicator: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    right: -2,
+    height: 4,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    zIndex: 1,
+  },
+  serviceTypeImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 12,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  serviceTypeImageStyle: {
+    borderRadius: 30,
+  },
+  checkmark: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  checkmarkText: {
+    color: colors.surface,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  serviceTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  serviceTypeTextSelected: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  selectedGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 16,
+    zIndex: -1,
+  },
+  inputGroup: {
+    marginBottom: 24,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
+    height: 56,
+  },
+  inputIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  input: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.text,
+    minHeight: 48,
+  },
+  textAreaContainer: {
+    position: 'relative',
+  },
+  textArea: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.text,
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  characterCount: {
+    position: 'absolute',
+    bottom: 8,
+    right: 12,
+  },
+  characterCountText: {
+    fontSize: 12,
+    color: colors.textTertiary,
+  },
+  submitContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  submitButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
+  submitButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  submitButtonIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  submitButtonText: {
+    color: colors.surface,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  submitButtonGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.primary,
+    opacity: 0.1,
+  },
+  loadingSpinner: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    borderTopColor: 'transparent',
+  },
+  submitNote: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  locationContainer: {
+    position: 'relative',
+    marginBottom: 20,
+  },
+  inputWithDropdown: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomColor: 'transparent',
+  },
+  suburbsDropdown: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    marginTop: -1,
+    maxHeight: 150,
+  },
+  suburbItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: 'white',
+  },
+  suburbName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  suburbPostcode: {
+    fontSize: 14,
+    color: '#666',
+  },
+  selectedLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.success + '10',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  selectedLocationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  clearLocationText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  inputSubLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  bookingTypeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  bookingTypeButton: {
+    flex: 1,
+    minWidth: '45%',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+  },
+  bookingTypeButtonSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  bookingTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  bookingTypeTextSelected: {
+    color: colors.primary,
+  },
+  bookingTypeDescription: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  bookingTypeDescriptionSelected: {
+    color: colors.primary,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 48,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
+  },
+  datePickerPlaceholder: {
+    color: colors.textTertiary,
+  },
+  datePickerIcon: {
+    fontSize: 18,
+    marginLeft: 8,
+  },
+  datePickerModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  datePickerContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    width: width * 0.9,
+    maxHeight: height * 0.6,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  datePickerCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerCloseText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  calendarContainer: {
+    padding: 16,
+  },
+  calendarHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  calendarMonth: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  dayHeaders: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  dayHeaderText: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    paddingVertical: 8,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calendarDay: {
+    width: '14.28%',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  calendarDayOtherMonth: {
+    opacity: 0.3,
+  },
+  calendarDayToday: {
+    backgroundColor: colors.primary + '20',
+    borderRadius: 20,
+  },
+  calendarDayPast: {
+    opacity: 0.3,
+  },
+  calendarDaySelected: {
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+  },
+  calendarDayText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  calendarDayTextOtherMonth: {
+    color: colors.textSecondary,
+  },
+  calendarDayTextToday: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  calendarDayTextPast: {
+    color: colors.textSecondary,
+  },
+  calendarDayTextSelected: {
+    color: colors.surface,
+    fontWeight: '600',
+  },
+  selectedServiceContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  selectedServiceCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: colors.primary + '30',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  selectedServiceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  selectedServiceLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  changeServiceButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.primary + '15',
+  },
+  changeServiceText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  selectedServiceContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectedServiceImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 16,
+    borderWidth: 2,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  selectedServiceImageStyle: {
+    borderRadius: 25,
+  },
+  selectedServiceIcon: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  selectedServiceIconText: {
+    color: colors.surface,
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  selectedServiceInfo: {
+    flex: 1,
+  },
+  selectedServiceName: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  selectedServiceDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  selectedServiceGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14,
+    zIndex: -1,
+  },
+});
+
+module.exports = RequestServiceScreen;

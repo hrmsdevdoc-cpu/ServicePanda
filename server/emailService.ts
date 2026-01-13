@@ -31,7 +31,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     
     // Prepare form data for Mailgun API using URLSearchParams (Node.js compatible)
     const formData = new URLSearchParams();
-    formData.append('from', `ServicePanda <noreply@${domain}>`);
+    formData.append('from', `ServicePanda <team@servicepanda.com.au>`);
     formData.append('to', options.to);
     if (options.cc) {
       formData.append('cc', options.cc);
@@ -56,8 +56,6 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       body: formData.toString()
     });
 
-    console.log('Mailgun API response status:', response.status);
-    console.log('Mailgun API response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -84,7 +82,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 export async function sendProviderWelcomeEmail(email: string, firstName: string): Promise<boolean> {
   const baseUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
-    : process.env.FRONTEND_URL || 'http://localhost:3000';
+    : process.env.FRONTEND_URL || 'https://staging.servicepanda.com.au';
   const loginUrl = `${baseUrl}/provider-login`;
 
   const textContent = `Welcome to ServicePanda!\n\nHi ${firstName},\n\nYour provider account has been created. Visit ${loginUrl} to complete your application.\n\nServicePanda Team`;
@@ -289,7 +287,7 @@ export async function sendProviderApplicationSubmittedEmail(email: string, first
 export async function sendProviderApprovalEmail(email: string, firstName: string): Promise<boolean> {
   const baseUrl = process.env.REPLIT_DOMAINS 
     ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
-    : process.env.FRONTEND_URL || 'http://localhost:3000';
+    : process.env.FRONTEND_URL || 'https://staging.servicepanda.com.au';
   const dashboardUrl = `${baseUrl}/provider-dashboard`;
   
   const textContent = `
@@ -519,7 +517,7 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
   // Use the first Replit domain if available, otherwise fallback to localhost for development
   const baseUrl = process.env.REPLIT_DOMAINS 
     ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
-    : process.env.FRONTEND_URL || 'http://localhost:3000';
+    : process.env.FRONTEND_URL || 'https://staging.servicepanda.com.au';
   const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
   
   const textContent = `
@@ -670,7 +668,7 @@ export async function sendCustomerFeedbackEmail(
 ): Promise<boolean> {
   const baseUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
-    : process.env.FRONTEND_URL || 'http://localhost:3000';
+    : process.env.FRONTEND_URL || 'https://staging.servicepanda.com.au';
   const reviewUrl = `${baseUrl}/review-submission?token=${reviewToken}`;
 
   const textContent = `How was your service?\n\nHi ${customerName},\n\nPlease share feedback for ${providerName} (${serviceType}) in ${suburb}.\n${reviewUrl}\n\nThank you,\nServicePanda Team`;

@@ -1,42 +1,39 @@
 const React = require('react');
 const { useState } = require('react');
-const { View, StyleSheet, TouchableOpacity, Text, Alert, KeyboardAvoidingView, Platform, ScrollView } = require('react-native');
-const { Title, Paragraph, Card, Button, TextInput } = require('react-native-paper');
+const {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  Dimensions,
+  StatusBar,
+  TouchableOpacity,
+} = require('react-native');
+const { TextInput, Button, Card, Title, Paragraph } = require('react-native-paper');
 const { useMutation } = require('@tanstack/react-query');
 const { colors } = require('../../utils/theme');
-const apiService = require('../../services/api');
+const { API_BASE_URL } = require('../../config/api');
 
-const ForgotPasswordScreen = ({ onNavigate }) => {
+const { width, height } = Dimensions.get('window');
+
+const ForgotPasswordScreen = ({ onNavigate }: { onNavigate: (screen: string) => void }) => {
   const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const forgotPasswordMutation = useMutation({
-    mutationFn: async (email) => {
-      console.log('🚀 Sending forgot password request for:', email);
-      const response = await apiService.forgotPassword(email);
-      console.log('✅ Forgot password response:', response);
-      return response;
-    },
-    onSuccess: () => {
-      console.log('🎉 Password reset email sent successfully');
-      Alert.alert(
-        "Reset Email Sent",
-        "If an account with that email exists, we've sent a password reset link.",
-        [{ text: "OK" }]
-      );
-      setEmail('');
-    },
-    onError: (error) => {
-      console.error('❌ Forgot password error:', error);
-      Alert.alert(
-        "Request Failed",
-        error.message || "Failed to send reset email. Please try again."
-      );
-    },
-  });
+  // Debug: Log the API configuration on component mount
+  React.useEffect(() => {
+    console.log('🔧 ForgotPasswordScreen mounted');
+    console.log('🔧 API_BASE_URL:', API_BASE_URL);
+    console.log('🔧 Full forgot password URL:', `${API_BASE_URL}/api/provider/forgot-password`);
+  }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!email.trim()) {
-      Alert.alert("Email Required", "Please enter your email address.");
+      Alert.alert("Missing Information", "Please enter your email address.");
       return;
     }
 
@@ -47,203 +44,407 @@ const ForgotPasswordScreen = ({ onNavigate }) => {
       return;
     }
 
-    console.log('🔍 Submitting forgot password for email:', email.trim());
-    forgotPasswordMutation.mutate(email.trim());
+    setIsLoading(true);
+    
+    try {
+      // Make real API call to provider forgot password endpoint
+      console.log('🔗 API Base URL:', API_BASE_URL);
+      console.log('🔗 Full URL:', `${API_BASE_URL}/api/provider/forgot-password`);
+      const response = await fetch(`${API_BASE_URL}/api/provider/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert(
+          "Reset Link Sent",
+          "If an account with this email exists, you will receive a password reset link shortly.",
+          [
+            {
+              text: "OK",
+              onPress: () => onNavigate('login')
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          data.message || "Failed to send reset link. Please try again.",
+          [
+            {
+              text: "OK"
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      Alert.alert(
+        "Network Error",
+        "Unable to connect to the server. Please check your internet connection and try again.",
+        [
+          {
+            text: "OK"
+          }
+        ]
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          {/* Panda Logo with title - matching web design */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoRow}>
-              <Text style={styles.logo}>🐼</Text>
-              <Text style={styles.title}>ServicePanda</Text>
-            </View>
-          </View>
-          <Text style={styles.subtitle}>Forgot Password</Text>
-          <Text style={styles.description}>
-            Enter your email address and we'll send you a link to reset your password.
-          </Text>
-        </View>
-
-        <Card style={styles.card} contentStyle={styles.cardContentStyle}>
-          <Card.Content style={styles.cardContent}>
-            <Title style={styles.cardTitle}>Reset Your Password</Title>
-            
-            {/* Email Input - matching web design */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Email Address <Text style={styles.required}>*</Text></Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  mode="outlined"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  placeholder="Enter your email address"
-                  style={styles.input}
-                  left={<TextInput.Icon icon="email" iconColor="#9CA3AF" />}
-                  outlineColor="#D1D5DB"
-                  activeOutlineColor={colors.primary}
-                  disabled={forgotPasswordMutation.isPending}
-                />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      
+      {/* Gradient Background */}
+      <View style={styles.gradientBackground} />
+      
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header Section */}
+            <View style={styles.header}>
+              {/* Back Button */}
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => onNavigate('login')}
+              >
+                <Text style={styles.backButtonText}>← Back</Text>
+              </TouchableOpacity>
+              
+              <View style={styles.logoContainer}>
+                <View style={styles.logoCircle}>
+                  <Text style={styles.logo}>🐼</Text>
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.title}>ServicePanda</Text>
+                  <Text style={styles.tagline}>Partner Portal</Text>
+                </View>
               </View>
             </View>
 
-            {/* Send Reset Link Button - blue color matching web */}
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              loading={forgotPasswordMutation.isPending}
-              disabled={forgotPasswordMutation.isPending}
-              style={styles.button}
-              labelStyle={styles.buttonLabel}
-              buttonColor={colors.primary}
-            >
-              {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Link"}
-            </Button>
+            {/* Forgot Password Form Card */}
+            <View style={styles.formContainer}>
+              <Card style={styles.card} elevation={0}>
+                <Card.Content style={styles.cardContent}>
+                  <View style={styles.formHeader}>
+                    <Text style={styles.formTitle}>Reset Password</Text>
+                    <Text style={styles.formSubtitle}>Enter your email to receive reset instructions</Text>
+                  </View>
 
-            {/* Back to Login Link */}
-            <View style={styles.backContainer}>
-              <Button
-                mode="text"
-                onPress={() => {
-                  console.log('🔍 Back to login clicked');
-                  onNavigate('login');
-                }}
-                style={styles.backButton}
-                textColor={colors.primary}
-                disabled={forgotPasswordMutation.isPending}
-              >
-                ← Back to Login
-              </Button>
+                  {/* Email Input */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>
+                      Email Address <Text style={styles.required}>*</Text>
+                    </Text>
+                    <View style={styles.inputContainer}>
+                      <TextInput
+                        value={email}
+                        onChangeText={setEmail}
+                        mode="outlined"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        placeholder="Enter your email address"
+                        style={styles.input}
+                        left={<TextInput.Icon icon="email" iconColor={colors.textTertiary} />}
+                        outlineColor={colors.border}
+                        activeOutlineColor={colors.primary}
+                        contentStyle={styles.inputContent}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Send Reset Link Button */}
+                  <Button
+                    mode="contained"
+                    onPress={handleSubmit}
+                    loading={isLoading}
+                    disabled={isLoading}
+                    style={styles.signInButton}
+                    labelStyle={styles.signInButtonLabel}
+                    buttonColor={colors.primary}
+                    contentStyle={styles.signInButtonContent}
+                  >
+                    {isLoading ? "Sending..." : "Send Reset Link"}
+                  </Button>
+
+                  {/* Divider */}
+                  <View style={styles.dividerContainer}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>or</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+
+                  {/* Back to Login Link */}
+                  <View style={styles.registerSection}>
+                    <Text style={styles.registerText}>
+                      Remember your password?
+                    </Text>
+                    <Button
+                      mode="text"
+                      onPress={() => onNavigate('login')}
+                      style={styles.registerButton}
+                      labelStyle={styles.registerButtonLabel}
+                    >
+                      Back
+                    </Button>
+                  </View>
+                </Card.Content>
+              </Card>
             </View>
-          </Card.Content>
-        </Card>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+            {/* Footer */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                By using this service, you agree to our Terms of Service and Privacy Policy
+              </Text>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB', // Exact web background color
+    backgroundColor: colors.primary,
+  },
+  gradientBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.primary,
+    // Note: For a true gradient, you'd need react-native-linear-gradient
+    // For now, we'll use a solid color with some visual elements
+  },
+  safeArea: {
+    flex: 1,
+  },
+  keyboardContainer: {
+    flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'flex-start',
-    padding: 16,
-    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 20 : 40,
+    paddingBottom: 20,
+    minHeight: height * 0.8, // Reduced page height
   },
+  
+  // Header Styles
   header: {
     alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 0,
+    marginBottom: 20, // Reduced margin
+    paddingTop: 0,
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    left: -5, // Move more to the left
+    top: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 8, // Reduced padding for more left positioning
+    zIndex: 1,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '500',
   },
   logoContainer: {
-    marginBottom: 20,
-  },
-  logoRow: {
-    flexDirection: 'row',
+    flexDirection: 'row', // Horizontal layout
     alignItems: 'center',
+    marginBottom: 0,
   },
-  logo: {
-    fontSize: 36,
-    marginRight: 12,
+  textContainer: {
+    marginLeft: 16, // Space between icon and text
+    alignItems: 'flex-start',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827', // Dark gray matching web
-  },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  description: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 0,
-    paddingHorizontal: 20,
-  },
-  card: {
-    elevation: 8,
+  logoCircle: {
+    width: 60, // Reduced size
+    height: 60, // Reduced size
+    borderRadius: 30, // Reduced size
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 0, // No bottom margin since it's horizontal
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    borderRadius: 8,
+    elevation: 8,
+  },
+  logo: {
+    fontSize: 28, // Reduced size
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  title: {
+    fontSize: 24, // Reduced size
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  tagline: {
+    fontSize: 14, // Reduced size
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+  },
+
+  // Form Container
+  formContainer: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    marginTop: 10, // Reduced margin
+  },
+  card: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 0,
-    marginTop: 2,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    marginHorizontal: 0,
+    marginVertical: 5, // Reduced margin
   },
   cardContent: {
-    backgroundColor: '#FFFFFF',
-    padding: 0,
+    padding: 20, // Reduced padding
   },
-  cardContentStyle: {
-    backgroundColor: '#FFFFFF',
-    padding: 0,
+
+  // Form Header
+  formHeader: {
+    alignItems: 'center',
+    marginBottom: 20, // Reduced margin
   },
-  cardTitle: {
+  formTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  formSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 20,
-    fontSize: 18,
-    color: '#111827',
   },
-  inputContainer: {
-    marginBottom: 20,
+
+  // Input Styles
+  inputGroup: {
+    marginBottom: 15, // Reduced margin
   },
   inputLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 6,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
   },
   required: {
-    color: '#EF4444',
+    color: colors.error,
   },
-  inputWrapper: {
+  inputContainer: {
     position: 'relative',
   },
   input: {
     backgroundColor: '#FFFFFF',
+    fontSize: 16,
   },
-  button: {
-    marginTop: 6,
+  inputContent: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+
+  // Sign In Button
+  signInButton: {
+    borderRadius: 12,
     marginBottom: 20,
-    borderRadius: 6,
-    height: 40,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  buttonLabel: {
-    fontSize: 15,
-    fontWeight: '600',
+  signInButtonContent: {
+    paddingVertical: 12,
+  },
+  signInButtonLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
     color: '#FFFFFF',
   },
-  backContainer: {
+
+  // Divider
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.borderLight,
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 14,
+    color: colors.textTertiary,
+    fontWeight: '500',
+  },
+
+  // Register Section
+  registerSection: {
     alignItems: 'center',
   },
-  backButton: {
+  registerText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  registerButton: {
     marginVertical: 0,
+  },
+  registerButtonLabel: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+
+  // Footer
+  footer: {
+    alignItems: 'center',
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+  },
+  footerText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });
 
 module.exports = ForgotPasswordScreen;
-
-
-
-
-
-
-

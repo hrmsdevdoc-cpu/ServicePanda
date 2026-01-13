@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { db } from './db';
+import { smsMessages, providerVouchers } from '@shared/schema';
 
 interface SmsData {
   sendTo: string;
@@ -28,7 +30,7 @@ export class SmsService {
     message: string;
     direction: 'inbound' | 'outbound';
     status: 'sent' | 'delivered' | 'failed' | 'read';
-    smsType?: '1st_sent' | '2nd_sent' | 'custom' | 'notification';
+    smsType?: '1st_sent' | '2nd_sent' | 'custom' | 'notification' | 'campaign';
     sentBy?: string;
     sentAt: string;
     deliveredAt?: string;
@@ -51,6 +53,29 @@ export class SmsService {
   }
 
   /**
+   * Format phone number to E164 format for Dialpad API
+   */
+  private formatPhoneNumber(phone: string): string {
+    if (!phone) {
+      throw new Error('Phone number is required');
+    }
+    
+    // Remove all non-digit characters
+    let cleaned = phone.replace(/\D/g, '');
+    
+    // If it starts with 0, replace with +61 (Australia)
+    if (cleaned.startsWith('0')) {
+      cleaned = '+61' + cleaned.substring(1);
+    }
+    // If it doesn't start with +, add +61
+    else if (!cleaned.startsWith('+')) {
+      cleaned = '+61' + cleaned;
+    }
+    
+    return cleaned;
+  }
+
+  /**
    * Send SMS using Dialpad API (equivalent to sendDailPadSMS in Laravel)
    */
   private async sendDialpadSms(data: SmsData): Promise<boolean> {
@@ -58,7 +83,10 @@ export class SmsService {
       console.error('SMS API not configured');
       return false;
     }
-    console.log('[SMS] Preparing request to Dialpad. To:', data.sendTo, 'From:', this.fromNumber);
+    
+    // Format phone number to E164 format
+    const formattedPhone = this.formatPhoneNumber(data.sendTo);
+    console.log('[SMS] Preparing request to Dialpad. To:', data.sendTo, '->', formattedPhone, 'From:', this.fromNumber);
 
     try {
       const response = await axios.post(
@@ -66,7 +94,7 @@ export class SmsService {
         {
           infer_country_code: false,
           text: data.chatMessage,
-          to_numbers: [data.sendTo],
+          to_numbers: [formattedPhone],
           from_number: this.fromNumber,
         },
         {
@@ -84,6 +112,7 @@ export class SmsService {
         console.log('SMS sent successfully:', {
           id: responseData.id,
           to: data.sendTo,
+          formattedTo: formattedPhone,
           message: data.chatMessage.substring(0, 50) + '...',
         });
 
@@ -101,6 +130,7 @@ export class SmsService {
         status: error?.response?.status,
         response: error?.response?.data,
         to: data.sendTo,
+        formattedTo: formattedPhone,
         message: data.chatMessage.substring(0, 50) + '...',
       });
       return false;
@@ -203,7 +233,7 @@ ServicePanda Team`;
   /**
    * In-memory log helpers so messages appear immediately in Admin UI
    */
-  recordOutbound(params: {
+  async recordOutbound(params: {
     recipientType: 'customer' | 'provider' | 'potential_customer' | 'potential_provider';
     recipientId?: number;
     recipientPhone: string;
@@ -228,12 +258,129 @@ ServicePanda Team`;
       sentAt: new Date().toISOString(),
       apiResponse: params.apiResponse,
     };
+    
+    // Store in memory for immediate UI updates
     this.logs.push(entry);
+    
+    // Also store in database for persistence
+    try {
+      await db.insert(smsMessages).values({
+        recipientType: params.recipientType,
+        recipientId: params.recipientId,
+        recipientPhone: params.recipientPhone,
+        recipientName: params.recipientName,
+        message: params.message,
+        direction: 'outbound',
+        status: params.status || 'sent',
+        smsType: params.smsType,
+      });
+      
+      console.log(`[SMS Service] Successfully stored outbound message in database for ${params.recipientName}`);
+    } catch (error) {
+      console.error(`[SMS Service] Failed to store outbound message in database:`, error);
+    }
   }
 
   getLogs() {
     // return newest first
     return [...this.logs].sort((a, b) => (a.sentAt < b.sentAt ? 1 : -1));
+  }
+
+  /**
+   * Generate a unique 6-character alphanumeric voucher code
+   */
+  private generateVoucherCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluding similar looking chars
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  /**
+   * Create a unique voucher in the database
+   */
+  async createVoucher(voucherAmount: number, adminName: string): Promise<{ code: string; value: number }> {
+    const maxAttempts = 10;
+    let attempt = 0;
+
+    while (attempt < maxAttempts) {
+      try {
+        const code = this.generateVoucherCode();
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 30); // 30 days from now
+
+        const [voucher] = await db
+          .insert(providerVouchers)
+          .values({
+            code,
+            value: voucherAmount.toString(),
+            description: `Campaign voucher for $${voucherAmount}`,
+            status: 'active',
+            expiryDate,
+            createdBy: adminName,
+          })
+          .returning();
+
+        console.log(`[SMS Service] Created voucher: ${code} for $${voucherAmount}`);
+        return { code: voucher.code, value: voucherAmount };
+      } catch (error: any) {
+        if (error.code === '23505') {
+          // Unique constraint violation - code already exists, try again
+          attempt++;
+          console.log(`[SMS Service] Voucher code collision, retrying... (attempt ${attempt}/${maxAttempts})`);
+        } else {
+          console.error('[SMS Service] Error creating voucher:', error);
+          throw error;
+        }
+      }
+    }
+
+    throw new Error('Failed to generate unique voucher code after maximum attempts');
+  }
+
+  /**
+   * Send SMS with unique voucher creation
+   */
+  async sendSmsWithVoucher(
+    phone: string,
+    customerName: string,
+    messageTemplate: string,
+    voucherAmount: number,
+    options: {
+      customerId: number;
+      adminName: string;
+      smsType: '1st_sent' | '2nd_sent' | 'campaign';
+    }
+  ): Promise<{ success: boolean; voucherCode?: string; message?: string }> {
+    try {
+      // Create unique voucher
+      const voucher = await this.createVoucher(voucherAmount, options.adminName);
+      
+      // Replace placeholders in message
+      const message = messageTemplate
+        .replace(/\{customerName\}/g, customerName)
+        .replace(/\{voucherCode\}/g, voucher.code)
+        .replace(/\{voucherAmount\}/g, voucherAmount.toString());
+
+      // Send SMS
+      const success = await this.sendSms(phone, message, {
+        adminName: options.adminName,
+        customerId: options.customerId,
+        smsType: options.smsType as '1st_sent' | '2nd_sent',
+      });
+
+      if (success) {
+        console.log(`[SMS Service] Successfully sent SMS with voucher ${voucher.code} to ${customerName}`);
+        return { success: true, voucherCode: voucher.code, message };
+      } else {
+        return { success: false, message: 'Failed to send SMS' };
+      }
+    } catch (error: any) {
+      console.error('[SMS Service] Error in sendSmsWithVoucher:', error);
+      return { success: false, message: error.message || 'Unknown error' };
+    }
   }
 }
 

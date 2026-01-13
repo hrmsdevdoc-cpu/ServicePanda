@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "464097562553",
+    "project_id": "servicepandaprovider-ef494",
+    "storage_bucket": "servicepandaprovider-ef494.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464097562553:android:c11f8e961c430c3fa0f068",
+        "android_client_info": {
+          "package_name": "com.servicepandaprovider"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCoF26zltQ6ld6Df9Wip4meDaDATrHmKOM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

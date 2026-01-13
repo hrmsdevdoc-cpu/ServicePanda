@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getApiUrl } from "./apiConfig";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -34,7 +35,7 @@ export async function apiRequest(
   // For customer endpoints, we'll use session-based auth instead of localStorage
   // The customer ID will be extracted from the session on the server side
 
-  const res = await fetch(url, {
+  const res = await fetch(getApiUrl(url), {
     method,
     headers,
     body,
@@ -67,7 +68,7 @@ export async function adminApiRequest(
     body = JSON.stringify(data);
   }
 
-  const res = await fetch(url, {
+  const res = await fetch(getApiUrl(url), {
     method,
     headers,
     body,
@@ -97,7 +98,7 @@ export const getQueryFn: <T>(options: {
     // For customer endpoints, we'll use session-based auth instead of localStorage
     // The customer ID will be extracted from the session on the server side
 
-    const res = await fetch(url, {
+    const res = await fetch(getApiUrl(url), {
       credentials: "include",
       headers,
     });
@@ -116,7 +117,7 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes instead of Infinity
+      staleTime: 30 * 1000, // 5 minutes instead of Infinity
       retry: false,
       retryOnMount: false,
       refetchOnReconnect: false,

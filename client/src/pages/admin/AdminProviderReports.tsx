@@ -45,12 +45,11 @@ interface ProviderReport {
 }
 
 type ChartType = 'bar' | 'line' | 'area';
-type TimeRange = '6months' | '12months' | '24months';
 
 export default function AdminProviderReports() {
   const [, navigate] = useLocation();
   const [chartType, setChartType] = useState<ChartType>('bar');
-  const [timeRange, setTimeRange] = useState<TimeRange>('6months');
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   // Check admin authentication
@@ -83,26 +82,36 @@ export default function AdminProviderReports() {
     console.log('Exporting provider report...');
   };
 
-  // Filter monthly data based on time range and status
+  // Filter monthly data based on selected year and status
   const getFilteredMonthlyData = () => {
     if (!providerReports?.monthlyJoins) {
       console.log('No monthly joins data available');
       return [];
     }
     
-    const monthsToShow = timeRange === '6months' ? 6 : timeRange === '12months' ? 12 : 24;
-    const filteredMonths = providerReports.monthlyJoins.slice(-monthsToShow);
+    // Filter by selected year
+    const yearData = providerReports.monthlyJoins.filter((month: any) => 
+      month.month.includes(selectedYear)
+    );
     
-    // Filter by status
-    const result = filteredMonths.map((month: any) => ({
-      month: month.month,
-      count: selectedStatus === 'all' ? month.count :
-             selectedStatus === 'approved' ? month.approved :
-             selectedStatus === 'pending' ? month.pending :
-             selectedStatus === 'rejected' ? month.rejected : month.count
-    }));
+    // Always generate all 12 months for the selected year
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const result = months.map(month => {
+      const monthKey = `${month} ${selectedYear}`;
+      const existingData = yearData.find((data: any) => data.month === monthKey);
+      
+      return {
+        month: monthKey,
+        count: existingData ? (
+          selectedStatus === 'all' ? existingData.count :
+          selectedStatus === 'approved' ? existingData.approved :
+          selectedStatus === 'pending' ? existingData.pending :
+          selectedStatus === 'rejected' ? existingData.rejected : existingData.count
+        ) : 0
+      };
+    });
     
-    console.log('Filtered monthly data:', result);
+    console.log('Filtered monthly data for year', selectedYear, ':', result);
     return result;
   };
 
@@ -132,7 +141,7 @@ export default function AdminProviderReports() {
   console.log('Chart data being used:', chartData);
 
   // Memoize chart data to prevent unnecessary re-renders
-  const memoizedChartData = React.useMemo(() => chartData, [chartData, selectedStatus, timeRange]);
+  const memoizedChartData = React.useMemo(() => chartData, [chartData, selectedStatus, selectedYear]);
 
   // Custom tooltip for charts
   const CustomTooltip = React.useCallback(({ active, payload, label }: any) => {
@@ -167,19 +176,21 @@ export default function AdminProviderReports() {
       <AdminSidebar onLogout={handleLogout} />
       
       {/* Main content area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto relative z-10">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-6">
+        <header className="bg-white/95 backdrop-blur-sm dark:bg-gray-800 shadow-lg shadow-slate-200/20 border-b border-slate-200/50 dark:border-gray-700">
+          <div className="px-8 py-3" style={{ paddingTop: '1.2rem', paddingBottom: '0.8rem' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <BarChart3 className="h-8 w-8 text-purple-600 mr-3" />
+                <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center mr-3">
+                  <BarChart3 className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-                    Provider Reports
+                  <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+                    Provider Report
                   </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Service provider analytics and performance metrics
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Comprehensive provider analytics and performance metrics
                   </p>
                 </div>
               </div>
@@ -192,7 +203,7 @@ export default function AdminProviderReports() {
         </header>
 
         {/* Content */}
-        <div className="px-8 py-8">
+        <div className="px-8 pt-4 pb-8 min-h-screen">
           {isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
@@ -290,15 +301,16 @@ export default function AdminProviderReports() {
                         </Select>
                       </div>
 
-                      {/* Time Range Filter */}
-                      <Select value={timeRange} onValueChange={(value: TimeRange) => setTimeRange(value)}>
+                      {/* Year Filter */}
+                      <Select value={selectedYear} onValueChange={setSelectedYear}>
                         <SelectTrigger className="w-32">
-                          <SelectValue placeholder="Time Range" />
+                          <SelectValue placeholder="Year" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="6months">Last 6 Months</SelectItem>
-                          <SelectItem value="12months">Last 12 Months</SelectItem>
-                          <SelectItem value="24months">Last 24 Months</SelectItem>
+                          <SelectItem value="2025">2025</SelectItem>
+                          <SelectItem value="2024">2024</SelectItem>
+                          <SelectItem value="2023">2023</SelectItem>
+                          <SelectItem value="2022">2022</SelectItem>
                         </SelectContent>
                       </Select>
 
@@ -406,9 +418,9 @@ export default function AdminProviderReports() {
                   </div>
                   <div className="mt-4 text-center text-sm text-gray-600">
                     <p>Shows the number of {selectedStatus === 'all' ? 'all' : selectedStatus} providers who joined each month</p>
-                    <p className="mt-1">Displaying data for the last {timeRange === '6months' ? '6' : timeRange === '12months' ? '12' : '24'} months</p>
+                    <p className="mt-1">Displaying data for the year {selectedYear}</p>
                     {monthlyData.length === 0 && (
-                      <p className="mt-2 text-orange-600">No data available for the selected criteria</p>
+                      <p className="mt-2 text-orange-600">No data available for the selected year</p>
                     )}
                   </div>
                   

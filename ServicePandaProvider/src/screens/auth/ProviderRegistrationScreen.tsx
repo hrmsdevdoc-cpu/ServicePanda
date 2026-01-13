@@ -9,8 +9,15 @@ const {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
+  StatusBar,
 } = require('react-native');
-const AsyncStorage = require('@react-native-async-storage/async-storage');
+
+const { width, height } = Dimensions.get('window');
+const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+const { Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 const apiService = require('../../services/api');
 
@@ -164,7 +171,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
         console.log('🔐 Auto-login after account creation...');
         
         // Save providerId to AsyncStorage FIRST (before login call)
-        if (AsyncStorage && AsyncStorage.setItem) {
+        if (AsyncStorage && AsyncStorage.setItem && typeof AsyncStorage.setItem === 'function') {
           await AsyncStorage.setItem('providerId', response.id.toString());
           console.log('✅ providerId saved to AsyncStorage:', response.id);
           
@@ -177,7 +184,9 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
             // Add small delay to ensure AsyncStorage operation completes
             await new Promise(resolve => setTimeout(resolve, 100));
             
-            savedProviderId = await AsyncStorage.getItem('providerId');
+            if (AsyncStorage && AsyncStorage.getItem && typeof AsyncStorage.getItem === 'function') {
+              savedProviderId = await AsyncStorage.getItem('providerId');
+            }
             retryCount++;
             
             if (!savedProviderId) {
@@ -199,7 +208,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
         });
         
         // Save additional authentication data
-        if (AsyncStorage && AsyncStorage.setItem) {
+        if (AsyncStorage && AsyncStorage.setItem && typeof AsyncStorage.setItem === 'function') {
           await AsyncStorage.setItem('currentProvider', JSON.stringify(loginResponse));
           await AsyncStorage.setItem('providerAuthToken', 'authenticated');
           console.log('✅ Additional auth data saved to AsyncStorage');
@@ -237,11 +246,12 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
       
       // First test if server is reachable
       try {
-        const testResponse = await fetch('http://192.168.1.39:4000/api/health');
+        const { API_BASE_URL } = require('../../config/api');
+        const testResponse = await fetch(`${API_BASE_URL}/api/health`);
         console.log('🌐 Server test response:', testResponse.status);
       } catch (testError) {
         console.error('❌ Server not reachable:', testError);
-        Alert.alert('Connection Error', 'Cannot connect to server. Please check if the backend is running on port 4000.');
+        Alert.alert('Connection Error', 'Cannot connect to server. Please check your internet connection and try again.');
         return;
       }
       
@@ -266,12 +276,22 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
   const handleStep3Submit = async (serviceAreas) => {
     setIsLoading(true);
     try {
-      // Use the same endpoint as web app
-      await apiService.request('POST', `/api/provider/${providerId}/location-service-areas`, {
-        serviceAreas
-      });
+      // Add each service area individually (same as web app)
+      for (const area of serviceAreas) {
+        // For now, use default coordinates since mobile app doesn't have geocoding
+        // In a real implementation, you'd want to add geocoding here
+        const serviceAreaData = {
+          centerAddress: area.address,
+          centerLat: '-27.4698', // Default Brisbane coordinates - should be geocoded
+          centerLng: '153.0251',
+          radiusKm: area.radius,
+          areaName: area.areaName || null
+        };
+        
+        await apiService.request('POST', `/api/provider/${providerId}/location-service-areas`, serviceAreaData);
+      }
       
-             setCurrentStep(4);
+      setCurrentStep(4);
        
        // Removed success alert - user can see progress in step indicator
     } catch (error) {
@@ -281,131 +301,121 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
     }
   };
 
-  const handleStep4Submit = async () => {
+  const handleStep4Submit = async (skipDocuments = false) => {
     if (!providerId) {
       Alert.alert('Error', 'Provider ID not found. Please complete step 1 first.');
       return;
     }
     
-    if (!documentFiles.license || !documentFiles.policeCheck || !documentFiles.insuranceCertificate) {
+    // Only validate documents if not skipping
+    if (!skipDocuments && (!documentFiles.license || !documentFiles.policeCheck || !documentFiles.insuranceCertificate)) {
       Alert.alert('Error', 'Please upload all three required documents.');
       return;
     }
 
     setIsLoading(true);
     try {
-            console.log('🔍 Step 4 Submit - providerId:', providerId);
+      console.log('🔍 Step 4 Submit - providerId:', providerId);
       console.log('🔍 Step 4 Submit - documentFiles:', documentFiles);
+      console.log('🔍 Step 4 Submit - skipDocuments:', skipDocuments);
       
-      // COMMENTED OUT: Authentication middleware check since user is already logged in from auto-login
-      // Debug authentication before document upload with retry mechanism
-      console.log('🔐 Checking authentication before document upload...');
-      let storedProviderId = null;
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (!storedProviderId && retryCount < maxRetries) {
-        try {
-          // Add small delay to ensure AsyncStorage is ready
-          if (retryCount > 0) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-          }
-          
-          storedProviderId = await AsyncStorage.getItem('providerId');
-          const currentProvider = await AsyncStorage.getItem('currentProvider');
-          const authToken = await AsyncStorage.getItem('providerAuthToken');
-          
-          console.log(`🔐 Attempt ${retryCount + 1}:`);
-          console.log('🔐 Stored providerId:', storedProviderId);
-          console.log('🔐 Current provider data:', currentProvider ? 'Found' : 'Not found');
-          console.log('🔐 Auth token:', authToken);
-          
-          if (storedProviderId) {
-            console.log('✅ Authentication check passed');
-            break;
-          } else {
-            retryCount++;
-            if (retryCount < maxRetries) {
-              console.log(`⏳ Retry ${retryCount}: providerId not found, retrying...`);
-            }
-          }
-        } catch (authError) {
-          console.error(`❌ Authentication check attempt ${retryCount + 1} failed:`, authError);
-          retryCount++;
-        }
-      }
-      
-      // COMMENTED OUT: Skip authentication error since user is already logged in
-      // if (!storedProviderId) {
-      //   console.error('❌ Authentication failed after all retries');
-      //   Alert.alert('Authentication Error', 'Please log in again to continue.');
-      //   return;
-      // }
-      
-      // Use the providerId from state instead of AsyncStorage check
+      // Skip authentication check since user is already logged in from auto-login
+      // Use the providerId from state directly
       console.log('✅ Using providerId from state:', providerId);
       
-      // Create FormData for React Native - WORKING VERSION (same as DocumentsScreen)
-      const formData = new FormData();
-      
-      console.log('Creating FormData with files:', documentFiles);
-      
-      if (documentFiles.license) {
-        console.log('Adding license file:', documentFiles.license);
+      // Only upload documents if not skipping
+      if (!skipDocuments) {
+        // Create FormData for React Native - WORKING VERSION (same as DocumentsScreen)
+        const formData = new FormData();
         
-        // Validate file URI
-        if (!documentFiles.license.uri) {
-          throw new Error('License file URI is missing');
+        console.log('Creating FormData with files:', documentFiles);
+        
+        // Debug: Log actual file sizes
+        if (documentFiles.license) {
+          console.log('📄 License file size:', documentFiles.license.size, 'bytes');
+        }
+        if (documentFiles.policeCheck) {
+          console.log('📄 Police check file size:', documentFiles.policeCheck.size, 'bytes');
+        }
+        if (documentFiles.insuranceCertificate) {
+          console.log('📄 Insurance certificate file size:', documentFiles.insuranceCertificate.size, 'bytes');
         }
         
-        // React Native FormData - WORKING STRUCTURE
-        const licenseFile = {
-          uri: documentFiles.license.uri,
-          type: documentFiles.license.type || 'image/jpeg',
-          name: documentFiles.license.name || 'license.jpg',
-        };
-        console.log('License file object:', licenseFile);
-        formData.append('license', licenseFile);
-      }
-      
-      if (documentFiles.policeCheck) {
-        console.log('Adding policeCheck file:', documentFiles.policeCheck);
+        // Validate file sizes before upload to prevent HTTP 413
+        const maxFileSize = 10 * 1024 * 1024; // 10MB limit
+        const largeFiles = [];
         
-        // Validate file URI
-        if (!documentFiles.policeCheck.uri) {
-          throw new Error('Police check file URI is missing');
+        if (documentFiles.license && documentFiles.license.size > maxFileSize) {
+          largeFiles.push('License Document');
+        }
+        if (documentFiles.policeCheck && documentFiles.policeCheck.size > maxFileSize) {
+          largeFiles.push('Police Check');
+        }
+        if (documentFiles.insuranceCertificate && documentFiles.insuranceCertificate.size > maxFileSize) {
+          largeFiles.push('Insurance Certificate');
         }
         
-        const policeFile = {
-          uri: documentFiles.policeCheck.uri,
-          type: documentFiles.policeCheck.type || 'image/jpeg',
-          name: documentFiles.policeCheck.name || 'police_check.jpg',
-        };
-        console.log('Police file object:', policeFile);
-        formData.append('policeCheck', policeFile);
-      }
-      
-      if (documentFiles.insuranceCertificate) {
-        console.log('Adding insurance file:', documentFiles.insuranceCertificate);
-        
-        // Validate file URI
-        if (!documentFiles.insuranceCertificate.uri) {
-          throw new Error('Insurance certificate file URI is missing');
+        if (largeFiles.length > 0) {
+          Alert.alert(
+            'File Too Large',
+            `The following files are too large (over 10MB):\n\n${largeFiles.join('\n')}\n\nPlease compress or use smaller files.`,
+            [{ text: 'OK' }]
+          );
+          return;
         }
         
-        const insuranceFile = {
-          uri: documentFiles.insuranceCertificate.uri,
-          type: documentFiles.insuranceCertificate.type || 'image/jpeg',
-          name: documentFiles.insuranceCertificate.name || 'insurance.jpg',
-        };
-        console.log('Insurance file object:', insuranceFile);
-        formData.append('insuranceCertificate', insuranceFile);
-      }
-      
-      console.log('FormData created successfully');
+        if (documentFiles.license) {
+          console.log('Adding license file:', documentFiles.license);
+          
+          // Validate file URI
+          if (!documentFiles.license.uri) {
+            throw new Error('License file URI is missing');
+          }
+          
+          // Try simpler approach like web version
+          console.log('License file object:', documentFiles.license);
+          formData.append('license', documentFiles.license);
+        }
+        
+        if (documentFiles.policeCheck) {
+          console.log('Adding policeCheck file:', documentFiles.policeCheck);
+          
+          // Validate file URI
+          if (!documentFiles.policeCheck.uri) {
+            throw new Error('Police check file URI is missing');
+          }
+          
+          // Try simpler approach like web version
+          console.log('Police file object:', documentFiles.policeCheck);
+          formData.append('policeCheck', documentFiles.policeCheck);
+        }
+        
+        if (documentFiles.insuranceCertificate) {
+          console.log('Adding insurance file:', documentFiles.insuranceCertificate);
+          
+          // Validate file URI
+          if (!documentFiles.insuranceCertificate.uri) {
+            throw new Error('Insurance certificate file URI is missing');
+          }
+          
+          // Try simpler approach like web version
+          console.log('Insurance file object:', documentFiles.insuranceCertificate);
+          formData.append('insuranceCertificate', documentFiles.insuranceCertificate);
+        }
+        
+        console.log('FormData created successfully');
+        
+        // Debug: Log FormData contents
+        console.log('🔍 FormData contents:');
+        for (let [key, value] of formData._parts || []) {
+          console.log(`  ${key}:`, typeof value, value);
+        }
 
-             // Use the new registration-specific endpoint (no authentication required)
-       await apiService.request('POST', `/api/provider/${providerId}/registration-documents`, formData);
+        // Use the new registration-specific endpoint (no authentication required)
+        await apiService.request('POST', `/api/provider/${providerId}/registration-documents`, formData);
+      } else {
+        console.log('Skipping document upload as requested by user');
+      }
       
       setCurrentStep(5);
       
@@ -417,7 +427,9 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
             text: 'OK',
             onPress: () => {
               // Clear registration data and redirect to login
-              AsyncStorage.removeItem('providerId');
+              if (AsyncStorage && AsyncStorage.removeItem && typeof AsyncStorage.removeItem === 'function') {
+                AsyncStorage.removeItem('providerId');
+              }
               // You can add navigation to login screen here
               Alert.alert('Registration Complete', 'Please log in with your email and password to access your account.');
             }
@@ -425,7 +437,24 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
         ]
       );
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to upload documents. Please try again.');
+      console.error('❌ Document upload error:', error);
+      
+      // Handle specific HTTP errors
+      if (error.message && error.message.includes('413')) {
+        Alert.alert(
+          'File Too Large',
+          'One or more files are too large for upload. Please:\n\n1. Compress your images\n2. Use smaller file sizes (under 10MB)\n3. Try taking new photos with lower quality\n4. Remove and re-add smaller files',
+          [{ text: 'OK' }]
+        );
+      } else if (error.message && error.message.includes('400')) {
+        Alert.alert(
+          'Invalid File Format',
+          'Please ensure all files are valid images (JPG, PNG) and try again.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Upload Error', error.message || 'Failed to upload documents. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -433,30 +462,32 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
 
   const renderStepIndicator = () => {
     const steps = ['Basic Info', 'Services', 'Service Areas', 'Documents'];
+    const progressPercentage = (currentStep / steps.length) * 100;
+    
     return (
       <View style={styles.stepIndicator}>
-        {steps.map((step, index) => (
-          <View key={index} style={styles.stepItem}>
-            <View style={[
-              styles.stepCircle,
-              currentStep > index + 1 ? styles.stepCompleted :
-              currentStep === index + 1 ? styles.stepCurrent :
-              styles.stepPending
-            ]}>
-              {currentStep > index + 1 ? (
-                <Text style={styles.stepCheck}>✓</Text>
-              ) : (
-                <Text style={styles.stepNumber}>{index + 1}</Text>
-              )}
-            </View>
-            <Text style={[
-              styles.stepLabel,
-              currentStep === index + 1 && styles.stepLabelCurrent
-            ]}>
-              {step}
-            </Text>
+        {/* Progress Bar */}
+        <View style={styles.progressBarContainer}>
+          <View style={styles.progressBarBackground}>
+            <View style={[styles.progressBarFill, { width: `${progressPercentage}%` }]} />
           </View>
-        ))}
+        </View>
+        
+        {/* Step Labels */}
+        <View style={styles.stepLabelsContainer}>
+          {steps.map((step, index) => (
+            <View key={index} style={styles.stepLabelItem}>
+              <Text style={[
+                styles.stepLabel,
+                currentStep > index + 1 ? styles.stepLabelCompleted :
+                currentStep === index + 1 ? styles.stepLabelCurrent :
+                styles.stepLabelPending
+              ]}>
+                {step}
+              </Text>
+            </View>
+          ))}
+        </View>
       </View>
     );
   };
@@ -474,24 +505,87 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
   // }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Join ServicePanda</Text>
-          <Text style={styles.subtitle}>Complete your registration in a few simple steps</Text>
-          
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      
+      {/* Gradient Background */}
+      <View style={styles.gradientBackground} />
+      
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView 
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <ScrollView 
+            style={styles.scrollView} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Header Section */}
+            <View style={styles.header}>
+              {/* Back to Login - Top Left */}
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => onNavigate('login')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.backButtonText}>← Back</Text>
+              </TouchableOpacity>
+              
+              {/* Logo and Title */}
+              <View style={styles.logoContainer}>
+                <View style={styles.logoCircle}>
+                  <Text style={styles.logo}>🐼</Text>
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.title}>ServicePanda</Text>
+                  <Text style={styles.tagline}>Partner Portal</Text>
+                </View>
+              </View>
+              
+              <Text style={styles.subtitle}>Complete your registration in a few simple steps</Text>
+            </View>
 
-        </View>
+          {renderStepIndicator()}
 
-        {renderStepIndicator()}
-
-        <View style={styles.stepContainer}>
+          {/* Form Content Card */}
+          <View style={styles.formCard}>
+            <View style={styles.stepContainer}>
           {currentStep === 1 && (
-            <BasicInfoStep
-              formData={formData}
-              onSubmit={handleStep1Submit}
-              isLoading={isLoading}
-            />
+            <>
+              {console.log('🔍 Rendering BasicInfoStep with formData:', formData)}
+              
+              {/* Test Button for debugging */}
+              {/* <View style={{ padding: 20, backgroundColor: '#f0f0f0', margin: 10, borderRadius: 8 }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>Debug Test</Text>
+                <TouchableOpacity 
+                  style={{ backgroundColor: '#007bff', padding: 10, borderRadius: 5, marginBottom: 10 }}
+                  onPress={testRegistration}
+                >
+                  <Text style={{ color: 'white', textAlign: 'center' }}>Test Registration with Valid Data</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={{ backgroundColor: '#28a745', padding: 10, borderRadius: 5, marginBottom: 10 }}
+                  onPress={() => {
+                    console.log('🔍 Manual form submission test with current formData:', formData);
+                    handleStep1Submit(formData);
+                  }}
+                >
+                  <Text style={{ color: 'white', textAlign: 'center' }}>Test Current Form Data</Text>
+                </TouchableOpacity>
+                <Text style={{ fontSize: 12, color: '#666' }}>
+                  This will test the API with valid data to see if the server is working.
+                </Text>
+              </View> */}
+              
+              <BasicInfoStep
+                formData={formData}
+                onSubmit={handleStep1Submit}
+                isLoading={isLoading}
+              />
+            </>
           )}
 
           {currentStep === 2 && (
@@ -509,6 +603,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
               onSubmit={handleStep3Submit}
               onBack={() => setCurrentStep(2)}
               isLoading={isLoading}
+              formData={formData}
             />
           )}
 
@@ -542,7 +637,7 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
                                      onPress={async () => {
                      try {
                        // Clear registration data and navigate directly to login
-                       if (AsyncStorage && AsyncStorage.removeItem) {
+                       if (AsyncStorage && AsyncStorage.removeItem && typeof AsyncStorage.removeItem === 'function') {
                          await AsyncStorage.removeItem('providerId');
                          await AsyncStorage.removeItem('currentProvider');
                          await AsyncStorage.removeItem('providerAuthToken');
@@ -569,90 +664,163 @@ const ProviderRegistrationScreen = ({ onNavigate }) => {
                 </TouchableOpacity>
             </View>
           )}
-        </View>
-      </ScrollView>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary,
+  },
+  gradientBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.primary,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
   header: {
     alignItems: 'center',
-    padding: 16, // Reduced from 20
-    paddingTop: 20, // Reduced from 40
+    padding: 16,
+    paddingTop: 20,
+    position: 'relative',
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  textContainer: {
+    marginLeft: 16,
+    alignItems: 'flex-start',
+  },
+  logoCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  logo: {
+    fontSize: 28,
+    textAlign: 'center',
+    lineHeight: 28,
   },
   title: {
-    fontSize: 22, // Reduced from 28
+    fontSize: 24,
     fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 6, // Reduced from 8
+    color: '#FFFFFF',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  tagline: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
   },
   subtitle: {
-    fontSize: 14, // Reduced from 16
-    color: colors.textSecondary,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
+    marginTop: 10,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 10,
+    top: 30, // Align with center of logo circle
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    zIndex: 1,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    marginHorizontal: 20,
+    marginVertical: 10,
   },
   stepIndicator: {
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  progressBarContainer: {
+    marginBottom: 12,
+  },
+  progressBarBackground: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+  },
+  stepLabelsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 16, // Reduced from 20
-    marginBottom: 20, // Reduced from 30
   },
-  stepItem: {
-    alignItems: 'center',
+  stepLabelItem: {
     flex: 1,
-  },
-  stepCircle: {
-    width: 32, // Reduced from 40
-    height: 32, // Reduced from 40
-    borderRadius: 16, // Reduced from 20
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6, // Reduced from 8
-  },
-  stepPending: {
-    backgroundColor: colors.border,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  stepCurrent: {
-    backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  stepCompleted: {
-    backgroundColor: colors.success,
-    borderWidth: 2,
-    borderColor: colors.success,
-  },
-  stepNumber: {
-    color: colors.text,
-    fontSize: 14, // Reduced from 16
-    fontWeight: 'bold',
-  },
-  stepCheck: {
-    color: colors.white,
-    fontSize: 16, // Reduced from 18
-    fontWeight: 'bold',
   },
   stepLabel: {
-    fontSize: 11, // Reduced from 12
-    color: colors.textSecondary,
+    fontSize: 11,
     textAlign: 'center',
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  stepLabelPending: {
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   stepLabelCurrent: {
-    color: colors.primary,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  stepLabelCompleted: {
+    color: '#000000',
     fontWeight: '600',
   },
   stepContainer: {
-    padding: 16, // Reduced from 20
+    padding: 16,
   },
   loadingContainer: {
     flex: 1,
@@ -679,21 +847,21 @@ const styles = StyleSheet.create({
   },
   successCheck: {
     color: colors.white,
-    fontSize: 40,
+    fontSize: 32,
     fontWeight: 'bold',
   },
   successTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   successMessage: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
+    marginBottom: 20,
+    lineHeight: 20,
   },
   officeHours: {
     backgroundColor: colors.infoLight,

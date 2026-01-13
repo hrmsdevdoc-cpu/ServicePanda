@@ -1,7 +1,13 @@
-// import 'react-native-screens';
+import {AppRegistry} from 'react-native';
+import App from './App';
+import {name as appName} from './app.json';
 
-const {AppRegistry} = require('react-native');
-const App = require('./App');
+console.log('🚀 ServicePandaProvider App Starting...');
 
-AppRegistry.registerComponent('ServicePandaProvider', () => App);
+// ✅ OneSignal is initialized NATIVELY in AppDelegate.mm (iOS)
+// ✅ No JavaScript SDK needed - native initialization handles everything
+console.log('🔔 OneSignal: Native-only mode (iOS)');
+console.log('✅ OneSignal XCFramework initialized in AppDelegate.mm');
+console.log('💡 Push notifications handled natively');
 
+AppRegistry.registerComponent(appName, () => App);

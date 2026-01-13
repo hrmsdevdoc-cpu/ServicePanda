@@ -9,14 +9,12 @@ const { colors } = require('../utils/theme');
 const AuthNavigator = require('./AuthNavigator');
 const MainNavigator = require('./MainNavigator');
 
-// Import screens directly for conditional rendering
-const LoginScreen = require('../screens/auth/LoginScreen');
-const ProviderRegistrationScreen = require('../screens/auth/ProviderRegistrationScreen');
+
 
 const AppNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentAuthScreen, setCurrentAuthScreen] = useState('Login');
+
 
   useEffect(() => {
     checkAuthStatus();
@@ -84,29 +82,8 @@ const AppNavigator = () => {
         }} />
       ) : (
         <>
-          {currentAuthScreen === 'Login' && (
-            <>
-              {console.log('🔍 Rendering LoginScreen')}
-              <LoginScreen 
-                onLoginSuccess={() => setIsAuthenticated(true)}
-                onNavigate={(screen) => {
-                  console.log('🔍 Auth Navigation to:', screen);
-                  setCurrentAuthScreen(screen);
-                }}
-              />
-            </>
-          )}
-          {currentAuthScreen === 'ProviderRegistration' && (
-            <>
-              {console.log('🔍 Rendering ProviderRegistrationScreen')}
-              <ProviderRegistrationScreen 
-                onNavigate={(screen) => {
-                  console.log('🔍 Auth Navigation to:', screen);
-                  setCurrentAuthScreen(screen);
-                }}
-              />
-            </>
-          )}
+          {console.log('🔍 AppNavigator: Rendering AuthNavigator')}
+          <AuthNavigator onLoginSuccess={() => setIsAuthenticated(true)} />
         </>
       )}
     </NavigationContainer>

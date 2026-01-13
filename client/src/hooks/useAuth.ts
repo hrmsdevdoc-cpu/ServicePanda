@@ -30,9 +30,7 @@ export function useAuth() {
     queryKey: ["/api/auth/user"],
     queryFn: async () => {
       try {
-        const response = await fetch("/api/auth/user", {
-          credentials: 'include'
-        });
+        const response = await apiRequest("GET", "/api/auth/user");
         if (response.status === 401) {
           return null; // User not authenticated
         }
@@ -97,10 +95,7 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/logout", {
-        method: "POST",
-        credentials: 'include'
-      });
+      const res = await apiRequest("POST", "/api/logout");
       if (!res.ok) throw new Error("Logout failed");
     },
     onSuccess: () => {

@@ -3,6 +3,7 @@ import { storage } from "./storage";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 const scryptAsync = promisify(scrypt);
 
@@ -28,7 +29,12 @@ export async function comparePasswords(supplied: string, stored: string): Promis
       return supplied === stored;
     }
     
-    // Handle hashed password
+    // Check if it's a bcrypt hash (starts with $2a$, $2b$, $2y$, etc.)
+    if (stored.startsWith('$2')) {
+      return await bcrypt.compare(supplied, stored);
+    }
+    
+    // Handle scrypt hashed password
     const [hashed, salt] = stored.split(".");
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
@@ -40,9 +46,9 @@ export async function comparePasswords(supplied: string, stored: string): Promis
   }
 }
 
-function generateAdminToken(username: string): string {
+function generateAdminToken(username: string, role: string): string {
   return jwt.sign(
-    { username, role: "admin", type: "admin" },
+    { username, role, type: "admin" },
     JWT_SECRET,
     { expiresIn: "24h" }
   );
@@ -122,9 +128,9 @@ export function setupAdminAuth(app: Express) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Generate JWT token
-      const token = generateAdminToken(username);
-      console.log('Admin login successful for:', username);
+      // Generate JWT token with actual role
+      const token = generateAdminToken(username, adminUser.role);
+      console.log('Admin login successful for:', username, 'with role:', adminUser.role);
 
       res.json({
         message: "Login successful",
@@ -169,16 +175,17 @@ export const isAdminAuthenticated: RequestHandler = (req, res, next) => {
     }
 
     const decoded = verifyAdminToken(token);
-    console.log("Admin auth - decoded token:", decoded);
+    console.log("Decoded token:", decoded);
     
-    if (!decoded || decoded.role !== "admin") {
-      console.log("Admin auth failed - invalid token or role");
+    // Check if token is valid (not checking specific roles, just that it's a valid admin token)
+    if (!decoded || !decoded.username || !decoded.role) {
+      console.log("Admin auth failed - invalid token or missing required fields:", decoded);
       return res.status(401).json({ message: "Invalid admin token" });
     }
 
     // Add admin info to request object
     (req as any).admin = decoded;
-    console.log("Admin auth successful");
+    console.log("Admin auth successful for user:", decoded.username, "with role:", decoded.role);
     next();
   } catch (error) {
     console.error("Admin authentication error:", error);

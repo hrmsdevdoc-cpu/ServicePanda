@@ -6,12 +6,18 @@ const {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  Animated,
+  Dimensions,
 } = require('react-native');
 const { Card, Title, Paragraph, Button, Chip, ActivityIndicator } = require('react-native-paper');
 const { useQuery } = require('@tanstack/react-query');
 const { useAuth } = require('../../contexts/AuthContext');
 const apiService = require('../../services/api');
 const { colors } = require('../../utils/theme');
+// Import vector icons
+const Icon = require('react-native-vector-icons/MaterialIcons').default;
+
+const { width } = Dimensions.get('window');
 
 interface BillingScreenProps {
   onNavigate?: (screen: string) => void;
@@ -21,6 +27,11 @@ interface BillingScreenProps {
 function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
   const { providerData } = useAuth();
   const [refreshing, setRefreshing] = React.useState(false);
+
+  // Animation values
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(30)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.95)).current;
 
   // Fetch billing data
   const { data: billingData, isLoading: billingLoading, refetch: refetchBilling } = useQuery({
@@ -34,6 +45,28 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
     queryKey: ['/api/provider/credit/balance'],
     queryFn: () => apiService.getCreditBalance(),
   });
+
+  // Animation on mount
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -53,10 +86,19 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
 
   const getPaymentMethodIcon = (method: string) => {
     switch (method?.toLowerCase()) {
-      case 'credit': return '💰';
-      case 'card': return '💳';
-      case 'partial': return '💳💰';
-      default: return '💳';
+      case 'credit': return 'account-balance-wallet';
+      case 'card': return 'payment';
+      case 'partial': return 'payment';
+      default: return 'payment';
+    }
+  };
+
+  const getPaymentMethodIconColor = (method: string) => {
+    switch (method?.toLowerCase()) {
+      case 'credit': return '#10B981';
+      case 'card': return '#3B82F6';
+      case 'partial': return '#F59E0B';
+      default: return '#6B7280';
     }
   };
 
@@ -76,155 +118,179 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Billing & Payments</Text>
-        <Text style={styles.headerSubtitle}>
+      <Animated.View
+        style={[
+          styles.animatedContainer,
+          {
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ]
+          }
+        ]}
+      >
+        {/* Modern Header */}
+        <View style={styles.modernHeader}>
+          <View style={styles.modernHeaderContent}>
+            <Text style={styles.modernHeaderTitle}>Billing & Payments</Text>
+            <Text style={styles.modernHeaderSubtitle}>
           Track your lead purchases, payment history, and billing information
         </Text>
+          </View>
+          <View style={styles.modernHeaderIcon}>
+            <Icon name="account-balance-wallet" size={32} color="#3B82F6" style={styles.modernHeaderEmoji} />
+          </View>
       </View>
 
-      {/* Monthly Summary Cards */}
-      <View style={styles.summaryContainer}>
-        <View style={styles.summaryRow}>
-          <Card style={styles.summaryCard}>
-            <Card.Content style={styles.summaryCardContent}>
-              <View style={styles.summaryCardHeader}>
-                <Text style={styles.summaryIcon}>📊</Text>
-                <View>
-                  <Text style={styles.summaryLabel}>This Month</Text>
-                  <Text style={styles.summaryValue}>
+        {/* Modern Summary Cards */}
+        <View style={styles.modernSummaryContainer}>
+          <View style={styles.modernSummaryGrid}>
+            <TouchableOpacity style={styles.modernSummaryCard} activeOpacity={0.8}>
+              <View style={styles.modernSummaryCardHeader}>
+                <View style={styles.modernSummaryIcon}>
+                  <Icon name="assessment" size={24} color="#6B7280" style={styles.modernSummaryEmoji} />
+                </View>
+                <View style={styles.modernSummaryInfo}>
+                  <Text style={styles.modernSummaryLabel}>This Month</Text>
+                  <Text style={styles.modernSummaryValue}>
                     {billingLoading ? '...' : billingData?.thisMonthPurchases || 0}
                   </Text>
-                  <Text style={styles.summarySubtext}>Leads Purchased</Text>
+                  <Text style={styles.modernSummarySubtext}>Leads Purchased</Text>
                 </View>
               </View>
-            </Card.Content>
-          </Card>
+            </TouchableOpacity>
 
-          <Card style={styles.summaryCard}>
-            <Card.Content style={styles.summaryCardContent}>
-              <View style={styles.summaryCardHeader}>
-                <Text style={styles.summaryIcon}>💰</Text>
-                <View>
-                  <Text style={styles.summaryLabel}>Total Spent</Text>
-                  <Text style={styles.summaryValue}>
+            <TouchableOpacity style={styles.modernSummaryCard} activeOpacity={0.8}>
+              <View style={styles.modernSummaryCardHeader}>
+                <View style={styles.modernSummaryIcon}>
+                  <Icon name="account-balance-wallet" size={24} color="#10B981" style={styles.modernSummaryEmoji} />
+                </View>
+                <View style={styles.modernSummaryInfo}>
+                  <Text style={styles.modernSummaryLabel}>Total Spent</Text>
+                  <Text style={styles.modernSummaryValue}>
                     {billingLoading ? '...' : formatCurrency(billingData?.thisMonthTotal)}
                   </Text>
-                  <Text style={styles.summarySubtext}>This Month</Text>
+                  <Text style={styles.modernSummarySubtext}>This Month</Text>
                 </View>
               </View>
-            </Card.Content>
-          </Card>
-        </View>
+            </TouchableOpacity>
 
-        <View style={styles.summaryRow}>
-          <Card style={styles.summaryCard}>
-            <Card.Content style={styles.summaryCardContent}>
-              <View style={styles.summaryCardHeader}>
-                <Text style={styles.summaryIcon}>💳</Text>
-                <View>
-                  <Text style={styles.summaryLabel}>Credit Balance</Text>
-                  <Text style={styles.summaryValue}>
+            <TouchableOpacity style={styles.modernSummaryCard} activeOpacity={0.8}>
+              <View style={styles.modernSummaryCardHeader}>
+                <View style={styles.modernSummaryIcon}>
+                  <Icon name="payment" size={24} color="#3B82F6" style={styles.modernSummaryEmoji} />
+        </View>
+                <View style={styles.modernSummaryInfo}>
+                  <Text style={styles.modernSummaryLabel}>Credit Balance</Text>
+                  <Text style={styles.modernSummaryValue}>
                     {creditBalance ? formatCurrency(creditBalance.balance) : '$0.00'}
                   </Text>
-                  <Text style={styles.summarySubtext}>Available</Text>
+                  <Text style={styles.modernSummarySubtext}>Available</Text>
                 </View>
               </View>
-            </Card.Content>
-          </Card>
+            </TouchableOpacity>
 
-          <Card style={styles.summaryCard}>
-            <Card.Content style={styles.summaryCardContent}>
-              <View style={styles.summaryCardHeader}>
-                <Text style={styles.summaryIcon}>🎯</Text>
-                <View>
-                  <Text style={styles.summaryLabel}>Total Leads</Text>
-                  <Text style={styles.summaryValue}>
+            <TouchableOpacity style={styles.modernSummaryCard} activeOpacity={0.8}>
+              <View style={styles.modernSummaryCardHeader}>
+                <View style={styles.modernSummaryIcon}>
+                  <Icon name="fiber-new" size={24} color="#F59E0B" style={styles.modernSummaryEmoji} />
+                </View>
+                <View style={styles.modernSummaryInfo}>
+                  <Text style={styles.modernSummaryLabel}>Total Leads</Text>
+                  <Text style={styles.modernSummaryValue}>
                     {billingLoading ? '...' : billingData?.allPaidLeads?.length || 0}
                   </Text>
-                  <Text style={styles.summarySubtext}>All Time</Text>
+                  <Text style={styles.modernSummarySubtext}>All Time</Text>
                 </View>
               </View>
-            </Card.Content>
-          </Card>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Billing History */}
-      <Card style={styles.billingHistoryCard}>
-        <Card.Content>
-          <View style={styles.sectionHeader}>
-            <Title style={styles.sectionTitle}>Billing History</Title>
-            <Text style={styles.sectionSubtitle}>
+        {/* Modern Billing History */}
+        <View style={styles.modernBillingHistoryCard}>
+          <View style={styles.modernBillingHistoryHeader}>
+            <View style={styles.modernBillingHistoryIcon}>
+              <Icon name="assignment" size={24} color="#6B7280" style={styles.modernBillingHistoryEmoji} />
+      </View>
+            <View style={styles.modernBillingHistoryInfo}>
+              <Text style={styles.modernBillingHistoryTitle}>Billing History</Text>
+              <Text style={styles.modernBillingHistorySubtitle}>
               All your lead purchases and payment records
             </Text>
+            </View>
           </View>
           
           {billingLoading ? (
-            <View style={styles.loadingContainer}>
+            <View style={styles.modernLoadingContainer}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Loading billing history...</Text>
+              <Text style={styles.modernLoadingText}>Loading billing history...</Text>
             </View>
           ) : !billingData?.allPaidLeads || billingData.allPaidLeads.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateIcon}>📋</Text>
-              <Text style={styles.emptyStateTitle}>No billing history yet</Text>
-              <Text style={styles.emptyStateText}>
+            <View style={styles.modernEmptyState}>
+              <Icon name="assignment" size={32} color="#9CA3AF" style={styles.modernEmptyStateIcon} />
+              <Text style={styles.modernEmptyStateTitle}>No billing history yet</Text>
+              <Text style={styles.modernEmptyStateText}>
                 Your lead purchases and payment records will appear here once you start buying leads.
               </Text>
             </View>
           ) : (
-            <View style={styles.billingHistoryList}>
+            <View style={styles.modernBillingHistoryList}>
               {billingData.allPaidLeads.map((lead: any, index: number) => (
-                <View key={lead.id || index} style={styles.billingHistoryItem}>
-                  <View style={styles.billingHistoryHeader}>
-                    <View style={styles.billingHistoryLeft}>
-                      <View style={styles.transactionTypeContainer}>
-                        <Text style={styles.transactionTypeIcon}>💳</Text>
-                        <Text style={styles.transactionTypeLabel}>Lead Purchase</Text>
+                <View key={lead.id || index} style={styles.modernBillingHistoryItem}>
+                  <View style={styles.modernBillingHistoryItemHeader}>
+                    <View style={styles.modernBillingHistoryItemLeft}>
+                      <View style={styles.modernTransactionTypeContainer}>
+                        <Icon 
+                          name={getPaymentMethodIcon(lead.paymentMethod)} 
+                          size={20} 
+                          color={getPaymentMethodIconColor(lead.paymentMethod)} 
+                          style={styles.modernTransactionTypeIcon} 
+                        />
+                        <Text style={styles.modernTransactionTypeLabel}>Lead Purchase</Text>
                       </View>
-                      <Text style={styles.billingHistoryTitle}>
+                      <Text style={styles.modernBillingHistoryItemTitle}>
                         {lead.categoryName}
                       </Text>
-                      <Text style={styles.billingHistorySubtitle}>
+                      <Text style={styles.modernBillingHistoryItemSubtitle}>
                         Lead #{lead.requestId} • {lead.location}
                       </Text>
-                      <Text style={styles.billingHistoryDate}>
+                      <Text style={styles.modernBillingHistoryItemDate}>
                         {formatDate(lead.purchasedAt)}
                       </Text>
                     </View>
                     
-                    <View style={styles.billingHistoryRight}>
-                      <Text style={[styles.billingHistoryAmount, styles.debitAmount]}>
+                    <View style={styles.modernBillingHistoryItemRight}>
+                      <Text style={[styles.modernBillingHistoryItemAmount, styles.modernDebitAmount]}>
                         -{formatCurrency(lead.totalCost)}
                       </Text>
-                      <View style={styles.paymentMethodContainer}>
-                        <Text style={styles.paymentMethodIcon}>
+                      <View style={styles.modernPaymentMethodContainer}>
+                        <Text style={styles.modernPaymentMethodIcon}>
                           {getPaymentMethodIcon(lead.paymentMethod)}
                         </Text>
-                        <Text style={styles.paymentMethodLabel}>
+                        <Text style={styles.modernPaymentMethodLabel}>
                           {getPaymentMethodLabel(lead.paymentMethod)}
                         </Text>
                       </View>
                     </View>
                   </View>
                   
-                  {/* Payment Breakdown */}
-                  <View style={styles.paymentBreakdown}>
+                  {/* Modern Payment Breakdown */}
+                  <View style={styles.modernPaymentBreakdown}>
                     {lead.creditUsed > 0 && (
-                      <View style={styles.breakdownItem}>
-                        <Text style={styles.breakdownLabel}>Credit Applied:</Text>
-                        <Text style={[styles.breakdownValue, styles.creditValue]}>
+                      <View style={styles.modernBreakdownItem}>
+                        <Text style={styles.modernBreakdownLabel}>Credit Applied:</Text>
+                        <Text style={[styles.modernBreakdownValue, styles.modernCreditValue]}>
                           +{formatCurrency(lead.creditUsed)}
                         </Text>
                       </View>
                     )}
                     
                     {lead.amountCharged > 0 && (
-                      <View style={styles.breakdownItem}>
-                        <Text style={styles.breakdownLabel}>Card Charged:</Text>
-                        <Text style={[styles.breakdownValue, styles.chargedValue]}>
+                      <View style={styles.modernBreakdownItem}>
+                        <Text style={styles.modernBreakdownLabel}>Card Charged:</Text>
+                        <Text style={[styles.modernBreakdownValue, styles.modernChargedValue]}>
                           -{formatCurrency(lead.amountCharged)}
                         </Text>
                       </View>
@@ -234,76 +300,106 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
               ))}
             </View>
           )}
-        </Card.Content>
-      </Card>
+        </View>
 
-      {/* Quick Actions */}
-      <Card style={styles.quickActionsCard}>
-        <Card.Content>
-          <Title style={styles.sectionTitle}>Quick Actions</Title>
+        {/* Modern Quick Actions */}
+        <View style={styles.modernQuickActionsCard}>
+          <View style={styles.modernQuickActionsHeader}>
+            <View style={styles.modernQuickActionsIcon}>
+              <Icon name="flash-on" size={24} color="#F59E0B" style={styles.modernQuickActionsEmoji} />
+            </View>
+            <View style={styles.modernQuickActionsInfo}>
+              <Text style={styles.modernQuickActionsTitle}>Quick Actions</Text>
+              <Text style={styles.modernQuickActionsSubtitle}>
+                Manage your billing and leads
+              </Text>
+            </View>
+          </View>
           
-          <View style={styles.quickActionsGrid}>
+          <View style={styles.modernQuickActionsGrid}>
             <TouchableOpacity 
-              style={styles.quickActionButton}
+              style={styles.modernQuickActionButton}
               onPress={() => onNavigate?.('credits')}
+              activeOpacity={0.7}
             >
-              <Text style={styles.quickActionIcon}>💰</Text>
-              <Text style={styles.quickActionText}>Manage Credits</Text>
+              <View style={styles.modernQuickActionIcon}>
+                <Icon name="account-balance-wallet" size={20} color="#10B981" style={styles.modernQuickActionEmoji} />
+              </View>
+              <Text style={styles.modernQuickActionText}>Manage Credits</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.quickActionButton}
+              style={styles.modernQuickActionButton}
               onPress={() => onNavigate?.('payment')}
+              activeOpacity={0.7}
             >
-              <Text style={styles.quickActionIcon}>💳</Text>
-              <Text style={styles.quickActionText}>Payment Methods</Text>
+              <View style={styles.modernQuickActionIcon}>
+                <Icon name="payment" size={20} color="#3B82F6" style={styles.modernQuickActionEmoji} />
+              </View>
+              <Text style={styles.modernQuickActionText}>Payment Methods</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.quickActionButton}
+              style={styles.modernQuickActionButton}
               onPress={() => onNavigate?.('leads')}
+              activeOpacity={0.7}
             >
-              <Text style={styles.quickActionIcon}>🎯</Text>
-              <Text style={styles.quickActionText}>View Leads</Text>
+              <View style={styles.modernQuickActionIcon}>
+                <Icon name="fiber-new" size={20} color="#F59E0B" style={styles.modernQuickActionEmoji} />
+              </View>
+              <Text style={styles.modernQuickActionText}>View Leads</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.quickActionButton}
+              style={styles.modernQuickActionButton}
               onPress={() => onNavigate?.('newLeads')}
+              activeOpacity={0.7}
             >
-              <Text style={styles.quickActionIcon}>🆕</Text>
-              <Text style={styles.quickActionText}>New Leads</Text>
+              <View style={styles.modernQuickActionIcon}>
+                <Icon name="fiber-new" size={20} color="#3B82F6" style={styles.modernQuickActionEmoji} />
+              </View>
+              <Text style={styles.modernQuickActionText}>New Leads</Text>
             </TouchableOpacity>
           </View>
-        </Card.Content>
-      </Card>
+        </View>
 
-      {/* Information Section */}
-      <Card style={styles.infoCard}>
-        <Card.Content>
-          <Title style={styles.sectionTitle}>Billing Information</Title>
-          
-          <View style={styles.infoSection}>
-            <Text style={styles.infoSectionTitle}>How Billing Works</Text>
-            <View style={styles.infoList}>
-              <Text style={styles.infoListItem}>• Your first 3 leads are completely FREE</Text>
-              <Text style={styles.infoListItem}>• After that, you're charged only when you accept a lead</Text>
-              <Text style={styles.infoListItem}>• Credits are applied first, then your payment method</Text>
-              <Text style={styles.infoListItem}>• Pricing varies by service category and location</Text>
+        {/* Modern Information Section */}
+        <View style={styles.modernInfoCard}>
+          <View style={styles.modernInfoHeader}>
+            <View style={styles.modernInfoIcon}>
+              <Text style={styles.modernInfoEmoji}>ℹ️</Text>
+            </View>
+            <View style={styles.modernInfoInfo}>
+              <Text style={styles.modernInfoTitle}>Billing Information</Text>
+              <Text style={styles.modernInfoSubtitle}>
+                How billing and payments work
+              </Text>
             </View>
           </View>
           
-          <View style={styles.infoSection}>
-            <Text style={styles.infoSectionTitle}>Payment Methods</Text>
-            <View style={styles.infoList}>
-              <Text style={styles.infoListItem}>• Use credits to purchase leads at discounted rates</Text>
-              <Text style={styles.infoListItem}>• Redeem vouchers to add credits to your account</Text>
-              <Text style={styles.infoListItem}>• Credit cards are charged for remaining amounts</Text>
-              <Text style={styles.infoListItem}>• All payments processed securely by Stripe</Text>
+          <View style={styles.modernInfoSection}>
+            <Text style={styles.modernInfoSectionTitle}>How Billing Works</Text>
+            <View style={styles.modernInfoList}>
+              <Text style={styles.modernInfoListItem}>• Your first 3 leads are completely FREE</Text>
+              <Text style={styles.modernInfoListItem}>• After that, you're charged only when you accept a lead</Text>
+              <Text style={styles.modernInfoListItem}>• Credits are applied first, then your payment method</Text>
+              <Text style={styles.modernInfoListItem}>• Pricing varies by service category and location</Text>
             </View>
           </View>
-        </Card.Content>
-      </Card>
+          
+          <View style={styles.modernInfoDivider} />
+          
+          <View style={styles.modernInfoSection}>
+            <Text style={styles.modernInfoSectionTitle}>Payment Methods</Text>
+            <View style={styles.modernInfoList}>
+              <Text style={styles.modernInfoListItem}>• Use credits to purchase leads at discounted rates</Text>
+              <Text style={styles.modernInfoListItem}>• Redeem vouchers to add credits to your account</Text>
+              <Text style={styles.modernInfoListItem}>• Credit cards are charged for remaining amounts</Text>
+              <Text style={styles.modernInfoListItem}>• All payments processed securely by Stripe</Text>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -311,22 +407,446 @@ function BillingScreen({ onNavigate, onBack }: BillingScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 12,
+    backgroundColor: '#f8fafc',
+    padding: 16,
   },
-  header: {
-    marginBottom: 16,
+  animatedContainer: {
+    flex: 1,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  // Modern Header
+  modernHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  modernHeaderContent: {
+    flex: 1,
+  },
+  modernHeaderTitle: {
+    fontSize: 28,
+    fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: 6,
+    marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  headerSubtitle: {
+  modernHeaderSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    fontWeight: '500',
+  },
+  modernHeaderIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 16,
+  },
+  modernHeaderEmoji: {
+    fontSize: 24,
+  },
+  // Modern Summary Cards
+  modernSummaryContainer: {
+    marginBottom: 20,
+  },
+  modernSummaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modernSummaryCard: {
+    width: '48%',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  modernSummaryCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modernSummaryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  modernSummaryEmoji: {
+    fontSize: 20,
+  },
+  modernSummaryInfo: {
+    flex: 1,
+  },
+  modernSummaryLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    lineHeight: 16,
+    marginBottom: 4,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  modernSummaryValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 2,
+    letterSpacing: -0.5,
+  },
+  modernSummarySubtext: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  // Modern Billing History
+  modernBillingHistoryCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  modernBillingHistoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modernBillingHistoryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  modernBillingHistoryEmoji: {
+    fontSize: 24,
+  },
+  modernBillingHistoryInfo: {
+    flex: 1,
+  },
+  modernBillingHistoryTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  modernBillingHistorySubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  modernLoadingContainer: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  modernLoadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  modernEmptyState: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  modernEmptyStateIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  modernEmptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 8,
+    letterSpacing: -0.2,
+  },
+  modernEmptyStateText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    fontWeight: '500',
+    paddingHorizontal: 16,
+  },
+  modernBillingHistoryList: {
+    paddingVertical: 8,
+  },
+  modernBillingHistoryItem: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  modernBillingHistoryItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  modernBillingHistoryItemLeft: {
+    flex: 1,
+    marginRight: 16,
+  },
+  modernTransactionTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modernTransactionTypeIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  modernTransactionTypeLabel: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  modernBillingHistoryItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 4,
+    letterSpacing: -0.1,
+  },
+  modernBillingHistoryItemSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  modernBillingHistoryItemDate: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    fontWeight: '500',
+  },
+  modernBillingHistoryItemRight: {
+    alignItems: 'flex-end',
+  },
+  modernBillingHistoryItemAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 8,
+    letterSpacing: -0.1,
+  },
+  modernDebitAmount: {
+    color: colors.error,
+  },
+  modernPaymentMethodContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modernPaymentMethodIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  modernPaymentMethodLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  modernPaymentBreakdown: {
+    backgroundColor: '#f8fafc',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  modernBreakdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  modernBreakdownLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  modernBreakdownValue: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modernCreditValue: {
+    color: colors.success,
+  },
+  modernChargedValue: {
+    color: colors.primary,
+  },
+  // Modern Quick Actions
+  modernQuickActionsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  modernQuickActionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modernQuickActionsIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  modernQuickActionsEmoji: {
+    fontSize: 24,
+  },
+  modernQuickActionsInfo: {
+    flex: 1,
+  },
+  modernQuickActionsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  modernQuickActionsSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  modernQuickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modernQuickActionButton: {
+    width: '48%',
+    backgroundColor: '#f8fafc',
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  modernQuickActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modernQuickActionEmoji: {
+    fontSize: 20,
+  },
+  modernQuickActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    letterSpacing: -0.1,
+  },
+  // Modern Info Card
+  modernInfoCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  modernInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modernInfoIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  modernInfoEmoji: {
+    fontSize: 24,
+  },
+  modernInfoInfo: {
+    flex: 1,
+  },
+  modernInfoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  modernInfoSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  modernInfoSection: {
+    marginBottom: 16,
+  },
+  modernInfoSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 12,
+    letterSpacing: -0.1,
+  },
+  modernInfoList: {
+    gap: 8,
+  },
+  modernInfoListItem: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  modernInfoDivider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
+    marginVertical: 16,
   },
   summaryContainer: {
     marginBottom: 16,

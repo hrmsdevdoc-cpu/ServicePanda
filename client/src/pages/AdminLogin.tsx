@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { Shield, Lock, Eye, EyeOff } from "lucide-react";
+import { apiPost } from "../lib/apiHelpers";
 
 export default function AdminLogin() {
   const { toast } = useToast();
@@ -40,13 +41,7 @@ export default function AdminLogin() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      const response = await apiPost('/api/admin/login', formData);
 
       const data = await response.json();
 

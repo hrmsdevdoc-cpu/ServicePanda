@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { adminApiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import {
@@ -37,11 +37,7 @@ export default function AdminStripeSettings() {
   const { data: stripeSettings, isLoading } = useQuery({
     queryKey: ['/api/admin/stripe-settings'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/stripe-settings', {
-        headers: {
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
-      });
+      const response = await adminApiRequest('GET', '/api/admin/stripe-settings');
       return response.json();
     },
   });
@@ -59,7 +55,7 @@ export default function AdminStripeSettings() {
   // Save Stripe settings mutation
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiRequest('POST', '/api/setup/stripe-settings', data);
+      const response = await adminApiRequest('POST', '/api/admin/stripe-settings', data);
       return response.json();
     },
     onSuccess: () => {
@@ -114,15 +110,17 @@ export default function AdminStripeSettings() {
       {/* Main content area */}
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700">
-          <div className="px-8 py-6">
+        <header className="bg-white/95 backdrop-blur-sm dark:bg-gray-800 shadow-lg shadow-slate-200/20 border-b border-slate-200/50 dark:border-gray-700">
+          <div className="px-8 py-3" style={{ paddingTop: '1.2rem', paddingBottom: '0.8rem' }}>
             <div className="flex items-center">
-              <CreditCard className="h-8 w-8 text-blue-600 mr-3" />
+              <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center mr-3">
+                <CreditCard className="h-5 w-5 text-white" />
+              </div>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                   Stripe API Settings
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Configure Stripe payment processing integration
                 </p>
               </div>

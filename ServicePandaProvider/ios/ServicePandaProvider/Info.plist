@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>en</string>
+		<key>CFBundleDisplayName</key>
+		<string>ServicePanda Provider</string>
+		<key>CFBundleIconName</key>
+		<string>AppIcon</string>
+		<key>CFBundleExecutable</key>
+		<string>$(EXECUTABLE_NAME)</string>
+		<key>CFBundleIdentifier</key>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+		<key>CFBundleInfoDictionaryVersion</key>
+		<string>6.0</string>
+		<key>CFBundleName</key>
+		<string>$(PRODUCT_NAME)</string>
+		<key>CFBundlePackageType</key>
+		<string>APPL</string>
+		<key>CFBundleShortVersionString</key>
+		<string>1.2</string>
+		<key>CFBundleSignature</key>
+		<string>????</string>
+		<key>CFBundleVersion</key>
+		<string>2</string>
+		<key>LSRequiresIPhoneOS</key>
+		<true/>
+		<key>NSAppTransportSecurity</key>
+		<dict/>
+		<key>NSCameraUsageDescription</key>
+		<string>This app needs access to camera to take photos for service documentation.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>This app needs access to location when open to show nearby service requests.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>This app needs access to photo library to select images for service documentation.</string>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
+		<key>UIUserNotificationSettings</key>
+		<dict>
+			<key>UIUserNotificationTypes</key>
+			<integer>7</integer>
+			<key>UIUserNotificationActionSettings</key>
+			<array>
+				<dict>
+					<key>UIUserNotificationActionIdentifier</key>
+					<string>ACCEPT_LEAD</string>
+					<key>UIUserNotificationActionTitle</key>
+					<string>Accept Lead</string>
+					<key>UIUserNotificationActionBehavior</key>
+					<integer>0</integer>
+					<key>UIUserNotificationActionActivationMode</key>
+					<integer>0</integer>
+				</dict>
+				<dict>
+					<key>UIUserNotificationActionIdentifier</key>
+					<string>DECLINE_LEAD</string>
+					<key>UIUserNotificationActionTitle</key>
+					<string>Decline Lead</string>
+					<key>UIUserNotificationActionBehavior</key>
+					<integer>1</integer>
+					<key>UIUserNotificationActionActivationMode</key>
+					<integer>1</integer>
+				</dict>
+			</array>
+		</dict>
+		<key>UIAppFonts</key>
+		<array>
+			<string>AntDesign.ttf</string>
+			<string>Entypo.ttf</string>
+			<string>EvilIcons.ttf</string>
+			<string>Feather.ttf</string>
+			<string>FontAwesome.ttf</string>
+			<string>Foundation.ttf</string>
+			<string>Ionicons.ttf</string>
+			<string>MaterialIcons.ttf</string>
+			<string>MaterialCommunityIcons.ttf</string>
+			<string>SimpleLineIcons.ttf</string>
+			<string>Octicons.ttf</string>
+			<string>Zocial.ttf</string>
+			<string>Fontisto.ttf</string>
+		</array>
+		<key>UILaunchStoryboardName</key>
+		<string>LaunchScreen</string>
+		<key>UIRequiredDeviceCapabilities</key>
+		<array>
+			<string>armv7</string>
+		</array>
+		<key>UISupportedInterfaceOrientations</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+		<key>UIViewControllerBasedStatusBarAppearance</key>
+		<false/>
+	</dict>
+</plist>

@@ -9,16 +9,35 @@ const {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Keyboard,
 } = require('react-native');
 const { colors } = require('../../utils/theme');
 
 const BasicInfoStep = ({ formData, onSubmit, isLoading }) => {
+  console.log('🔍 BasicInfoStep rendered with formData:', formData);
   const [localFormData, setLocalFormData] = useState(formData);
   const [errors, setErrors] = useState({});
+  const scrollViewRef = React.useRef(null);
 
   useEffect(() => {
+    console.log('🔍 BasicInfoStep useEffect - formData changed:', formData);
     setLocalFormData(formData);
   }, [formData]);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      // Scroll to bottom when keyboard appears to show submit button
+      setTimeout(() => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollToEnd({ animated: true });
+        }
+      }, 100);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+    };
+  }, []);
 
   const validateForm = () => {
     const newErrors = {};
@@ -58,21 +77,49 @@ const BasicInfoStep = ({ formData, onSubmit, isLoading }) => {
   };
 
   const handleSubmit = () => {
+    console.log('🔍 BasicInfoStep handleSubmit called with localFormData:', localFormData);
+    console.log('🔍 BasicInfoStep formData prop:', formData);
+    console.log('🔍 BasicInfoStep errors state:', errors);
+    
     if (validateForm()) {
+      console.log('✅ Form validation passed, calling onSubmit with:', localFormData);
       onSubmit(localFormData);
+    } else {
+      console.log('❌ Form validation failed, errors:', errors);
+      console.log('❌ Validation failed - preventing form submission');
     }
   };
 
   const updateField = (field, value) => {
-    setLocalFormData(prev => ({ ...prev, [field]: value }));
+    console.log(`🔍 updateField called: ${field} = "${value}"`);
+    setLocalFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      console.log('🔍 Updated localFormData:', newData);
+      return newData;
+    });
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
 
+  const handleAddressFocus = () => {
+    // Scroll to show the submit button when address field is focused
+    setTimeout(() => {
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollToEnd({ animated: true });
+      }
+    }, 300); // Small delay to allow keyboard to appear
+  };
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      ref={scrollViewRef}
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={styles.scrollContent}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Basic Information</Text>
         <Text style={styles.subtitle}>
@@ -83,7 +130,7 @@ const BasicInfoStep = ({ formData, onSubmit, isLoading }) => {
       <View style={styles.form}>
         {/* Personal Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          {/* <Text style={styles.sectionTitle}>Personal Information</Text> */}
           
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
@@ -188,6 +235,7 @@ const BasicInfoStep = ({ formData, onSubmit, isLoading }) => {
               placeholder="Enter your full address"
               value={localFormData.address}
               onChangeText={(value) => updateField('address', value)}
+              onFocus={handleAddressFocus}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
@@ -221,34 +269,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
   header: {
     alignItems: 'center',
-    marginBottom: 12, // Reduced from 16
+    marginBottom: 16,
   },
   title: {
-    fontSize: 18, // Reduced from 20
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 4, // Reduced from 6
+    marginBottom: 6,
   },
   subtitle: {
-    fontSize: 12, // Reduced from 14
+    fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 16, // Reduced from 18
+    lineHeight: 18,
   },
   form: {
     flex: 1,
   },
   section: {
-    marginBottom: 12, // Reduced from 16
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 14, // Reduced from 16
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8, // Reduced from 12
-    paddingBottom: 4, // Reduced from 6
+    marginBottom: 12,
+    paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -257,60 +309,59 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   inputContainer: {
-    marginBottom: 8, // Reduced from 12
+    marginBottom: 12,
   },
   halfWidth: {
     width: '48%',
   },
   label: {
-    fontSize: 12, // Reduced from 14
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4, // Reduced from 6
+    marginBottom: 6,
   },
   input: {
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 4, // Reduced from 6
-    padding: 8, // Reduced from 12
-    fontSize: 13, // Reduced from 14
+    borderRadius: 6,
+    padding: 12,
+    fontSize: 14,
     color: colors.text,
     height: 36, // Reduced from 40
   },
   textArea: {
-    height: 50, // Reduced from 60
+    height: 60,
   },
   inputError: {
     borderColor: colors.error,
   },
   errorText: {
     color: colors.error,
-    fontSize: 11, // Reduced from 12
-    marginTop: 2, // Reduced from 3
+    fontSize: 12,
+    marginTop: 3,
   },
   submitButton: {
     backgroundColor: colors.primary,
-    borderRadius: 4, // Reduced from 6
-    padding: 10, // Reduced from 12
+    borderRadius: 6,
+    padding: 12,
     alignItems: 'center',
-    marginTop: 12, // Reduced from 16
-    marginBottom: 8, // Reduced from 12
-    height: 36, // Reduced from 40
+    marginTop: 16,
+    marginBottom: 12,
   },
   submitButtonDisabled: {
     backgroundColor: colors.border,
   },
   submitButtonText: {
     color: colors.white,
-    fontSize: 13, // Reduced from 14
+    fontSize: 14,
     fontWeight: '600',
   },
   disclaimer: {
-    fontSize: 10, // Reduced from 12
+    fontSize: 10,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 14, // Reduced from 16
+    lineHeight: 14,
   },
 });
 
