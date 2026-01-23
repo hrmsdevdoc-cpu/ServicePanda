@@ -36,24 +36,38 @@ app.use((req, res, next) => {
   ];
 
   const origin = req.headers.origin;
-  console.log('CORS request from origin:', origin);
+  const isDevelopment = process.env.NODE_ENV === 'development';
   
-  if (allowedOrigins.includes(origin)) {
+  console.log('CORS request from origin:', origin, '| NODE_ENV:', process.env.NODE_ENV);
+  
+  // In development, allow any localhost origin (any port)
+  if (isDevelopment && origin && (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
     res.header('Access-Control-Allow-Origin', origin);
-    console.log('CORS: Allowed origin:', origin);
-  } else if (process.env.NODE_ENV === 'development' || (origin && origin.includes('servicepanda.com.au'))) {
-    // Allow all origins in development OR any servicepanda.com.au subdomain
-    if (origin) {
-      res.header('Access-Control-Allow-Origin', origin);
-      console.log('CORS: Allowed servicepanda domain or development mode:', origin);
-    } else {
-      // No origin header - allow for development
-      res.header('Access-Control-Allow-Origin', '*');
-      console.log('CORS: No origin header - allowing all in development');
-    }
-  } else {
+    console.log('CORS: Allowed localhost origin in development:', origin);
+  }
+  // Check if origin is in allowed list
+  else if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    console.log('CORS: Allowed origin from list:', origin);
+  }
+  // Allow servicepanda.com.au subdomains
+  else if (origin && origin.includes('servicepanda.com.au')) {
+    res.header('Access-Control-Allow-Origin', origin);
+    console.log('CORS: Allowed servicepanda domain:', origin);
+  }
+  // In development, allow any origin (fallback)
+  else if (isDevelopment && origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+    console.log('CORS: Allowed origin in development mode:', origin);
+  }
+  // No origin header - allow in development only
+  else if (isDevelopment && !origin) {
+    res.header('Access-Control-Allow-Origin', '*');
+    console.log('CORS: No origin header - allowing all in development');
+  }
+  // Block in production if not allowed
+  else {
     console.log('CORS: Blocked origin:', origin);
-    // Don't set Access-Control-Allow-Origin for blocked origins
     return res.status(403).json({ message: 'CORS: Origin not allowed' });
   }
 
