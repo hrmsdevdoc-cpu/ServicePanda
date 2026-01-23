@@ -275,32 +275,32 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12, // Reduced from 16
   },
   title: {
-    fontSize: 18,
+    fontSize: 18, // Reduced from 20
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 6,
+    marginBottom: 4, // Reduced from 6
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 16, // Reduced from 18
   },
   form: {
     flex: 1,
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 12, // Reduced from 16
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 12,
-    paddingBottom: 6,
+    marginBottom: 8, // Reduced from 12
+    paddingBottom: 4, // Reduced from 6
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -309,59 +309,60 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   inputContainer: {
-    marginBottom: 12,
+    marginBottom: 8, // Reduced from 12
   },
   halfWidth: {
     width: '48%',
   },
   label: {
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 6,
+    marginBottom: 4, // Reduced from 6
   },
   input: {
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 6,
-    padding: 12,
-    fontSize: 14,
+    borderRadius: 4, // Reduced from 6
+    padding: 8, // Reduced from 12
+    fontSize: 13, // Reduced from 14
     color: colors.text,
     height: 36, // Reduced from 40
   },
   textArea: {
-    height: 60,
+    height: 50, // Reduced from 60
   },
   inputError: {
     borderColor: colors.error,
   },
   errorText: {
     color: colors.error,
-    fontSize: 12,
-    marginTop: 3,
+    fontSize: 11, // Reduced from 12
+    marginTop: 2, // Reduced from 3
   },
   submitButton: {
     backgroundColor: colors.primary,
-    borderRadius: 6,
-    padding: 12,
+    borderRadius: 4, // Reduced from 6
+    padding: 10, // Reduced from 12
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 12,
+    marginTop: 12, // Reduced from 16
+    marginBottom: 8, // Reduced from 12
+    height: 36, // Reduced from 40
   },
   submitButtonDisabled: {
     backgroundColor: colors.border,
   },
   submitButtonText: {
     color: colors.white,
-    fontSize: 14,
+    fontSize: 13, // Reduced from 14
     fontWeight: '600',
   },
   disclaimer: {
-    fontSize: 10,
+    fontSize: 10, // Reduced from 12
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 14,
+    lineHeight: 14, // Reduced from 16
   },
 });
 
