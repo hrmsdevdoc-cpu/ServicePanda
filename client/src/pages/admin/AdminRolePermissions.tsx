@@ -78,6 +78,8 @@ const AdminRolePermissions: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
+      queryClient.invalidateQueries({ queryKey: ['adminUser'] });
+      queryClient.refetchQueries({ queryKey: ['roles'] });
       toast({
         title: "Success",
         description: "Role created successfully",
@@ -99,6 +101,8 @@ const AdminRolePermissions: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
+      queryClient.invalidateQueries({ queryKey: ['adminUser'] });
+      queryClient.refetchQueries({ queryKey: ['roles'] });
       toast({
         title: "Success",
         description: "Role updated successfully",
@@ -120,6 +124,8 @@ const AdminRolePermissions: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
+      queryClient.invalidateQueries({ queryKey: ['adminUser'] });
+      queryClient.refetchQueries({ queryKey: ['roles'] });
       toast({
         title: "Success",
         description: "Role deleted successfully",

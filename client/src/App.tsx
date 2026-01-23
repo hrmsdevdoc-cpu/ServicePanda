@@ -150,7 +150,7 @@ function Router() {
       <Route path="/admin/reports/providers" component={AdminProviderReports} />
       <Route path="/admin/reports/daily" component={AdminDailyReports} />
       <Route path="/admin/settings/roles-permissions">
-        <ProtectedRoute requiredPermissions={['settings']}>
+        <ProtectedRoute requiredPermissions={['role_and_permissions']}>
           <AdminRolePermissions />
         </ProtectedRoute>
       </Route>

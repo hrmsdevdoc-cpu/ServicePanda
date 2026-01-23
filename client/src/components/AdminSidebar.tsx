@@ -88,6 +88,18 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
       return response.json();
     },
     retry: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+  });
+
+  // Fetch all permissions to build dynamic permission map
+  const { data: allPermissions } = useQuery({
+    queryKey: ['permissions'],
+    queryFn: async () => {
+      const response = await adminApiRequest("GET", "/api/admin/permissions");
+      return response.json();
+    },
+    retry: false,
   });
 
   // Get current user's permissions
@@ -105,26 +117,73 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
 
   const userPermissions = getUserPermissions();
 
+  // Build dynamic permission map from API data
+  const buildPermissionMap = () => {
+    if (!allPermissions || !Array.isArray(allPermissions)) {
+      // Fallback to static map if permissions not loaded yet
+      return {
+        'dashboard': 1,
+        'providers': 2,
+        'leads': 5,
+        'potential_customers': 7,
+        'potential_providers': 8,
+        'vouchers': 9,
+        'email': 10,
+        'sms': 11,
+        'reports': 12,
+        'settings': 14,
+        'admin_users': 15,
+        'departments': 16,
+        'role_and_permissions': 17,
+        'mailgun_settings': 18,
+        'lead_settings': 19,
+        'terms_and_conditions': 20,
+        'service_type': 21,
+        'change_password': 22,
+        'stripe_settings': 23,
+      };
+    }
+
+    const map: { [key: string]: number } = {};
+    
+    // Map permission names to IDs dynamically
+    allPermissions.forEach((perm: any) => {
+      // Convert permission name to lowercase with underscores for matching
+      const normalizedName = perm.name.toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/&/g, 'and');
+      map[normalizedName] = perm.id;
+      
+      // Add specific mappings for common permission names
+      if (perm.name === 'Dashboard') map['dashboard'] = perm.id;
+      if (perm.name === 'Providers') map['providers'] = perm.id;
+      if (perm.name === 'Leads') map['leads'] = perm.id;
+      if (perm.name === 'Potential Customers') map['potential_customers'] = perm.id;
+      if (perm.name === 'Potential Providers') map['potential_providers'] = perm.id;
+      if (perm.name === 'Vouchers') map['vouchers'] = perm.id;
+      if (perm.name === 'Email Campaigns') map['email'] = perm.id;
+      if (perm.name === 'SMS Campaigns') map['sms'] = perm.id;
+      if (perm.name === 'Reports') map['reports'] = perm.id;
+      if (perm.name === 'Settings') map['settings'] = perm.id;
+      if (perm.name === 'Admin Users') map['admin_users'] = perm.id;
+      if (perm.name === 'Departments') map['departments'] = perm.id;
+      if (perm.name === 'Role and Permissions') map['role_and_permissions'] = perm.id;
+      if (perm.name === 'Mailgun Settings') map['mailgun_settings'] = perm.id;
+      if (perm.name === 'Lead Settings') map['lead_settings'] = perm.id;
+      if (perm.name === 'Terms and Conditions') map['terms_and_conditions'] = perm.id;
+      if (perm.name === 'Service Type') map['service_type'] = perm.id;
+      if (perm.name === 'Change Password') map['change_password'] = perm.id;
+      if (perm.name === 'Stripe Settings') map['stripe_settings'] = perm.id;
+    });
+    
+    return map;
+  };
+
   // Check if user has a specific permission
   const hasPermission = (permissionName: string) => {
     if (!userPermissions.length) return false;
     
-    // Map permission names to IDs (this should match the database)
-    const permissionMap: { [key: string]: number } = {
-      'dashboard': 1,
-      'providers': 2,
-      'leads': 5,
-      'potential_customers': 7,
-      'potential_providers': 8,
-      'vouchers': 9,
-      'email': 10,
-      'sms': 11,
-      'reports': 12,
-      'settings': 14,
-      'admin_users': 15,
-      'departments': 16,
-    };
-
+    const permissionMap = buildPermissionMap();
     const permissionId = permissionMap[permissionName];
     return permissionId ? userPermissions.includes(permissionId) : false;
   };
@@ -215,13 +274,13 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
           { label: "Admin Users", href: "/admin/admin-users", permission: "admin_users" },
           { label: "Departments", href: "/admin/departments", permission: "departments" },
         ]},
-        { label: "Role & Permissions", href: "/admin/settings/roles-permissions", permission: "settings" },
-        { label: "Change Password", href: "/admin/change-password", permission: "settings" },
-        { label: "Stripe Settings", href: "/admin/settings/stripe", permission: "settings" },
-        { label: "Mailgun Settings", href: "/admin/settings/mailgun", permission: "settings" },
-        { label: "Lead Settings", href: "/admin/lead-settings", permission: "settings" },
-        { label: "Service Type", href: "/admin/service-type", permission: "settings" },
-        { label: "Terms and Conditions", href: "/admin/terms-conditions", permission: "settings" },
+        { label: "Role & Permissions", href: "/admin/settings/roles-permissions", permission: "role_and_permissions" },
+        { label: "Change Password", href: "/admin/change-password", permission: "change_password" },
+        { label: "Stripe Settings", href: "/admin/settings/stripe", permission: "stripe_settings" },
+        { label: "Mailgun Settings", href: "/admin/settings/mailgun", permission: "mailgun_settings" },
+        { label: "Lead Settings", href: "/admin/lead-settings", permission: "lead_settings" },
+        { label: "Service Type", href: "/admin/service-type", permission: "service_type" },
+        { label: "Terms and Conditions", href: "/admin/terms-conditions", permission: "terms_and_conditions" },
       ],
     },
   ];
@@ -354,7 +413,28 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
               {/* Sub-items */}
               {item.subItems.length > 0 && isMenuExpanded(item.href) && !isCollapsed && (
                 <div className="ml-6 mt-3 space-y-3 transition-all duration-300 animate-in slide-in-from-top-2 border-l-2 border-slate-500/40 pl-4 bg-slate-800/30 rounded-r-lg py-2">
-                  {item.subItems.map((subItem: any) => (
+                  {item.subItems
+                    .filter((subItem: any) => {
+                      // Double-check permission at render time for sub-items
+                      if (subItem.permission && !hasPermission(subItem.permission)) {
+                        return false;
+                      }
+                      // If it has nested sub-items, check if any are still visible
+                      if (subItem.subItems && subItem.subItems.length > 0) {
+                        const visibleNested = subItem.subItems.filter((nested: any) => {
+                          if (nested.permission && !hasPermission(nested.permission)) {
+                            return false;
+                          }
+                          return true;
+                        });
+                        // If no nested items are visible, hide the parent
+                        if (visibleNested.length === 0) {
+                          return false;
+                        }
+                      }
+                      return true;
+                    })
+                    .map((subItem: any) => (
                     <div key={subItem.href}>
                       {subItem.subItems ? (
                         // Nested sub-item with its own sub-items
@@ -379,7 +459,15 @@ export function AdminSidebar({ onLogout, adminUser }: AdminSidebarProps) {
                           </Button>
                           {isMenuExpanded(subItem.href) && (
                             <div className="ml-6 mt-3 space-y-3 transition-all duration-300 animate-in slide-in-from-top-2 border-l-2 border-slate-400/30 pl-4 bg-slate-700/20 rounded-r-lg py-2">
-                              {subItem.subItems.map((nestedItem: any) => (
+                              {subItem.subItems
+                                .filter((nestedItem: any) => {
+                                  // Double-check permission at render time
+                                  if (nestedItem.permission && !hasPermission(nestedItem.permission)) {
+                                    return false;
+                                  }
+                                  return true;
+                                })
+                                .map((nestedItem: any) => (
                                 <Link key={nestedItem.href} href={nestedItem.href}>
                                   <Button
                                     variant={location === nestedItem.href ? "default" : "ghost"}

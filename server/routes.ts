@@ -2935,11 +2935,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin user management endpoints  
   app.get('/api/admin/users', isAdminAuthenticated, async (req, res) => {
     try {
+      // Get current logged-in admin user
+      const token = req.headers['x-admin-token'] as string;
+      const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-key') as any;
+      const currentAdminUser = await storage.getAdminUserByUsername(decoded.username);
+      
       const users = await storage.getAllAdminUsers();
+
+      // Filter out super_admin users if current user is not super_admin
+      const filteredUsers = currentAdminUser?.username === 'admin' 
+        ? users 
+        : users.filter(user => user.role !== 'super_admin' && user.username !== 'admin');
 
       // Get departments for each user
       const usersWithDepartments = await Promise.all(
-        users.map(async (user) => {
+        filteredUsers.map(async (user) => {
           const departments = await storage.getUserDepartments(user.id);
           return { ...user, departments };
         })
@@ -2981,10 +2991,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate role
-      const validRoles = ['Administrator', 'Manager', 'Team Member'];
+      const validRoles = ['super_admin', 'Administrator', 'Manager', 'Team Member'];
       if (!validRoles.includes(role)) {
         return res.status(400).json({
-          message: 'Role must be Administrator, Manager, or Team Member'
+          message: 'Role must be super_admin, Administrator, Manager, or Team Member'
+        });
+      }
+
+      // Only super_admin can create users with super_admin role
+      const token = req.headers['x-admin-token'] as string;
+      const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-key') as any;
+      const currentAdminUser = await storage.getAdminUserByUsername(decoded.username);
+      
+      if (!currentAdminUser) {
+        return res.status(404).json({ message: 'Current admin user not found' });
+      }
+
+      if (role === 'super_admin' && currentAdminUser.username !== 'admin') {
+        return res.status(403).json({
+          message: 'Only super admin can create users with super_admin role'
         });
       }
 
@@ -3028,7 +3053,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/users/:id', isAdminAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
-      const { username, firstName, lastName, email, role, status, departmentIds = [] } = req.body;
+      const { username, firstName, lastName, email, password, role, status, departmentIds = [] } = req.body;
 
       // Validate required fields
       if (!username || !firstName || !lastName || !email || !role || !status) {
@@ -3037,11 +3062,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Validate role
-      const validRoles = ['Administrator', 'Manager', 'Team Member'];
-      if (!validRoles.includes(role)) {
+      // Validate role - trim whitespace and check
+      const trimmedRole = role?.trim();
+      const validRoles = ['super_admin', 'Administrator', 'Manager', 'Team Member'];
+      if (!trimmedRole || !validRoles.includes(trimmedRole)) {
+        console.log('Invalid role received:', role, 'Valid roles:', validRoles);
         return res.status(400).json({
-          message: 'Role must be Administrator, Manager, or Team Member'
+          message: 'Role must be super_admin, Administrator, Manager, or Team Member'
+        });
+      }
+
+      // Get current logged-in admin user
+      const token = req.headers['x-admin-token'] as string;
+      const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-key') as any;
+      const currentAdminUser = await storage.getAdminUserByUsername(decoded.username);
+      
+      if (!currentAdminUser) {
+        return res.status(404).json({ message: 'Current admin user not found' });
+      }
+
+      // Only super_admin can assign or change role to super_admin
+      if (trimmedRole === 'super_admin' && currentAdminUser.username !== 'admin') {
+        return res.status(403).json({
+          message: 'Only super admin can assign or change role to super_admin'
         });
       }
 
@@ -3053,20 +3096,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Validate password if provided
+      if (password && password.length > 0) {
+        if (password.length < 8) {
+          return res.status(400).json({
+            message: 'Password must be at least 8 characters long'
+          });
+        }
+      }
+
       // Check if username already exists (excluding current user)
       const existingUser = await storage.getAdminUserByUsername(username);
       if (existingUser && existingUser.id !== parseInt(id)) {
         return res.status(400).json({ message: 'Username already exists' });
       }
 
-      const updates = {
+      // Get the target user to check if it's super_admin
+      const targetUser = await storage.getAdminUser(parseInt(id));
+      if (!targetUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Prevent password changes for super_admin unless the logged-in user is super_admin changing their own password
+      if (targetUser.username === 'admin' && password && password.length > 0) {
+        // Only allow if the current logged-in user is super_admin and they're changing their own password
+        if (currentAdminUser.username !== 'admin' || currentAdminUser.id !== targetUser.id) {
+          return res.status(403).json({ 
+            message: 'Password changes for the super admin user are only allowed when logged in as super admin' 
+          });
+        }
+      }
+
+      const updates: any = {
         username: username.trim(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim(),
-        role,
+        role: trimmedRole,
         status,
       };
+
+      // Update password if provided
+      // For super_admin, only allow if they're changing their own password
+      if (password && password.length > 0) {
+        if (targetUser.username === 'admin' && (currentAdminUser.username !== 'admin' || currentAdminUser.id !== targetUser.id)) {
+          // This case is already handled above, but adding extra safety
+          return res.status(403).json({ 
+            message: 'Password changes for the super admin user are only allowed when logged in as super admin' 
+          });
+        }
+        const hashedPassword = await hashPassword(password);
+        updates.password = hashedPassword;
+      }
 
       const updatedUser = await storage.updateAdminUser(parseInt(id), updates);
 
@@ -3143,6 +3224,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: 'Password changed successfully' });
     } catch (error) {
       console.error('Error changing password:', error);
+      res.status(500).json({ message: 'Failed to change password' });
+    }
+  });
+
+  // Admin endpoint to change password for teams/managers (not for other admins)
+  app.post('/api/admin/users/:id/change-password', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { newPassword } = req.body;
+      const token = req.headers['x-admin-token'] as string;
+
+      if (!newPassword) {
+        return res.status(400).json({ message: 'New password is required' });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+      }
+
+      // Decode token to get current admin user
+      const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-key') as any;
+      const currentAdminUser = await storage.getAdminUserByUsername(decoded.username);
+      
+      if (!currentAdminUser) {
+        return res.status(404).json({ message: 'Admin user not found' });
+      }
+
+      // Only administrators can change passwords for other users
+      if (currentAdminUser.role !== 'Administrator') {
+        return res.status(403).json({ message: 'Only administrators can change passwords for other users' });
+      }
+
+      // Get the target user
+      const targetUser = await storage.getAdminUser(parseInt(id));
+      if (!targetUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Prevent admins from changing other admins' passwords (except their own)
+      if (targetUser.role === 'Administrator' && targetUser.id !== currentAdminUser.id) {
+        return res.status(403).json({ message: 'Cannot change password for other administrators' });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await hashPassword(newPassword);
+
+      // Update password
+      await storage.updateAdminUser(parseInt(id), { password: hashedNewPassword });
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('Error changing user password:', error);
       res.status(500).json({ message: 'Failed to change password' });
     }
   });

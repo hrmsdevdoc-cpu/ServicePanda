@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ export default function AdminUsers() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("all");
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
@@ -125,26 +126,19 @@ export default function AdminUsers() {
     },
   });
 
-  // Filter users
-  const filteredUsers = users.filter((user: AdminUser) => {
-    const matchesSearch = 
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesRole = selectedRole === "all" || user.role === selectedRole;
-    
-    return matchesSearch && matchesRole;
-  });
-
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
+      case "super_admin": return "bg-purple-100 text-purple-800";
       case "Administrator": return "bg-red-100 text-red-800";
       case "Manager": return "bg-blue-100 text-blue-800";
       case "Team Member": return "bg-green-100 text-green-800";
       default: return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const formatRoleDisplay = (role: string) => {
+    if (role === "super_admin") return "Super Admin";
+    return role;
   };
 
   const getStatusBadgeColor = (status: string) => {
@@ -164,6 +158,29 @@ export default function AdminUsers() {
       return response.json();
     },
   });
+
+  // Filter users - must be after currentAdminUser is defined
+  const filteredUsers = useMemo(() => {
+    return users.filter((user: AdminUser) => {
+      // Hide super_admin users from non-super_admin users
+      if (currentAdminUser?.username !== 'admin' && (user.role === 'super_admin' || user.username === 'admin')) {
+        return false;
+      }
+      
+      const matchesSearch = 
+        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesRole = selectedRole === "all" || user.role === selectedRole;
+      
+      const matchesDepartment = selectedDepartment === "all" || 
+        user.departments.some(dept => dept.id.toString() === selectedDepartment);
+      
+      return matchesSearch && matchesRole && matchesDepartment;
+    });
+  }, [users, currentAdminUser, searchTerm, selectedRole, selectedDepartment]);
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex relative overflow-hidden">
@@ -201,6 +218,7 @@ export default function AdminUsers() {
               </DialogTrigger>
               <AddUserDialog 
                 departments={departments}
+                currentAdminUser={currentAdminUser}
                 onSubmit={(userData) => addUserMutation.mutate(userData)}
                 isLoading={addUserMutation.isPending}
               />
@@ -225,9 +243,25 @@ export default function AdminUsers() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
+                  {currentAdminUser?.username === 'admin' && (
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                  )}
                   <SelectItem value="Administrator">Administrator</SelectItem>
                   <SelectItem value="Manager">Manager</SelectItem>
                   <SelectItem value="Team Member">Team Member</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {departments.map((dept: Department) => (
+                    <SelectItem key={dept.id} value={dept.id.toString()}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -255,7 +289,7 @@ export default function AdminUsers() {
                           <p className="text-sm text-gray-500">{user.email}</p>
                           <div className="flex gap-2 mt-2">
                             <Badge className={getRoleBadgeColor(user.role)}>
-                              {user.role}
+                              {formatRoleDisplay(user.role)}
                             </Badge>
                             <Badge className={getStatusBadgeColor(user.status)}>
                               {user.status}
@@ -278,18 +312,20 @@ export default function AdminUsers() {
                           setIsEditDialogOpen(open);
                           if (!open) setEditingUser(null);
                         }}>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingUser(user)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingUser(user);
+                              setIsEditDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                           <EditUserDialog
                             user={editingUser}
                             departments={departments}
+                            currentAdminUser={currentAdminUser}
                             onSubmit={(userData) => updateUserMutation.mutate({ id: user.id, userData })}
                             isLoading={updateUserMutation.isPending}
                           />
@@ -339,8 +375,9 @@ export default function AdminUsers() {
   );
 }
 
-function AddUserDialog({ departments, onSubmit, isLoading }: {
+function AddUserDialog({ departments, currentAdminUser, onSubmit, isLoading }: {
   departments: Department[];
+  currentAdminUser?: any;
   onSubmit: (userData: any) => void;
   isLoading: boolean;
 }) {
@@ -431,6 +468,9 @@ function AddUserDialog({ departments, onSubmit, isLoading }: {
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
             <SelectContent>
+              {currentAdminUser?.username === 'admin' && (
+                <SelectItem value="super_admin">Super Admin</SelectItem>
+              )}
               <SelectItem value="Administrator">Administrator</SelectItem>
               <SelectItem value="Manager">Manager</SelectItem>
               <SelectItem value="Team Member">Team Member</SelectItem>
@@ -460,9 +500,10 @@ function AddUserDialog({ departments, onSubmit, isLoading }: {
   );
 }
 
-function EditUserDialog({ user, departments, onSubmit, isLoading }: {
+function EditUserDialog({ user, departments, currentAdminUser, onSubmit, isLoading }: {
   user: AdminUser | null;
   departments: Department[];
+  currentAdminUser?: any;
   onSubmit: (userData: any) => void;
   isLoading: boolean;
 }) {
@@ -471,10 +512,27 @@ function EditUserDialog({ user, departments, onSubmit, isLoading }: {
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
     email: user?.email || "",
+    password: "",
     role: user?.role || "",
     status: user?.status || "",
-    departmentIds: user?.departments.map(d => d.id) || [],
+    departmentIds: user?.departments?.map(d => d.id) || [],
   });
+
+  // Update form data when user changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        username: user.username || "",
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        password: "",
+        role: user.role || "",
+        status: user.status || "",
+        departmentIds: user.departments?.map(d => d.id) || [],
+      });
+    }
+  }, [user]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -537,6 +595,34 @@ function EditUserDialog({ user, departments, onSubmit, isLoading }: {
             required
           />
         </div>
+        {/* Show password field for all users, or for super_admin when they're editing their own account */}
+        {user.username !== 'admin' || (user.username === 'admin' && currentAdminUser?.username === 'admin') ? (
+          <div>
+            <Label htmlFor="edit-password">New Password (leave blank to keep current)</Label>
+            <Input
+              id="edit-password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+              placeholder="Enter new password (min 8 characters)"
+              minLength={8}
+            />
+            {formData.password && formData.password.length > 0 && formData.password.length < 8 && (
+              <p className="text-sm text-red-600 mt-1">Password must be at least 8 characters long</p>
+            )}
+            {user.username === 'admin' && currentAdminUser?.username === 'admin' && (
+              <p className="text-sm text-blue-600 mt-1">
+                You can change your own password as super admin.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-sm text-yellow-800">
+              Password changes for the super admin user are only allowed when logged in as super admin.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="edit-role">Role</Label>
@@ -545,6 +631,9 @@ function EditUserDialog({ user, departments, onSubmit, isLoading }: {
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
+                {currentAdminUser?.username === 'admin' && (
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                )}
                 <SelectItem value="Administrator">Administrator</SelectItem>
                 <SelectItem value="Manager">Manager</SelectItem>
                 <SelectItem value="Team Member">Team Member</SelectItem>

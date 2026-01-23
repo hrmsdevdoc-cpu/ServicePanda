@@ -11719,9 +11719,13 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/admin/users", isAdminAuthenticated, async (req, res) => {
     try {
+      const token = req.headers["x-admin-token"];
+      const decoded = jwt2.verify(token, process.env.ADMIN_JWT_SECRET || "admin-jwt-secret-key");
+      const currentAdminUser = await storage.getAdminUserByUsername(decoded.username);
       const users2 = await storage.getAllAdminUsers();
+      const filteredUsers = currentAdminUser?.username === "admin" ? users2 : users2.filter((user) => user.role !== "super_admin" && user.username !== "admin");
       const usersWithDepartments = await Promise.all(
-        users2.map(async (user) => {
+        filteredUsers.map(async (user) => {
           const departments = await storage.getUserDepartments(user.id);
           return { ...user, departments };
         })
@@ -11754,10 +11758,21 @@ async function registerRoutes(app2) {
           message: "Username, first name, last name, email, password, and role are required"
         });
       }
-      const validRoles = ["Administrator", "Manager", "Team Member"];
+      const validRoles = ["super_admin", "Administrator", "Manager", "Team Member"];
       if (!validRoles.includes(role)) {
         return res.status(400).json({
-          message: "Role must be Administrator, Manager, or Team Member"
+          message: "Role must be super_admin, Administrator, Manager, or Team Member"
+        });
+      }
+      const token = req.headers["x-admin-token"];
+      const decoded = jwt2.verify(token, process.env.ADMIN_JWT_SECRET || "admin-jwt-secret-key");
+      const currentAdminUser = await storage.getAdminUserByUsername(decoded.username);
+      if (!currentAdminUser) {
+        return res.status(404).json({ message: "Current admin user not found" });
+      }
+      if (role === "super_admin" && currentAdminUser.username !== "admin") {
+        return res.status(403).json({
+          message: "Only super admin can create users with super_admin role"
         });
       }
       const existingUser = await storage.getAdminUserByUsername(username);
@@ -11790,16 +11805,29 @@ async function registerRoutes(app2) {
   app2.put("/api/admin/users/:id", isAdminAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
-      const { username, firstName, lastName, email, role, status, departmentIds = [] } = req.body;
+      const { username, firstName, lastName, email, password, role, status, departmentIds = [] } = req.body;
       if (!username || !firstName || !lastName || !email || !role || !status) {
         return res.status(400).json({
           message: "Username, first name, last name, email, role, and status are required"
         });
       }
-      const validRoles = ["Administrator", "Manager", "Team Member"];
-      if (!validRoles.includes(role)) {
+      const trimmedRole = role?.trim();
+      const validRoles = ["super_admin", "Administrator", "Manager", "Team Member"];
+      if (!trimmedRole || !validRoles.includes(trimmedRole)) {
+        console.log("Invalid role received:", role, "Valid roles:", validRoles);
         return res.status(400).json({
-          message: "Role must be Administrator, Manager, or Team Member"
+          message: "Role must be super_admin, Administrator, Manager, or Team Member"
+        });
+      }
+      const token = req.headers["x-admin-token"];
+      const decoded = jwt2.verify(token, process.env.ADMIN_JWT_SECRET || "admin-jwt-secret-key");
+      const currentAdminUser = await storage.getAdminUserByUsername(decoded.username);
+      if (!currentAdminUser) {
+        return res.status(404).json({ message: "Current admin user not found" });
+      }
+      if (trimmedRole === "super_admin" && currentAdminUser.username !== "admin") {
+        return res.status(403).json({
+          message: "Only super admin can assign or change role to super_admin"
         });
       }
       const validStatuses = ["active", "inactive"];
@@ -11808,18 +11836,45 @@ async function registerRoutes(app2) {
           message: "Status must be active or inactive"
         });
       }
+      if (password && password.length > 0) {
+        if (password.length < 8) {
+          return res.status(400).json({
+            message: "Password must be at least 8 characters long"
+          });
+        }
+      }
       const existingUser = await storage.getAdminUserByUsername(username);
       if (existingUser && existingUser.id !== parseInt(id)) {
         return res.status(400).json({ message: "Username already exists" });
+      }
+      const targetUser = await storage.getAdminUser(parseInt(id));
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (targetUser.username === "admin" && password && password.length > 0) {
+        if (currentAdminUser.username !== "admin" || currentAdminUser.id !== targetUser.id) {
+          return res.status(403).json({
+            message: "Password changes for the super admin user are only allowed when logged in as super admin"
+          });
+        }
       }
       const updates = {
         username: username.trim(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim(),
-        role,
+        role: trimmedRole,
         status
       };
+      if (password && password.length > 0) {
+        if (targetUser.username === "admin" && (currentAdminUser.username !== "admin" || currentAdminUser.id !== targetUser.id)) {
+          return res.status(403).json({
+            message: "Password changes for the super admin user are only allowed when logged in as super admin"
+          });
+        }
+        const hashedPassword = await hashPassword3(password);
+        updates.password = hashedPassword;
+      }
       const updatedUser = await storage.updateAdminUser(parseInt(id), updates);
       await storage.updateUserDepartments(parseInt(id), departmentIds);
       const departments = await storage.getUserDepartments(parseInt(id));
@@ -11871,6 +11926,40 @@ async function registerRoutes(app2) {
       res.json({ message: "Password changed successfully" });
     } catch (error) {
       console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+  app2.post("/api/admin/users/:id/change-password", isAdminAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { newPassword } = req.body;
+      const token = req.headers["x-admin-token"];
+      if (!newPassword) {
+        return res.status(400).json({ message: "New password is required" });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "New password must be at least 8 characters long" });
+      }
+      const decoded = jwt2.verify(token, process.env.ADMIN_JWT_SECRET || "admin-jwt-secret-key");
+      const currentAdminUser = await storage.getAdminUserByUsername(decoded.username);
+      if (!currentAdminUser) {
+        return res.status(404).json({ message: "Admin user not found" });
+      }
+      if (currentAdminUser.role !== "Administrator") {
+        return res.status(403).json({ message: "Only administrators can change passwords for other users" });
+      }
+      const targetUser = await storage.getAdminUser(parseInt(id));
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (targetUser.role === "Administrator" && targetUser.id !== currentAdminUser.id) {
+        return res.status(403).json({ message: "Cannot change password for other administrators" });
+      }
+      const hashedNewPassword = await hashPassword3(newPassword);
+      await storage.updateAdminUser(parseInt(id), { password: hashedNewPassword });
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Error changing user password:", error);
       res.status(500).json({ message: "Failed to change password" });
     }
   });
@@ -13588,10 +13677,7 @@ function serveStatic(app2) {
 import dotenv3 from "dotenv";
 import path7 from "path";
 var envPath3 = path7.resolve(process.cwd(), ".env");
-console.log("Loading .env file from:", envPath3);
 var result = dotenv3.config({ path: envPath3 });
-console.log("Dotenv result:", result);
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
 var app = express3();
 if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = "development";
@@ -13613,31 +13699,84 @@ app.use((req, res, next) => {
     "http://127.0.0.1:5173"
   ];
   const origin = req.headers.origin;
-  console.log("CORS request from origin:", origin);
-  if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-    console.log("CORS: Allowed origin:", origin);
-  } else if (process.env.NODE_ENV === "development" || origin && origin.includes("servicepanda.com.au")) {
-    if (origin) {
-      res.header("Access-Control-Allow-Origin", origin);
-      console.log("CORS: Allowed servicepanda domain or development mode:", origin);
-    } else {
-      res.header("Access-Control-Allow-Origin", "*");
-      console.log("CORS: No origin header - allowing all in development");
+  const isDevelopment = process.env.NODE_ENV === "development";
+  const isServicePandaDomain = (origin2) => {
+    if (!origin2) return false;
+    try {
+      const url = new URL(origin2);
+      return url.hostname === "servicepanda.com.au" || url.hostname === "www.servicepanda.com.au" || url.hostname === "staging.servicepanda.com.au" || url.hostname === "api.servicepanda.com.au" || url.hostname.endsWith(".servicepanda.com.au");
+    } catch {
+      return origin2.includes("servicepanda.com.au");
     }
-  } else {
-    console.log("CORS: Blocked origin:", origin);
-    return res.status(403).json({ message: "CORS: Origin not allowed" });
-  }
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token");
-  res.header("Access-Control-Allow-Credentials", "true");
+  };
+  console.log("CORS request from origin:", origin, "| NODE_ENV:", process.env.NODE_ENV, "| Method:", req.method);
   if (req.method === "OPTIONS") {
-    console.log("CORS: Handling preflight request");
-    res.sendStatus(200);
-  } else {
-    next();
+    if (origin && isServicePandaDomain(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token");
+      res.header("Access-Control-Allow-Credentials", "true");
+      console.log("CORS: Preflight allowed for servicepanda domain:", origin);
+      return res.sendStatus(200);
+    }
+    if (isDevelopment && origin && (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:"))) {
+      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token");
+      res.header("Access-Control-Allow-Credentials", "true");
+      console.log("CORS: Preflight allowed for localhost in development:", origin);
+      return res.sendStatus(200);
+    }
+    if (origin && allowedOrigins.includes(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token");
+      res.header("Access-Control-Allow-Credentials", "true");
+      console.log("CORS: Preflight allowed from list:", origin);
+      return res.sendStatus(200);
+    }
   }
+  if (origin && isServicePandaDomain(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token");
+    res.header("Access-Control-Allow-Credentials", "true");
+    console.log("CORS: Allowed servicepanda domain:", origin);
+    return next();
+  }
+  if (isDevelopment && origin && (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:"))) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token");
+    res.header("Access-Control-Allow-Credentials", "true");
+    console.log("CORS: Allowed localhost origin in development:", origin);
+    return next();
+  }
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token");
+    res.header("Access-Control-Allow-Credentials", "true");
+    console.log("CORS: Allowed origin from list:", origin);
+    return next();
+  }
+  if (isDevelopment && origin) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token");
+    res.header("Access-Control-Allow-Credentials", "true");
+    console.log("CORS: Allowed origin in development mode:", origin);
+    return next();
+  }
+  if (isDevelopment && !origin) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token");
+    console.log("CORS: No origin header - allowing all in development");
+    return next();
+  }
+  console.log("CORS: Blocked origin:", origin);
+  res.status(403).json({ message: "CORS: Origin not allowed", origin });
 });
 app.get("/api/health", (req, res) => {
   res.json({

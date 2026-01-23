@@ -5,10 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 // Load environment variables from .env file
 const envPath = path.resolve(process.cwd(), '.env');
-console.log('Loading .env file from:', envPath);
 const result = dotenv.config({ path: envPath });
-console.log('Dotenv result:', result);
-console.log('DATABASE_URL:', process.env.DATABASE_URL);
 
 const app = express();
 
@@ -38,49 +35,107 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   const isDevelopment = process.env.NODE_ENV === 'development';
   
-  console.log('CORS request from origin:', origin, '| NODE_ENV:', process.env.NODE_ENV);
+  // Helper function to check if origin is a servicepanda.com.au domain
+  const isServicePandaDomain = (origin: string | undefined): boolean => {
+    if (!origin) return false;
+    try {
+      const url = new URL(origin);
+      return url.hostname === 'servicepanda.com.au' || 
+             url.hostname === 'www.servicepanda.com.au' ||
+             url.hostname === 'staging.servicepanda.com.au' ||
+             url.hostname === 'api.servicepanda.com.au' ||
+             url.hostname.endsWith('.servicepanda.com.au');
+    } catch {
+      return origin.includes('servicepanda.com.au');
+    }
+  };
   
-  // In development, allow any localhost origin (any port)
+  console.log('CORS request from origin:', origin, '| NODE_ENV:', process.env.NODE_ENV, '| Method:', req.method);
+  
+  // Handle preflight OPTIONS requests first
+  if (req.method === 'OPTIONS') {
+    // Allow servicepanda.com.au domains
+    if (origin && isServicePandaDomain(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      console.log('CORS: Preflight allowed for servicepanda domain:', origin);
+      return res.sendStatus(200);
+    }
+    // Allow localhost in development
+    if (isDevelopment && origin && (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      console.log('CORS: Preflight allowed for localhost in development:', origin);
+      return res.sendStatus(200);
+    }
+    // Check allowed origins list
+    if (origin && allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      console.log('CORS: Preflight allowed from list:', origin);
+      return res.sendStatus(200);
+    }
+  }
+  
+  // Handle actual requests (non-OPTIONS)
+  // Priority 1: Allow servicepanda.com.au domains (production)
+  if (origin && isServicePandaDomain(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    console.log('CORS: Allowed servicepanda domain:', origin);
+    return next();
+  }
+  
+  // Priority 2: In development, allow any localhost origin (any port)
   if (isDevelopment && origin && (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
     res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
+    res.header('Access-Control-Allow-Credentials', 'true');
     console.log('CORS: Allowed localhost origin in development:', origin);
+    return next();
   }
-  // Check if origin is in allowed list
-  else if (origin && allowedOrigins.includes(origin)) {
+  
+  // Priority 3: Check if origin is in allowed list
+  if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
+    res.header('Access-Control-Allow-Credentials', 'true');
     console.log('CORS: Allowed origin from list:', origin);
+    return next();
   }
-  // Allow servicepanda.com.au subdomains
-  else if (origin && origin.includes('servicepanda.com.au')) {
+  
+  // Priority 4: In development, allow any origin (fallback)
+  if (isDevelopment && origin) {
     res.header('Access-Control-Allow-Origin', origin);
-    console.log('CORS: Allowed servicepanda domain:', origin);
-  }
-  // In development, allow any origin (fallback)
-  else if (isDevelopment && origin) {
-    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
+    res.header('Access-Control-Allow-Credentials', 'true');
     console.log('CORS: Allowed origin in development mode:', origin);
+    return next();
   }
-  // No origin header - allow in development only
-  else if (isDevelopment && !origin) {
+  
+  // Priority 5: No origin header - allow in development only
+  if (isDevelopment && !origin) {
     res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
     console.log('CORS: No origin header - allowing all in development');
+    return next();
   }
+  
   // Block in production if not allowed
-  else {
-    console.log('CORS: Blocked origin:', origin);
-    return res.status(403).json({ message: 'CORS: Origin not allowed' });
-  }
-
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token');
-  res.header('Access-Control-Allow-Credentials', 'true');
-
-  if (req.method === 'OPTIONS') {
-    console.log('CORS: Handling preflight request');
-    res.sendStatus(200);
-  } else {
-    next();
-  }
+  console.log('CORS: Blocked origin:', origin);
+  res.status(403).json({ message: 'CORS: Origin not allowed', origin });
 });
 
 // Health check endpoint for mobile app connectivity testing - must be before Vite setup
@@ -151,7 +206,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '3000', 10);
-
+ 
   // Start expired lead and offer checker - runs every 5 minutes instead of every minute
   setInterval(async () => {
     try {

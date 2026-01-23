@@ -64,6 +64,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       'settings': 14,
       'admin_users': 15,
       'departments': 16,
+      'role_and_permissions': 17,
+      'mailgun_settings': 18,
+      'lead_settings': 19,
+      'terms_and_conditions': 20,
+      'service_type': 21,
+      'change_password': 22,
+      'stripe_settings': 23,
     };
 
     // Check if user has all required permissions

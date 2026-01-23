@@ -36,6 +36,13 @@ async function initializeRolesAndPermissions() {
       { name: 'Settings', description: 'Access system settings', category: 'Settings' },
       { name: 'Admin Users', description: 'Manage admin users', category: 'Settings' },
       { name: 'Departments', description: 'Manage departments', category: 'Settings' },
+      { name: 'Role and Permissions', description: 'Manage roles and permissions', category: 'Settings' },
+      { name: 'Mailgun Settings', description: 'Manage Mailgun email settings', category: 'Settings' },
+      { name: 'Lead Settings', description: 'Manage lead distribution settings', category: 'Settings' },
+      { name: 'Terms and Conditions', description: 'Manage terms and conditions', category: 'Settings' },
+      { name: 'Service Type', description: 'Manage service types', category: 'Settings' },
+      { name: 'Change Password', description: 'Change user password', category: 'Settings' },
+      { name: 'Stripe Settings', description: 'Manage Stripe payment settings', category: 'Settings' },
     ];
 
     console.log('📝 Inserting permissions...');
