@@ -14,8 +14,10 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { sendProviderApplicationSubmittedEmail, sendProviderApprovalEmail, sendEmail } from "./emailService";
+import { processContactForm } from "./contactMail";
 import { smsService } from "./smsService";
 import { notificationRoutes } from "./notificationBridge";
+import { getEmailSignature, appendSignatureToBody, formatSignatureHtml, formatSignatureText } from "./emailSignatures";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware for customers
@@ -64,6 +66,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve static files from uploads directory
   app.use('/uploads', express.static('uploads'));
 
+  // Debug middleware to log all API requests
+  app.use('/api', (req, res, next) => {
+    console.log(`[API REQUEST] ${req.method} ${req.path} - ${new Date().toISOString()}`);
+    next();
+  });
+
   // Service categories
   app.get('/api/service-categories', async (req, res) => {
     try {
@@ -109,6 +117,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching all service categories:", error);
       res.status(500).json({ message: "Failed to fetch service categories" });
     }
+  });
+
+  // Contact form submission (public endpoint) - MUST be registered early
+  console.log('[ROUTE REGISTRATION] Registering POST /api/contact route...');
+  app.post('/api/contact', async (req, res) => {
+    console.log('[ROUTE HIT] POST /api/contact endpoint was called!');
+    try {
+      console.log('=== Contact form endpoint called ===');
+      console.log('Request method:', req.method);
+      console.log('Request path:', req.path);
+      console.log('Request body:', req.body);
+      console.log('Request headers:', req.headers);
+      
+      const { name, email, phone, message } = req.body;
+
+      // Validate request body
+      if (!name || !email || !phone || !message) {
+        console.log('Missing required fields');
+        return res.status(400).json({
+          success: false,
+          message: 'All fields are required'
+        });
+      }
+
+      console.log('Processing contact form...');
+      const result = await processContactForm({ name, email, phone, message });
+      console.log('Contact form result:', result);
+
+      if (result.success) {
+        return res.json(result);
+      } else {
+        return res.status(400).json(result);
+      }
+    } catch (error: any) {
+      console.error('Error processing contact form:', error);
+      console.error('Error stack:', error.stack);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to send message. Please try again later.'
+      });
+    }
+  });
+
+  // Test endpoint to verify route registration
+  app.get('/api/contact/test', (req, res) => {
+    res.json({ message: 'Contact API endpoint is accessible', timestamp: new Date().toISOString() });
   });
 
   // Service provider registration
@@ -625,7 +679,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const apiKey = process.env.GOOGLE_MAPS_API_KEY;
       if (!apiKey) {
-        return res.status(500).json({ error: 'Google Maps API key not configured' });
+        console.error('Google Maps API key not configured in environment variables');
+        return res.status(500).json({ 
+          error: 'Google Maps API key not configured',
+          details: 'Please set GOOGLE_MAPS_API_KEY in your environment variables'
+        });
       }
 
       const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
@@ -634,18 +692,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       url.searchParams.append('components', components as string);
       url.searchParams.append('key', apiKey);
 
-      const response = await fetch(url.toString());
-      const data = await response.json();
+      console.log('Fetching address autocomplete for input:', input);
+      
+      let response;
+      try {
+        response = await fetch(url.toString());
+      } catch (fetchError: any) {
+        console.error('Network error fetching from Google Places API:', fetchError);
+        return res.status(500).json({ 
+          error: 'Network error',
+          details: fetchError.message || 'Failed to connect to Google Places API'
+        });
+      }
 
+      if (!response.ok) {
+        console.error('Google Places API HTTP error:', response.status, response.statusText);
+        return res.status(500).json({ 
+          error: 'Google Places API request failed',
+          details: `HTTP ${response.status}: ${response.statusText}`
+        });
+      }
+
+      const data = await response.json();
+      console.log('Google Places API response status:', data.status);
+
+      // Handle different Google API status codes
       if (data.status === 'OK') {
         res.json(data);
+      } else if (data.status === 'ZERO_RESULTS') {
+        // This is not an error - just no results found
+        res.json({ ...data, predictions: [] });
+      } else if (data.status === 'REQUEST_DENIED') {
+        console.error('Google Places API: Request denied. Error message:', data.error_message);
+        res.status(500).json({ 
+          error: 'Google Places API request denied',
+          details: data.error_message || 'API key may be invalid or missing required permissions'
+        });
+      } else if (data.status === 'INVALID_REQUEST') {
+        console.error('Google Places API: Invalid request. Error message:', data.error_message);
+        res.status(400).json({ 
+          error: 'Invalid request to Google Places API',
+          details: data.error_message || 'Request parameters are invalid'
+        });
+      } else if (data.status === 'OVER_QUERY_LIMIT') {
+        console.error('Google Places API: Over query limit');
+        res.status(429).json({ 
+          error: 'API quota exceeded',
+          details: 'Google Places API quota has been exceeded. Please try again later.'
+        });
       } else {
         console.error('Google Places API error:', data);
-        res.status(500).json({ error: 'Failed to fetch address suggestions' });
+        res.status(500).json({ 
+          error: 'Failed to fetch address suggestions',
+          details: data.error_message || `Google API returned status: ${data.status}`
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Address autocomplete error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ 
+        error: 'Internal server error',
+        details: error.message || 'An unexpected error occurred'
+      });
     }
   });
 
@@ -4150,14 +4257,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Email Management Routes
+  
+  // Fetch emails from IMAP server
+  app.post('/api/admin/emails/fetch-imap', isAdminAuthenticated, async (req, res) => {
+    try {
+      const { email, password, fetchAll = true } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+      }
+
+      // Get current admin user
+      const adminUser = await storage.getAdminUserByUsername((req as any).admin?.username);
+      const adminUserId = adminUser?.id?.toString() || (req as any).admin?.username || "admin";
+
+      // Import IMAP service
+      const { fetchAndStoreEmails } = await import('./imapService');
+      
+      // Fetch and store emails
+      const result = await fetchAndStoreEmails(email, password, adminUserId, fetchAll);
+      
+      if (result.success) {
+        res.json({ 
+          success: true, 
+          message: `Successfully fetched ${result.count} emails from ${email}`,
+          count: result.count 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: result.error || 'Failed to fetch emails',
+          error: result.error 
+        });
+      }
+    } catch (error: any) {
+      console.error('Error fetching emails from IMAP:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message || 'Failed to fetch emails from IMAP' 
+      });
+    }
+  });
+
   app.get('/api/admin/emails', isAdminAuthenticated, async (req, res) => {
     try {
       const { tab, user, search, fromDate, toDate } = req.query;
 
+      // Convert username to numeric ID if needed (emails are stored with numeric IDs)
+      let userIdForFilter = user as string || 'all';
+      if (userIdForFilter && userIdForFilter !== 'all' && userIdForFilter !== 'admin') {
+        // Check if it's already a numeric ID
+        const isNumeric = /^\d+$/.test(userIdForFilter);
+        if (!isNumeric) {
+          // It's a username, convert to numeric ID
+          try {
+            const adminUser = await storage.getAdminUserByUsername(userIdForFilter);
+            if (adminUser) {
+              userIdForFilter = adminUser.id.toString();
+              console.log('Converted username to numeric ID:', userIdForFilter, 'for user:', adminUser.username);
+            } else {
+              console.warn('Admin user not found for username:', userIdForFilter);
+            }
+          } catch (error) {
+            console.error('Error converting username to ID:', error);
+          }
+        }
+      }
+
       // Get emails based on filters
       const emails = await storage.getEmails({
         tab: tab as string || 'inbox',
-        userId: user as string || 'all',
+        userId: userIdForFilter,
         search: search as string || '',
         fromDate: fromDate as string || '',
         toDate: toDate as string || '',
@@ -4241,6 +4411,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get email templates endpoint
+  app.get('/api/admin/email-templates', isAdminAuthenticated, async (req, res) => {
+    try {
+      const templates = await storage.getEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error('Error fetching email templates:', error);
+      res.status(500).json({ message: 'Failed to fetch email templates' });
+    }
+  });
+
   app.post('/api/admin/emails/send', isAdminAuthenticated, async (req, res) => {
 
     console.log("Hello");
@@ -4251,22 +4432,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'To, subject, and body are required' });
       }
 
-      // Get the admin user's ID from the database
+      // Get the admin user's ID and email from the database
       const adminUser = await storage.getAdminUserByUsername((req as any).admin?.username);
       const adminUserId = adminUser?.id?.toString() || (req as any).admin?.username || "admin";
       console.log('Admin user lookup:', { username: (req as any).admin?.username, adminUser, adminUserId });
 
+      // Build sender information from admin user
+      const adminEmail = adminUser?.email || '';
+      const adminFirstName = adminUser?.firstName || '';
+      const adminLastName = adminUser?.lastName || '';
+      const adminFullName = `${adminFirstName} ${adminLastName}`.trim() || adminUser?.username || 'Admin';
+      
+      // Use admin's email if it's on @servicepanda.com.au domain (Mailgun verified), otherwise use team@
+      const fromEmail = adminEmail && adminEmail.endsWith('@servicepanda.com.au') 
+        ? adminEmail 
+        : 'team@servicepanda.com.au';
+      const fromName = adminFullName;
+      const fromDisplay = `${fromName} <${fromEmail}>`;
+
+      // Get email signature for the admin user
+      const signature = getEmailSignature(adminUser?.username || adminEmail);
+      
+      // Prepare email body with signature
+      let emailBodyText = body;
+      let emailBodyHtml = body;
+      
+      if (signature) {
+        // Append signature to both text and HTML versions
+        emailBodyText = appendSignatureToBody(body, signature, false);
+        emailBodyHtml = appendSignatureToBody(body, signature, true);
+      }
+
       // Check if this is a draft (don't send via email service)
       if (status === 'draft') {
-        // Store draft in database
+        // Store draft in database (with signature if available)
         const emailData = {
-          from: 'hrms.devdoc@gmail.com',
+          from: fromDisplay,
           to,
           cc,
           bcc,
           subject,
-          body,
-          bodyHtml: body,
+          body: emailBodyText,
+          bodyHtml: emailBodyHtml,
           status: 'draft',
           isRead: false,
           isStarred: false,
@@ -4289,26 +4496,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
 
-      // Send email using existing email service
+      // Send email using existing email service with admin's email/name and signature
       const emailSent = await sendEmail({
         to,
         cc,
         bcc,
         subject,
-        text: body,
-        html: body
+        text: emailBodyText,
+        html: emailBodyHtml,
+        fromEmail: fromEmail,
+        fromName: fromName
       });
 
       if (emailSent) {
-        // Store email in database
+        // Store email in database (with signature if available)
         const emailData = {
-          from: 'hrms.devdoc@gmail.com',
+          from: fromDisplay,
           to,
           cc,
           bcc,
           subject,
-          body,
-          bodyHtml: body,
+          body: emailBodyText,
+          bodyHtml: emailBodyHtml,
           status: 'sent',
           isRead: false,
           isStarred: false,
@@ -4326,18 +4535,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json({
           success: true,
           message: 'Email sent successfully',
-          debug: { adminUserId, adminUsername: (req as any).admin?.username }
+          debug: { adminUserId, adminUsername: (req as any).admin?.username, fromEmail, fromName }
         });
       } else {
-        // Ensure the composed message is still visible in Sent even if delivery fails
+        // Ensure the composed message is still visible in Sent even if delivery fails (with signature if available)
         const emailData = {
-          from: 'hrms.devdoc@gmail.com',
+          from: fromDisplay,
           to,
           cc,
           bcc,
           subject,
-          body,
-          bodyHtml: body,
+          body: emailBodyText,
+          bodyHtml: emailBodyHtml,
           status: 'sent',
           isRead: false,
           isStarred: false,
@@ -4354,7 +4563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json({
           success: false,
-          message: 'Email could not be delivered via Mailgun, but has been saved in Sent. dddd'
+          message: 'Email could not be delivered via Mailgun, but has been saved in Sent.'
         });
       }
     } catch (error) {
@@ -4366,15 +4575,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const adminUser = await storage.getAdminUserByUsername((req as any).admin?.username);
         const adminUserId = adminUser?.id?.toString() || (req as any).admin?.username || "admin";
         
+        // Build sender information for error case
+        const adminEmail = adminUser?.email || '';
+        const adminFirstName = adminUser?.firstName || '';
+        const adminLastName = adminUser?.lastName || '';
+        const adminFullName = `${adminFirstName} ${adminLastName}`.trim() || adminUser?.username || 'Admin';
+        const fromEmail = adminEmail && adminEmail.endsWith('@servicepanda.com.au') 
+          ? adminEmail 
+          : 'team@servicepanda.com.au';
+        const fromDisplay = `${adminFullName} <${fromEmail}>`;
+        
         const { to, cc, bcc, subject, body } = req.body;
+        
+        // Get email signature for the admin user
+        const signature = getEmailSignature(adminUser?.username || adminEmail);
+        
+        // Prepare email body with signature
+        let emailBodyText = body;
+        let emailBodyHtml = body;
+        
+        if (signature) {
+          // Append signature to both text and HTML versions
+          emailBodyText = appendSignatureToBody(body, signature, false);
+          emailBodyHtml = appendSignatureToBody(body, signature, true);
+        }
+        
         const emailData = {
-          from: 'hrms.devdoc@gmail.com',
+          from: fromDisplay,
           to,
           cc,
           bcc,
           subject,
-          body,
-          bodyHtml: body,
+          body: emailBodyText,
+          bodyHtml: emailBodyHtml,
           status: 'sent',
           isRead: false,
           isStarred: false,

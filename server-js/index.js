@@ -1,5 +1,11 @@
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+}) : x)(function(x) {
+  if (typeof require !== "undefined") return require.apply(this, arguments);
+  throw Error('Dynamic require of "' + x + '" is not supported');
+});
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -7,190 +13,6 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-
-// server/smsService.ts
-import axios from "axios";
-var SmsService, smsService;
-var init_smsService = __esm({
-  "server/smsService.ts"() {
-    "use strict";
-    SmsService = class {
-      apiKey;
-      apiUrl;
-      fromNumber;
-      logs = [];
-      constructor() {
-        const providedApiKey = "3prDbqty5SVg6sVEeVPXzupjyUVnZUTFG75CrmPXK4rB76hP4LuE4HvVKMqutFt44bEffSPV6jAuntpGh3kgSKn3Mu9Rd2ZHL7Vc";
-        const providedApiUrl = "https://dialpad.com/api/v2/sms";
-        this.apiKey = process.env.SMS_API_KEY || providedApiKey;
-        this.apiUrl = process.env.SMS_API_URL || providedApiUrl;
-        this.fromNumber = "+61452229882";
-        if (!this.apiKey || !this.apiUrl) {
-          console.warn("SMS API credentials not configured. SMS functionality will be disabled.");
-        }
-      }
-      /**
-       * Send SMS using Dialpad API (equivalent to sendDailPadSMS in Laravel)
-       */
-      async sendDialpadSms(data) {
-        if (!this.apiKey || !this.apiUrl) {
-          console.error("SMS API not configured");
-          return false;
-        }
-        console.log("[SMS] Preparing request to Dialpad. To:", data.sendTo, "From:", this.fromNumber);
-        try {
-          const response = await axios.post(
-            `${this.apiUrl}?apikey=${encodeURIComponent(this.apiKey)}`,
-            {
-              infer_country_code: false,
-              text: data.chatMessage,
-              to_numbers: [data.sendTo],
-              from_number: this.fromNumber
-            },
-            {
-              headers: {
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-              }
-            }
-          );
-          console.log("[SMS] Dialpad response status:", response.status);
-          console.log("[SMS] Dialpad response data:", response.data);
-          const responseData = response.data;
-          if (responseData.id && responseData.id.trim() !== "") {
-            console.log("SMS sent successfully:", {
-              id: responseData.id,
-              to: data.sendTo,
-              message: data.chatMessage.substring(0, 50) + "..."
-            });
-            return true;
-          } else {
-            console.error("Dialpad SMS API response error:", responseData);
-            return false;
-          }
-        } catch (error) {
-          console.error("Dialpad SMS API request failed:", {
-            error: error?.message,
-            status: error?.response?.status,
-            response: error?.response?.data,
-            to: data.sendTo,
-            message: data.chatMessage.substring(0, 50) + "..."
-          });
-          return false;
-        }
-      }
-      /**
-       * Public method to send SMS (equivalent to send_sms in Laravel)
-       */
-      async sendSms(mobile, message, options) {
-        const smsData = {
-          sendTo: mobile,
-          chatMessage: message,
-          ...options
-        };
-        return this.sendDialpadSms(smsData);
-      }
-      /**
-       * Send SMS to potential customer with appropriate message template
-       */
-      async sendSmsToPotentialCustomer(customerPhone, customerName, smsType, options) {
-        let message;
-        if (smsType === "1st_sent") {
-          message = `Hi ${customerName}! \u{1F44B} 
-
-ServicePanda here! We noticed you might be looking for reliable service providers in your area.
-
-We have pre-screened, verified professionals ready to help with your needs. Would you like to learn more about our services?
-
-Reply YES to get started, or visit our website for more info.
-
-Best regards,
-ServicePanda Team`;
-        } else {
-          message = `Hi ${customerName}! 
-
-Just following up on our previous message about ServicePanda's verified service providers.
-
-We're here to connect you with trusted professionals in your area. No obligation, just quality service connections.
-
-Reply YES to learn more, or call us directly.
-
-ServicePanda Team`;
-        }
-        return this.sendSms(customerPhone, message, {
-          ...options,
-          smsType
-        });
-      }
-      /**
-       * Build template text for potential customer outreach
-       */
-      buildPotentialCustomerTemplateMessage(customerName, smsType) {
-        if (smsType === "1st_sent") {
-          return `Hi ${customerName}! \u{1F44B} 
-
-ServicePanda here! We noticed you might be looking for reliable service providers in your area.
-
-We have pre-screened, verified professionals ready to help with your needs. Would you like to learn more about our services?
-
-Reply YES to get started, or visit our website for more info.
-
-Best regards,
-ServicePanda Team`;
-        }
-        return `Hi ${customerName}! 
-
-Just following up on our previous message about ServicePanda's verified service providers.
-
-We're here to connect you with trusted professionals in your area. No obligation, just quality service connections.
-
-Reply YES to learn more, or call us directly.
-
-ServicePanda Team`;
-      }
-      /**
-       * Check if SMS service is properly configured
-       */
-      isConfigured() {
-        return !!(this.apiKey && this.apiUrl);
-      }
-      /**
-       * Get SMS service status
-       */
-      getStatus() {
-        return {
-          configured: this.isConfigured(),
-          provider: "Dialpad",
-          fromNumber: this.fromNumber
-        };
-      }
-      /**
-       * In-memory log helpers so messages appear immediately in Admin UI
-       */
-      recordOutbound(params) {
-        const entry = {
-          id: Date.now(),
-          recipientType: params.recipientType,
-          recipientId: params.recipientId,
-          recipientPhone: params.recipientPhone,
-          recipientName: params.recipientName,
-          message: params.message,
-          direction: "outbound",
-          status: params.status || "sent",
-          smsType: params.smsType,
-          sentBy: params.sentBy,
-          sentAt: (/* @__PURE__ */ new Date()).toISOString(),
-          apiResponse: params.apiResponse
-        };
-        this.logs.push(entry);
-      }
-      getLogs() {
-        return [...this.logs].sort((a, b) => a.sentAt < b.sentAt ? 1 : -1);
-      }
-    };
-    smsService = new SmsService();
-  }
-});
 
 // shared/schema.ts
 var schema_exports = {};
@@ -234,6 +56,7 @@ __export(schema_exports, {
   insertLeadNoteSchema: () => insertLeadNoteSchema,
   insertLeadOfferSchema: () => insertLeadOfferSchema,
   insertPasswordResetTokenSchema: () => insertPasswordResetTokenSchema,
+  insertPermissionSchema: () => insertPermissionSchema,
   insertPotentialCustomerSchema: () => insertPotentialCustomerSchema,
   insertPotentialProviderCommunicationSchema: () => insertPotentialProviderCommunicationSchema,
   insertPotentialProviderSchema: () => insertPotentialProviderSchema,
@@ -250,12 +73,16 @@ __export(schema_exports, {
   insertProviderServiceAreaSchema: () => insertProviderServiceAreaSchema,
   insertProviderServiceSchema: () => insertProviderServiceSchema,
   insertReviewTokenSchema: () => insertReviewTokenSchema,
+  insertRolePermissionSchema: () => insertRolePermissionSchema,
+  insertRoleSchema: () => insertRoleSchema,
   insertSentEmailSchema: () => insertSentEmailSchema,
   insertServiceCategorySchema: () => insertServiceCategorySchema,
   insertServiceProviderSchema: () => insertServiceProviderSchema,
   insertServiceRequestSchema: () => insertServiceRequestSchema,
+  insertSmsCampaignSchema: () => insertSmsCampaignSchema,
   insertSmsMessageSchema: () => insertSmsMessageSchema,
   insertSystemSettingSchema: () => insertSystemSettingSchema,
+  insertTeamTaskSchema: () => insertTeamTaskSchema,
   insertTermsAndConditionsSchema: () => insertTermsAndConditionsSchema,
   insertUserActivityLogSchema: () => insertUserActivityLogSchema,
   insertUserSchema: () => insertUserSchema,
@@ -267,7 +94,10 @@ __export(schema_exports, {
   leadPurchases: () => leadPurchases,
   leadSettings: () => leadSettings,
   passwordResetTokens: () => passwordResetTokens,
+  permissions: () => permissions,
+  permissionsRelations: () => permissionsRelations,
   potentialCustomers: () => potentialCustomers,
+  potentialCustomersRelations: () => potentialCustomersRelations,
   potentialProviderCommunications: () => potentialProviderCommunications,
   potentialProviderTasks: () => potentialProviderTasks,
   potentialProviders: () => potentialProviders,
@@ -289,6 +119,10 @@ __export(schema_exports, {
   providerServicesRelations: () => providerServicesRelations,
   providerVouchers: () => providerVouchers,
   reviewTokens: () => reviewTokens,
+  rolePermissions: () => rolePermissions,
+  rolePermissionsRelations: () => rolePermissionsRelations,
+  roles: () => roles,
+  rolesRelations: () => rolesRelations,
   sentEmails: () => sentEmails,
   sentEmailsRelations: () => sentEmailsRelations,
   serviceCategories: () => serviceCategories,
@@ -298,8 +132,10 @@ __export(schema_exports, {
   serviceRequests: () => serviceRequests,
   serviceRequestsRelations: () => serviceRequestsRelations,
   sessions: () => sessions,
+  smsCampaigns: () => smsCampaigns,
   smsMessages: () => smsMessages,
   systemSettings: () => systemSettings,
+  teamTasks: () => teamTasks,
   termsAndConditions: () => termsAndConditions,
   userActivityLogs: () => userActivityLogs,
   userActivityLogsRelations: () => userActivityLogsRelations,
@@ -322,7 +158,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
-var sessions, users, serviceProviders, providerPaymentMethods, serviceCategories, providerServices, australianStates, australianRegions, australianSuburbs, providerServiceAreas, providerDocuments, serviceRequests, leadAssignments, providerRatings, leadOffers, leadDistributionLog2, providerPostcodeCoverage, emailTemplates, sentEmails, emails, emailAttachments, emailLabels, emailLabelRelations, userActivityLogs, systemSettings, passwordResetTokens, providerPasswordResetTokens, providerActivityLogs, providerVouchers, providerCreditTransactions, leadPurchases, customerVouchers, customerCreditTransactions, adminDepartments, adminUsers, adminUserDepartments, usersRelations, serviceProvidersRelations, serviceCategoriesRelations, providerServicesRelations, australianStatesRelations, australianRegionsRelations, australianSuburbsRelations, providerServiceAreasRelations, providerDocumentsRelations, serviceRequestsRelations, leadAssignmentsRelations, emailTemplatesRelations, sentEmailsRelations, emailsRelations, emailAttachmentsRelations, emailLabelsRelations, emailLabelRelationsRelations, userActivityLogsRelations, providerActivityLogsRelations, insertUserSchema, insertServiceProviderSchema, insertServiceCategorySchema, insertProviderServiceSchema, insertProviderServiceAreaSchema, insertProviderDocumentSchema, insertServiceRequestSchema, insertLeadAssignmentSchema, insertEmailTemplateSchema, insertSentEmailSchema, insertUserActivityLogSchema, insertSystemSettingSchema, insertProviderPaymentMethodSchema, insertPasswordResetTokenSchema, insertProviderPasswordResetTokenSchema, insertProviderActivityLogSchema, insertProviderRatingSchema, insertLeadOfferSchema, insertLeadDistributionLogSchema, insertProviderPostcodeCoverageSchema, insertCustomerVoucherSchema, insertCustomerCreditTransactionSchema, insertAdminDepartmentSchema, insertAdminUserSchema, insertAdminUserDepartmentSchema, insertEmailSchema, insertEmailAttachmentSchema, insertEmailLabelSchema, insertEmailLabelRelationSchema, leadSettings, categoryLeadPricing, leadNotes, providerLeadInteractions, providerLeadStatus, customerReviews, reviewTokens, insertLeadNoteSchema, insertProviderLeadInteractionSchema, insertProviderLeadStatusSchema, insertCustomerReviewSchema, insertReviewTokenSchema, potentialCustomers, termsAndConditions, insertTermsAndConditionsSchema, insertPotentialCustomerSchema, potentialProviders, potentialProviderTasks, potentialProviderCommunications, insertPotentialProviderSchema, insertPotentialProviderTaskSchema, insertPotentialProviderCommunicationSchema, smsMessages, insertSmsMessageSchema, providerNotifications, insertProviderNotificationSchema;
+var sessions, users, serviceProviders, providerPaymentMethods, serviceCategories, providerServices, australianStates, australianRegions, australianSuburbs, providerServiceAreas, providerDocuments, serviceRequests, leadAssignments, providerRatings, leadOffers, leadDistributionLog2, providerPostcodeCoverage, emailTemplates, sentEmails, emails, emailAttachments, emailLabels, emailLabelRelations, userActivityLogs, systemSettings, passwordResetTokens, providerPasswordResetTokens, providerActivityLogs, providerVouchers, providerCreditTransactions, leadPurchases, customerVouchers, customerCreditTransactions, adminDepartments, adminUsers, adminUserDepartments, roles, permissions, rolePermissions, usersRelations, rolesRelations, permissionsRelations, rolePermissionsRelations, serviceProvidersRelations, serviceCategoriesRelations, providerServicesRelations, australianStatesRelations, australianRegionsRelations, australianSuburbsRelations, providerServiceAreasRelations, providerDocumentsRelations, serviceRequestsRelations, leadAssignmentsRelations, emailTemplatesRelations, sentEmailsRelations, emailsRelations, emailAttachmentsRelations, emailLabelsRelations, emailLabelRelationsRelations, userActivityLogsRelations, providerActivityLogsRelations, insertUserSchema, insertServiceProviderSchema, insertServiceCategorySchema, insertProviderServiceSchema, insertProviderServiceAreaSchema, insertProviderDocumentSchema, insertServiceRequestSchema, insertLeadAssignmentSchema, insertEmailTemplateSchema, insertSentEmailSchema, insertUserActivityLogSchema, insertSystemSettingSchema, insertProviderPaymentMethodSchema, insertPasswordResetTokenSchema, insertProviderPasswordResetTokenSchema, insertProviderActivityLogSchema, insertProviderRatingSchema, insertLeadOfferSchema, insertLeadDistributionLogSchema, insertProviderPostcodeCoverageSchema, insertCustomerVoucherSchema, insertCustomerCreditTransactionSchema, insertAdminDepartmentSchema, insertAdminUserSchema, insertAdminUserDepartmentSchema, insertRoleSchema, insertPermissionSchema, insertRolePermissionSchema, insertEmailSchema, insertEmailAttachmentSchema, insertEmailLabelSchema, insertEmailLabelRelationSchema, leadSettings, categoryLeadPricing, leadNotes, providerLeadInteractions, providerLeadStatus, customerReviews, reviewTokens, insertLeadNoteSchema, insertProviderLeadInteractionSchema, insertProviderLeadStatusSchema, insertCustomerReviewSchema, insertReviewTokenSchema, potentialCustomers, potentialCustomersRelations, termsAndConditions, insertTermsAndConditionsSchema, insertPotentialCustomerSchema, potentialProviders, potentialProviderTasks, potentialProviderCommunications, insertPotentialProviderSchema, insertPotentialProviderTaskSchema, insertPotentialProviderCommunicationSchema, smsMessages, insertSmsMessageSchema, providerNotifications, insertProviderNotificationSchema, teamTasks, insertTeamTaskSchema, smsCampaigns, insertSmsCampaignSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -402,8 +238,11 @@ var init_schema = __esm({
       name: varchar("name").notNull(),
       icon: varchar("icon").notNull(),
       description: text("description"),
+      imageUrl: text("image_url").default(""),
+      // URL to uploaded image
       active: boolean("active").default(true),
       popular: boolean("popular").default(false),
+      trending: boolean("trending").default(false),
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     });
@@ -829,10 +668,48 @@ var init_schema = __esm({
       departmentId: integer("department_id").references(() => adminDepartments.id).notNull(),
       createdAt: timestamp("created_at").defaultNow()
     });
+    roles = pgTable("roles", {
+      id: serial("id").primaryKey(),
+      name: varchar("name").unique().notNull(),
+      description: text("description"),
+      isDefault: boolean("is_default").default(false),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    permissions = pgTable("permissions", {
+      id: serial("id").primaryKey(),
+      name: varchar("name").unique().notNull(),
+      description: text("description"),
+      category: varchar("category").notNull(),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    rolePermissions = pgTable("role_permissions", {
+      id: serial("id").primaryKey(),
+      roleId: integer("role_id").references(() => roles.id).notNull(),
+      permissionId: integer("permission_id").references(() => permissions.id).notNull(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
     usersRelations = relations(users, ({ many }) => ({
       serviceRequests: many(serviceRequests),
       sentEmails: many(sentEmails),
       activityLogs: many(userActivityLogs)
+    }));
+    rolesRelations = relations(roles, ({ many }) => ({
+      rolePermissions: many(rolePermissions)
+    }));
+    permissionsRelations = relations(permissions, ({ many }) => ({
+      rolePermissions: many(rolePermissions)
+    }));
+    rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
+      role: one(roles, {
+        fields: [rolePermissions.roleId],
+        references: [roles.id]
+      }),
+      permission: one(permissions, {
+        fields: [rolePermissions.permissionId],
+        references: [permissions.id]
+      })
     }));
     serviceProvidersRelations = relations(serviceProviders, ({ many }) => ({
       services: many(providerServices),
@@ -1018,6 +895,20 @@ var init_schema = __esm({
       id: true,
       createdAt: true
     });
+    insertRoleSchema = createInsertSchema(roles).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true
+    });
+    insertPermissionSchema = createInsertSchema(permissions).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true
+    });
+    insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({
+      id: true,
+      createdAt: true
+    });
     insertEmailSchema = createInsertSchema(emails).omit({
       id: true,
       createdAt: true,
@@ -1170,17 +1061,22 @@ var init_schema = __esm({
       state: varchar("state").notNull(),
       city: varchar("city").notNull(),
       address: text("address").notNull(),
+      region: varchar("region", { length: 100 }),
+      // Region field for filtering
       importId: varchar("import_id").notNull(),
       // Unique identifier for batch imports
       importName: varchar("import_name").notNull(),
       // Label to identify imported groups
       smsDeliveryStatus: varchar("sms_delivery_status", { length: 20 }).default("not_sent"),
       // not_sent, 1st_sent, 2nd_sent
+      campaignStatus: varchar("campaign_status", { length: 50 }).default("New"),
+      // New, Added to Campaign, Lost, Won, Unsubscribe
       firstSmsSentAt: timestamp("first_sms_sent_at"),
       secondSmsSentAt: timestamp("second_sms_sent_at"),
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     });
+    potentialCustomersRelations = relations(potentialCustomers, ({ one }) => ({}));
     termsAndConditions = pgTable("terms_and_conditions", {
       id: serial("id").primaryKey(),
       providersTerms: text("providers_terms"),
@@ -1228,6 +1124,10 @@ var init_schema = __esm({
       // low, medium, high, urgent
       assignedTo: varchar("assigned_to"),
       // Admin username assigned to this potential provider
+      smsDeliveryStatus: varchar("sms_delivery_status", { length: 20 }).default("not_sent"),
+      // not_sent, 1st_sent, 2nd_sent
+      firstSmsSentAt: timestamp("first_sms_sent_at"),
+      secondSmsSentAt: timestamp("second_sms_sent_at"),
       notes: text("notes"),
       nextFollowUpDate: timestamp("next_follow_up_date"),
       lastContactDate: timestamp("last_contact_date"),
@@ -1346,13 +1246,83 @@ var init_schema = __esm({
       createdAt: true,
       updatedAt: true
     });
+    teamTasks = pgTable("team_tasks", {
+      id: serial("id").primaryKey(),
+      title: varchar("title", { length: 255 }).notNull(),
+      description: text("description"),
+      status: varchar("status", { length: 50 }).notNull().default("pending"),
+      // pending, in_progress, completed, cancelled
+      priority: varchar("priority", { length: 10 }).notNull().default("P3"),
+      // P1, P2, P3, P4, P5
+      dueDate: timestamp("due_date").notNull(),
+      completedAt: timestamp("completed_at"),
+      // Foreign key references (only one should be set)
+      potentialProviderId: integer("potential_provider_id").references(() => potentialProviders.id),
+      providerId: integer("provider_id").references(() => serviceProviders.id),
+      customerId: varchar("customer_id").references(() => users.id),
+      // Admin who created/assigned the task
+      adminId: varchar("admin_id").notNull(),
+      // Admin username
+      assignedTo: varchar("assigned_to"),
+      // Team member username
+      comments: text("comments"),
+      // Task metadata
+      taskType: varchar("task_type", { length: 50 }).notNull().default("general"),
+      // follow_up, call, email, meeting, etc.
+      tags: jsonb("tags"),
+      // Array of tags for categorization
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    }, (table) => [
+      // Indexes for performance
+      index("idx_team_tasks_status").on(table.status),
+      index("idx_team_tasks_priority").on(table.priority),
+      index("idx_team_tasks_due_date").on(table.dueDate),
+      index("idx_team_tasks_admin_id").on(table.adminId),
+      index("idx_team_tasks_assigned_to").on(table.assignedTo),
+      index("idx_team_tasks_potential_provider").on(table.potentialProviderId),
+      index("idx_team_tasks_provider").on(table.providerId),
+      index("idx_team_tasks_customer").on(table.customerId),
+      // Composite indexes for common queries
+      index("idx_team_tasks_status_due_date").on(table.status, table.dueDate),
+      index("idx_team_tasks_priority_due_date").on(table.priority, table.dueDate)
+    ]);
+    insertTeamTaskSchema = createInsertSchema(teamTasks).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true
+    });
+    smsCampaigns = pgTable("sms_campaigns", {
+      id: serial("id").primaryKey(),
+      name: varchar("name").notNull(),
+      message: text("message").notNull(),
+      voucherCode: varchar("voucher_code"),
+      voucherAmount: decimal("voucher_amount", { precision: 10, scale: 2 }),
+      selectedStates: jsonb("selected_states").notNull().$type(),
+      selectedRegions: jsonb("selected_regions").$type(),
+      selectedStatuses: jsonb("selected_statuses").notNull().$type(),
+      scheduledAt: timestamp("scheduled_at"),
+      status: varchar("status", { length: 20 }).notNull().default("draft"),
+      // draft, scheduled, sent, failed
+      totalSent: integer("total_sent").default(0),
+      sentAt: timestamp("sent_at"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    }, (table) => [
+      index("idx_sms_campaigns_status").on(table.status),
+      index("idx_sms_campaigns_created_at").on(table.createdAt)
+    ]);
+    insertSmsCampaignSchema = createInsertSchema(smsCampaigns).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true
+    });
   }
 });
 
 // server/db.ts
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import ws from "ws";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import dotenv from "dotenv";
 import path from "path";
 var envPath, pool, db;
@@ -1362,14 +1332,17 @@ var init_db = __esm({
     init_schema();
     envPath = path.resolve(process.cwd(), ".env");
     dotenv.config({ path: envPath });
-    neonConfig.webSocketConstructor = ws;
     if (!process.env.DATABASE_URL) {
       console.warn("\u26A0\uFE0F  DATABASE_URL not set. Using fallback configuration for development.");
-      process.env.DATABASE_URL = "postgresql://neondb_owner:npg_VriYIgl69eLd@ep-divine-paper-afbqojt6.c-2.us-west-2.aws.neon.tech/neondb?sslmode=require";
+      process.env.DATABASE_URL = "postgresql://servicepanda:servicepanda@8954@13.201.64.152:5432/servicepanda";
     }
     try {
-      pool = new Pool({ connectionString: process.env.DATABASE_URL });
-      db = drizzle({ client: pool, schema: schema_exports });
+      const sslConfig = process.env.DATABASE_URL?.includes("neon.tech") ? { rejectUnauthorized: false } : process.env.DATABASE_URL?.includes("13.201.64.152") ? { rejectUnauthorized: false } : process.env.DATABASE_URL?.includes("localhost") ? false : false;
+      pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: sslConfig
+      });
+      db = drizzle(pool, { schema: schema_exports });
       console.log("\u2705 Database connection established");
     } catch (error) {
       console.warn("\u26A0\uFE0F  Database connection failed. Running in development mode without database.");
@@ -1389,6 +1362,786 @@ var init_db = __esm({
   }
 });
 
+// server/smsService.ts
+import axios from "axios";
+var SmsService, smsService;
+var init_smsService = __esm({
+  "server/smsService.ts"() {
+    "use strict";
+    init_db();
+    init_schema();
+    SmsService = class {
+      apiKey;
+      apiUrl;
+      fromNumber;
+      logs = [];
+      constructor() {
+        const providedApiKey = "3prDbqty5SVg6sVEeVPXzupjyUVnZUTFG75CrmPXK4rB76hP4LuE4HvVKMqutFt44bEffSPV6jAuntpGh3kgSKn3Mu9Rd2ZHL7Vc";
+        const providedApiUrl = "https://dialpad.com/api/v2/sms";
+        this.apiKey = process.env.SMS_API_KEY || providedApiKey;
+        this.apiUrl = process.env.SMS_API_URL || providedApiUrl;
+        this.fromNumber = "+61452229882";
+        if (!this.apiKey || !this.apiUrl) {
+          console.warn("SMS API credentials not configured. SMS functionality will be disabled.");
+        }
+      }
+      /**
+       * Format phone number to E164 format for Dialpad API
+       */
+      formatPhoneNumber(phone) {
+        if (!phone) {
+          throw new Error("Phone number is required");
+        }
+        let cleaned = phone.replace(/\D/g, "");
+        if (cleaned.startsWith("0")) {
+          cleaned = "+61" + cleaned.substring(1);
+        } else if (!cleaned.startsWith("+")) {
+          cleaned = "+61" + cleaned;
+        }
+        return cleaned;
+      }
+      /**
+       * Send SMS using Dialpad API (equivalent to sendDailPadSMS in Laravel)
+       */
+      async sendDialpadSms(data) {
+        if (!this.apiKey || !this.apiUrl) {
+          console.error("SMS API not configured");
+          return false;
+        }
+        const formattedPhone = this.formatPhoneNumber(data.sendTo);
+        console.log("[SMS] Preparing request to Dialpad. To:", data.sendTo, "->", formattedPhone, "From:", this.fromNumber);
+        try {
+          const response = await axios.post(
+            `${this.apiUrl}?apikey=${encodeURIComponent(this.apiKey)}`,
+            {
+              infer_country_code: false,
+              text: data.chatMessage,
+              to_numbers: [formattedPhone],
+              from_number: this.fromNumber
+            },
+            {
+              headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+              }
+            }
+          );
+          console.log("[SMS] Dialpad response status:", response.status);
+          console.log("[SMS] Dialpad response data:", response.data);
+          const responseData = response.data;
+          if (responseData.id && responseData.id.trim() !== "") {
+            console.log("SMS sent successfully:", {
+              id: responseData.id,
+              to: data.sendTo,
+              formattedTo: formattedPhone,
+              message: data.chatMessage.substring(0, 50) + "..."
+            });
+            return true;
+          } else {
+            console.error("Dialpad SMS API response error:", responseData);
+            return false;
+          }
+        } catch (error) {
+          console.error("Dialpad SMS API request failed:", {
+            error: error?.message,
+            status: error?.response?.status,
+            response: error?.response?.data,
+            to: data.sendTo,
+            formattedTo: formattedPhone,
+            message: data.chatMessage.substring(0, 50) + "..."
+          });
+          return false;
+        }
+      }
+      /**
+       * Public method to send SMS (equivalent to send_sms in Laravel)
+       */
+      async sendSms(mobile, message, options) {
+        const smsData = {
+          sendTo: mobile,
+          chatMessage: message,
+          ...options
+        };
+        return this.sendDialpadSms(smsData);
+      }
+      /**
+       * Send SMS to potential customer with appropriate message template
+       */
+      async sendSmsToPotentialCustomer(customerPhone, customerName, smsType, options) {
+        let message;
+        if (smsType === "1st_sent") {
+          message = `Hi ${customerName}! \u{1F44B} 
+
+ServicePanda here! We noticed you might be looking for reliable service providers in your area.
+
+We have pre-screened, verified professionals ready to help with your needs. Would you like to learn more about our services?
+
+Reply YES to get started, or visit our website for more info.
+
+Best regards,
+ServicePanda Team`;
+        } else {
+          message = `Hi ${customerName}! 
+
+Just following up on our previous message about ServicePanda's verified service providers.
+
+We're here to connect you with trusted professionals in your area. No obligation, just quality service connections.
+
+Reply YES to learn more, or call us directly.
+
+ServicePanda Team`;
+        }
+        return this.sendSms(customerPhone, message, {
+          ...options,
+          smsType
+        });
+      }
+      /**
+       * Build template text for potential customer outreach
+       */
+      buildPotentialCustomerTemplateMessage(customerName, smsType) {
+        if (smsType === "1st_sent") {
+          return `Hi ${customerName}! \u{1F44B} 
+
+ServicePanda here! We noticed you might be looking for reliable service providers in your area.
+
+We have pre-screened, verified professionals ready to help with your needs. Would you like to learn more about our services?
+
+Reply YES to get started, or visit our website for more info.
+
+Best regards,
+ServicePanda Team`;
+        }
+        return `Hi ${customerName}! 
+
+Just following up on our previous message about ServicePanda's verified service providers.
+
+We're here to connect you with trusted professionals in your area. No obligation, just quality service connections.
+
+Reply YES to learn more, or call us directly.
+
+ServicePanda Team`;
+      }
+      /**
+       * Check if SMS service is properly configured
+       */
+      isConfigured() {
+        return !!(this.apiKey && this.apiUrl);
+      }
+      /**
+       * Get SMS service status
+       */
+      getStatus() {
+        return {
+          configured: this.isConfigured(),
+          provider: "Dialpad",
+          fromNumber: this.fromNumber
+        };
+      }
+      /**
+       * In-memory log helpers so messages appear immediately in Admin UI
+       */
+      async recordOutbound(params) {
+        const entry = {
+          id: Date.now(),
+          recipientType: params.recipientType,
+          recipientId: params.recipientId,
+          recipientPhone: params.recipientPhone,
+          recipientName: params.recipientName,
+          message: params.message,
+          direction: "outbound",
+          status: params.status || "sent",
+          smsType: params.smsType,
+          sentBy: params.sentBy,
+          sentAt: (/* @__PURE__ */ new Date()).toISOString(),
+          apiResponse: params.apiResponse
+        };
+        this.logs.push(entry);
+        try {
+          await db.insert(smsMessages).values({
+            recipientType: params.recipientType,
+            recipientId: params.recipientId,
+            recipientPhone: params.recipientPhone,
+            recipientName: params.recipientName,
+            message: params.message,
+            direction: "outbound",
+            status: params.status || "sent",
+            smsType: params.smsType
+          });
+          console.log(`[SMS Service] Successfully stored outbound message in database for ${params.recipientName}`);
+        } catch (error) {
+          console.error(`[SMS Service] Failed to store outbound message in database:`, error);
+        }
+      }
+      getLogs() {
+        return [...this.logs].sort((a, b) => a.sentAt < b.sentAt ? 1 : -1);
+      }
+      /**
+       * Generate a unique 6-character alphanumeric voucher code
+       */
+      generateVoucherCode() {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let code = "";
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      }
+      /**
+       * Create a unique voucher in the database
+       */
+      async createVoucher(voucherAmount, adminName) {
+        const maxAttempts = 10;
+        let attempt = 0;
+        while (attempt < maxAttempts) {
+          try {
+            const code = this.generateVoucherCode();
+            const expiryDate = /* @__PURE__ */ new Date();
+            expiryDate.setDate(expiryDate.getDate() + 30);
+            const [voucher] = await db.insert(providerVouchers).values({
+              code,
+              value: voucherAmount.toString(),
+              description: `Campaign voucher for $${voucherAmount}`,
+              status: "active",
+              expiryDate,
+              createdBy: adminName
+            }).returning();
+            console.log(`[SMS Service] Created voucher: ${code} for $${voucherAmount}`);
+            return { code: voucher.code, value: voucherAmount };
+          } catch (error) {
+            if (error.code === "23505") {
+              attempt++;
+              console.log(`[SMS Service] Voucher code collision, retrying... (attempt ${attempt}/${maxAttempts})`);
+            } else {
+              console.error("[SMS Service] Error creating voucher:", error);
+              throw error;
+            }
+          }
+        }
+        throw new Error("Failed to generate unique voucher code after maximum attempts");
+      }
+      /**
+       * Send SMS with unique voucher creation
+       */
+      async sendSmsWithVoucher(phone, customerName, messageTemplate, voucherAmount, options) {
+        try {
+          const voucher = await this.createVoucher(voucherAmount, options.adminName);
+          const message = messageTemplate.replace(/\{customerName\}/g, customerName).replace(/\{voucherCode\}/g, voucher.code).replace(/\{voucherAmount\}/g, voucherAmount.toString());
+          const success = await this.sendSms(phone, message, {
+            adminName: options.adminName,
+            customerId: options.customerId,
+            smsType: options.smsType
+          });
+          if (success) {
+            console.log(`[SMS Service] Successfully sent SMS with voucher ${voucher.code} to ${customerName}`);
+            return { success: true, voucherCode: voucher.code, message };
+          } else {
+            return { success: false, message: "Failed to send SMS" };
+          }
+        } catch (error) {
+          console.error("[SMS Service] Error in sendSmsWithVoucher:", error);
+          return { success: false, message: error.message || "Unknown error" };
+        }
+      }
+    };
+    smsService = new SmsService();
+  }
+});
+
+// server/notificationBridge.ts
+var notificationBridge_exports = {};
+__export(notificationBridge_exports, {
+  default: () => notificationBridge_default,
+  notificationBridge: () => notificationBridge,
+  notificationRoutes: () => notificationRoutes
+});
+var NotificationBridge, notificationBridge, notificationRoutes, notificationBridge_default;
+var init_notificationBridge = __esm({
+  "server/notificationBridge.ts"() {
+    "use strict";
+    NotificationBridge = class {
+      pendingNotifications = /* @__PURE__ */ new Map();
+      activeConnections = /* @__PURE__ */ new Map();
+      // Store notification for a provider
+      addNotification(providerId, notification) {
+        const notificationData = {
+          id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          providerId,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          data: notification.data || {},
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          delivered: false
+        };
+        if (!this.pendingNotifications.has(providerId)) {
+          this.pendingNotifications.set(providerId, []);
+        }
+        this.pendingNotifications.get(providerId).push(notificationData);
+        console.log(`\u{1F4E8} Notification added for provider ${providerId}: ${notification.title}`);
+        this.deliverPendingNotifications(providerId);
+      }
+      // Get pending notifications for a provider (polling)
+      getPendingNotifications(providerId) {
+        const notifications = this.pendingNotifications.get(providerId) || [];
+        console.log(`\u{1F50D} Provider ${providerId} polling - found ${notifications.length} pending notifications`);
+        if (notifications.length > 0) {
+          console.log("\u{1F4CB} Pending notifications:", notifications.map((n) => n.title));
+        }
+        notifications.forEach((notif) => notif.delivered = true);
+        this.pendingNotifications.set(providerId, []);
+        console.log(`\u{1F4F1} Delivered ${notifications.length} notifications to provider ${providerId}`);
+        return notifications;
+      }
+      // Long polling endpoint - provider app calls this
+      async longPoll(providerId, res) {
+        console.log(`\u{1F504} Provider ${providerId} connected for long polling`);
+        if (!this.activeConnections.has(providerId)) {
+          this.activeConnections.set(providerId, []);
+        }
+        this.activeConnections.get(providerId).push(res);
+        const timeout = setTimeout(() => {
+          this.removeConnection(providerId, res);
+          if (!res.headersSent) {
+            res.json({ notifications: [] });
+          }
+        }, 1e4);
+        res.on("close", () => {
+          clearTimeout(timeout);
+          this.removeConnection(providerId, res);
+        });
+        this.deliverPendingNotifications(providerId);
+      }
+      // Deliver notifications to connected providers
+      deliverPendingNotifications(providerId) {
+        const notifications = this.pendingNotifications.get(providerId) || [];
+        const connections = this.activeConnections.get(providerId) || [];
+        if (notifications.length > 0 && connections.length > 0) {
+          console.log(`\u{1F680} Delivering ${notifications.length} notifications to ${connections.length} connections`);
+          connections.forEach((res) => {
+            if (!res.headersSent) {
+              res.json({ notifications });
+            }
+          });
+          this.pendingNotifications.set(providerId, []);
+          this.activeConnections.set(providerId, []);
+        }
+      }
+      removeConnection(providerId, res) {
+        const connections = this.activeConnections.get(providerId) || [];
+        const index2 = connections.indexOf(res);
+        if (index2 > -1) {
+          connections.splice(index2, 1);
+          this.activeConnections.set(providerId, connections);
+        }
+      }
+      // Get stats for debugging
+      getStats() {
+        const totalPending = Array.from(this.pendingNotifications.values()).reduce((sum, arr) => sum + arr.length, 0);
+        const totalConnections = Array.from(this.activeConnections.values()).reduce((sum, arr) => sum + arr.length, 0);
+        return {
+          totalPendingNotifications: totalPending,
+          totalActiveConnections: totalConnections,
+          providersWithPendingNotifications: this.pendingNotifications.size,
+          providersConnected: this.activeConnections.size
+        };
+      }
+    };
+    notificationBridge = new NotificationBridge();
+    notificationRoutes = {
+      // Provider app polls this endpoint
+      poll: async (req, res) => {
+        try {
+          const providerId = parseInt(req.headers["x-provider-id"]);
+          if (!providerId) {
+            return res.status(400).json({ error: "Provider ID required" });
+          }
+          const notifications = notificationBridge.getPendingNotifications(providerId);
+          res.json({ notifications });
+        } catch (error) {
+          console.error("Error in notification poll:", error);
+          res.status(500).json({ error: "Internal server error" });
+        }
+      },
+      // Long polling endpoint
+      longPoll: async (req, res) => {
+        try {
+          const providerId = parseInt(req.headers["x-provider-id"]);
+          if (!providerId) {
+            return res.status(400).json({ error: "Provider ID required" });
+          }
+          await notificationBridge.longPoll(providerId, res);
+        } catch (error) {
+          console.error("Error in notification long poll:", error);
+          if (!res.headersSent) {
+            res.status(500).json({ error: "Internal server error" });
+          }
+        }
+      },
+      // Get notification bridge stats
+      stats: (req, res) => {
+        const stats = notificationBridge.getStats();
+        res.json(stats);
+      }
+    };
+    notificationBridge_default = notificationBridge;
+  }
+});
+
+// server/fetchPolyfill.ts
+var init_fetchPolyfill = __esm({
+  "server/fetchPolyfill.ts"() {
+    "use strict";
+    if (typeof globalThis.fetch === "undefined") {
+      console.log("\u26A0\uFE0F Built-in fetch not available, using polyfill");
+      try {
+        const nodeFetch = __require("node-fetch");
+        globalThis.fetch = nodeFetch.default || nodeFetch;
+        console.log("\u2705 Fetch polyfill loaded successfully");
+      } catch (error) {
+        console.log("\u274C Could not load node-fetch polyfill:", error.message);
+        globalThis.fetch = async (url, options = {}) => {
+          throw new Error("Fetch not available and no polyfill found");
+        };
+      }
+    } else {
+      console.log("\u2705 Built-in fetch available");
+    }
+  }
+});
+
+// server/oneSignalAdminService.ts
+var oneSignalAdminService_exports = {};
+__export(oneSignalAdminService_exports, {
+  default: () => oneSignalAdminService_default
+});
+var OneSignalAdminService, oneSignalAdminService, oneSignalAdminService_default;
+var init_oneSignalAdminService = __esm({
+  "server/oneSignalAdminService.ts"() {
+    "use strict";
+    init_fetchPolyfill();
+    OneSignalAdminService = class {
+      appId = "a3f5070d-9c46-44cd-8b0a-259df155ae94";
+      // Your OneSignal App ID
+      restApiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_up2qodm4izcm3cykewo7cvnossbylenoajculv4dkp4bz42fwbct55k5alljhd2qrvf2vnr7pvfen5aajjokeet7ibwxv4ug2wnzsni";
+      apiUrl = "https://onesignal.com/api/v1/notifications";
+      // DEPRECATED: Old static device mapping - now using dynamic external user IDs
+      // This method is kept for backward compatibility but not used
+      getDeviceIdForProvider(providerId) {
+        console.log(`\u26A0\uFE0F Using dynamic external user ID instead of static device mapping for provider ${providerId}`);
+        return null;
+      }
+      // Get external user IDs for dynamic targeting
+      getExternalUserIds(providerId) {
+        const externalIds = [`provider-${providerId}`];
+        console.log(`\u{1F464} External user IDs for provider ${providerId}:`, externalIds);
+        console.log(`\u2705 Using dynamic external ID: provider-${providerId}`);
+        return externalIds;
+      }
+      // Send push notification to provider using OneSignal
+      async sendToProvider(providerId, notification) {
+        try {
+          console.log(`\u{1F4E4} Sending OneSignal push notification to provider ${providerId}`);
+          console.log(`\u{1F4E2} Sending broadcast notification to all users`);
+          const payload = {
+            app_id: this.appId,
+            // BROADCAST STRATEGY: Send to subscribed users only (recommended)
+            included_segments: ["Subscribed Users"],
+            headings: { en: notification.title },
+            contents: { en: notification.message },
+            data: notification.data || {},
+            // Android specific settings
+            priority: 10,
+            android_sound: "default",
+            android_vibration_pattern: [1e3, 1e3],
+            // Make sure it works when app is closed
+            content_available: true,
+            // Additional settings to ensure delivery
+            send_after: (/* @__PURE__ */ new Date()).toISOString(),
+            ttl: 3600
+            // 1 hour TTL
+            // Remove apns_push_type_override - let OneSignal handle it automatically
+          };
+          const response = await fetch(this.apiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Basic ${this.restApiKey}`
+            },
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`OneSignal API error: ${JSON.stringify(errorData)}`);
+          }
+          const result2 = await response.json();
+          console.log(`\u2705 OneSignal notification sent:`, result2);
+          if (result2.recipients) {
+            console.log(`\u{1F4CA} Notification delivered to ${result2.recipients} recipients`);
+          }
+          if (result2.errors && result2.errors.length > 0) {
+            console.log(`\u26A0\uFE0F Some errors occurred:`, result2.errors);
+          }
+          return {
+            success: true,
+            id: result2.id,
+            recipients: result2.recipients || 0,
+            errors: result2.errors || []
+          };
+        } catch (error) {
+          console.error("\u274C OneSignal push notification failed:", error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return { success: false, error: errorMessage };
+        }
+      }
+      // Send to multiple providers
+      async sendToMultipleProviders(providerIds, notification) {
+        const results = await Promise.all(
+          providerIds.map((providerId) => this.sendToProvider(providerId, notification))
+        );
+        console.log(
+          `\u{1F4CA} Sent notifications to ${providerIds.length} providers:`,
+          results.filter((r) => r.success).length + " successful"
+        );
+        return results;
+      }
+    };
+    oneSignalAdminService = new OneSignalAdminService();
+    oneSignalAdminService_default = oneSignalAdminService;
+  }
+});
+
+// server/providerNotificationService.ts
+var providerNotificationService_exports = {};
+__export(providerNotificationService_exports, {
+  default: () => providerNotificationService_default,
+  providerNotificationService: () => providerNotificationService
+});
+var ProviderNotificationService, providerNotificationService, providerNotificationService_default;
+var init_providerNotificationService = __esm({
+  "server/providerNotificationService.ts"() {
+    "use strict";
+    ProviderNotificationService = class {
+      apiUrl;
+      constructor() {
+        this.apiUrl = process.env.PROVIDER_APP_NOTIFICATION_URL || "https://fcm.googleapis.com/fcm/send";
+      }
+      // Send notification to specific provider
+      async sendNotificationToProvider(providerId, notification) {
+        try {
+          console.log(`\u{1F514} Sending REAL notification to provider ${providerId}:`, notification.title);
+          console.log(`\u{1F680} FORCING OneSignal API call for provider ${providerId}`);
+          const pushResult = await this.sendPushNotificationIfAvailable(providerId, notification);
+          const storeResult = await this.storeNotificationInDatabase(providerId, notification);
+          const inAppResult = await this.sendInAppNotification(providerId, notification);
+          console.log(`\u{1F4CA} Notification results for provider ${providerId}:`);
+          console.log(`   - OneSignal Push: ${pushResult ? "\u2705" : "\u274C"}`);
+          console.log(`   - Stored for polling: ${storeResult ? "\u2705" : "\u274C"}`);
+          console.log(`   - In-app: ${inAppResult ? "\u2705" : "\u274C"}`);
+          if (pushResult || storeResult) {
+            console.log(`\u2705 Notification sent successfully to provider ${providerId}`);
+            return true;
+          } else {
+            console.error(`\u274C Both push and storage failed for provider ${providerId}`);
+            return false;
+          }
+        } catch (error) {
+          console.error(`\u274C Error sending notification to provider ${providerId}:`, error);
+          return false;
+        }
+      }
+      // Send notification to multiple providers
+      async sendNotificationToProviders(providerIds, notification) {
+        console.log(`\u{1F514} Sending notifications to ${providerIds.length} providers:`, notification.title);
+        let successCount = 0;
+        let failedCount = 0;
+        const promises = providerIds.map(async (providerId) => {
+          const success = await this.sendNotificationToProvider(providerId, notification);
+          if (success) {
+            successCount++;
+          } else {
+            failedCount++;
+          }
+        });
+        await Promise.all(promises);
+        console.log(`\u{1F4CA} Notification results: ${successCount} successful, ${failedCount} failed`);
+        return { success: successCount, failed: failedCount };
+      }
+      // Send customer request notification to eligible providers
+      async notifyProvidersOfNewRequest(requestId, categoryName, customerLocation, description, eligibleProviders) {
+        console.log(`\u{1F6CE}\uFE0F Notifying ${eligibleProviders.length} providers of new customer request #${requestId}`);
+        const notification = {
+          title: "\u{1F195} NEW CUSTOMER REQUEST! \u{1F6CE}\uFE0F",
+          message: `\u{1F4CD} ${categoryName} needed in ${customerLocation}
+"${description.substring(0, 100)}${description.length > 100 ? "..." : ""}"`,
+          type: "customer_request",
+          data: {
+            requestId,
+            categoryName,
+            customerLocation,
+            description,
+            timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+            priority: "high",
+            category: "new_request",
+            action: "view_request"
+          }
+        };
+        const providerIds = eligibleProviders.map((p) => p.providerId);
+        await this.sendNotificationToProviders(providerIds, notification);
+        console.log(
+          `\u{1F4DD} Logged notification for request ${requestId} to providers:`,
+          eligibleProviders.map((p) => `${p.firstName} ${p.lastName} (${p.providerId})`).join(", ")
+        );
+      }
+      // Send payment confirmation notification
+      async notifyProviderOfPayment(providerId, amount, customerName, serviceName) {
+        const notification = {
+          title: "Payment Received! \u{1F4B0}",
+          message: `You received $${amount} from ${customerName} for ${serviceName}`,
+          type: "payment",
+          data: {
+            amount,
+            customerName,
+            serviceName,
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
+          }
+        };
+        await this.sendNotificationToProvider(providerId, notification);
+      }
+      // Send service update notification
+      async notifyProviderOfServiceUpdate(providerId, status, details) {
+        const notification = {
+          title: "Service Update \u{1F504}",
+          message: `${status}: ${details}`,
+          type: "service_update",
+          data: {
+            status,
+            details,
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
+          }
+        };
+        await this.sendNotificationToProvider(providerId, notification);
+      }
+      // Simulate notification sending (replace with real implementation)
+      async simulateNotificationSend(providerId, notification) {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          const success = Math.random() > 0.05;
+          if (success) {
+            console.log(`\u{1F4F1} [SIMULATED] Notification sent to provider ${providerId}:`, {
+              title: notification.title,
+              message: notification.message.substring(0, 50) + "...",
+              type: notification.type
+            });
+            return { success: true };
+          } else {
+            return { success: false, error: "Simulated network error" };
+          }
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+      // Get provider device information (to be implemented with real database)
+      async getProviderDevices(providerId) {
+        return [
+          {
+            providerId,
+            deviceToken: "mock_token_" + providerId,
+            platform: "android",
+            appVersion: "1.2.0",
+            isActive: true
+          }
+        ];
+      }
+      // Send push notification via Firebase (to be implemented)
+      async sendFirebaseNotification(deviceToken, notification) {
+        console.log("\u{1F525} Firebase notification would be sent here to:", deviceToken);
+        return true;
+      }
+      // Send in-app notification via notification bridge
+      async sendInAppNotification(providerId, notification) {
+        try {
+          const { notificationBridge: notificationBridge2 } = await Promise.resolve().then(() => (init_notificationBridge(), notificationBridge_exports));
+          notificationBridge2.addNotification(providerId, notification);
+          console.log(`\u{1F517} Real-time notification sent to provider ${providerId} via bridge`);
+          return true;
+        } catch (error) {
+          console.error("\u274C Failed to send in-app notification:", error);
+          return false;
+        }
+      }
+      // Store notification in database for polling
+      async storeNotificationInDatabase(providerId, notification) {
+        try {
+          console.log(`\u{1F4BE} Storing notification for polling by provider ${providerId}:`, notification.title);
+          const { notificationBridge: notificationBridge2 } = await Promise.resolve().then(() => (init_notificationBridge(), notificationBridge_exports));
+          notificationBridge2.addNotification(providerId, {
+            title: notification.title,
+            message: notification.message,
+            type: notification.type,
+            data: notification.data
+          });
+          console.log(`\u2705 Notification added to bridge for provider ${providerId}`);
+          return true;
+        } catch (error) {
+          console.error("\u274C Failed to store notification in bridge:", error);
+          return false;
+        }
+      }
+      // Send push notification via external service (simulated)
+      async sendPushNotificationIfAvailable(providerId, notification) {
+        try {
+          console.log(`\u{1F680} Sending external push notification to provider ${providerId}`);
+          const pushResult = await this.sendExternalPushNotification(providerId, notification);
+          if (pushResult.success) {
+            console.log(`\u2705 External push notification sent to provider ${providerId}`);
+            return true;
+          } else {
+            console.log(`\u26A0\uFE0F External push failed for provider ${providerId}: ${pushResult.error}`);
+            return false;
+          }
+        } catch (error) {
+          console.error("\u274C Failed to send external push notification:", error);
+          return false;
+        }
+      }
+      // Send push notification via OneSignal (works when app is closed!)
+      async sendExternalPushNotification(providerId, notification) {
+        try {
+          console.log(`\u{1F680} SENDING REAL ONESIGNAL PUSH NOTIFICATION to provider ${providerId}`);
+          console.log(`\u{1F4CB} Title: ${notification.title}`);
+          console.log(`\u{1F4CB} Message: ${notification.message}`);
+          const oneSignalAdminServiceModule = await Promise.resolve().then(() => (init_oneSignalAdminService(), oneSignalAdminService_exports));
+          const oneSignalAdminService2 = oneSignalAdminServiceModule.default;
+          if (!oneSignalAdminService2) {
+            throw new Error("OneSignal admin service not available");
+          }
+          console.log(`\u{1F525} Calling OneSignal API directly...`);
+          console.log(`\u{1F527} OneSignal service loaded:`, typeof oneSignalAdminService2);
+          const pushResult = await oneSignalAdminService2.sendToProvider(providerId, {
+            title: notification.title,
+            message: notification.message,
+            data: notification.data
+          });
+          console.log(`\u{1F4E1} OneSignal API Response:`, pushResult);
+          if (pushResult.success) {
+            console.log(`\u2705 ONESIGNAL PUSH SENT! ID: ${pushResult.id}`);
+            return { success: true };
+          } else {
+            console.log(`\u274C ONESIGNAL PUSH FAILED: ${pushResult.error}`);
+            return { success: false, error: pushResult.error };
+          }
+        } catch (error) {
+          console.error("\u274C CRITICAL ERROR in OneSignal push:", error);
+          return { success: false, error: error.message };
+        }
+      }
+    };
+    providerNotificationService = new ProviderNotificationService();
+    providerNotificationService_default = providerNotificationService;
+  }
+});
+
 // server/storage.ts
 var storage_exports = {};
 __export(storage_exports, {
@@ -1401,11 +2154,29 @@ import fs from "fs";
 import csv from "csv-parser";
 import { eq, and, or, desc, asc, inArray, isNotNull, isNull, sql, ne, gt, gte, like, lte } from "drizzle-orm";
 import crypto from "crypto";
+async function insertAndReturn(table, data, idField = "id") {
+  try {
+    await db.insert(table).values(data);
+    let result2;
+    if (data.email && table === serviceProviders) {
+      [result2] = await db.select().from(table).where(eq(table.email, data.email)).limit(1);
+    } else {
+      [result2] = await db.select().from(table).orderBy(desc(table[idField])).limit(1);
+    }
+    return result2;
+  } catch (error) {
+    console.error("Error in insertAndReturn:", error);
+    console.error("Table:", table);
+    console.error("Data:", data);
+    throw error;
+  }
+}
 var envPath2, DatabaseStorage, storage;
 var init_storage = __esm({
   "server/storage.ts"() {
     "use strict";
     init_smsService();
+    init_providerNotificationService();
     init_schema();
     init_db();
     envPath2 = path2.resolve(process.cwd(), ".env");
@@ -1480,7 +2251,8 @@ var init_storage = __esm({
         return user;
       }
       async updateUser(id, updates) {
-        const [user] = await db.update(users).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, id)).returning();
+        await db.update(users).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, id));
+        const [user] = await db.select().from(users).where(eq(users.id, id));
         return user;
       }
       async getAllUsers() {
@@ -1609,8 +2381,7 @@ var init_storage = __esm({
       }
       // Service provider operations
       async createServiceProvider(provider) {
-        const [serviceProvider] = await db.insert(serviceProviders).values(provider).returning();
-        return serviceProvider;
+        return await insertAndReturn(serviceProviders, provider);
       }
       async getServiceProvider(id) {
         const [provider] = await db.select().from(serviceProviders).where(eq(serviceProviders.id, id));
@@ -1625,7 +2396,8 @@ var init_storage = __esm({
         return provider;
       }
       async updateServiceProvider(id, updates) {
-        const [provider] = await db.update(serviceProviders).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(serviceProviders.id, id)).returning();
+        await db.update(serviceProviders).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(serviceProviders.id, id));
+        const [provider] = await db.select().from(serviceProviders).where(eq(serviceProviders.id, id));
         return provider;
       }
       async updateProviderStatus(id, providerStatus) {
@@ -1643,6 +2415,11 @@ var init_storage = __esm({
         const categories = await db.select().from(serviceCategories).orderBy(asc(serviceCategories.name));
         console.log("Storage: Found", categories.length, "categories");
         return categories;
+      }
+      async getTrendingServiceCategories() {
+        console.log("Storage: Getting trending service categories...");
+        const result2 = await db.select().from(serviceCategories).where(eq(serviceCategories.trending, true)).orderBy(asc(serviceCategories.name));
+        return result2;
       }
       async getServiceCategory(id) {
         const [category] = await db.select().from(serviceCategories).where(eq(serviceCategories.id, id)).limit(1);
@@ -1684,8 +2461,7 @@ var init_storage = __esm({
       }
       // New location-based service area methods
       async addProviderLocationServiceArea(serviceAreaData) {
-        const [result2] = await db.insert(providerServiceAreas).values(serviceAreaData).returning();
-        return result2;
+        return await insertAndReturn(providerServiceAreas, serviceAreaData);
       }
       async getProviderLocationServiceAreas(providerId) {
         return await db.select().from(providerServiceAreas).where(
@@ -1726,8 +2502,7 @@ var init_storage = __esm({
       }
       // Document operations
       async uploadProviderDocument(document) {
-        const [doc] = await db.insert(providerDocuments).values(document).returning();
-        return doc;
+        return await insertAndReturn(providerDocuments, document);
       }
       async getProviderDocuments(providerId) {
         return await db.select().from(providerDocuments).where(eq(providerDocuments.providerId, providerId)).orderBy(desc(providerDocuments.uploadedAt));
@@ -1760,17 +2535,18 @@ var init_storage = __esm({
       }
       async getCustomerServiceRequestsWithOffers(customerId) {
         try {
-          console.log(`Getting service requests for customer: ${customerId}`);
           const result2 = await pool.query(
-            `SELECT id, customer_id, category_id, description, postcode, suburb, 
-                property_type, urgency, budget, preferred_date, booking_type, 
-                scheduled_date, status, created_at, updated_at
-         FROM service_requests 
-         WHERE customer_id = $1
-         ORDER BY created_at DESC`,
+            `SELECT sr.id, sr.customer_id, sr.category_id, sr.description, sr.postcode, sr.suburb, 
+                sr.property_type, sr.urgency, sr.budget, sr.preferred_date, sr.booking_type, 
+                sr.scheduled_date, sr.status, sr.created_at, sr.updated_at,
+                sc.name as category_name, sc.icon as category_icon
+         FROM service_requests sr
+         LEFT JOIN service_categories sc ON sr.category_id = sc.id
+         WHERE sr.customer_id = $1
+         ORDER BY sr.created_at DESC`,
             [customerId]
           );
-          console.log(`Found ${result2.rows.length} service requests via pool.query`);
+          const categoryCheck = await pool.query("SELECT id, name, icon FROM service_categories ORDER BY id");
           const requestsWithOffers = await Promise.all(result2.rows.map(async (request) => {
             const offerMetricsResult = await pool.query(
               `SELECT 
@@ -1786,10 +2562,28 @@ var init_storage = __esm({
               total_offers: 0,
               accepted_offers: 0
             };
-            return {
+            let finalCategoryName = request.category_name;
+            let finalCategoryIcon = request.category_icon;
+            if (!finalCategoryName && request.category_id) {
+              try {
+                const categoryResult = await pool.query(
+                  "SELECT name, icon FROM service_categories WHERE id = $1",
+                  [request.category_id]
+                );
+                if (categoryResult.rows.length > 0) {
+                  finalCategoryName = categoryResult.rows[0].name;
+                  finalCategoryIcon = categoryResult.rows[0].icon;
+                }
+              } catch (error) {
+                console.error("Error fetching category:", error);
+              }
+            }
+            const finalResult = {
               id: request.id,
               customerId: request.customer_id,
               categoryId: request.category_id,
+              categoryName: finalCategoryName || "Service Request",
+              categoryIcon: finalCategoryIcon || "\u{1F527}",
               description: request.description,
               postcode: request.postcode,
               suburb: request.suburb,
@@ -1808,6 +2602,7 @@ var init_storage = __esm({
                 professionalCount: parseInt(offerMetrics.professional_count) || 0
               }
             };
+            return finalResult;
           }));
           return requestsWithOffers;
         } catch (error) {
@@ -1885,8 +2680,6 @@ var init_storage = __esm({
          ORDER BY lo.created_at DESC`,
             [requestId]
           );
-          console.log(`Found ${result2.rows.length} accepted professionals for request ${requestId}`);
-          console.log("Raw professional data:", result2.rows);
           return result2.rows.map((prof) => ({
             providerId: prof.providerid,
             businessName: prof.businessname,
@@ -2028,6 +2821,24 @@ var init_storage = __esm({
         const result2 = await query;
         return result2.length;
       }
+      async getActiveServiceRequestCount() {
+        const result2 = await db.select().from(serviceRequests).where(eq(serviceRequests.status, "active"));
+        return result2.length;
+      }
+      async getMonthlyRevenue() {
+        const currentDate = /* @__PURE__ */ new Date();
+        const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+        const result2 = await db.select({
+          totalRevenue: sql`COALESCE(SUM(CAST(${leadPurchases.totalCost} AS DECIMAL)), 0)`
+        }).from(leadPurchases).where(
+          and(
+            gte(leadPurchases.purchasedAt, firstDayOfMonth),
+            lte(leadPurchases.purchasedAt, lastDayOfMonth)
+          )
+        );
+        return parseFloat(result2[0]?.totalRevenue?.toString() || "0");
+      }
       async getServiceProvidersForAdmin(status) {
         let providers;
         if (status) {
@@ -2050,6 +2861,37 @@ var init_storage = __esm({
           })
         );
         return providersWithServices;
+      }
+      async getServiceProvidersForReport(status, rating) {
+        try {
+          const providersWithServices = await this.getServiceProvidersForAdmin(status);
+          const providersWithAreas = await Promise.all(
+            providersWithServices.map(async (provider) => {
+              try {
+                const serviceAreas = await db.select({
+                  id: providerServiceAreas.id,
+                  centerAddress: providerServiceAreas.centerAddress,
+                  radiusKm: providerServiceAreas.radiusKm,
+                  areaName: providerServiceAreas.areaName
+                }).from(providerServiceAreas).where(eq(providerServiceAreas.providerId, provider.id));
+                return {
+                  ...provider,
+                  serviceAreas: serviceAreas || []
+                };
+              } catch (areaError) {
+                console.log("No service areas for provider", provider.id);
+                return {
+                  ...provider,
+                  serviceAreas: []
+                };
+              }
+            })
+          );
+          return providersWithAreas;
+        } catch (error) {
+          console.error("Error in getServiceProvidersForReport:", error);
+          return [];
+        }
       }
       async updateServiceProviderStatus(id, status) {
         await db.update(serviceProviders).set({ status, updatedAt: /* @__PURE__ */ new Date() }).where(eq(serviceProviders.id, id));
@@ -2125,9 +2967,7 @@ var init_storage = __esm({
         };
       }
       async updateAdminSetting(key, value) {
-        console.log(`[updateAdminSetting] Setting ${key} with value length: ${value.length}`);
         const encryptedValue = this.encrypt(value);
-        console.log(`[updateAdminSetting] Encrypted value length: ${encryptedValue.length}`);
         const result2 = await db.insert(systemSettings).values({
           key,
           value: encryptedValue,
@@ -2140,7 +2980,6 @@ var init_storage = __esm({
             updatedAt: /* @__PURE__ */ new Date()
           }
         }).returning();
-        console.log(`[updateAdminSetting] Database result for ${key}:`, result2.length > 0 ? "Success" : "Failed");
       }
       async getDecryptedSetting(key) {
         const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key)).limit(1);
@@ -2400,6 +3239,8 @@ var init_storage = __esm({
             console.log(`No eligible providers found for request ${requestId}`);
             return;
           }
+          const category = await db.select({ name: serviceCategories.name }).from(serviceCategories).where(eq(serviceCategories.id, request.categoryId)).limit(1);
+          const categoryName = category.length > 0 ? category[0].name : "Service";
           await db.insert(leadDistributionLog2).values({
             requestId,
             distributionPhase: "unique",
@@ -2421,6 +3262,18 @@ var init_storage = __esm({
               expiresAt: null
             });
           }
+          try {
+            const customerLocation = `${request.suburb}, ${request.postcode}`;
+            await providerNotificationService.notifyProvidersOfNewRequest(
+              requestId,
+              categoryName,
+              customerLocation,
+              request.description,
+              eligibleProviders
+            );
+          } catch (notificationError) {
+            console.error("Error sending notifications to providers:", notificationError);
+          }
           await this.activateNextUniqueOffer(requestId);
         } catch (error) {
           console.error("Error initializing lead distribution:", error);
@@ -2429,7 +3282,6 @@ var init_storage = __esm({
       }
       async getEligibleProviders(categoryId, postcode) {
         try {
-          console.log(`Finding eligible providers for category ${categoryId}, postcode ${postcode}`);
           let postcodeCoverageProviders = [];
           try {
             postcodeCoverageProviders = await db.selectDistinct({
@@ -2454,7 +3306,6 @@ var init_storage = __esm({
           } catch (error) {
             console.error("Error fetching postcode coverage providers:", error);
           }
-          console.log(`Found ${postcodeCoverageProviders.length} providers via postcode coverage`);
           let locationBasedProviders = [];
           try {
             const targetSuburb = await db.select({
@@ -2466,7 +3317,6 @@ var init_storage = __esm({
             }).from(australianSuburbs).where(eq(australianSuburbs.postcode, postcode)).limit(1);
             if (targetSuburb.length > 0 && targetSuburb[0].latitude && targetSuburb[0].longitude) {
               const target = targetSuburb[0];
-              console.log(`Target location: ${target.suburb} (${target.latitude}, ${target.longitude})`);
               const eligibleProviders = await db.select({
                 providerId: serviceProviders.id,
                 firstName: serviceProviders.firstName,
@@ -2501,9 +3351,7 @@ var init_storage = __esm({
                     parseFloat(area.centerLat),
                     parseFloat(area.centerLng)
                   );
-                  console.log(`Provider ${provider.firstName} ${provider.lastName} (${area.centerAddress}): ${distance.toFixed(2)}km away, radius: ${area.radiusKm}km`);
                   if (distance <= parseInt(area.radiusKm.toString())) {
-                    console.log(`\u2713 Provider ${provider.firstName} ${provider.lastName} is within service area`);
                     locationBasedProviders.push({
                       providerId: provider.providerId,
                       rating: 5,
@@ -2517,7 +3365,6 @@ var init_storage = __esm({
                 }
               }
             } else {
-              console.log(`No coordinates found for postcode ${postcode}`);
             }
           } catch (error) {
             console.error("Error in location-based provider matching:", error);
@@ -2535,7 +3382,6 @@ var init_storage = __esm({
             (provider, index2, self) => index2 === self.findIndex((p) => p.providerId === provider.providerId)
           );
           uniqueProviders.sort((a, b) => b.rating - a.rating);
-          console.log(`Total eligible providers found: ${uniqueProviders.length} (${postcodeCoverageProviders.length} via postcode, ${locationBasedProviders.length} via distance)`);
           return uniqueProviders;
         } catch (error) {
           console.error("Error getting eligible providers:", error);
@@ -2559,11 +3405,9 @@ var init_storage = __esm({
         try {
           const serviceArea = await db.select().from(providerServiceAreas).where(eq(providerServiceAreas.id, serviceAreaId)).limit(1);
           if (!serviceArea.length || !serviceArea[0].centerAddress) {
-            console.log(`Service area ${serviceAreaId} not found or no center address`);
             return;
           }
           const area = serviceArea[0];
-          console.log(`Calculating postcode coverage for provider ${area.providerId}, service area ${serviceAreaId}`);
           const allPostcodes = await db.select({
             postcode: australianSuburbs.postcode
           }).from(australianSuburbs).groupBy(australianSuburbs.postcode);
@@ -2578,7 +3422,6 @@ var init_storage = __esm({
               // Placeholder distance
             });
           }
-          console.log(`Stored coverage for ${coveredPostcodes.length} postcodes for service area ${serviceAreaId}`);
         } catch (error) {
           console.error("Error calculating service area coverage:", error);
         }
@@ -2645,7 +3488,6 @@ var init_storage = __esm({
               eq(leadDistributionLog2.isActive, true)
             )
           );
-          console.log(`Activated unique offer for provider ${nextOffer.providerId}, expires at ${offerEndTime}`);
         } catch (error) {
           console.error("Error activating next unique offer:", error);
           throw error;
@@ -2668,6 +3510,7 @@ var init_storage = __esm({
             "shared"
           );
           const offerStartTime = /* @__PURE__ */ new Date();
+          const providerIds = [];
           for (const provider of eligibleProviders) {
             await db.insert(leadOffers).values({
               requestId,
@@ -2680,6 +3523,27 @@ var init_storage = __esm({
               // Shared offers don't expire individually - only expire 24 hours before job date
               expiresAt: null
             });
+            providerIds.push(provider.providerId);
+          }
+          if (providerIds.length > 0) {
+            try {
+              const { providerNotificationService: providerNotificationService2 } = await Promise.resolve().then(() => (init_providerNotificationService(), providerNotificationService_exports));
+              await providerNotificationService2.sendNotificationToProviders(providerIds, {
+                title: "Price Drop Alert! \u{1F4B8}",
+                message: `The lead price has dropped to $${leadCost}! The offer is now available at a reduced shared price.`,
+                type: "system",
+                data: {
+                  requestId,
+                  newPrice: leadCost,
+                  offerType: "shared",
+                  priceDropEvent: true
+                }
+              });
+            } catch (error) {
+              console.error("Failed to send price drop notifications:", error);
+            }
+          } else {
+            console.log("\u26A0\uFE0F No eligible providers found for price drop notification");
           }
           await db.update(leadDistributionLog2).set({
             distributionPhase: "shared",
@@ -2692,7 +3556,6 @@ var init_storage = __esm({
               eq(leadDistributionLog2.isActive, true)
             )
           );
-          console.log(`Started shared phase for request ${requestId}`);
         } catch (error) {
           console.error("Error starting shared phase:", error);
           throw error;
@@ -2806,7 +3669,6 @@ var init_storage = __esm({
               eq(leadDistributionLog2.isActive, true)
             )
           );
-          console.log(`Ended lead distribution for request ${requestId}`);
         } catch (error) {
           console.error("Error ending lead distribution:", error);
           throw error;
@@ -2836,7 +3698,6 @@ var init_storage = __esm({
       // Dynamic lead matching for service updates and new providers
       async processDynamicLeadMatching() {
         try {
-          console.log("Processing dynamic lead matching...");
           const activeLeads = await db.select({
             id: serviceRequests.id,
             categoryId: serviceRequests.categoryId,
@@ -2853,7 +3714,6 @@ var init_storage = __esm({
             console.log("No active leads found for dynamic matching");
             return;
           }
-          console.log(`Found ${activeLeads.length} active/in-progress leads for dynamic matching`);
           for (const lead of activeLeads) {
             await this.checkForNewProvidersForLead(lead.id, lead.categoryId, lead.postcode);
           }
@@ -2873,7 +3733,6 @@ var init_storage = __esm({
           if (newProviders.length === 0) {
             return;
           }
-          console.log(`Found ${newProviders.length} new eligible providers for lead ${requestId}`);
           const [currentLead] = await db.select({ status: serviceRequests.status }).from(serviceRequests).where(eq(serviceRequests.id, requestId));
           if (!currentLead) return;
           const leadSettings2 = await this.getLeadSettings();
@@ -2888,7 +3747,6 @@ var init_storage = __esm({
             const provider = newProviders[i];
             if (isInSharedPhase) {
               await this.createSharedOffer(requestId, provider.providerId, leadSettings2);
-              console.log(`Added provider ${provider.firstName} ${provider.lastName} to shared phase for lead ${requestId}`);
             } else {
               const totalUniqueOffers = await db.select({ count: sql`count(*)` }).from(leadOffers).where(
                 and(
@@ -2898,7 +3756,6 @@ var init_storage = __esm({
               );
               const nextSortOrder = (totalUniqueOffers[0]?.count || 0) + 1;
               await this.createUniqueOffer(requestId, provider.providerId, nextSortOrder, leadSettings2);
-              console.log(`Added provider ${provider.firstName} ${provider.lastName} to unique queue (position ${nextSortOrder}) for lead ${requestId}`);
             }
           }
         } catch (error) {
@@ -2966,9 +3823,7 @@ var init_storage = __esm({
           );
           for (const lead of uninitializedLeads) {
             try {
-              console.log(`Processing uninitialized lead ${lead.id}`);
               await this.initializeLeadDistribution(lead.id);
-              console.log(`Successfully initialized lead distribution for lead ${lead.id}`);
             } catch (error) {
               console.error(`Failed to initialize lead distribution for lead ${lead.id}:`, error);
             }
@@ -2993,7 +3848,22 @@ var init_storage = __esm({
             )
           );
           for (const expiredOffer of expiredOffers) {
-            console.log(`Processing expired offer ${expiredOffer.id} for request ${expiredOffer.requestId}`);
+            try {
+              console.log(`\u{1F514} Sending expired offer notification to provider ${expiredOffer.providerId}`);
+              const { providerNotificationService: providerNotificationService2 } = await Promise.resolve().then(() => (init_providerNotificationService(), providerNotificationService_exports));
+              await providerNotificationService2.sendNotificationToProvider(expiredOffer.providerId, {
+                title: "Lead Offer Expired",
+                message: "One of your lead offers has expired and moved to the next provider.",
+                type: "system",
+                data: {
+                  offerId: expiredOffer.id,
+                  requestId: expiredOffer.requestId,
+                  expired: true
+                }
+              });
+            } catch (error) {
+              console.error("Failed to send expired offer notification:", error);
+            }
             await db.update(leadOffers).set({
               status: "expired",
               isCurrentOffer: false
@@ -3017,7 +3887,6 @@ var init_storage = __esm({
             )
           ).groupBy(leadOffers.requestId);
           for (const expired of expiredByJobDate) {
-            console.log(`Expiring shared offers for request ${expired.requestId} due to job date proximity`);
             await db.update(leadOffers).set({
               status: "expired",
               isCurrentOffer: false
@@ -3057,7 +3926,6 @@ var init_storage = __esm({
             balanceAfter: newBalance.toFixed(2),
             description
           });
-          console.log(`Added $${amount} credit to provider ${providerId}. New balance: $${newBalance}`);
         } catch (error) {
           console.error("Error adding provider credit:", error);
           throw error;
@@ -3082,7 +3950,6 @@ var init_storage = __esm({
             description,
             leadOfferId
           });
-          console.log(`Deducted $${amount} credit from provider ${providerId}. New balance: $${newBalance}`);
           return true;
         } catch (error) {
           console.error("Error deducting provider credit:", error);
@@ -3400,7 +4267,9 @@ var init_storage = __esm({
               if (purchasedCount[0]?.count < 3) {
                 filteredLeads.push(lead);
               }
-            } else {
+            } else if (lead.offerType === "unique" && lead.status === "pending") {
+              filteredLeads.push(lead);
+            } else if (lead.status === "purchased") {
               filteredLeads.push(lead);
             }
           }
@@ -3440,22 +4309,17 @@ var init_storage = __esm({
           and(
             eq(leadOffers.providerId, providerId),
             or(
-              // Show current unique offers that are pending and active
-              and(
-                eq(leadOffers.status, "pending"),
-                eq(leadOffers.isCurrentOffer, true),
-                eq(leadOffers.offerType, "unique")
-              ),
-              // Show shared offers that are pending (not purchased by this provider yet)
-              and(
-                eq(leadOffers.status, "pending"),
-                eq(leadOffers.offerType, "shared")
-              ),
+              // Show all pending offers (both unique and shared)
+              eq(leadOffers.status, "pending"),
               // Show purchased offers (for activity history)
               eq(leadOffers.status, "purchased")
             ),
-            // Only show leads that haven't expired based on job date (24 hours before)
-            sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '24 hours')`
+            // Only show leads that haven't expired based on job date (2 hours before)
+            // Allow leads with null preferred dates or dates more than 2 hours in the future
+            or(
+              isNull(serviceRequests.preferredDate),
+              sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '2 hours')`
+            )
           )
         ).orderBy(desc(serviceRequests.createdAt));
       }
@@ -3525,8 +4389,12 @@ var init_storage = __esm({
                 // Purchased offers (for activity history)
                 eq(leadOffers.status, "purchased")
               ),
-              // Only show leads that haven't expired based on job date (24 hours before)
-              sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '24 hours')`
+              // Only show leads that haven't expired based on job date (2 hours before)
+              // Allow leads with null preferred dates or dates more than 2 hours in the future
+              or(
+                isNull(serviceRequests.preferredDate),
+                sql`${serviceRequests.preferredDate} > (CURRENT_TIMESTAMP + INTERVAL '2 hours')`
+              )
             )
           ).orderBy(desc(serviceRequests.createdAt));
           return [...sharedLeads, ...otherLeads];
@@ -3604,6 +4472,7 @@ var init_storage = __esm({
       }
       async getProviderActivityHistory(providerId) {
         try {
+          console.log(`\u{1F50D} Fetching activities for provider ${providerId}...`);
           const activities = await db.select({
             id: leadOffers.id,
             requestId: leadOffers.requestId,
@@ -3619,7 +4488,8 @@ var init_storage = __esm({
             createdAt: leadOffers.createdAt,
             description: serviceRequests.description,
             urgency: serviceRequests.urgency
-          }).from(leadOffers).innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id)).innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id)).where(eq(leadOffers.providerId, providerId)).orderBy(desc(leadOffers.createdAt)).limit(20);
+          }).from(leadOffers).innerJoin(serviceRequests, eq(leadOffers.requestId, serviceRequests.id)).innerJoin(serviceCategories, eq(serviceRequests.categoryId, serviceCategories.id)).where(eq(leadOffers.providerId, providerId)).orderBy(desc(leadOffers.createdAt)).limit(50);
+          console.log(`\u{1F4CA} Raw activities from DB: ${activities.length}`);
           const processedActivities = activities.map((activity) => {
             let message = "";
             let activityType = "";
@@ -3628,17 +4498,27 @@ var init_storage = __esm({
               message = `Lead purchased - ${activity.categoryName} in ${activity.suburb}`;
               activityType = "lead_purchased";
               variant = "default";
-            } else if (activity.status === "expired" && activity.offerType === "unique") {
+            } else if (activity.status === "expired") {
               message = `Offer expired - ${activity.categoryName} lead in ${activity.suburb} (was $${activity.leadCost})`;
               activityType = "offer_expired";
               variant = "secondary";
-            } else if (activity.status === "pending" && activity.isCurrentOffer && activity.offerType === "unique") {
-              message = `New offer - ${activity.categoryName} lead in ${activity.suburb} ($${activity.leadCost})`;
-              activityType = "new_offer";
-              variant = "outline";
+            } else if (activity.status === "pending" && activity.offerType === "unique") {
+              if (activity.isCurrentOffer) {
+                message = `New offer - ${activity.categoryName} lead in ${activity.suburb} ($${activity.leadCost})`;
+                activityType = "new_offer";
+                variant = "outline";
+              } else {
+                message = `Offer pending - ${activity.categoryName} lead in ${activity.suburb} ($${activity.leadCost})`;
+                activityType = "offer_pending";
+                variant = "secondary";
+              }
             } else if (activity.status === "pending" && activity.offerType === "shared") {
               message = `Price DROP - ${activity.categoryName} lead in ${activity.suburb} now $${activity.leadCost}`;
               activityType = "price_drop";
+              variant = "secondary";
+            } else {
+              message = `${activity.status} - ${activity.categoryName} lead in ${activity.suburb} ($${activity.leadCost})`;
+              activityType = activity.status || "unknown";
               variant = "secondary";
             }
             return {
@@ -3650,7 +4530,9 @@ var init_storage = __esm({
               leadCost: parseFloat(activity.leadCost || "0")
             };
           });
-          return processedActivities.filter((activity) => activity.message);
+          const finalActivities = processedActivities.filter((activity) => activity.message);
+          console.log(`\u{1F4CB} Final activities after filtering: ${finalActivities.length}`);
+          return finalActivities;
         } catch (error) {
           console.error("Error getting provider activity history:", error);
           return [];
@@ -3660,7 +4542,6 @@ var init_storage = __esm({
       async logProviderLeadInteraction(interaction) {
         try {
           await db.insert(providerLeadInteractions).values(interaction);
-          console.log(`Logged provider interaction: ${interaction.interactionType} for lead ${interaction.leadId} by provider ${interaction.providerId}`);
         } catch (error) {
           console.error("Error logging provider lead interaction:", error);
           throw error;
@@ -4076,7 +4957,6 @@ var init_storage = __esm({
               totalReviews: stats.totalReviews,
               updatedAt: /* @__PURE__ */ new Date()
             }).where(eq(providerRatings.providerId, providerId));
-            console.log(`Updated rating for provider ${providerId}: ${stats.averageRating} (${stats.totalReviews} reviews)`);
           }
         } catch (error) {
           console.error("Error updating provider rating:", error);
@@ -4264,6 +5144,19 @@ var init_storage = __esm({
           throw new Error("Service category not found");
         }
         return updatedCategories[0];
+      }
+      async updateServiceCategoryImage(id, imageUrl) {
+        try {
+          const result2 = await db.execute(sql`UPDATE service_categories SET image_url = ${imageUrl}, updated_at = NOW() WHERE id = ${id} RETURNING *`);
+          if (result2.rows && result2.rows.length > 0) {
+            return result2.rows[0];
+          } else {
+            throw new Error("Service category not found");
+          }
+        } catch (error) {
+          console.error("Error in updateServiceCategoryImage:", error);
+          throw error;
+        }
       }
       async deleteServiceCategory(id) {
         try {
@@ -4557,7 +5450,6 @@ var init_storage = __esm({
               reject(new Error("Invalid file object"));
               return;
             }
-            console.log("Processing file:", file.name, "at path:", file.tempFilePath);
             if (file.tempFilePath && file.tempFilePath !== "") {
               fs.createReadStream(file.tempFilePath).pipe(csv()).on("data", (data) => {
                 if (!data.Name || !data.Email || !data.Phone || !data.State || !data.City || !data.Address) {
@@ -4593,7 +5485,6 @@ var init_storage = __esm({
                 reject(new Error("Failed to parse CSV file"));
               });
             } else if (file.data) {
-              console.log("Using file data buffer, size:", file.data.length);
               const csvString = file.data.toString("utf8");
               const lines = csvString.split("\n");
               for (let i = 1; i < lines.length; i++) {
@@ -4658,6 +5549,18 @@ var init_storage = __esm({
           throw new Error("Failed to update SMS status");
         }
       }
+      async updatePotentialCustomerCampaignStatus(customerId, status) {
+        try {
+          await db.update(potentialCustomers).set({
+            campaignStatus: status,
+            updatedAt: /* @__PURE__ */ new Date()
+          }).where(eq(potentialCustomers.id, customerId));
+          console.log(`Updated customer ${customerId} campaign status to ${status}`);
+        } catch (error) {
+          console.error("Error updating potential customer campaign status:", error);
+          throw new Error("Failed to update campaign status");
+        }
+      }
       async sendSmsToPotentialCustomers(customerIds) {
         try {
           let successCount = 0;
@@ -4670,7 +5573,11 @@ var init_storage = __esm({
                 details.push({ customerId, name: "", phone: "", status: "skipped", sent: false, reason: "not_found" });
                 continue;
               }
-              console.log(`[SMS] Preparing send -> id=${customer.id} name=${customer.name} phone=${customer.phone} currentStatus=${customer.smsDeliveryStatus}`);
+              if (customer.campaignStatus === "Unsubscribe") {
+                console.warn(`[SMS][skip] Customer unsubscribed -> id=${customer.id} name=${customer.name}`);
+                details.push({ customerId: customer.id, name: customer.name, phone: customer.phone, status: "skipped", sent: false, reason: "unsubscribed" });
+                continue;
+              }
               const normalizedPhone = (() => {
                 const raw = (customer.phone || "").toString();
                 const digits = raw.replace(/[^0-9+]/g, "");
@@ -4795,7 +5702,6 @@ ServicePanda Team`;
       }
       async getProviderReports() {
         try {
-          console.log("Getting provider reports...");
           const startTime = Date.now();
           const providerStats = await db.select({
             total: sql`count(*)`,
@@ -4807,7 +5713,6 @@ ServicePanda Team`;
           const approvedProviders = providerStats[0]?.approved || 0;
           const pendingProviders = providerStats[0]?.pending || 0;
           const rejectedProviders = providerStats[0]?.rejected || 0;
-          console.log("Provider stats:", { totalProviders, approvedProviders, pendingProviders, rejectedProviders });
           const currentDate = /* @__PURE__ */ new Date();
           const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
           const newProvidersThisMonth = await db.select({ count: sql`count(*)` }).from(serviceProviders).where(
@@ -4816,7 +5721,6 @@ ServicePanda Team`;
               eq(serviceProviders.status, "approved")
             )
           );
-          console.log("New providers this month:", newProvidersThisMonth[0]?.count || 0);
           const monthlyData = await db.select({
             month: sql`to_char(${serviceProviders.createdAt}, 'YYYY-MM')`,
             status: serviceProviders.status,
@@ -4826,11 +5730,11 @@ ServicePanda Team`;
           ).groupBy(sql`to_char(${serviceProviders.createdAt}, 'YYYY-MM'), ${serviceProviders.status}`);
           const monthlyJoins = [];
           const monthMap = /* @__PURE__ */ new Map();
-          const now = new Date();
+          const now = /* @__PURE__ */ new Date();
           const last4Years = [];
           for (let i = 47; i >= 0; i--) {
             const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
             const monthName = date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
             last4Years.push(monthKey);
             monthMap.set(monthKey, {
@@ -4841,13 +5745,11 @@ ServicePanda Team`;
               rejected: 0
             });
           }
-          console.log("Raw monthly data from database:", monthlyData);
           monthlyData.forEach((row) => {
             const monthKey = row.month;
             const monthData = monthMap.get(monthKey);
             if (monthData) {
               const count = parseInt(row.count.toString()) || 0;
-              console.log(`Processing ${monthKey}: count=${row.count} (${typeof row.count}), parsed=${count}`);
               monthData.count += count;
               if (row.status === "approved") monthData.approved = parseInt(row.count.toString()) || 0;
               if (row.status === "pending") monthData.pending = parseInt(row.count.toString()) || 0;
@@ -4860,12 +5762,10 @@ ServicePanda Team`;
               monthlyJoins.push(monthData);
             }
           });
-          console.log("Monthly joins:", monthlyJoins);
           const topServiceCategories = await db.select({
             category: serviceCategories.name,
             providerCount: sql`count(distinct ${providerServices.providerId})`
           }).from(providerServices).innerJoin(serviceCategories, eq(providerServices.categoryId, serviceCategories.id)).groupBy(serviceCategories.name).orderBy(desc(sql`count(distinct ${providerServices.providerId})`)).limit(5);
-          console.log("Top service categories:", topServiceCategories);
           const approvalTimeData = await db.select({
             avgDays: sql`avg(
             case 
@@ -4922,8 +5822,6 @@ ServicePanda Team`;
             monthlyJoins
           };
           const endTime = Date.now();
-          console.log(`Provider reports generated in ${endTime - startTime}ms`);
-          console.log("Provider reports result:", result2);
           return result2;
         } catch (error) {
           console.error("Error getting provider reports:", error);
@@ -4931,9 +5829,76 @@ ServicePanda Team`;
         }
       }
       // Potential Providers methods
-      async getAllPotentialProviders() {
+      async getAllPotentialProviders(adminUsername, isSuperAdmin = false) {
         try {
-          const providers = await db.select().from(potentialProviders).orderBy(desc(potentialProviders.createdAt));
+          console.log("=== DEBUG: Getting potential providers ===");
+          console.log("Admin username filter:", adminUsername);
+          console.log("Is super admin:", isSuperAdmin);
+          console.log("Will apply filtering:", adminUsername && !isSuperAdmin);
+          let query = db.select({
+            id: potentialProviders.id,
+            firstName: potentialProviders.firstName,
+            lastName: potentialProviders.lastName,
+            email: potentialProviders.email,
+            phone: potentialProviders.phone,
+            businessName: potentialProviders.businessName,
+            businessAbn: potentialProviders.businessAbn,
+            address: potentialProviders.address,
+            state: potentialProviders.state,
+            city: potentialProviders.city,
+            postcode: potentialProviders.postcode,
+            serviceCategories: potentialProviders.serviceCategories,
+            source: potentialProviders.source,
+            importId: potentialProviders.importId,
+            importName: potentialProviders.importName,
+            status: potentialProviders.status,
+            priority: potentialProviders.priority,
+            assignedTo: potentialProviders.assignedTo,
+            assignedAdminName: sql`CONCAT(${adminUsers.firstName}, ' ', ${adminUsers.lastName})`.as("assignedAdminName"),
+            taskTitle: sql`${potentialProviderTasks.title}`.as("taskTitle"),
+            smsDeliveryStatus: potentialProviders.smsDeliveryStatus,
+            firstSmsSentAt: potentialProviders.firstSmsSentAt,
+            secondSmsSentAt: potentialProviders.secondSmsSentAt,
+            notes: potentialProviders.notes,
+            nextFollowUpDate: potentialProviders.nextFollowUpDate,
+            lastContactDate: potentialProviders.lastContactDate,
+            lastContactType: potentialProviders.lastContactType,
+            createdAt: potentialProviders.createdAt,
+            updatedAt: potentialProviders.updatedAt
+          }).from(potentialProviders).leftJoin(potentialProviderTasks, eq(potentialProviders.id, potentialProviderTasks.potentialProviderId)).leftJoin(adminUsers, eq(potentialProviderTasks.assignedTo, adminUsers.username));
+          if (adminUsername && !isSuperAdmin) {
+            query = query.where(eq(potentialProviderTasks.assignedTo, adminUsername));
+            console.log("Filtering by assigned admin:", adminUsername);
+          } else if (isSuperAdmin) {
+            console.log("Super admin - showing all tasks");
+          }
+          const providers = await query.orderBy(desc(potentialProviders.createdAt));
+          console.log("=== DEBUG: Query result ===");
+          console.log("Total providers found:", providers.length);
+          if (providers.length > 0) {
+            console.log("First provider:", {
+              id: providers[0].id,
+              name: `${providers[0].firstName} ${providers[0].lastName}`,
+              status: providers[0].status,
+              assignedTo: providers[0].assignedTo,
+              assignedAdminName: providers[0].assignedAdminName,
+              taskTitle: providers[0].taskTitle
+            });
+          }
+          try {
+            console.log("\n=== DEBUG: Checking potential_provider_tasks table ===");
+            const potentialProviderTasksData = await db.select().from(potentialProviderTasks).limit(3);
+            console.log("Potential provider tasks found:", potentialProviderTasksData.length);
+            if (potentialProviderTasksData.length > 0) {
+              console.log("First potential provider task:", {
+                id: potentialProviderTasksData[0].id,
+                potentialProviderId: potentialProviderTasksData[0].potentialProviderId,
+                assignedTo: potentialProviderTasksData[0].assignedTo
+              });
+            }
+          } catch (error) {
+            console.log("Error checking potential_provider_tasks:", error.message);
+          }
           return providers;
         } catch (error) {
           console.error("Error getting potential providers:", error);
@@ -4969,7 +5934,6 @@ ServicePanda Team`;
       }
       async importPotentialProviders(csvData, importName) {
         try {
-          console.log("Importing potential providers:", importName);
           const lines = csvData.trim().split("\n");
           const headers = lines[0].split(",").map((h) => h.trim());
           const data = lines.slice(1);
@@ -5031,6 +5995,27 @@ ServicePanda Team`;
           throw error;
         }
       }
+      async updatePotentialProviderSmsStatus(providerId, status) {
+        try {
+          const updateData = {};
+          if (status === "1st_sent") {
+            updateData.smsDeliveryStatus = "1st_sent";
+            updateData.firstSmsSentAt = /* @__PURE__ */ new Date();
+          } else if (status === "2nd_sent") {
+            updateData.smsDeliveryStatus = "2nd_sent";
+            updateData.secondSmsSentAt = /* @__PURE__ */ new Date();
+          }
+          console.log(`\u{1F504} Updating provider ${providerId} with data:`, updateData);
+          const result2 = await db.update(potentialProviders).set({
+            ...updateData,
+            updatedAt: /* @__PURE__ */ new Date()
+          }).where(eq(potentialProviders.id, providerId)).returning();
+          console.log(`\u2705 Updated provider ${providerId} SMS status to ${status}. Result:`, result2);
+        } catch (error) {
+          console.error("\u274C Error updating potential provider SMS status:", error);
+          throw new Error("Failed to update SMS status");
+        }
+      }
       async createPotentialProviderTask(taskData) {
         try {
           const [task] = await db.insert(potentialProviderTasks).values({
@@ -5044,34 +6029,63 @@ ServicePanda Team`;
             createdAt: /* @__PURE__ */ new Date(),
             updatedAt: /* @__PURE__ */ new Date()
           }).returning();
+          if (taskData.potentialProviderId) {
+            await db.update(potentialProviders).set({
+              status: "active",
+              updatedAt: /* @__PURE__ */ new Date()
+            }).where(eq(potentialProviders.id, taskData.potentialProviderId));
+            console.log(`\u2705 Updated provider ${taskData.potentialProviderId} status from 'new' to 'active' after task creation`);
+          }
           return task;
         } catch (error) {
           console.error("Error creating potential provider task:", error);
           throw error;
         }
       }
-      async sendEmailToPotentialProvider(providerId, subject, content, adminUsername = "admin") {
+      async sendEmailToPotentialProvider(providerId, subject, content) {
         try {
           const provider = await db.select().from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
           if (provider.length === 0) {
             throw new Error("Potential provider not found");
           }
+          const providerRow = provider[0];
+          const sentAt = /* @__PURE__ */ new Date();
+          await db.insert(emails).values({
+            from: "admin@servicepanda.com.au",
+            // Admin sender email
+            to: providerRow.email,
+            subject,
+            body: content,
+            bodyHtml: content,
+            // Assuming content is HTML
+            status: "sent",
+            folder: "sent",
+            userType: "admin",
+            userId: null,
+            // Admin users are not in the users table - this prevents filtering issues
+            providerId: null,
+            // This is a potential provider, not a confirmed provider
+            sentAt,
+            createdAt: sentAt,
+            updatedAt: sentAt
+          });
           await db.insert(potentialProviderCommunications).values({
             potentialProviderId: providerId,
             communicationType: "email",
             direction: "outbound",
             subject,
             content,
-            sentBy: adminUsername,
+            sentBy: "admin",
+            // TODO: Get actual admin username
             status: "sent",
-            sentAt: /* @__PURE__ */ new Date(),
-            createdAt: /* @__PURE__ */ new Date()
+            sentAt,
+            createdAt: sentAt
           });
           await db.update(potentialProviders).set({
             status: "email",
-            lastContactDate: /* @__PURE__ */ new Date(),
+            lastContactDate: sentAt,
             lastContactType: "email",
-            updatedAt: /* @__PURE__ */ new Date()
+            updatedAt: sentAt
           }).where(eq(potentialProviders.id, providerId));
           return { success: true, message: "Email sent successfully" };
         } catch (error) {
@@ -5079,9 +6093,17 @@ ServicePanda Team`;
           throw error;
         }
       }
-      async sendSmsToPotentialProvider(providerId, content, adminUsername = "admin") {
+      async sendSmsToPotentialProvider(providerId, content) {
         try {
-          const provider = await db.select().from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
+          const provider = await db.select({
+            id: potentialProviders.id,
+            firstName: potentialProviders.firstName,
+            lastName: potentialProviders.lastName,
+            phone: potentialProviders.phone,
+            smsDeliveryStatus: potentialProviders.smsDeliveryStatus,
+            firstSmsSentAt: potentialProviders.firstSmsSentAt,
+            secondSmsSentAt: potentialProviders.secondSmsSentAt
+          }).from(potentialProviders).where(eq(potentialProviders.id, providerId)).limit(1);
           if (provider.length === 0) {
             throw new Error("Potential provider not found");
           }
@@ -5096,7 +6118,8 @@ ServicePanda Team`;
             communicationType: "sms",
             direction: "outbound",
             content,
-            sentBy: adminUsername,
+            sentBy: "admin",
+            // TODO: Get actual admin username
             status: "sent",
             sentAt: /* @__PURE__ */ new Date(),
             createdAt: /* @__PURE__ */ new Date()
@@ -5111,6 +6134,18 @@ ServicePanda Team`;
             sentBy: "admin",
             status: "sent"
           });
+          const currentSmsStatus = providerRow.smsDeliveryStatus || "not_sent";
+          console.log(`\u{1F4F1} Provider ${providerId} current SMS status: ${currentSmsStatus}`);
+          let newSmsStatus;
+          if (currentSmsStatus === "not_sent") {
+            newSmsStatus = "1st_sent";
+          } else if (currentSmsStatus === "1st_sent") {
+            newSmsStatus = "2nd_sent";
+          } else {
+            newSmsStatus = "2nd_sent";
+          }
+          console.log(`\u{1F4F1} Updating provider ${providerId} SMS status to: ${newSmsStatus}`);
+          await this.updatePotentialProviderSmsStatus(providerId, newSmsStatus);
           await db.update(potentialProviders).set({
             lastContactDate: /* @__PURE__ */ new Date(),
             lastContactType: "sms",
@@ -5177,16 +6212,33 @@ ServicePanda Team`;
       async getEmails(filters) {
         try {
           let query = db.select().from(emails);
-          if (filters.tab === "unread") {
-            query = query.where(eq(emails.isRead, false));
-          } else if (filters.tab !== "all") {
-            query = query.where(eq(emails.status, filters.tab));
+          const conditions = [];
+          if (filters.userId === "admin") {
+            conditions.push(eq(emails.userType, "admin"));
+          } else if (filters.userId && filters.userId !== "all") {
+            if (filters.userId === "2") {
+              conditions.push(eq(emails.userType, "admin"));
+            } else {
+              conditions.push(eq(emails.userId, filters.userId));
+            }
           }
-          if (filters.userId !== "all") {
-            query = query.where(eq(emails.userId, filters.userId));
+          if (filters.tab === "unread") {
+            conditions.push(eq(emails.isRead, false));
+          } else if (filters.tab === "sent") {
+            conditions.push(eq(emails.folder, "sent"));
+          } else if (filters.tab === "inbox") {
+            conditions.push(eq(emails.folder, "inbox"));
+          } else if (filters.tab === "draft") {
+            conditions.push(eq(emails.folder, "draft"));
+          } else if (filters.tab === "spam") {
+            conditions.push(eq(emails.folder, "spam"));
+          } else if (filters.tab === "trash") {
+            conditions.push(eq(emails.folder, "trash"));
+          } else if (filters.tab === "archive") {
+            conditions.push(eq(emails.folder, "archive"));
           }
           if (filters.search) {
-            query = query.where(
+            conditions.push(
               or(
                 like(emails.subject, `%${filters.search}%`),
                 like(emails.body, `%${filters.search}%`),
@@ -5196,10 +6248,13 @@ ServicePanda Team`;
             );
           }
           if (filters.fromDate) {
-            query = query.where(gte(emails.createdAt, new Date(filters.fromDate)));
+            conditions.push(gte(emails.createdAt, new Date(filters.fromDate)));
           }
           if (filters.toDate) {
-            query = query.where(lte(emails.createdAt, new Date(filters.toDate)));
+            conditions.push(lte(emails.createdAt, new Date(filters.toDate)));
+          }
+          if (conditions.length > 0) {
+            query = query.where(and(...conditions));
           }
           query = query.orderBy(desc(emails.createdAt));
           const result2 = await query;
@@ -5239,6 +6294,117 @@ ServicePanda Team`;
         } catch (error) {
           console.error("Error creating email:", error);
           throw error;
+        }
+      }
+      async getEmailByMessageId(messageId) {
+        try {
+          if (!messageId || !messageId.trim()) return void 0;
+          const trimmedMessageId = messageId.trim();
+          const [email] = await db.select().from(emails).where(
+            or(
+              eq(emails.threadId, trimmedMessageId),
+              sql`${emails.threadId} = ${trimmedMessageId}`,
+              sql`${emails.threadId} LIKE ${"%" + trimmedMessageId + "%"}`
+            )
+          ).limit(1);
+          return email;
+        } catch (error) {
+          console.error("Error getting email by messageId:", error);
+          return void 0;
+        }
+      }
+      async getEmailByUniqueFields(from, to, subject, sentAt, userId) {
+        try {
+          const normalizedFrom = from.trim().toLowerCase();
+          const normalizedTo = to.trim().toLowerCase();
+          const normalizedSubject = subject.trim();
+          const extractEmail = (addr) => {
+            const match = addr.match(/<([^>]+)>/);
+            return match ? match[1].toLowerCase().trim() : addr.toLowerCase().trim();
+          };
+          const fromEmail = extractEmail(normalizedFrom);
+          const toEmail = extractEmail(normalizedTo);
+          const sentAtStart = new Date(sentAt.getTime() - 10 * 60 * 1e3);
+          const sentAtEnd = new Date(sentAt.getTime() + 10 * 60 * 1e3);
+          let [email] = await db.select().from(emails).where(
+            and(
+              or(
+                sql`LOWER(TRIM(${emails.from})) = ${normalizedFrom}`,
+                sql`LOWER(TRIM(${emails.from})) LIKE ${"%" + fromEmail + "%"}`
+              ),
+              or(
+                sql`LOWER(TRIM(${emails.to})) = ${normalizedTo}`,
+                sql`LOWER(TRIM(${emails.to})) LIKE ${"%" + toEmail + "%"}`
+              ),
+              eq(emails.subject, normalizedSubject),
+              eq(emails.userId, userId),
+              gte(emails.sentAt, sentAtStart),
+              lte(emails.sentAt, sentAtEnd)
+            )
+          ).limit(1);
+          if (!email) {
+            const dayStart = new Date(sentAt);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(sentAt);
+            dayEnd.setHours(23, 59, 59, 999);
+            [email] = await db.select().from(emails).where(
+              and(
+                eq(emails.subject, normalizedSubject),
+                eq(emails.userId, userId),
+                gte(emails.sentAt, dayStart),
+                lte(emails.sentAt, dayEnd)
+              )
+            ).limit(1);
+          }
+          return email;
+        } catch (error) {
+          console.error("Error getting email by unique fields:", error);
+          return void 0;
+        }
+      }
+      async getEmailByContentHash(contentHash, userId) {
+        try {
+          return void 0;
+        } catch (error) {
+          console.error("Error getting email by content hash:", error);
+          return void 0;
+        }
+      }
+      async getEmailByContentSimilarity(from, to, subject, bodyStart, userId) {
+        try {
+          if (!bodyStart || bodyStart.length < 20) return void 0;
+          const extractEmail = (addr) => {
+            const match = addr.match(/<([^>]+)>/);
+            return match ? match[1].toLowerCase().trim() : addr.toLowerCase().trim();
+          };
+          const fromEmail = extractEmail(from);
+          const toEmail = extractEmail(to);
+          const bodyPattern = bodyStart.substring(0, 100).trim();
+          const [email] = await db.select().from(emails).where(
+            and(
+              eq(emails.subject, subject),
+              eq(emails.userId, userId),
+              sql`SUBSTRING(${emails.body}, 1, 100) = ${bodyPattern}`
+            )
+          ).limit(1);
+          return email;
+        } catch (error) {
+          console.error("Error getting email by content similarity:", error);
+          return void 0;
+        }
+      }
+      async getEmailBySubjectAndUser(subject, userId) {
+        try {
+          const [email] = await db.select().from(emails).where(
+            and(
+              eq(emails.subject, subject.trim()),
+              eq(emails.userId, userId)
+            )
+          ).orderBy(desc(emails.sentAt)).limit(1);
+          return email;
+        } catch (error) {
+          console.error("Error getting email by subject and user:", error);
+          return void 0;
         }
       }
       async updateEmailStatus(emailId, status) {
@@ -5344,6 +6510,652 @@ ServicePanda Team`;
           throw error;
         }
       }
+      // ============================================================================
+      // TEAM TASK MANAGEMENT METHODS
+      // ============================================================================
+      async createTeamTask(task) {
+        try {
+          console.log("Creating team task in database:", task);
+          const [newTask] = await db.insert(teamTasks).values(task).returning();
+          console.log("Team task created successfully:", newTask);
+          return newTask;
+        } catch (error) {
+          console.error("Error creating team task:", error);
+          throw error;
+        }
+      }
+      async getTeamTasks(filters) {
+        try {
+          let query = db.select().from(teamTasks);
+          if (filters) {
+            const conditions = [];
+            if (filters.status) {
+              conditions.push(eq(teamTasks.status, filters.status));
+            }
+            if (filters.priority) {
+              conditions.push(eq(teamTasks.priority, filters.priority));
+            }
+            if (filters.assignedTo) {
+              conditions.push(eq(teamTasks.assignedTo, filters.assignedTo));
+            }
+            if (filters.adminId) {
+              conditions.push(eq(teamTasks.adminId, filters.adminId));
+            }
+            if (filters.customerType) {
+              switch (filters.customerType) {
+                case "potential_provider":
+                  conditions.push(isNotNull(teamTasks.potentialProviderId));
+                  break;
+                case "provider":
+                  conditions.push(isNotNull(teamTasks.providerId));
+                  break;
+                case "customer":
+                  conditions.push(isNotNull(teamTasks.customerId));
+                  break;
+              }
+            }
+            if (conditions.length > 0) {
+              query = query.where(and(...conditions));
+            }
+          }
+          return await query.orderBy(desc(teamTasks.dueDate));
+        } catch (error) {
+          console.error("Error fetching team tasks:", error);
+          throw error;
+        }
+      }
+      async getTeamTask(id) {
+        try {
+          const [task] = await db.select().from(teamTasks).where(eq(teamTasks.id, id));
+          return task;
+        } catch (error) {
+          console.error("Error fetching team task:", error);
+          throw error;
+        }
+      }
+      async updateTeamTask(id, updates) {
+        try {
+          const [updatedTask] = await db.update(teamTasks).set({
+            ...updates,
+            updatedAt: /* @__PURE__ */ new Date()
+          }).where(eq(teamTasks.id, id)).returning();
+          if (!updatedTask) {
+            throw new Error("Team task not found");
+          }
+          return updatedTask;
+        } catch (error) {
+          console.error("Error updating team task:", error);
+          throw error;
+        }
+      }
+      async deleteTeamTask(id) {
+        try {
+          await db.delete(teamTasks).where(eq(teamTasks.id, id));
+        } catch (error) {
+          console.error("Error deleting team task:", error);
+          throw error;
+        }
+      }
+      async getTeamTasksForKanban(filterBy) {
+        try {
+          const now = /* @__PURE__ */ new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const dayAfterTomorrow = new Date(tomorrow);
+          dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          const dayBeforeYesterday = new Date(yesterday);
+          dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 1);
+          let whereConditions = [
+            ne(teamTasks.status, "completed"),
+            ne(teamTasks.status, "cancelled")
+          ];
+          if (filterBy) {
+            if (filterBy.startsWith("assignedTo:")) {
+              const assignedToUser = filterBy.replace("assignedTo:", "");
+              whereConditions.push(eq(teamTasks.assignedTo, assignedToUser));
+            } else {
+              whereConditions.push(eq(teamTasks.adminId, filterBy));
+            }
+          }
+          const allTasks = await db.select().from(teamTasks).where(and(...whereConditions)).orderBy(asc(teamTasks.dueDate));
+          const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1e3);
+          const overdue24h = allTasks.filter(
+            (task) => task.createdAt < twentyFourHoursAgo
+          );
+          const overdue = allTasks.filter(
+            (task) => task.createdAt >= twentyFourHoursAgo && task.createdAt < today
+          );
+          const todayTasks = allTasks.filter(
+            (task) => task.createdAt >= today && task.createdAt < tomorrow
+          );
+          const tomorrowTasks = allTasks.filter(
+            (task) => task.createdAt >= tomorrow && task.createdAt < dayAfterTomorrow
+          );
+          const upcoming = allTasks.filter(
+            (task) => task.createdAt >= dayAfterTomorrow
+          );
+          return {
+            overdue24h,
+            overdue,
+            today: todayTasks,
+            tomorrow: tomorrowTasks,
+            upcoming
+          };
+        } catch (error) {
+          console.error("Error fetching team tasks for kanban:", error);
+          throw error;
+        }
+      }
+      // SMS Campaign methods
+      async getSmsCampaigns() {
+        try {
+          const campaigns = await db.select().from(smsCampaigns).orderBy(desc(smsCampaigns.createdAt));
+          return campaigns;
+        } catch (error) {
+          console.error("Error fetching SMS campaigns:", error);
+          throw error;
+        }
+      }
+      async createSmsCampaign(campaignData) {
+        try {
+          const selectedStates = Array.isArray(campaignData.selectedStates) ? campaignData.selectedStates : [];
+          const selectedStatuses = Array.isArray(campaignData.selectedStatuses) ? campaignData.selectedStatuses : [];
+          const selectedRegions = campaignData.selectedRegions && Array.isArray(campaignData.selectedRegions) ? campaignData.selectedRegions : null;
+          let scheduledAt = null;
+          if (campaignData.scheduledAt) {
+            try {
+              scheduledAt = new Date(campaignData.scheduledAt);
+              if (isNaN(scheduledAt.getTime())) {
+                console.warn("[Storage] Invalid scheduledAt date, setting to null");
+                scheduledAt = null;
+              }
+            } catch (e) {
+              console.warn("[Storage] Error parsing scheduledAt, setting to null:", e);
+              scheduledAt = null;
+            }
+          }
+          console.log("[Storage] Creating campaign with:", {
+            name: campaignData.name,
+            selectedStates,
+            selectedStatuses,
+            selectedRegions,
+            voucherAmount: campaignData.voucherAmount,
+            scheduledAt
+          });
+          const [campaign] = await db.insert(smsCampaigns).values({
+            name: campaignData.name,
+            message: campaignData.message,
+            voucherCode: campaignData.voucherCode || null,
+            voucherAmount: campaignData.voucherAmount || null,
+            selectedStates,
+            selectedRegions,
+            selectedStatuses,
+            scheduledAt,
+            status: campaignData.status || "draft",
+            totalSent: 0
+          }).returning();
+          console.log("[Storage] Campaign created successfully:", campaign.id);
+          return campaign;
+        } catch (error) {
+          console.error("[Storage] Error creating SMS campaign:", error);
+          console.error("[Storage] Error message:", error.message);
+          console.error("[Storage] Error code:", error.code);
+          if (error.detail) {
+            console.error("[Storage] Error detail:", error.detail);
+          }
+          throw error;
+        }
+      }
+      async updateSmsCampaign(campaignId, campaignData) {
+        try {
+          let scheduledAt = null;
+          if (campaignData.scheduledAt) {
+            try {
+              scheduledAt = new Date(campaignData.scheduledAt);
+              if (isNaN(scheduledAt.getTime())) {
+                scheduledAt = null;
+              }
+            } catch (e) {
+              scheduledAt = null;
+            }
+          }
+          const [campaign] = await db.update(smsCampaigns).set({
+            name: campaignData.name,
+            message: campaignData.message,
+            voucherCode: campaignData.voucherCode || null,
+            voucherAmount: campaignData.voucherAmount || null,
+            selectedStates: campaignData.selectedStates,
+            selectedRegions: campaignData.selectedRegions || null,
+            selectedStatuses: campaignData.selectedStatuses,
+            scheduledAt,
+            status: campaignData.status || "draft",
+            updatedAt: /* @__PURE__ */ new Date()
+          }).where(eq(smsCampaigns.id, campaignId)).returning();
+          return campaign;
+        } catch (error) {
+          console.error("Error updating SMS campaign:", error);
+          throw error;
+        }
+      }
+      async deleteSmsCampaign(campaignId) {
+        try {
+          await db.delete(smsCampaigns).where(eq(smsCampaigns.id, campaignId));
+        } catch (error) {
+          console.error("Error deleting SMS campaign:", error);
+          throw error;
+        }
+      }
+      async sendSmsCampaign(campaignId, customerIds, adminName) {
+        try {
+          const [campaign] = await db.select().from(smsCampaigns).where(eq(smsCampaigns.id, campaignId));
+          if (!campaign) {
+            throw new Error("Campaign not found");
+          }
+          const customers = await db.select().from(potentialCustomers).where(inArray(potentialCustomers.id, customerIds));
+          let successCount = 0;
+          let failCount = 0;
+          const results = [];
+          console.log(`[Campaign][start] Processing ${customers.length} customers for campaign ${campaignId}`);
+          for (const customer of customers) {
+            try {
+              console.log(`[Campaign][processing] Customer ${customer.id} - ${customer.name} (${customer.phone})`);
+              let smsType;
+              if (customer.smsDeliveryStatus === "not_sent" || !customer.smsDeliveryStatus) {
+                smsType = "1st_sent";
+              } else if (customer.smsDeliveryStatus === "1st_sent") {
+                smsType = "2nd_sent";
+              } else {
+                console.warn(`[Campaign][skip] Customer ${customer.id} already sent 2 SMS`);
+                continue;
+              }
+              console.log(`[Campaign][sms_type] Customer ${customer.id} will receive ${smsType}`);
+              let voucherCode = "";
+              let finalMessage = campaign.message;
+              if (campaign.voucherAmount && campaign.voucherAmount > 0) {
+                console.log(`[Campaign][voucher] Creating unique voucher for ${customer.name} - Amount: $${campaign.voucherAmount}`);
+                const voucherResult = await smsService.sendSmsWithVoucher(
+                  customer.phone,
+                  customer.name,
+                  campaign.message,
+                  Number(campaign.voucherAmount),
+                  {
+                    customerId: customer.id,
+                    adminName: adminName || "admin",
+                    smsType: "campaign"
+                  }
+                );
+                if (voucherResult.success) {
+                  voucherCode = voucherResult.voucherCode || "";
+                  finalMessage = voucherResult.message || finalMessage;
+                  await this.updateCustomerSmsStatus(customer.id, smsType);
+                  console.log(`[Campaign][storage] Attempting to store SMS message for ${customer.name}`);
+                  try {
+                    await smsService.recordOutbound({
+                      recipientType: "potential_customer",
+                      recipientId: customer.id,
+                      recipientPhone: customer.phone,
+                      recipientName: customer.name,
+                      message: finalMessage,
+                      status: "sent",
+                      smsType,
+                      sentBy: adminName
+                    });
+                    console.log(`[Campaign][SMS Storage] Successfully recorded SMS message for ${customer.name}`);
+                  } catch (storageError) {
+                    console.error(`[Campaign][SMS Storage] Failed to record SMS message for ${customer.name}:`, storageError);
+                  }
+                  successCount++;
+                  results.push({
+                    customerId: customer.id,
+                    customerName: customer.name,
+                    phone: customer.phone,
+                    status: "sent",
+                    smsType,
+                    voucherCode
+                  });
+                  console.log(`[Campaign][success] SMS sent to ${customer.name} (${customer.phone}) with voucher ${voucherCode} - ${smsType}`);
+                } else {
+                  failCount++;
+                  results.push({
+                    customerId: customer.id,
+                    customerName: customer.name,
+                    phone: customer.phone,
+                    status: "failed",
+                    smsType,
+                    error: voucherResult.message
+                  });
+                  console.log(`[Campaign][failed] SMS with voucher failed for ${customer.name}: ${voucherResult.message}`);
+                }
+              } else {
+                finalMessage = campaign.message.replace(/\{customerName\}/g, customer.name).replace(/\{voucherCode\}/g, "").replace(/\{voucherAmount\}/g, "");
+                console.log(`[Campaign][sending] Sending SMS without voucher to ${customer.name} (${customer.phone})`);
+                const success = await smsService.sendSms(customer.phone, finalMessage, {
+                  adminName,
+                  customerId: customer.id,
+                  smsType
+                });
+                console.log(`[Campaign][sms_result] SMS result for ${customer.name}: ${success ? "SUCCESS" : "FAILED"}`);
+                if (success) {
+                  await this.updateCustomerSmsStatus(customer.id, smsType);
+                  try {
+                    await smsService.recordOutbound({
+                      recipientType: "potential_customer",
+                      recipientId: customer.id,
+                      recipientPhone: customer.phone,
+                      recipientName: customer.name,
+                      message: finalMessage,
+                      status: "sent",
+                      smsType,
+                      sentBy: adminName
+                    });
+                  } catch (storageError) {
+                    console.error(`[Campaign][SMS Storage] Failed to record SMS message for ${customer.name}:`, storageError);
+                  }
+                  successCount++;
+                  results.push({
+                    customerId: customer.id,
+                    customerName: customer.name,
+                    phone: customer.phone,
+                    status: "sent",
+                    smsType
+                  });
+                  console.log(`[Campaign][success] SMS sent to ${customer.name} (${customer.phone}) - ${smsType}`);
+                } else {
+                  await smsService.recordOutbound({
+                    recipientType: "potential_customer",
+                    recipientId: customer.id,
+                    recipientPhone: customer.phone,
+                    recipientName: customer.name,
+                    message: finalMessage,
+                    status: "failed",
+                    smsType,
+                    sentBy: adminName
+                  });
+                  console.log(`[Campaign][SMS Storage] Successfully recorded FAILED SMS message for ${customer.name}`);
+                  failCount++;
+                  results.push({
+                    customerId: customer.id,
+                    customerName: customer.name,
+                    phone: customer.phone,
+                    status: "failed",
+                    smsType
+                  });
+                  console.error(`[Campaign][failed] SMS failed to ${customer.name} (${customer.phone}) - ${smsType}`);
+                }
+              }
+            } catch (error) {
+              console.error(`[Campaign][error] Error sending SMS to customer ${customer.id}:`, error);
+              failCount++;
+              results.push({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: customer.phone,
+                status: "error",
+                error: error.message
+              });
+            }
+          }
+          const campaignStatus = failCount === 0 ? "sent" : successCount > 0 ? "sent" : "failed";
+          const [updatedCampaign] = await db.update(smsCampaigns).set({
+            status: campaignStatus,
+            totalSent: successCount,
+            sentAt: /* @__PURE__ */ new Date(),
+            updatedAt: /* @__PURE__ */ new Date()
+          }).where(eq(smsCampaigns.id, campaignId)).returning();
+          console.log(`[Campaign][complete] Campaign ${campaignId} - Success: ${successCount}, Failed: ${failCount}`);
+          return {
+            campaign: updatedCampaign,
+            successCount,
+            failCount,
+            totalCustomers: customers.length,
+            results
+          };
+        } catch (error) {
+          console.error("Error sending SMS campaign:", error);
+          throw error;
+        }
+      }
+      async updateCustomerSmsStatus(customerId, smsType) {
+        try {
+          const updateData = {
+            smsDeliveryStatus: smsType,
+            updatedAt: /* @__PURE__ */ new Date()
+          };
+          if (smsType === "1st_sent") {
+            updateData.firstSmsSentAt = /* @__PURE__ */ new Date();
+          } else if (smsType === "2nd_sent") {
+            updateData.secondSmsSentAt = /* @__PURE__ */ new Date();
+          }
+          await db.update(potentialCustomers).set(updateData).where(eq(potentialCustomers.id, customerId));
+          console.log(`[SMS Status] Updated customer ${customerId} to ${smsType}`);
+        } catch (error) {
+          console.error(`[SMS Status] Error updating customer ${customerId}:`, error);
+          throw error;
+        }
+      }
+      // SMS Messages methods for chat functionality
+      async getSmsMessages() {
+        try {
+          const messages = await db.select().from(smsMessages).orderBy(desc(smsMessages.id));
+          return messages;
+        } catch (error) {
+          console.error("Error fetching SMS messages:", error);
+          throw error;
+        }
+      }
+      async sendIndividualSms(customerId, message) {
+        try {
+          console.log(`[SMS Chat] Starting SMS send process for customer ${customerId}: "${message}"`);
+          console.log(`[SMS Chat] Fetching customer details...`);
+          const [customer] = await db.select().from(potentialCustomers).where(eq(potentialCustomers.id, customerId)).limit(1);
+          if (!customer) {
+            console.error(`[SMS Chat] Customer not found: ${customerId}`);
+            throw new Error("Customer not found");
+          }
+          console.log(`[SMS Chat] Found customer: ${customer.name} (${customer.phone})`);
+          console.log(`[SMS Chat] Calling SMS service...`);
+          let success = false;
+          try {
+            success = await smsService.sendSms(customer.phone, message, {
+              customerId: customer.id,
+              adminName: "Admin"
+            });
+            console.log(`[SMS Chat] SMS service result: ${success}`);
+          } catch (smsError) {
+            console.error(`[SMS Chat] SMS service error:`, smsError);
+            success = false;
+          }
+          console.log(`[SMS Chat] Storing message in database...`);
+          let smsMessage;
+          try {
+            [smsMessage] = await db.insert(smsMessages).values({
+              recipientType: "potential_customer",
+              recipientId: customer.id,
+              recipientPhone: customer.phone,
+              recipientName: customer.name,
+              message,
+              direction: "outbound",
+              status: success ? "sent" : "failed",
+              smsType: "custom"
+            }).returning();
+            console.log(`[SMS Chat] Message stored successfully:`, smsMessage);
+          } catch (dbError) {
+            console.error(`[SMS Chat] Database error:`, dbError);
+            throw new Error("Failed to store message in database");
+          }
+          console.log(`[SMS Chat] SMS process completed successfully`);
+          return {
+            success,
+            message: smsMessage,
+            customer: {
+              id: customer.id,
+              name: customer.name,
+              phone: customer.phone
+            }
+          };
+        } catch (error) {
+          console.error("[SMS Chat] Fatal error in sendIndividualSms:", error);
+          console.error("[SMS Chat] Error stack:", error.stack);
+          throw error;
+        }
+      }
+      async findPotentialCustomerByPhone(phone) {
+        try {
+          const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, "");
+          console.log(`[Storage] Finding customer by phone: ${phone} (normalized: ${normalizedPhone})`);
+          let [customer] = await db.select().from(potentialCustomers).where(eq(potentialCustomers.phone, phone)).limit(1);
+          if (!customer) {
+            const allCustomers = await db.select().from(potentialCustomers);
+            customer = allCustomers.find((c) => {
+              const customerNormalized = c.phone.replace(/[\s\-\(\)\+]/g, "");
+              const searchDigits = normalizedPhone.replace(/^(61|0)/, "");
+              const customerDigits = customerNormalized.replace(/^(61|0)/, "");
+              return searchDigits === customerDigits;
+            });
+            if (customer) {
+              console.log(`[Storage] Found customer by normalized phone: ${customer.name} (${customer.phone})`);
+            }
+          } else {
+            console.log(`[Storage] Found customer by exact match: ${customer.name}`);
+          }
+          return customer || null;
+        } catch (error) {
+          console.error("Error finding customer by phone:", error);
+          return null;
+        }
+      }
+      async updatePotentialCustomerStatus(customerId, status) {
+        try {
+          await db.update(potentialCustomers).set({
+            campaignStatus: status,
+            updatedAt: /* @__PURE__ */ new Date()
+          }).where(eq(potentialCustomers.id, customerId));
+          console.log(`[Storage] Updated customer ${customerId} status to ${status}`);
+        } catch (error) {
+          console.error("Error updating customer status:", error);
+          throw error;
+        }
+      }
+      async storeIncomingSms(from, to, body, messageId, isStopRequest = false) {
+        try {
+          const customer = await this.findPotentialCustomerByPhone(from);
+          if (!customer) {
+            console.log(`[SMS Webhook] Customer not found for phone: ${from}`);
+            return;
+          }
+          await db.insert(smsMessages).values({
+            recipientType: "potential_customer",
+            recipientId: customer.id,
+            recipientPhone: customer.phone,
+            recipientName: customer.name,
+            message: body,
+            direction: "inbound",
+            status: "received",
+            smsType: isStopRequest ? "unsubscribe" : "reply"
+          });
+          console.log(`[SMS Webhook] Stored incoming message from ${customer.name} (${from})` + (isStopRequest ? " - STOP request" : ""));
+        } catch (error) {
+          console.error("Error storing incoming SMS:", error);
+          throw error;
+        }
+      }
+      // Role and Permission Management Methods
+      async getRoles() {
+        try {
+          const allRoles = await db.select().from(roles);
+          const rolesWithPermissions = await Promise.all(
+            allRoles.map(async (role) => {
+              const rolePermissionsData = await db.select({ permissionId: rolePermissions.permissionId }).from(rolePermissions).where(eq(rolePermissions.roleId, role.id));
+              const userCount = await db.select({ count: sql`count(*)` }).from(adminUsers).where(eq(adminUsers.role, role.name));
+              return {
+                ...role,
+                permissions: rolePermissionsData.map((rp) => rp.permissionId),
+                userCount: userCount[0]?.count || 0
+              };
+            })
+          );
+          return rolesWithPermissions;
+        } catch (error) {
+          console.error("Error fetching roles:", error);
+          throw error;
+        }
+      }
+      async getPermissions() {
+        try {
+          return await db.select().from(permissions);
+        } catch (error) {
+          console.error("Error fetching permissions:", error);
+          throw error;
+        }
+      }
+      async getRolePermissions(roleId) {
+        try {
+          const result2 = await db.select({ permissionId: rolePermissions.permissionId }).from(rolePermissions).where(eq(rolePermissions.roleId, roleId));
+          return result2.map((rp) => rp.permissionId);
+        } catch (error) {
+          console.error("Error fetching role permissions:", error);
+          throw error;
+        }
+      }
+      async createRole({ name, description, permissions: permissions2 }) {
+        try {
+          const [newRole] = await db.insert(roles).values({
+            name,
+            description,
+            isDefault: false
+          }).returning();
+          if (permissions2.length > 0) {
+            await db.insert(rolePermissions).values(
+              permissions2.map((permissionId) => ({
+                roleId: newRole.id,
+                permissionId
+              }))
+            );
+          }
+          return newRole;
+        } catch (error) {
+          console.error("Error creating role:", error);
+          throw error;
+        }
+      }
+      async updateRole(roleId, { name, description, permissions: permissions2 }) {
+        try {
+          const [updatedRole] = await db.update(roles).set({ name, description, updatedAt: /* @__PURE__ */ new Date() }).where(eq(roles.id, roleId)).returning();
+          await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
+          if (permissions2.length > 0) {
+            await db.insert(rolePermissions).values(
+              permissions2.map((permissionId) => ({
+                roleId,
+                permissionId
+              }))
+            );
+          }
+          return updatedRole;
+        } catch (error) {
+          console.error("Error updating role:", error);
+          throw error;
+        }
+      }
+      async deleteRole(roleId) {
+        try {
+          const role = await db.select().from(roles).where(eq(roles.id, roleId)).limit(1);
+          if (role[0]?.isDefault) {
+            throw new Error("Cannot delete default role");
+          }
+          const usersWithRole = await db.select({ count: sql`count(*)` }).from(adminUsers).where(eq(adminUsers.role, role[0]?.name || ""));
+          if (usersWithRole[0]?.count > 0) {
+            throw new Error("Cannot delete role that is assigned to users");
+          }
+          await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
+          await db.delete(roles).where(eq(roles.id, roleId));
+        } catch (error) {
+          console.error("Error deleting role:", error);
+          throw error;
+        }
+      }
     };
     storage = new DatabaseStorage();
   }
@@ -5370,7 +7182,9 @@ async function sendEmail(options) {
     const { apiKey, domain, domainSendingKey } = mailgunKeys;
     console.log("Mailgun keys retrieved - domain:", domain, "apiKey present:", !!apiKey);
     const formData = new URLSearchParams();
-    formData.append("from", `ServicePanda <team@servicepanda.com.au>`);
+    const fromEmail = options.fromEmail && options.fromEmail.endsWith("@servicepanda.com.au") ? options.fromEmail : "team@servicepanda.com.au";
+    const fromName = options.fromName || "ServicePanda";
+    formData.append("from", `${fromName} <${fromEmail}>`);
     formData.append("to", options.to);
     if (options.cc) {
       formData.append("cc", options.cc);
@@ -5391,8 +7205,6 @@ async function sendEmail(options) {
       },
       body: formData.toString()
     });
-    console.log("Mailgun API response status:", response.status);
-    console.log("Mailgun API response headers:", Object.fromEntries(response.headers.entries()));
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Mailgun API error:", response.status, errorText);
@@ -5407,7 +7219,7 @@ async function sendEmail(options) {
   }
 }
 async function sendProviderWelcomeEmail(email, firstName) {
-  const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : process.env.FRONTEND_URL || "http://localhost:3000";
+  const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : process.env.FRONTEND_URL || "https://staging.servicepanda.com.au";
   const loginUrl = `${baseUrl}/provider-login`;
   const textContent = `Welcome to ServicePanda!
 
@@ -5598,7 +7410,7 @@ async function sendProviderApplicationSubmittedEmail(email, firstName) {
   });
 }
 async function sendProviderApprovalEmail(email, firstName) {
-  const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : process.env.FRONTEND_URL || "http://localhost:3000";
+  const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : process.env.FRONTEND_URL || "https://staging.servicepanda.com.au";
   const dashboardUrl = `${baseUrl}/provider-dashboard`;
   const textContent = `
     Congratulations! You're All Set!
@@ -5815,7 +7627,7 @@ async function sendProviderApprovalEmail(email, firstName) {
   });
 }
 async function sendPasswordResetEmail(email, resetToken) {
-  const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : process.env.FRONTEND_URL || "http://localhost:3000";
+  const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : process.env.FRONTEND_URL || "https://staging.servicepanda.com.au";
   const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
   const textContent = `
     Password Reset Request
@@ -5944,7 +7756,7 @@ async function sendPasswordResetEmail(email, resetToken) {
   });
 }
 async function sendCustomerFeedbackEmail(customerEmail, customerName, providerName, serviceType, suburb, reviewToken) {
-  const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : process.env.FRONTEND_URL || "http://localhost:3000";
+  const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : process.env.FRONTEND_URL || "https://staging.servicepanda.com.au";
   const reviewUrl = `${baseUrl}/review-submission?token=${reviewToken}`;
   const textContent = `How was your service?
 
@@ -5970,11 +7782,485 @@ var init_emailService = __esm({
   }
 });
 
+// server/imapService.ts
+var imapService_exports = {};
+__export(imapService_exports, {
+  fetchAndStoreEmails: () => fetchAndStoreEmails,
+  fetchEmailsFromImap: () => fetchEmailsFromImap
+});
+import Imap from "imap";
+import { simpleParser } from "mailparser";
+import { createHash } from "crypto";
+function calculateStringSimilarity(str1, str2) {
+  if (!str1 || !str2) return 0;
+  const s1 = str1.toLowerCase();
+  const s2 = str2.toLowerCase();
+  const longer = s1.length > s2.length ? s1 : s2;
+  const shorter = s1.length > s2.length ? s2 : s1;
+  if (longer.length === 0) return 1;
+  let matches = 0;
+  const minLength = Math.min(s1.length, s2.length);
+  for (let i = 0; i < minLength; i++) {
+    if (s1[i] === s2[i]) matches++;
+  }
+  return matches / longer.length;
+}
+async function fetchEmailsFromImap(options) {
+  const {
+    email,
+    password,
+    markSeen = true,
+    fetchAll = true,
+    folder = "INBOX"
+  } = options;
+  return new Promise((resolve, reject) => {
+    const config = {
+      user: email,
+      password,
+      host: "mail.servicepanda.com.au",
+      port: 993,
+      tls: true,
+      tlsOptions: {
+        rejectUnauthorized: false
+        // Allow self-signed certificates
+      }
+    };
+    const imap = new Imap(config);
+    const fetchedEmails = [];
+    imap.once("ready", () => {
+      console.log(`IMAP connection ready for ${email}`);
+      imap.openBox(folder, false, (err, box) => {
+        if (err) {
+          imap.end();
+          return reject(err);
+        }
+        console.log(`Opened ${folder} box. Total messages: ${box.messages.total}`);
+        const searchCriteria = fetchAll ? ["ALL"] : ["UNSEEN"];
+        imap.search(searchCriteria, (err2, results) => {
+          if (err2) {
+            imap.end();
+            return reject(err2);
+          }
+          if (!results || results.length === 0) {
+            console.log(`No emails found for ${email}`);
+            imap.end();
+            return resolve([]);
+          }
+          console.log(`Found ${results.length} emails to fetch`);
+          const fetch2 = imap.fetch(results, {
+            bodies: "",
+            struct: true
+          });
+          fetch2.on("message", (msg, seqno) => {
+            console.log(`Fetching message ${seqno}...`);
+            msg.on("body", (stream, info) => {
+              let buffer = "";
+              stream.on("data", (chunk) => {
+                buffer += chunk.toString("utf8");
+              });
+              stream.once("end", () => {
+                simpleParser(buffer, (err3, parsed) => {
+                  if (err3) {
+                    console.error(`Error parsing email ${seqno}:`, err3);
+                    return;
+                  }
+                  const getEmailAddress = (addr) => {
+                    if (!addr) return "";
+                    if (typeof addr === "string") return addr;
+                    if (Array.isArray(addr)) {
+                      return addr.map((a) => a.address || a.text || "").filter(Boolean).join(", ");
+                    }
+                    return addr.address || addr.text || "";
+                  };
+                  const emailData = {
+                    from: getEmailAddress(parsed.from) || "",
+                    to: getEmailAddress(parsed.to) || "",
+                    cc: parsed.cc ? getEmailAddress(parsed.cc) : null,
+                    bcc: parsed.bcc ? getEmailAddress(parsed.bcc) : null,
+                    subject: parsed.subject || "",
+                    body: parsed.text || "",
+                    bodyHtml: parsed.html || null,
+                    date: parsed.date || /* @__PURE__ */ new Date(),
+                    messageId: parsed.messageId || null,
+                    inReplyTo: parsed.inReplyTo || null,
+                    references: Array.isArray(parsed.references) ? parsed.references.join(" ") : parsed.references || null,
+                    attachments: parsed.attachments?.map((att) => ({
+                      filename: att.filename,
+                      contentType: att.contentType,
+                      size: att.size
+                    })) || []
+                  };
+                  fetchedEmails.push(emailData);
+                  console.log(`Parsed email ${seqno}: ${emailData.subject}`);
+                });
+              });
+            });
+            msg.once("attributes", (attrs) => {
+              if (markSeen && attrs.uid) {
+                imap.addFlags(attrs.uid, "\\Seen", (err3) => {
+                  if (err3) {
+                    console.error(`Error marking email ${attrs.uid} as seen:`, err3);
+                  }
+                });
+              }
+            });
+          });
+          fetch2.once("error", (err3) => {
+            console.error("Fetch error:", err3);
+            imap.end();
+            reject(err3);
+          });
+          fetch2.once("end", () => {
+            console.log(`Finished fetching ${fetchedEmails.length} emails`);
+            imap.end();
+            resolve(fetchedEmails);
+          });
+        });
+      });
+    });
+    imap.once("error", (err) => {
+      console.error("IMAP error:", err);
+      reject(err);
+    });
+    imap.once("end", () => {
+      console.log("IMAP connection ended");
+    });
+    imap.connect();
+  });
+}
+async function fetchAndStoreEmails(email, password, userId, fetchAll = true) {
+  const lockKey = `${email}-${userId}`;
+  if (fetchLocks.get(lockKey)) {
+    console.log(`\u26A0\uFE0F Fetch already in progress for ${email}, skipping...`);
+    return {
+      success: false,
+      count: 0,
+      error: "A fetch operation is already in progress for this email account. Please wait."
+    };
+  }
+  fetchLocks.set(lockKey, true);
+  console.log(`\u{1F512} Acquired fetch lock for ${email}`);
+  try {
+    console.log(`Fetching emails from IMAP for ${email}...`);
+    const fetchedEmails = await fetchEmailsFromImap({
+      email,
+      password,
+      markSeen: true,
+      fetchAll,
+      folder: "INBOX"
+    });
+    console.log(`Fetched ${fetchedEmails.length} emails from ${email}`);
+    let storedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    for (const emailData of fetchedEmails) {
+      try {
+        let existingEmail = null;
+        const normalizedFrom = emailData.from.trim().toLowerCase();
+        const normalizedTo = emailData.to.trim().toLowerCase();
+        const normalizedSubject = emailData.subject.trim();
+        const contentHash = createHash("md5").update(`${normalizedFrom}|${normalizedTo}|${normalizedSubject}|${emailData.body.substring(0, 100)}|${userId}`).digest("hex");
+        if (emailData.messageId && emailData.messageId.trim()) {
+          existingEmail = await storage.getEmailByMessageId(emailData.messageId.trim());
+          if (existingEmail) {
+            skippedCount++;
+            console.log(`\u2298 Skipped duplicate (by messageId): ${normalizedSubject.substring(0, 50)}`);
+            continue;
+          }
+        }
+        existingEmail = await storage.getEmailByUniqueFields(
+          normalizedFrom,
+          normalizedTo,
+          normalizedSubject,
+          emailData.date,
+          userId
+        );
+        if (existingEmail) {
+          skippedCount++;
+          console.log(`\u2298 Skipped duplicate (by unique fields): ${normalizedSubject.substring(0, 50)}`);
+          continue;
+        }
+        const existingBySubject = await storage.getEmailBySubjectAndUser(normalizedSubject, userId);
+        if (existingBySubject) {
+          const existingBodyStart = existingBySubject.body?.substring(0, 100).trim() || "";
+          const currentBodyStart = emailData.body.substring(0, 100).trim();
+          if (existingBodyStart.length >= 20 && currentBodyStart.length >= 20) {
+            const similarity = calculateStringSimilarity(existingBodyStart, currentBodyStart);
+            if (similarity > 0.8) {
+              skippedCount++;
+              console.log(`\u2298 Skipped duplicate (by subject + body similarity ${Math.round(similarity * 100)}%): ${normalizedSubject.substring(0, 50)}`);
+              continue;
+            }
+          }
+        }
+        const bodyStart = emailData.body.substring(0, 100).trim();
+        if (bodyStart.length >= 20) {
+          existingEmail = await storage.getEmailByContentSimilarity(
+            normalizedFrom,
+            normalizedTo,
+            normalizedSubject,
+            bodyStart,
+            userId
+          );
+          if (existingEmail) {
+            skippedCount++;
+            console.log(`\u2298 Skipped duplicate (by content similarity): ${normalizedSubject.substring(0, 50)}`);
+            continue;
+          }
+        }
+        if (emailData.messageId && emailData.messageId.trim()) {
+          const finalCheck = await storage.getEmailByMessageId(emailData.messageId.trim());
+          if (finalCheck) {
+            skippedCount++;
+            console.log(`\u2298 Skipped duplicate (final messageId check): ${normalizedSubject.substring(0, 50)}`);
+            continue;
+          }
+        }
+        const finalUniqueCheck = await storage.getEmailByUniqueFields(
+          normalizedFrom,
+          normalizedTo,
+          normalizedSubject,
+          emailData.date,
+          userId
+        );
+        if (finalUniqueCheck) {
+          skippedCount++;
+          console.log(`\u2298 Skipped duplicate (final unique fields check): ${normalizedSubject.substring(0, 50)}`);
+          continue;
+        }
+        try {
+          await storage.createEmail({
+            from: emailData.from.trim(),
+            to: emailData.to.trim(),
+            cc: emailData.cc?.trim() || null,
+            bcc: emailData.bcc?.trim() || null,
+            subject: emailData.subject.trim(),
+            body: emailData.body,
+            bodyHtml: emailData.bodyHtml,
+            status: "inbox",
+            folder: "inbox",
+            isRead: true,
+            // Already marked as seen
+            userId,
+            userType: "admin",
+            sentAt: emailData.date,
+            threadId: emailData.messageId || emailData.inReplyTo || null
+          });
+          storedCount++;
+          console.log(`\u2713 Stored new email: ${normalizedSubject.substring(0, 50)} [hash: ${contentHash.substring(0, 8)}]`);
+        } catch (insertError) {
+          if (insertError?.message?.includes("duplicate") || insertError?.code === "23505") {
+            skippedCount++;
+            console.log(`\u2298 Skipped duplicate (caught during insert): ${normalizedSubject.substring(0, 50)}`);
+          } else {
+            throw insertError;
+          }
+        }
+      } catch (error) {
+        errorCount++;
+        console.error(`\u2717 Error storing email:`, error?.message || error);
+      }
+    }
+    console.log(`
+\u{1F4E7} Email storage summary for ${email}:`);
+    console.log(`   \u2713 New emails stored: ${storedCount}`);
+    console.log(`   \u2298 Duplicates skipped: ${skippedCount}`);
+    console.log(`   \u2717 Errors: ${errorCount}`);
+    console.log(`   Total processed: ${fetchedEmails.length}
+`);
+    console.log(`Stored ${storedCount} new emails from ${email}`);
+    return { success: true, count: storedCount };
+  } catch (error) {
+    console.error(`Error fetching emails from IMAP:`, error);
+    return {
+      success: false,
+      count: 0,
+      error: error.message || "Failed to fetch emails from IMAP"
+    };
+  } finally {
+    fetchLocks.delete(lockKey);
+    console.log(`\u{1F513} Released fetch lock for ${email}`);
+  }
+}
+var fetchLocks;
+var init_imapService = __esm({
+  "server/imapService.ts"() {
+    "use strict";
+    init_storage();
+    fetchLocks = /* @__PURE__ */ new Map();
+  }
+});
+
+// server/emailCronService.ts
+var emailCronService_exports = {};
+__export(emailCronService_exports, {
+  fetchAllEmails: () => fetchAllEmails,
+  initializeEmailCron: () => initializeEmailCron
+});
+async function fetchAllEmails() {
+  const startTime = Date.now();
+  const timestamp2 = (/* @__PURE__ */ new Date()).toISOString();
+  console.log(`
+\u{1F4E7} [Email Cron] ========================================`);
+  console.log(`\u{1F4E7} [Email Cron] Starting scheduled email fetch...`);
+  console.log(`\u{1F4E7} [Email Cron] Timestamp: ${timestamp2}`);
+  console.log(`\u{1F4E7} [Email Cron] Accounts to process: ${EMAIL_ACCOUNTS.filter((a) => a.enabled).length}`);
+  console.log(`\u{1F4E7} [Email Cron] ========================================
+`);
+  const results = await Promise.allSettled(
+    EMAIL_ACCOUNTS.filter((account) => account.enabled).map(async (account, index2) => {
+      const accountStartTime = Date.now();
+      console.log(`
+\u{1F4EC} [Email Cron] [${index2 + 1}/${EMAIL_ACCOUNTS.filter((a) => a.enabled).length}] Processing: ${account.email}`);
+      console.log(`\u{1F4EC} [Email Cron] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
+      try {
+        let userId = "2";
+        console.log(`\u{1F50D} [Email Cron] Looking up admin user for: ${account.email}...`);
+        const allAdminUsers = await storage.getAllAdminUsers();
+        const adminUser = allAdminUsers.find(
+          (u) => u.email?.toLowerCase() === account.email.toLowerCase() || account.username && u.username?.toLowerCase() === account.username.toLowerCase()
+        );
+        if (adminUser) {
+          userId = adminUser.id.toString();
+          console.log(`\u2705 [Email Cron] Found admin user: ID=${userId}, Username=${adminUser.username || "N/A"}, Email=${adminUser.email || "N/A"}`);
+        } else {
+          console.warn(`\u26A0\uFE0F [Email Cron] Admin user not found for ${account.email}, using default userId: ${userId}`);
+        }
+        console.log(`\u{1F4E5} [Email Cron] Connecting to IMAP server for ${account.email}...`);
+        const result2 = await fetchAndStoreEmails(
+          account.email,
+          account.password,
+          userId,
+          true
+          // fetchAll = true
+        );
+        const accountDuration = Date.now() - accountStartTime;
+        if (result2.success) {
+          console.log(`\u2705 [Email Cron] Successfully fetched ${result2.count} emails from ${account.email}`);
+          console.log(`\u23F1\uFE0F  [Email Cron] Account processing time: ${accountDuration}ms`);
+          console.log(`\u{1F4EC} [Email Cron] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
+          return { email: account.email, success: true, count: result2.count, duration: accountDuration };
+        } else {
+          console.error(`\u274C [Email Cron] Failed to fetch emails from ${account.email}: ${result2.error}`);
+          console.log(`\u23F1\uFE0F  [Email Cron] Account processing time: ${accountDuration}ms`);
+          console.log(`\u{1F4EC} [Email Cron] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
+          return { email: account.email, success: false, error: result2.error, duration: accountDuration };
+        }
+      } catch (error) {
+        const accountDuration = Date.now() - accountStartTime;
+        console.error(`\u274C [Email Cron] Error fetching emails from ${account.email}:`, error?.message || error);
+        console.log(`\u23F1\uFE0F  [Email Cron] Account processing time: ${accountDuration}ms`);
+        console.log(`\u{1F4EC} [Email Cron] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
+        return { email: account.email, success: false, error: error?.message || "Unknown error", duration: accountDuration };
+      }
+    })
+  );
+  const duration = Date.now() - startTime;
+  const successful = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
+  const failed = results.filter((r) => r.status === "rejected" || r.status === "fulfilled" && !r.value.success).length;
+  let totalEmails = 0;
+  let totalDuration = 0;
+  results.forEach((r) => {
+    if (r.status === "fulfilled") {
+      if (r.value.success && r.value.count) {
+        totalEmails += r.value.count;
+      }
+      if (r.value.duration) {
+        totalDuration += r.value.duration;
+      }
+    }
+  });
+  console.log(`
+\u{1F4CA} [Email Cron] ========================================`);
+  console.log(`\u{1F4CA} [Email Cron] FETCH SUMMARY`);
+  console.log(`\u{1F4CA} [Email Cron] ========================================`);
+  console.log(`   \u2705 Successful: ${successful}/${EMAIL_ACCOUNTS.filter((a) => a.enabled).length}`);
+  console.log(`   \u274C Failed: ${failed}`);
+  console.log(`   \u{1F4E7} Total emails fetched: ${totalEmails}`);
+  console.log(`   \u23F1\uFE0F  Total duration: ${duration}ms (${(duration / 1e3).toFixed(2)}s)`);
+  console.log(`   \u23F1\uFE0F  Average per account: ${totalDuration > 0 ? Math.round(totalDuration / EMAIL_ACCOUNTS.filter((a) => a.enabled).length) : 0}ms`);
+  console.log(`\u{1F4CA} [Email Cron] ========================================`);
+  results.forEach((result2, index2) => {
+    if (result2.status === "fulfilled") {
+      const value = result2.value;
+      if (value.success) {
+        console.log(`   \u2705 [${index2 + 1}] ${value.email}: ${value.count || 0} emails (${value.duration || 0}ms)`);
+      } else {
+        console.log(`   \u274C [${index2 + 1}] ${value.email}: Failed - ${value.error || "Unknown error"} (${value.duration || 0}ms)`);
+      }
+    } else {
+      console.log(`   \u274C [${index2 + 1}] Account ${index2 + 1}: Rejected - ${result2.reason}`);
+    }
+  });
+  console.log(`\u{1F4E7} [Email Cron] Scheduled email fetch completed`);
+  console.log(`\u{1F4E7} [Email Cron] ========================================
+`);
+}
+function initializeEmailCron(intervalMinutes = 15) {
+  const intervalMs = intervalMinutes * 60 * 1e3;
+  const intervalSeconds = Math.round(intervalMs / 1e3);
+  console.log(`
+\u{1F550} [Email Cron] ========================================`);
+  console.log(`\u{1F550} [Email Cron] Initializing email fetch cron job...`);
+  console.log(`\u{1F550} [Email Cron] ========================================`);
+  console.log(`   \u23F1\uFE0F  Interval: Every ${intervalSeconds} seconds (${intervalMinutes} minutes)`);
+  console.log(`   \u{1F4E7} Accounts: ${EMAIL_ACCOUNTS.filter((a) => a.enabled).length} enabled`);
+  EMAIL_ACCOUNTS.filter((a) => a.enabled).forEach((account, index2) => {
+    console.log(`   ${index2 + 1}. ${account.email} ${account.username ? `(${account.username})` : ""}`);
+  });
+  console.log(`\u{1F550} [Email Cron] ========================================
+`);
+  console.log(`\u{1F680} [Email Cron] Running initial fetch on startup...`);
+  fetchAllEmails().catch((error) => {
+    console.error("\u274C [Email Cron] Error in initial email fetch:", error);
+  });
+  console.log(`\u23F0 [Email Cron] Scheduling periodic fetches every ${intervalSeconds} seconds...`);
+  setInterval(async () => {
+    const timestamp2 = (/* @__PURE__ */ new Date()).toISOString();
+    console.log(`
+\u23F0 [Email Cron] ========================================`);
+    console.log(`\u23F0 [Email Cron] Scheduled fetch triggered at ${timestamp2}`);
+    console.log(`\u23F0 [Email Cron] ========================================`);
+    try {
+      await fetchAllEmails();
+    } catch (error) {
+      console.error("\u274C [Email Cron] Error in scheduled email fetch:", error);
+    }
+  }, intervalMs);
+  console.log(`\u2705 [Email Cron] Email cron job initialized and running
+`);
+}
+var EMAIL_ACCOUNTS;
+var init_emailCronService = __esm({
+  "server/emailCronService.ts"() {
+    "use strict";
+    init_imapService();
+    init_storage();
+    EMAIL_ACCOUNTS = [
+      {
+        email: "rohan@servicepanda.com.au",
+        password: "v*Ev1}IjAKVM",
+        username: "Rohan Kanaujia",
+        // Admin username - will be used to find user ID
+        enabled: true
+      },
+      {
+        email: "shubham@servicepanda.com.au",
+        password: "v*Ev1}IjAKVM",
+        username: "Shubham Chauhan",
+        // Admin username - will be used to find user ID
+        enabled: true
+      }
+    ];
+  }
+});
+
 // server/index.ts
-import express2 from "express";
+import express3 from "express";
 
 // server/routes.ts
 init_storage();
+import express from "express";
 import { createServer } from "http";
 
 // server/auth.ts
@@ -5993,10 +8279,28 @@ async function hashPassword(password) {
   return `${buf.toString("hex")}.${salt}`;
 }
 async function comparePasswords(supplied, stored) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = await scryptAsync(supplied, salt, 64);
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  if (stored.startsWith("$2")) {
+    const bcrypt3 = await import("bcrypt");
+    return await bcrypt3.compare(supplied, stored);
+  }
+  if (stored.includes(".")) {
+    try {
+      const [hashed, salt] = stored.split(".");
+      if (!hashed || !salt) {
+        return false;
+      }
+      const hashedBuf = Buffer.from(hashed, "hex");
+      const suppliedBuf = await scryptAsync(supplied, salt, 64);
+      if (hashedBuf.length !== suppliedBuf.length) {
+        return false;
+      }
+      return timingSafeEqual(hashedBuf, suppliedBuf);
+    } catch (error) {
+      console.error("Error comparing scrypt password:", error);
+      return false;
+    }
+  }
+  return false;
 }
 function setupAuth(app2) {
   const sessionTtl = 7 * 24 * 60 * 60 * 1e3;
@@ -6255,20 +8559,35 @@ function isAuthenticated(req, res, next) {
 // server/providerAuth.ts
 init_storage();
 init_emailService();
-import { scrypt as scrypt2, randomBytes as randomBytes2, timingSafeEqual as timingSafeEqual2 } from "crypto";
-import { promisify as promisify2 } from "util";
+import bcrypt from "bcrypt";
+import { randomBytes as randomBytes2 } from "crypto";
 import path3 from "path";
-var scryptAsync2 = promisify2(scrypt2);
 async function hashPassword2(password) {
-  const salt = randomBytes2(16).toString("hex");
-  const buf = await scryptAsync2(password, salt, 64);
-  return `${buf.toString("hex")}.${salt}`;
+  return await bcrypt.hash(password, 10);
 }
 async function comparePasswords2(supplied, stored) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = await scryptAsync2(supplied, salt, 64);
-  return timingSafeEqual2(hashedBuf, suppliedBuf);
+  if (stored.startsWith("$2")) {
+    return await bcrypt.compare(supplied, stored);
+  }
+  try {
+    const [hashed, salt] = stored.split(".");
+    if (!hashed || !salt) {
+      return false;
+    }
+    const { scrypt: scrypt3 } = await import("crypto");
+    const { promisify: promisify3 } = await import("util");
+    const scryptAsync3 = promisify3(scrypt3);
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = await scryptAsync3(supplied, salt, 64);
+    if (hashedBuf.length !== suppliedBuf.length) {
+      return false;
+    }
+    const { timingSafeEqual: timingSafeEqual3 } = await import("crypto");
+    return timingSafeEqual3(hashedBuf, suppliedBuf);
+  } catch (error) {
+    console.error("Error comparing scrypt password:", error);
+    return false;
+  }
 }
 function setupProviderAuth(app2) {
   app2.post("/api/provider/register", async (req, res, next) => {
@@ -6359,12 +8678,12 @@ function setupProviderAuth(app2) {
           token,
           expiresAt
         });
-        const host = req.get("host");
-        const baseUrl = host?.includes("localhost") ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : `${req.protocol}://${host}`;
+        const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : process.env.FRONTEND_URL || "https://staging.servicepanda.com.au";
         const resetUrl = `${baseUrl}/provider-reset-password?token=${token}`;
         const emailSent = await sendEmail({
           to: email,
           subject: "ServicePanda Partners - Reset Your Password",
+          text: "Reset your password",
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2>Reset Your Password</h2>
@@ -6425,6 +8744,13 @@ function setupProviderAuth(app2) {
       }
       const ratingData = await storage.getProviderRating(providerId);
       const { password, ...providerProfile } = provider;
+      console.log("\u{1F50D} Provider profile data:", {
+        id: provider.id,
+        firstName: provider.firstName,
+        lastName: provider.lastName,
+        firstLeadsFreeUsed: provider.firstLeadsFreeUsed,
+        leadsPurchasedCount: provider.leadsPurchasedCount
+      });
       res.json({
         ...providerProfile,
         rating: ratingData?.rating || "5.0",
@@ -6545,14 +8871,15 @@ async function isProviderAuthenticated(req, res, next) {
 
 // server/adminAuth.ts
 init_storage();
-import { scrypt as scrypt3, randomBytes as randomBytes3, timingSafeEqual as timingSafeEqual3 } from "crypto";
-import { promisify as promisify3 } from "util";
+import { scrypt as scrypt2, randomBytes as randomBytes3, timingSafeEqual as timingSafeEqual2 } from "crypto";
+import { promisify as promisify2 } from "util";
 import jwt from "jsonwebtoken";
-var scryptAsync3 = promisify3(scrypt3);
+import bcrypt2 from "bcrypt";
+var scryptAsync2 = promisify2(scrypt2);
 var JWT_SECRET = process.env.ADMIN_JWT_SECRET || "admin-jwt-secret-key";
 async function hashPassword3(password) {
   const salt = randomBytes3(16).toString("hex");
-  const buf = await scryptAsync3(password, salt, 64);
+  const buf = await scryptAsync2(password, salt, 64);
   return `${buf.toString("hex")}.${salt}`;
 }
 async function comparePasswords3(supplied, stored) {
@@ -6560,18 +8887,21 @@ async function comparePasswords3(supplied, stored) {
     if (!stored.includes(".")) {
       return supplied === stored;
     }
+    if (stored.startsWith("$2")) {
+      return await bcrypt2.compare(supplied, stored);
+    }
     const [hashed, salt] = stored.split(".");
     const hashedBuf = Buffer.from(hashed, "hex");
-    const suppliedBuf = await scryptAsync3(supplied, salt, 64);
-    return timingSafeEqual3(hashedBuf, suppliedBuf);
+    const suppliedBuf = await scryptAsync2(supplied, salt, 64);
+    return timingSafeEqual2(hashedBuf, suppliedBuf);
   } catch (error) {
     console.error("Error comparing passwords:", error);
     return false;
   }
 }
-function generateAdminToken(username) {
+function generateAdminToken(username, role) {
   return jwt.sign(
-    { username, role: "admin", type: "admin" },
+    { username, role, type: "admin" },
     JWT_SECRET,
     { expiresIn: "24h" }
   );
@@ -6632,8 +8962,8 @@ function setupAdminAuth(app2) {
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
-      const token = generateAdminToken(username);
-      console.log("Admin login successful for:", username);
+      const token = generateAdminToken(username, adminUser.role);
+      console.log("Admin login successful for:", username, "with role:", adminUser.role);
       res.json({
         message: "Login successful",
         token,
@@ -6667,12 +8997,13 @@ var isAdminAuthenticated = (req, res, next) => {
       return res.status(401).json({ message: "Admin authentication required" });
     }
     const decoded = verifyAdminToken(token);
-    if (!decoded || decoded.role !== "admin") {
-      console.log("Admin auth failed - invalid token or role");
+    console.log("Decoded token:", decoded);
+    if (!decoded || !decoded.username || !decoded.role) {
+      console.log("Admin auth failed - invalid token or missing required fields:", decoded);
       return res.status(401).json({ message: "Invalid admin token" });
     }
     req.admin = decoded;
-    console.log("Admin auth successful");
+    console.log("Admin auth successful for user:", decoded.username, "with role:", decoded.role);
     next();
   } catch (error) {
     console.error("Admin authentication error:", error);
@@ -6684,11 +9015,440 @@ var isAdminAuthenticated = (req, res, next) => {
 init_schema();
 init_db();
 init_emailService();
-init_smsService();
 import jwt2 from "jsonwebtoken";
 import { eq as eq2, and as and2, or as or2, desc as desc2, sql as sql2 } from "drizzle-orm";
 import multer from "multer";
 import path4 from "path";
+import fs2 from "fs";
+
+// server/contactMail.ts
+init_emailService();
+async function sendContactFormEmail(formData) {
+  try {
+    console.log("sendContactFormEmail called with:", formData);
+    const { name, email, phone, message } = formData;
+    const supportEmail = "hrms.devdoc@gmail.com";
+    const subject = `New Contact Form Submission from ${name}`;
+    const textContent = `
+New Contact Form Submission
+
+Name: ${name}
+Email: ${email}
+Phone: ${phone}
+
+Message:
+${message}
+
+---
+This message was sent from the ServicePanda contact form.
+    `.trim();
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>New Contact Form Submission</title>
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f7f7f7;
+          }
+          .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+          }
+          .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 10px;
+          }
+          .field {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9fafb;
+            border-left: 4px solid #3b82f6;
+            border-radius: 4px;
+          }
+          .field-label {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 5px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .field-value {
+            color: #4b5563;
+            font-size: 16px;
+          }
+          .message-box {
+            background-color: #f0f9ff;
+            border: 1px solid #bae6fd;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 10px;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            color: #6b7280;
+            font-size: 12px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">\u{1F43C} ServicePanda</div>
+            <p style="margin: 0; color: #6b7280;">New Contact Form Submission</p>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Name</div>
+            <div class="field-value">${name}</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Email</div>
+            <div class="field-value">
+              <a href="mailto:${email}" style="color: #3b82f6; text-decoration: none;">${email}</a>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Phone</div>
+            <div class="field-value">
+              <a href="tel:${phone}" style="color: #3b82f6; text-decoration: none;">${phone}</a>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Message</div>
+            <div class="message-box">
+              ${message.replace(/\n/g, "<br>")}
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>This message was sent from the ServicePanda contact form.</p>
+            <p>Please respond to the customer at: <a href="mailto:${email}">${email}</a></p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    return await sendEmail({
+      to: supportEmail,
+      subject,
+      text: textContent,
+      html: htmlContent
+    });
+  } catch (error) {
+    console.error("Error sending contact form email:", error);
+    return false;
+  }
+}
+async function sendContactConfirmationEmail(formData) {
+  try {
+    const { name, email, message } = formData;
+    const confirmationText = `
+Thank you for contacting ServicePanda!
+
+Hi ${name},
+
+We've received your message and our support team will get back to you within 24 hours.
+
+Your message:
+${message}
+
+If you have any urgent inquiries, please call us at 07 5606 0808.
+
+Best regards,
+ServicePanda Support Team
+    `.trim();
+    const confirmationHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Thank You for Contacting Us</title>
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f7f7f7;
+          }
+          .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+          }
+          .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 10px;
+          }
+          .success-badge {
+            background-color: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-block;
+            margin-bottom: 20px;
+          }
+          .message-box {
+            background-color: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            color: #6b7280;
+            font-size: 14px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">\u{1F43C} ServicePanda</div>
+            <div class="success-badge">Message Received \u2713</div>
+          </div>
+
+          <h2 style="color: #1f2937;">Thank you for contacting us, ${name}!</h2>
+          
+          <p>We've received your message and our support team will get back to you within 24 hours.</p>
+          
+          <div class="message-box">
+            <strong>Your message:</strong>
+            <p style="margin-top: 10px;">${message.replace(/\n/g, "<br>")}</p>
+          </div>
+
+          <p>If you have any urgent inquiries, please call us at <strong>07 5606 0808</strong>.</p>
+          
+          <div class="footer">
+            <p>Best regards,<br><strong>ServicePanda Support Team</strong></p>
+            <p style="margin-top: 20px;">
+              Email: <a href="mailto:support@servicepanda.com.au">support@servicepanda.com.au</a><br>
+              Phone: 07 5606 0808<br>
+              Working Hours: Monday-Friday 9:00 AM - 6:00 PM
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    return await sendEmail({
+      to: email,
+      subject: "Thank you for contacting ServicePanda",
+      text: confirmationText,
+      html: confirmationHtml
+    });
+  } catch (error) {
+    console.error("Error sending contact confirmation email:", error);
+    return false;
+  }
+}
+async function processContactForm(formData) {
+  try {
+    if (!formData.name || !formData.email || !formData.phone || !formData.message) {
+      return {
+        success: false,
+        message: "All fields are required"
+      };
+    }
+    if (formData.name.trim().length > 50) {
+      return {
+        success: false,
+        message: "Name must be 50 characters or less"
+      };
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      return {
+        success: false,
+        message: "Invalid email format"
+      };
+    }
+    const phoneDigits = formData.phone.replace(/\D/g, "");
+    if (phoneDigits.length > 12) {
+      return {
+        success: false,
+        message: "Phone number must be 12 digits or less"
+      };
+    }
+    if (formData.message.trim().length > 300) {
+      return {
+        success: false,
+        message: "Message must be 300 characters or less"
+      };
+    }
+    console.log("Attempting to send email to support team...");
+    const emailSent = await sendContactFormEmail(formData);
+    console.log("Email sent result:", emailSent);
+    if (emailSent) {
+      console.log("Sending confirmation email to user...");
+      await sendContactConfirmationEmail(formData);
+      console.log("Confirmation email sent");
+      return {
+        success: true,
+        message: "Your message has been sent successfully. We'll get back to you soon!"
+      };
+    } else {
+      console.warn("Mailgun not configured - contact form submission received but email not sent");
+      console.log("Contact form submission:", formData);
+      return {
+        success: true,
+        message: "Your message has been received. We'll get back to you soon!",
+        note: "Email service not configured - message logged for manual review"
+      };
+    }
+  } catch (error) {
+    console.error("Error processing contact form:", error);
+    console.error("Error stack:", error.stack);
+    return {
+      success: false,
+      message: error.message || "Failed to send message. Please try again later."
+    };
+  }
+}
+
+// server/routes.ts
+init_smsService();
+init_notificationBridge();
+
+// server/emailSignatures.ts
+var emailSignatures = {
+  "Rohan": {
+    name: "Rohan Kannojia",
+    role: "ServicePanda Support Team",
+    directNumber: "0485 873 908",
+    intlNumber: "+61 7 5606 0808",
+    email: "rohan@servicepanda.com.au",
+    website: "www.servicepanda.com.au"
+  },
+  "Rohan Kanaujia": {
+    name: "Rohan Kannojia",
+    role: "ServicePanda Support Team",
+    directNumber: "0485 873 908",
+    intlNumber: "+61 7 5606 0808",
+    email: "rohan@servicepanda.com.au",
+    website: "www.servicepanda.com.au"
+  },
+  "rohan@servicepanda.com.au": {
+    name: "Rohan Kannojia",
+    role: "ServicePanda Support Team",
+    directNumber: "0485 873 908",
+    intlNumber: "+61 7 5606 0808",
+    email: "rohan@servicepanda.com.au",
+    website: "www.servicepanda.com.au"
+  },
+  "Shubham": {
+    name: "Shubham Chauhan",
+    role: "ServicePanda Support Team",
+    intlNumber: "+61 7 5606 0808",
+    email: "shubham@servicepanda.com.au",
+    website: "www.servicepanda.com.au"
+  },
+  "Shubham Chauhan": {
+    name: "Shubham Chauhan",
+    role: "ServicePanda Support Team",
+    intlNumber: "+61 7 5606 0808",
+    email: "shubham@servicepanda.com.au",
+    website: "www.servicepanda.com.au"
+  },
+  "shubham@servicepanda.com.au": {
+    name: "Shubham Chauhan",
+    role: "ServicePanda Support Team",
+    intlNumber: "+61 7 5606 0808",
+    email: "shubham@servicepanda.com.au",
+    website: "www.servicepanda.com.au"
+  }
+};
+function getEmailSignature(identifier) {
+  if (!identifier) return null;
+  const signature = emailSignatures[identifier];
+  if (signature) return signature;
+  const lowerIdentifier = identifier.toLowerCase();
+  for (const [key, sig] of Object.entries(emailSignatures)) {
+    if (key.toLowerCase() === lowerIdentifier) {
+      return sig;
+    }
+  }
+  return null;
+}
+function formatSignatureText(signature) {
+  let text2 = `${signature.name} | ${signature.role}
+`;
+  if (signature.directNumber) {
+    text2 += `Direct Number: ${signature.directNumber} | Intl Number: ${signature.intlNumber}
+`;
+  } else {
+    text2 += `Intl Number: ${signature.intlNumber}
+`;
+  }
+  text2 += `Email: ${signature.email}
+`;
+  text2 += `Website: ${signature.website}`;
+  return text2;
+}
+function formatSignatureHtml(signature) {
+  let html = `<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #4b5563; font-size: 14px; line-height: 1.6;">`;
+  html += `<div style="font-weight: 500; color: #1f2937;">${signature.name} | ${signature.role}</div>`;
+  if (signature.directNumber) {
+    html += `<div>Direct Number: ${signature.directNumber} | Intl Number: ${signature.intlNumber}</div>`;
+  } else {
+    html += `<div>Intl Number: ${signature.intlNumber}</div>`;
+  }
+  html += `<div>Email: <a href="mailto:${signature.email}" style="color: #3b82f6; text-decoration: none;">${signature.email}</a></div>`;
+  html += `<div>Website: <a href="https://${signature.website}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: none;">${signature.website}</a></div>`;
+  html += `</div>`;
+  return html;
+}
+function appendSignatureToBody(body, signature, isHtml = false) {
+  if (isHtml) {
+    return body + "\n" + formatSignatureHtml(signature);
+  } else {
+    return body + "\n\n" + formatSignatureText(signature);
+  }
+}
+
+// server/routes.ts
 async function registerRoutes(app2) {
   setupAuth(app2);
   setupProviderAuth(app2);
@@ -6708,6 +9468,26 @@ async function registerRoutes(app2) {
       }
     }
   });
+  const csvUpload = multer({
+    dest: "uploads/",
+    limits: { fileSize: 10 * 1024 * 1024 },
+    // 10MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = /csv|xlsx|xls/;
+      const extname = allowedTypes.test(path4.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === "text/csv" || file.mimetype === "application/vnd.ms-excel" || file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      if (mimetype || extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error("Only .csv, .xlsx and .xls files are allowed"));
+      }
+    }
+  });
+  app2.use("/uploads", express.static("uploads"));
+  app2.use("/api", (req, res, next) => {
+    console.log(`[API REQUEST] ${req.method} ${req.path} - ${(/* @__PURE__ */ new Date()).toISOString()}`);
+    next();
+  });
   app2.get("/api/service-categories", async (req, res) => {
     try {
       const categories = await storage.getServiceCategories();
@@ -6715,6 +9495,15 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("Error fetching service categories:", error);
       res.status(500).json({ message: "Failed to fetch service categories" });
+    }
+  });
+  app2.get("/api/service-categories/trending", async (req, res) => {
+    try {
+      const trendingCategories = await storage.getTrendingServiceCategories();
+      res.json(trendingCategories);
+    } catch (error) {
+      console.error("Error fetching trending service categories:", error);
+      res.status(500).json({ message: "Failed to fetch trending service categories" });
     }
   });
   app2.get("/api/admin/service-categories", async (req, res) => {
@@ -6734,6 +9523,43 @@ async function registerRoutes(app2) {
       console.error("Error fetching all service categories:", error);
       res.status(500).json({ message: "Failed to fetch service categories" });
     }
+  });
+  console.log("[ROUTE REGISTRATION] Registering POST /api/contact route...");
+  app2.post("/api/contact", async (req, res) => {
+    console.log("[ROUTE HIT] POST /api/contact endpoint was called!");
+    try {
+      console.log("=== Contact form endpoint called ===");
+      console.log("Request method:", req.method);
+      console.log("Request path:", req.path);
+      console.log("Request body:", req.body);
+      console.log("Request headers:", req.headers);
+      const { name, email, phone, message } = req.body;
+      if (!name || !email || !phone || !message) {
+        console.log("Missing required fields");
+        return res.status(400).json({
+          success: false,
+          message: "All fields are required"
+        });
+      }
+      console.log("Processing contact form...");
+      const result2 = await processContactForm({ name, email, phone, message });
+      console.log("Contact form result:", result2);
+      if (result2.success) {
+        return res.json(result2);
+      } else {
+        return res.status(400).json(result2);
+      }
+    } catch (error) {
+      console.error("Error processing contact form:", error);
+      console.error("Error stack:", error.stack);
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to send message. Please try again later."
+      });
+    }
+  });
+  app2.get("/api/contact/test", (req, res) => {
+    res.json({ message: "Contact API endpoint is accessible", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
   });
   app2.post("/api/service-providers", isAuthenticated, async (req, res) => {
     try {
@@ -6755,6 +9581,15 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("Error creating service provider:", error);
       res.status(500).json({ message: "Failed to create service provider" });
+    }
+  });
+  app2.get("/api/service-providers", async (req, res) => {
+    try {
+      const providers = await storage.getServiceProvidersByStatus("approved");
+      res.json(providers);
+    } catch (error) {
+      console.error("Error fetching service providers:", error);
+      res.status(500).json({ message: "Failed to fetch service providers" });
     }
   });
   app2.get("/api/service-providers/me", isAuthenticated, async (req, res) => {
@@ -7131,24 +9966,72 @@ async function registerRoutes(app2) {
       }
       const apiKey = process.env.GOOGLE_MAPS_API_KEY;
       if (!apiKey) {
-        return res.status(500).json({ error: "Google Maps API key not configured" });
+        console.error("Google Maps API key not configured in environment variables");
+        return res.status(500).json({
+          error: "Google Maps API key not configured",
+          details: "Please set GOOGLE_MAPS_API_KEY in your environment variables"
+        });
       }
       const url = new URL("https://maps.googleapis.com/maps/api/place/autocomplete/json");
       url.searchParams.append("input", input);
       url.searchParams.append("types", types);
       url.searchParams.append("components", components);
       url.searchParams.append("key", apiKey);
-      const response = await fetch(url.toString());
+      console.log("Fetching address autocomplete for input:", input);
+      let response;
+      try {
+        response = await fetch(url.toString());
+      } catch (fetchError) {
+        console.error("Network error fetching from Google Places API:", fetchError);
+        return res.status(500).json({
+          error: "Network error",
+          details: fetchError.message || "Failed to connect to Google Places API"
+        });
+      }
+      if (!response.ok) {
+        console.error("Google Places API HTTP error:", response.status, response.statusText);
+        return res.status(500).json({
+          error: "Google Places API request failed",
+          details: `HTTP ${response.status}: ${response.statusText}`
+        });
+      }
       const data = await response.json();
+      console.log("Google Places API response status:", data.status);
       if (data.status === "OK") {
         res.json(data);
+      } else if (data.status === "ZERO_RESULTS") {
+        res.json({ ...data, predictions: [] });
+      } else if (data.status === "REQUEST_DENIED") {
+        console.error("Google Places API: Request denied. Error message:", data.error_message);
+        res.status(500).json({
+          error: "Google Places API request denied",
+          details: data.error_message || "API key may be invalid or missing required permissions"
+        });
+      } else if (data.status === "INVALID_REQUEST") {
+        console.error("Google Places API: Invalid request. Error message:", data.error_message);
+        res.status(400).json({
+          error: "Invalid request to Google Places API",
+          details: data.error_message || "Request parameters are invalid"
+        });
+      } else if (data.status === "OVER_QUERY_LIMIT") {
+        console.error("Google Places API: Over query limit");
+        res.status(429).json({
+          error: "API quota exceeded",
+          details: "Google Places API quota has been exceeded. Please try again later."
+        });
       } else {
         console.error("Google Places API error:", data);
-        res.status(500).json({ error: "Failed to fetch address suggestions" });
+        res.status(500).json({
+          error: "Failed to fetch address suggestions",
+          details: data.error_message || `Google API returned status: ${data.status}`
+        });
       }
     } catch (error) {
       console.error("Address autocomplete error:", error);
-      res.status(500).json({ error: "Internal server error" });
+      res.status(500).json({
+        error: "Internal server error",
+        details: error.message || "An unexpected error occurred"
+      });
     }
   });
   app2.get("/api/address/details", async (req, res) => {
@@ -7188,6 +10071,24 @@ async function registerRoutes(app2) {
         customerId: userId
       });
       const request = await storage.createServiceRequest(requestData);
+      try {
+        const customer = await storage.getUser(userId);
+        if (customer && customer.phoneNumber) {
+          console.log(`[Won Status] Checking if customer ${customer.email} is in potential customers...`);
+          const potentialCustomer = await storage.findPotentialCustomerByPhone(customer.phoneNumber);
+          if (potentialCustomer && potentialCustomer.campaignStatus !== "Won") {
+            console.log(`[Won Status] Customer found! Updating ${potentialCustomer.name} (ID: ${potentialCustomer.id}) to Won`);
+            await storage.updatePotentialCustomerStatus(potentialCustomer.id, "Won");
+            console.log(`\u2705 [Won Status] Customer ${potentialCustomer.name} marked as Won!`);
+          } else if (potentialCustomer) {
+            console.log(`[Won Status] Customer ${potentialCustomer.name} already has status: ${potentialCustomer.campaignStatus}`);
+          } else {
+            console.log(`[Won Status] Customer not found in potential customers`);
+          }
+        }
+      } catch (wonError) {
+        console.error("[Won Status] Error updating potential customer to Won:", wonError);
+      }
       await storage.logUserActivity({
         userId,
         userType: "customer",
@@ -7323,6 +10224,62 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to update user profile" });
     }
   });
+  app2.post("/api/change-password", isAuthenticated, async (req, res) => {
+    try {
+      console.log("\u{1F510} Password change request received:", { userId: req.user.id, email: req.user.email });
+      const userId = req.user.id;
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        console.log("\u274C Missing password fields");
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+      if (newPassword.length < 6) {
+        console.log("\u274C New password too short");
+        return res.status(400).json({ message: "New password must be at least 6 characters long" });
+      }
+      if (currentPassword === newPassword) {
+        console.log("\u274C Same password provided");
+        return res.status(400).json({ message: "New password must be different from current password" });
+      }
+      console.log("\u{1F4DD} Getting user from database...");
+      const user = await storage.getUser(userId);
+      if (!user) {
+        console.log("\u274C User not found in database");
+        return res.status(404).json({ message: "User not found" });
+      }
+      console.log("\u2705 User found:", { id: user.id, email: user.email });
+      console.log("\u{1F50D} Verifying current password...");
+      const bcrypt3 = await import("bcrypt");
+      const isCurrentPasswordValid = await bcrypt3.compare(currentPassword, user.password);
+      if (!isCurrentPasswordValid) {
+        console.log("\u274C Current password is incorrect");
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      console.log("\u2705 Current password verified");
+      console.log("\u{1F510} Hashing new password...");
+      const saltRounds = 10;
+      const hashedNewPassword = await bcrypt3.hash(newPassword, saltRounds);
+      console.log("\u2705 New password hashed");
+      console.log("\u{1F4BE} Updating password in database...");
+      await storage.updateUserPassword(userId, hashedNewPassword);
+      console.log("\u2705 Password updated in database");
+      console.log("\u{1F4DD} Logging user activity...");
+      await storage.logUserActivity({
+        userId,
+        userType: "customer",
+        action: "password_changed",
+        details: { passwordChanged: true },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent") || ""
+      });
+      console.log("\u2705 Activity logged");
+      console.log("\u{1F389} Password change successful");
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("\u{1F4A5} Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
   app2.post("/api/user-activity", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user.id;
@@ -7374,17 +10331,21 @@ async function registerRoutes(app2) {
     try {
       const totalProviders = await storage.getServiceProviderCount();
       const activeProviders = await storage.getServiceProviderCount("approved");
-      const pendingProviders = await storage.getServiceProviderCount("pending");
+      const pendingApprovals = await storage.getServiceProviderCount("pending");
       const totalCustomers = await storage.getUserCount();
       const totalRequests = await storage.getServiceRequestCount();
-      const pendingRequests = await storage.getServiceRequestCount("pending");
+      const activeRequests = await storage.getActiveServiceRequestCount();
+      const completedJobs = await storage.getServiceRequestCount("completed");
+      const monthlyRevenue = await storage.getMonthlyRevenue();
       res.json({
         totalProviders,
         activeProviders,
-        pendingProviders,
+        pendingApprovals,
         totalCustomers,
         totalRequests,
-        pendingRequests
+        activeRequests,
+        monthlyRevenue,
+        completedJobs
       });
     } catch (error) {
       console.error("Error fetching admin stats:", error);
@@ -7399,6 +10360,20 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("Error fetching providers:", error);
       res.status(500).json({ message: "Failed to fetch providers" });
+    }
+  });
+  app2.get("/api/admin/providers/report", isAdminAuthenticated, async (req, res) => {
+    console.log("\u{1F680} API route /api/admin/providers/report called");
+    try {
+      const status = req.query.status;
+      const rating = req.query.rating;
+      console.log("\u{1F4CA} Calling getServiceProvidersForReport with:", { status, rating });
+      const providers = await storage.getServiceProvidersForReport(status, rating);
+      console.log("\u2705 Got providers:", providers.length);
+      res.json(providers);
+    } catch (error) {
+      console.error("\u274C Error fetching provider report data:", error);
+      res.status(500).json({ message: "Failed to fetch provider report data" });
     }
   });
   app2.post("/api/admin/providers/:id/approve", isAdminAuthenticated, async (req, res) => {
@@ -7602,7 +10577,24 @@ async function registerRoutes(app2) {
   app2.get("/api/admin/service-requests", isAdminAuthenticated, async (req, res) => {
     try {
       const serviceRequests2 = await storage.getAllServiceRequestsForAdmin();
-      res.json(serviceRequests2);
+      const requestsWithDetails = await Promise.all(
+        serviceRequests2.map(async (request) => {
+          const customer = await storage.getUser(request.customerId);
+          const category = await storage.getServiceCategory(request.categoryId);
+          return {
+            id: request.id,
+            customerName: customer ? `${customer.firstName} ${customer.lastName}` : "Unknown Customer",
+            customerEmail: customer?.email || "No email",
+            serviceCategory: category?.name || "Unknown Category",
+            location: request.suburb || request.postcode || "Unknown Location",
+            status: request.status,
+            createdAt: request.createdAt,
+            budget: request.budget,
+            description: request.description
+          };
+        })
+      );
+      res.json(requestsWithDetails);
     } catch (error) {
       console.error("Error fetching service requests:", error);
       res.status(500).json({ message: "Failed to fetch service requests" });
@@ -8241,6 +11233,9 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: error.message || "Failed to fetch activity history" });
     }
   });
+  app2.get("/api/provider/notifications/poll", notificationRoutes.poll);
+  app2.get("/api/provider/notifications/long-poll", notificationRoutes.longPoll);
+  app2.get("/api/provider/notifications/stats", notificationRoutes.stats);
   app2.post("/api/provider/leads/:requestId/purchase", isProviderAuthenticated, async (req, res) => {
     try {
       const requestId = parseInt(req.params.requestId);
@@ -8613,6 +11608,44 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to process lead", error: error.message });
     }
   });
+  app2.post("/api/admin/test-push-notification", async (req, res) => {
+    try {
+      const token = req.headers["x-admin-token"];
+      if (!token) {
+        return res.status(401).json({ message: "Admin token required" });
+      }
+      const { providerId, title, message } = req.body;
+      if (!providerId) {
+        return res.status(400).json({ message: "Provider ID required" });
+      }
+      console.log(`\u{1F9EA} Admin test: Sending push notification to provider ${providerId}`);
+      const { providerNotificationService: providerNotificationService2 } = await Promise.resolve().then(() => (init_providerNotificationService(), providerNotificationService_exports));
+      const result2 = await providerNotificationService2.sendNotificationToProvider(parseInt(providerId), {
+        title: title || "Test Notification from Admin",
+        message: message || `Test push notification sent at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}`,
+        type: "system",
+        data: {
+          test: true,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          adminTriggered: true
+        }
+      });
+      if (result2) {
+        res.json({
+          message: `Push notification sent to provider ${providerId}`,
+          success: true
+        });
+      } else {
+        res.status(500).json({
+          message: "Failed to send push notification",
+          success: false
+        });
+      }
+    } catch (error) {
+      console.error("Error in test push notification:", error);
+      res.status(500).json({ message: "Failed to send test notification" });
+    }
+  });
   app2.get("/api/admin/departments", isAdminAuthenticated, async (req, res) => {
     try {
       const departments = await storage.getAllDepartments();
@@ -8671,9 +11704,8 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/admin/current-user", isAdminAuthenticated, async (req, res) => {
     try {
-      const adminToken = req.headers["x-admin-token"];
-      const decoded = jwt2.verify(adminToken, process.env.ADMIN_JWT_SECRET || "admin-jwt-secret-key");
-      const username = decoded.username;
+      const adminInfo = req.admin;
+      const username = adminInfo.username;
       const user = await storage.getAdminUserByUsername(username);
       if (!user) {
         return res.status(404).json({ message: "Admin user not found" });
@@ -8839,6 +11871,35 @@ async function registerRoutes(app2) {
       res.json({ message: "Password changed successfully" });
     } catch (error) {
       console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+  app2.post("/api/provider/change-password", isProviderAuthenticated, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const providerId = req.provider?.id;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "New password must be at least 8 characters long" });
+      }
+      if (!providerId) {
+        return res.status(401).json({ message: "Provider authentication required" });
+      }
+      const provider = await storage.getProviderById(providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+      const isCurrentPasswordValid = await comparePasswords3(currentPassword, provider.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      const hashedNewPassword = await hashPassword3(newPassword);
+      await storage.updateProvider(providerId, { password: hashedNewPassword });
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Error changing provider password:", error);
       res.status(500).json({ message: "Failed to change password" });
     }
   });
@@ -9014,51 +12075,55 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to get import groups" });
     }
   });
-  app2.post("/api/admin/potential-customers/import", isAdminAuthenticated, async (req, res) => {
+  app2.put("/api/admin/potential-customers/:id/status", isAdminAuthenticated, async (req, res) => {
     try {
-      console.log("Import request received:");
-      console.log("req.body:", req.body);
-      console.log("req.files:", req.files ? Object.keys(req.files) : "No files");
-      let importName = null;
-      if (req.files && req.files.importName) {
-        if (req.files.importName.data) {
-          importName = req.files.importName.data.toString();
-          console.log("Found importName in req.files.data:", importName);
-        } else {
-          importName = req.files.importName.toString();
-          console.log("Found importName in req.files (direct):", importName);
-        }
-      } else if (req.body && req.body.importName) {
-        importName = req.body.importName;
-        console.log("Found importName in req.body:", importName);
-      } else {
-        console.log("No importName found in any location");
-        console.log("Available in req.files:", req.files ? Object.keys(req.files) : "No files");
-        console.log("Available in req.body:", Object.keys(req.body));
+      const { id } = req.params;
+      const { status } = req.body;
+      if (!id || !status) {
+        return res.status(400).json({ error: "Customer ID and status are required" });
       }
+      await storage.updatePotentialCustomerCampaignStatus(parseInt(id), status);
+      res.json({ success: true, message: "Customer status updated successfully" });
+    } catch (error) {
+      console.error("Error updating customer status:", error);
+      res.status(500).json({ error: "Failed to update customer status" });
+    }
+  });
+  app2.post("/api/admin/potential-customers/import", isAdminAuthenticated, csvUpload.single("file"), async (req, res) => {
+    try {
+      console.log("\u{1F4E5} Import request received:");
+      console.log("  req.body:", req.body);
+      console.log("  req.file:", req.file ? { name: req.file.originalname, size: req.file.size } : "No file");
+      console.log("  req.body keys:", Object.keys(req.body));
+      console.log("  req.body.importName:", req.body.importName);
+      const importName = req.body.importName;
       if (!importName) {
-        console.log("Returning error: Import name is required");
+        console.log("\u274C Returning error: Import name is required");
+        console.log("  Available in req.body:", Object.keys(req.body));
+        console.log("  req.body content:", req.body);
         return res.status(400).json({ message: "Import name is required" });
       }
       console.log("Processing import with name:", importName);
-      if (!req.files || !req.files.file) {
+      if (!req.file) {
         console.log("No file provided, using sample data");
         const result3 = await storage.importPotentialCustomers(null, importName);
         res.json(result3);
         return;
       }
-      const uploadedFile = req.files.file;
-      if (!uploadedFile) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
+      const uploadedFile = {
+        name: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        data: fs2.readFileSync(req.file.path)
+      };
       console.log("Processing file upload:", uploadedFile.name);
       console.log("File object details:", {
         name: uploadedFile.name,
         size: uploadedFile.size,
-        tempFilePath: uploadedFile.tempFilePath,
         mimetype: uploadedFile.mimetype
       });
       const result2 = await storage.importPotentialCustomers(uploadedFile, importName);
+      fs2.unlinkSync(req.file.path);
       res.json(result2);
     } catch (error) {
       console.error("Error importing potential customers:", error);
@@ -9083,6 +12148,132 @@ async function registerRoutes(app2) {
       } catch (error) {
         console.error("\u274C Error sending SMS to potential customers:", error);
         res.status(500).json({ message: "Failed to send SMS" });
+      }
+    }
+  );
+  app2.post(
+    "/api/admin/campaigns/execute",
+    isAdminAuthenticated,
+    async (req, res) => {
+      try {
+        const {
+          campaignId,
+          messageTemplate,
+          voucherAmount,
+          customerIds,
+          adminName
+        } = req.body;
+        console.log("\u{1F3AF} Executing campaign with unique vouchers:", {
+          campaignId,
+          voucherAmount,
+          customerCount: customerIds?.length
+        });
+        if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
+          return res.status(400).json({ message: "No customer IDs provided" });
+        }
+        if (!messageTemplate || !voucherAmount) {
+          return res.status(400).json({ message: "Message template and voucher amount are required" });
+        }
+        const results = [];
+        let successCount = 0;
+        let failureCount = 0;
+        for (const customerId of customerIds) {
+          try {
+            const [customer] = await db.select().from(potentialCustomers).where(eq2(potentialCustomers.id, customerId));
+            if (!customer) {
+              console.warn(`[Campaign] Customer not found: id=${customerId}`);
+              results.push({
+                customerId,
+                name: "",
+                phone: "",
+                status: "skipped",
+                sent: false,
+                reason: "not_found",
+                voucherCode: null
+              });
+              failureCount++;
+              continue;
+            }
+            const raw = (customer.phone || "").toString();
+            const digits = raw.replace(/[^0-9+]/g, "");
+            const normalizedPhone = digits.startsWith("+61") ? digits : digits.startsWith("61") ? `+${digits}` : digits.startsWith("0") ? `+61${digits.slice(1)}` : null;
+            if (!normalizedPhone) {
+              console.warn(`[Campaign] Invalid phone format: id=${customer.id} phone=${customer.phone}`);
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: "skipped",
+                sent: false,
+                reason: "invalid_phone",
+                voucherCode: null
+              });
+              failureCount++;
+              continue;
+            }
+            const voucherResult = await smsService.sendSmsWithVoucher(
+              normalizedPhone,
+              customer.name,
+              messageTemplate,
+              voucherAmount,
+              {
+                customerId: customer.id,
+                adminName: adminName || "admin",
+                smsType: "campaign"
+              }
+            );
+            if (voucherResult.success) {
+              await storage.updatePotentialCustomerSmsStatus(customer.id, "1st_sent");
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: "sent",
+                sent: true,
+                voucherCode: voucherResult.voucherCode,
+                message: voucherResult.message
+              });
+              successCount++;
+              console.log(`[Campaign] \u2705 Sent to ${customer.name} with voucher ${voucherResult.voucherCode}`);
+            } else {
+              results.push({
+                customerId: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                status: "failed",
+                sent: false,
+                reason: voucherResult.message || "SMS send failed",
+                voucherCode: null
+              });
+              failureCount++;
+              console.log(`[Campaign] \u274C Failed to send to ${customer.name}: ${voucherResult.message}`);
+            }
+          } catch (error) {
+            console.error(`[Campaign] Error processing customer ${customerId}:`, error);
+            results.push({
+              customerId,
+              name: "",
+              phone: "",
+              status: "failed",
+              sent: false,
+              reason: "processing_error",
+              voucherCode: null
+            });
+            failureCount++;
+          }
+        }
+        console.log(`[Campaign] Execution complete: ${successCount} sent, ${failureCount} failed`);
+        res.json({
+          success: true,
+          campaignId,
+          totalCustomers: customerIds.length,
+          sent: successCount,
+          failed: failureCount,
+          results
+        });
+      } catch (error) {
+        console.error("\u274C Error executing campaign:", error);
+        res.status(500).json({ message: "Failed to execute campaign" });
       }
     }
   );
@@ -9221,6 +12412,36 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("Error deleting service category:", error);
       res.status(500).json({ message: error.message || "Failed to delete service category" });
+    }
+  });
+  app2.post("/api/admin/service-categories/:id/image", isAdminAuthenticated, upload.single("image"), async (req, res) => {
+    try {
+      console.log("Image upload endpoint called");
+      console.log("Headers:", req.headers);
+      console.log("File:", req.file);
+      console.log("Body:", req.body);
+      if (!req.file) {
+        console.log("No file provided");
+        return res.status(400).json({ message: "No image file provided" });
+      }
+      const categoryId = parseInt(req.params.id);
+      console.log("Category ID:", categoryId);
+      const imageUrl = `/uploads/${req.file.filename}`;
+      console.log("Image URL:", imageUrl);
+      const updatedCategory = await storage.updateServiceCategoryImage(categoryId, imageUrl);
+      console.log("Updated category:", updatedCategory);
+      if (updatedCategory) {
+        res.json({
+          message: "Image uploaded successfully",
+          imageUrl,
+          category: updatedCategory
+        });
+      } else {
+        res.status(404).json({ message: "Service category not found" });
+      }
+    } catch (error) {
+      console.error("Error uploading service category image:", error);
+      res.status(500).json({ message: error.message || "Failed to upload image" });
     }
   });
   app2.get("/api/admin/potential-customers", isAdminAuthenticated, async (req, res) => {
@@ -9437,7 +12658,13 @@ ServicePanda Team`;
   });
   app2.get("/api/admin/potential-providers", isAdminAuthenticated, async (req, res) => {
     try {
-      const providers = await storage.getAllPotentialProviders();
+      const adminUsername = req.admin?.username;
+      const adminRole = req.admin?.role;
+      const isSuperAdmin = adminRole === "administrator" || adminRole === "super_admin";
+      console.log("Admin username from request:", adminUsername);
+      console.log("Admin role:", adminRole);
+      console.log("Is super admin:", isSuperAdmin);
+      const providers = await storage.getAllPotentialProviders(adminUsername, isSuperAdmin);
       res.json(providers);
     } catch (error) {
       console.error("Error getting potential providers:", error);
@@ -9504,8 +12731,7 @@ ServicePanda Team`;
   app2.post("/api/admin/potential-providers/email", isAdminAuthenticated, async (req, res) => {
     try {
       const { potentialProviderId, subject, content } = req.body;
-      const adminUsername = req.admin?.username || "admin";
-      const result2 = await storage.sendEmailToPotentialProvider(potentialProviderId, subject, content, adminUsername);
+      const result2 = await storage.sendEmailToPotentialProvider(potentialProviderId, subject, content);
       res.json(result2);
     } catch (error) {
       console.error("Error sending email to potential provider:", error);
@@ -9515,8 +12741,7 @@ ServicePanda Team`;
   app2.post("/api/admin/potential-providers/sms", isAdminAuthenticated, async (req, res) => {
     try {
       const { potentialProviderId, content } = req.body;
-      const adminUsername = req.admin?.username || "admin";
-      const result2 = await storage.sendSmsToPotentialProvider(potentialProviderId, content, adminUsername);
+      const result2 = await storage.sendSmsToPotentialProvider(potentialProviderId, content);
       res.json(result2);
     } catch (error) {
       console.error("Error sending SMS to potential provider:", error);
@@ -9542,12 +12767,60 @@ ServicePanda Team`;
       res.status(500).json({ message: "Failed to get provider reports" });
     }
   });
+  app2.post("/api/admin/emails/fetch-imap", isAdminAuthenticated, async (req, res) => {
+    try {
+      const { email, password, fetchAll = true } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      const adminUser = await storage.getAdminUserByUsername(req.admin?.username);
+      const adminUserId = adminUser?.id?.toString() || req.admin?.username || "admin";
+      const { fetchAndStoreEmails: fetchAndStoreEmails2 } = await Promise.resolve().then(() => (init_imapService(), imapService_exports));
+      const result2 = await fetchAndStoreEmails2(email, password, adminUserId, fetchAll);
+      if (result2.success) {
+        res.json({
+          success: true,
+          message: `Successfully fetched ${result2.count} emails from ${email}`,
+          count: result2.count
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: result2.error || "Failed to fetch emails",
+          error: result2.error
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching emails from IMAP:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to fetch emails from IMAP"
+      });
+    }
+  });
   app2.get("/api/admin/emails", isAdminAuthenticated, async (req, res) => {
     try {
       const { tab, user, search, fromDate, toDate } = req.query;
+      let userIdForFilter = user || "all";
+      if (userIdForFilter && userIdForFilter !== "all" && userIdForFilter !== "admin") {
+        const isNumeric = /^\d+$/.test(userIdForFilter);
+        if (!isNumeric) {
+          try {
+            const adminUser = await storage.getAdminUserByUsername(userIdForFilter);
+            if (adminUser) {
+              userIdForFilter = adminUser.id.toString();
+              console.log("Converted username to numeric ID:", userIdForFilter, "for user:", adminUser.username);
+            } else {
+              console.warn("Admin user not found for username:", userIdForFilter);
+            }
+          } catch (error) {
+            console.error("Error converting username to ID:", error);
+          }
+        }
+      }
       const emails2 = await storage.getEmails({
         tab: tab || "inbox",
-        userId: user || "all",
+        userId: userIdForFilter,
         search: search || "",
         fromDate: fromDate || "",
         toDate: toDate || "",
@@ -9615,6 +12888,15 @@ ServicePanda Team`;
       res.status(500).json({ message: "Failed to update email status", error: error.message });
     }
   });
+  app2.get("/api/admin/email-templates", isAdminAuthenticated, async (req, res) => {
+    try {
+      const templates = await storage.getEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching email templates:", error);
+      res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
   app2.post("/api/admin/emails/send", isAdminAuthenticated, async (req, res) => {
     console.log("Hello");
     try {
@@ -9622,21 +12904,32 @@ ServicePanda Team`;
       if (!to || !subject || !body) {
         return res.status(400).json({ message: "To, subject, and body are required" });
       }
-      
-      // Get the admin user's ID from the database
       const adminUser = await storage.getAdminUserByUsername(req.admin?.username);
       const adminUserId = adminUser?.id?.toString() || req.admin?.username || "admin";
-      console.log('Admin user lookup:', { username: req.admin?.username, adminUser, adminUserId });
-      
+      console.log("Admin user lookup:", { username: req.admin?.username, adminUser, adminUserId });
+      const adminEmail = adminUser?.email || "";
+      const adminFirstName = adminUser?.firstName || "";
+      const adminLastName = adminUser?.lastName || "";
+      const adminFullName = `${adminFirstName} ${adminLastName}`.trim() || adminUser?.username || "Admin";
+      const fromEmail = adminEmail && adminEmail.endsWith("@servicepanda.com.au") ? adminEmail : "team@servicepanda.com.au";
+      const fromName = adminFullName;
+      const fromDisplay = `${fromName} <${fromEmail}>`;
+      const signature = getEmailSignature(adminUser?.username || adminEmail);
+      let emailBodyText = body;
+      let emailBodyHtml = body;
+      if (signature) {
+        emailBodyText = appendSignatureToBody(body, signature, false);
+        emailBodyHtml = appendSignatureToBody(body, signature, true);
+      }
       if (status === "draft") {
         const emailData = {
-          from: "hrms.devdoc@gmail.com",
+          from: fromDisplay,
           to,
           cc,
           bcc,
           subject,
-          body,
-          bodyHtml: body,
+          body: emailBodyText,
+          bodyHtml: emailBodyHtml,
           status: "draft",
           isRead: false,
           isStarred: false,
@@ -9660,18 +12953,20 @@ ServicePanda Team`;
         cc,
         bcc,
         subject,
-        text: body,
-        html: body
+        text: emailBodyText,
+        html: emailBodyHtml,
+        fromEmail,
+        fromName
       });
       if (emailSent) {
         const emailData = {
-          from: "hrms.devdoc@gmail.com",
+          from: fromDisplay,
           to,
           cc,
           bcc,
           subject,
-          body,
-          bodyHtml: body,
+          body: emailBodyText,
+          bodyHtml: emailBodyHtml,
           status: "sent",
           isRead: false,
           isStarred: false,
@@ -9687,17 +12982,17 @@ ServicePanda Team`;
         res.json({
           success: true,
           message: "Email sent successfully",
-          debug: { adminUserId, adminUsername: req.admin?.username }
+          debug: { adminUserId, adminUsername: req.admin?.username, fromEmail, fromName }
         });
       } else {
         const emailData = {
-          from: "hrms.devdoc@gmail.com",
+          from: fromDisplay,
           to,
           cc,
           bcc,
           subject,
-          body,
-          bodyHtml: body,
+          body: emailBodyText,
+          bodyHtml: emailBodyHtml,
           status: "sent",
           isRead: false,
           isStarred: false,
@@ -9712,25 +13007,36 @@ ServicePanda Team`;
         await storage.createEmail(emailData);
         res.json({
           success: false,
-          message: "Email could not be delivered via Mailgun, but has been saved in Sent. dddd"
+          message: "Email could not be delivered via Mailgun, but has been saved in Sent."
         });
       }
     } catch (error) {
       console.error("Error sending email:", error);
       try {
-        // Get the admin user's ID from the database for error case
         const adminUser = await storage.getAdminUserByUsername(req.admin?.username);
         const adminUserId = adminUser?.id?.toString() || req.admin?.username || "admin";
-        
+        const adminEmail = adminUser?.email || "";
+        const adminFirstName = adminUser?.firstName || "";
+        const adminLastName = adminUser?.lastName || "";
+        const adminFullName = `${adminFirstName} ${adminLastName}`.trim() || adminUser?.username || "Admin";
+        const fromEmail = adminEmail && adminEmail.endsWith("@servicepanda.com.au") ? adminEmail : "team@servicepanda.com.au";
+        const fromDisplay = `${adminFullName} <${fromEmail}>`;
         const { to, cc, bcc, subject, body } = req.body;
+        const signature = getEmailSignature(adminUser?.username || adminEmail);
+        let emailBodyText = body;
+        let emailBodyHtml = body;
+        if (signature) {
+          emailBodyText = appendSignatureToBody(body, signature, false);
+          emailBodyHtml = appendSignatureToBody(body, signature, true);
+        }
         const emailData = {
-          from: "hrms.devdoc@gmail.com",
+          from: fromDisplay,
           to,
           cc,
           bcc,
           subject,
-          body,
-          bodyHtml: body,
+          body: emailBodyText,
+          bodyHtml: emailBodyHtml,
           status: "sent",
           isRead: false,
           isStarred: false,
@@ -9836,13 +13142,313 @@ ServicePanda Team`;
       res.status(500).json({ message: "Failed to update read state" });
     }
   });
+  app2.get("/api/admin/team-tasks", isAdminAuthenticated, async (req, res) => {
+    try {
+      const { status, priority, customerType, assignedTo, adminId } = req.query;
+      const filters = {
+        status,
+        priority,
+        customerType,
+        assignedTo,
+        adminId
+      };
+      const tasks = await storage.getTeamTasks(filters);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching team tasks:", error);
+      res.status(500).json({ message: "Failed to fetch team tasks" });
+    }
+  });
+  app2.get("/api/admin/team-tasks/kanban", isAdminAuthenticated, async (req, res) => {
+    try {
+      const showAll = req.query.all === "true";
+      const adminInfo = req.admin;
+      let filterBy = null;
+      if (showAll && (adminInfo.role === "administrator" || adminInfo.role === "super_admin")) {
+        filterBy = null;
+      } else {
+        filterBy = "assignedTo:" + adminInfo.username;
+      }
+      console.log("Kanban tasks - User:", adminInfo.username, "Role:", adminInfo.role, "FilterBy:", filterBy);
+      const kanbanData = await storage.getTeamTasksForKanban(filterBy);
+      res.json(kanbanData);
+    } catch (error) {
+      console.error("Error fetching team tasks for kanban:", error);
+      res.status(500).json({ message: "Failed to fetch kanban data" });
+    }
+  });
+  app2.get("/api/admin/team-tasks/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const task = await storage.getTeamTask(taskId);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      res.json(task);
+    } catch (error) {
+      console.error("Error fetching team task:", error);
+      res.status(500).json({ message: "Failed to fetch team task" });
+    }
+  });
+  app2.post("/api/admin/team-tasks", isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskData = req.body;
+      console.log("Received task data:", taskData);
+      if (!taskData.title || !taskData.dueDate || !taskData.adminId) {
+        console.log("Missing required fields:", {
+          title: taskData.title,
+          dueDate: taskData.dueDate,
+          adminId: taskData.adminId
+        });
+        return res.status(400).json({
+          message: "Missing required fields: title, dueDate, adminId"
+        });
+      }
+      const customerTypes = [
+        taskData.potentialProviderId,
+        taskData.providerId,
+        taskData.customerId
+      ].filter(Boolean);
+      if (customerTypes.length > 1) {
+        return res.status(400).json({
+          message: "Only one customer type can be set per task"
+        });
+      }
+      const taskDataForDb = {
+        ...taskData,
+        dueDate: new Date(taskData.dueDate)
+      };
+      console.log("Task data for database:", taskDataForDb);
+      const newTask = await storage.createTeamTask(taskDataForDb);
+      res.status(201).json(newTask);
+    } catch (error) {
+      console.error("Error creating team task:", error);
+      res.status(500).json({ message: "Failed to create team task" });
+    }
+  });
+  app2.put("/api/admin/team-tasks/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const updates = req.body;
+      delete updates.id;
+      delete updates.createdAt;
+      delete updates.updatedAt;
+      const updatedTask = await storage.updateTeamTask(taskId, updates);
+      res.json(updatedTask);
+    } catch (error) {
+      console.error("Error updating team task:", error);
+      res.status(500).json({ message: "Failed to update team task" });
+    }
+  });
+  app2.delete("/api/admin/team-tasks/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      await storage.deleteTeamTask(taskId);
+      res.json({ message: "Task deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting team task:", error);
+      res.status(500).json({ message: "Failed to delete team task" });
+    }
+  });
+  app2.get("/api/admin/sms/campaigns", isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaigns = await storage.getSmsCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Error fetching SMS campaigns:", error);
+      res.status(500).json({ message: "Failed to fetch SMS campaigns" });
+    }
+  });
+  app2.post("/api/admin/sms/campaigns", isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignData = req.body;
+      if (!campaignData.name || !campaignData.name.trim()) {
+        return res.status(400).json({ message: "Campaign name is required" });
+      }
+      if (!campaignData.message || !campaignData.message.trim()) {
+        return res.status(400).json({ message: "Campaign message is required" });
+      }
+      if (!Array.isArray(campaignData.selectedStates)) {
+        campaignData.selectedStates = [];
+      }
+      if (!Array.isArray(campaignData.selectedStatuses)) {
+        campaignData.selectedStatuses = [];
+      }
+      console.log("[SMS Campaign] Creating campaign with data:", JSON.stringify(campaignData, null, 2));
+      const campaign = await storage.createSmsCampaign(campaignData);
+      console.log("[SMS Campaign] Campaign created successfully:", campaign.id);
+      res.status(201).json(campaign);
+    } catch (error) {
+      console.error("[SMS Campaign] Error creating SMS campaign:", error);
+      console.error("[SMS Campaign] Error details:", error.message);
+      console.error("[SMS Campaign] Error stack:", error.stack);
+      res.status(500).json({
+        message: "Failed to create SMS campaign",
+        error: error.message || "Unknown error"
+      });
+    }
+  });
+  app2.put("/api/admin/sms/campaigns/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaignData = req.body;
+      const campaign = await storage.updateSmsCampaign(campaignId, campaignData);
+      res.json(campaign);
+    } catch (error) {
+      console.error("Error updating SMS campaign:", error);
+      res.status(500).json({ message: "Failed to update SMS campaign" });
+    }
+  });
+  app2.delete("/api/admin/sms/campaigns/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      await storage.deleteSmsCampaign(campaignId);
+      res.json({ message: "Campaign deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting SMS campaign:", error);
+      res.status(500).json({ message: "Failed to delete SMS campaign" });
+    }
+  });
+  app2.post("/api/admin/sms/campaigns/:id/send", isAdminAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const { customerIds, adminName } = req.body;
+      const result2 = await storage.sendSmsCampaign(campaignId, customerIds, adminName);
+      res.json(result2);
+    } catch (error) {
+      console.error("Error sending SMS campaign:", error);
+      res.status(500).json({ message: "Failed to send SMS campaign" });
+    }
+  });
+  app2.get("/api/admin/sms/messages", isAdminAuthenticated, async (req, res) => {
+    try {
+      const messages = await storage.getSmsMessages();
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching SMS messages:", error);
+      res.status(500).json({ message: "Failed to fetch SMS messages" });
+    }
+  });
+  app2.post("/api/admin/sms/send", isAdminAuthenticated, async (req, res) => {
+    try {
+      console.log("\u{1F4F1} [Route] SMS send request received:", req.body);
+      const { customerId, message } = req.body;
+      if (!customerId || !message) {
+        console.error("\u{1F4F1} [Route] Missing required fields:", { customerId, message });
+        return res.status(400).json({ message: "Missing customerId or message" });
+      }
+      console.log("\u{1F4F1} [Route] Calling storage.sendIndividualSms...");
+      const result2 = await storage.sendIndividualSms(customerId, message);
+      console.log("\u{1F4F1} [Route] SMS send result:", result2);
+      res.json(result2);
+    } catch (error) {
+      console.error("\u{1F4F1} [Route] Error sending SMS:", error);
+      console.error("\u{1F4F1} [Route] Error stack:", error.stack);
+      res.status(500).json({ message: "Failed to send SMS" });
+    }
+  });
+  app2.post("/api/sms/webhook", async (req, res) => {
+    try {
+      console.log("\u{1F4E8} [Webhook] Received SMS webhook:", JSON.stringify(req.body, null, 2));
+      const { from, to, body, messageId, text: text2, sender, recipient } = req.body;
+      const fromPhone = from || sender;
+      const toPhone = to || recipient;
+      const messageText = body || text2;
+      if (!fromPhone || !messageText) {
+        console.error("\u274C [Webhook] Missing required fields:", { fromPhone, messageText });
+        return res.status(400).json({
+          message: "Missing required fields: from/sender and body/text"
+        });
+      }
+      console.log(`\u{1F4F1} [Webhook] Processing SMS from ${fromPhone}: "${messageText}"`);
+      const isStopRequest = messageText.trim().toUpperCase() === "STOP";
+      if (isStopRequest) {
+        console.log("\u{1F6D1} [Webhook] Customer requested to STOP - processing unsubscribe...");
+        const customer = await storage.findPotentialCustomerByPhone(fromPhone);
+        if (customer) {
+          await storage.updatePotentialCustomerStatus(customer.id, "Unsubscribe");
+          console.log(`\u2705 [Webhook] Customer ${customer.name} (ID: ${customer.id}) unsubscribed successfully`);
+        } else {
+          console.warn(`\u26A0\uFE0F [Webhook] Customer not found for phone: ${fromPhone}`);
+        }
+      }
+      await storage.storeIncomingSms(fromPhone, toPhone, messageText, messageId, isStopRequest);
+      console.log("\u2705 [Webhook] SMS stored successfully" + (isStopRequest ? " - Customer unsubscribed" : ""));
+      res.status(200).json({
+        message: "SMS received successfully",
+        unsubscribed: isStopRequest
+      });
+    } catch (error) {
+      console.error("\u274C [Webhook] Error processing incoming SMS:", error);
+      res.status(500).json({ message: "Failed to process SMS" });
+    }
+  });
+  app2.get("/api/admin/roles", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roles2 = await storage.getRoles();
+      res.json(roles2);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      res.status(500).json({ message: "Failed to fetch roles" });
+    }
+  });
+  app2.get("/api/admin/permissions", isAdminAuthenticated, async (req, res) => {
+    try {
+      const permissions2 = await storage.getPermissions();
+      res.json(permissions2);
+    } catch (error) {
+      console.error("Error fetching permissions:", error);
+      res.status(500).json({ message: "Failed to fetch permissions" });
+    }
+  });
+  app2.get("/api/admin/roles/:id/permissions", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      const permissions2 = await storage.getRolePermissions(roleId);
+      res.json(permissions2);
+    } catch (error) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ message: "Failed to fetch role permissions" });
+    }
+  });
+  app2.post("/api/admin/roles", isAdminAuthenticated, async (req, res) => {
+    try {
+      const { name, description, permissions: permissions2 } = req.body;
+      const role = await storage.createRole({ name, description, permissions: permissions2 });
+      res.json(role);
+    } catch (error) {
+      console.error("Error creating role:", error);
+      res.status(500).json({ message: "Failed to create role" });
+    }
+  });
+  app2.put("/api/admin/roles/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      const { name, description, permissions: permissions2 } = req.body;
+      const role = await storage.updateRole(roleId, { name, description, permissions: permissions2 });
+      res.json(role);
+    } catch (error) {
+      console.error("Error updating role:", error);
+      res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+  app2.delete("/api/admin/roles/:id", isAdminAuthenticated, async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      await storage.deleteRole(roleId);
+      res.json({ message: "Role deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting role:", error);
+      res.status(500).json({ message: "Failed to delete role" });
+    }
+  });
   const httpServer = createServer(app2);
   return httpServer;
 }
 
 // server/vite.ts
-import express from "express";
-import fs2 from "fs";
+import express2 from "express";
+import fs3 from "fs";
 import path6 from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 
@@ -9851,42 +13457,56 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path5 from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
-var vite_config_default = defineConfig({
-  plugins: [
+var vite_config_default = defineConfig(async () => {
+  const plugins = [
     react(),
-    runtimeErrorOverlay(),
-    ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
-      await import("@replit/vite-plugin-cartographer").then(
-        (m) => m.cartographer()
-      )
-    ] : []
-  ],
-  resolve: {
-    alias: {
-      "@": path5.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path5.resolve(import.meta.dirname, "shared"),
-      "@assets": path5.resolve(import.meta.dirname, "attached_assets")
-    }
-  },
-  root: path5.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path5.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true
-  },
-  server: {
-    fs: {
-      strict: true,
-      deny: ["**/.*"]
-    },
-    proxy: {
-      "/api": {
-        target: `http://localhost:${process.env.PORT || "4000"}`,
-        changeOrigin: true,
-        secure: false,
-        ws: true
-      }
-    }
+    runtimeErrorOverlay()
+  ];
+  if (process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0) {
+    const cartographer = await import("@replit/vite-plugin-cartographer");
+    plugins.push(cartographer.cartographer());
   }
+  return {
+    plugins,
+    resolve: {
+      alias: {
+        "@": path5.resolve(import.meta.dirname, "client", "src"),
+        "@shared": path5.resolve(import.meta.dirname, "shared"),
+        "@assets": path5.resolve(import.meta.dirname, "attached_assets")
+      }
+    },
+    root: path5.resolve(import.meta.dirname, "client"),
+    build: {
+      outDir: path5.resolve(import.meta.dirname, "dist/public"),
+      emptyOutDir: true
+    },
+    server: {
+      fs: {
+        strict: true,
+        deny: ["**/.*"]
+      }
+      // Proxy disabled - using direct API calls to live server
+      // proxy: {
+      //   '/api': {
+      //     target: 'https://api.servicepanda.com.au',
+      //     changeOrigin: true,
+      //     secure: true,
+      //     ws: true,
+      //     configure: (proxy, _options) => {
+      //       proxy.on('error', (err, _req, _res) => {
+      //         console.log('proxy error', err);
+      //       });
+      //       proxy.on('proxyReq', (proxyReq, req, _res) => {
+      //         console.log('Sending Request to the Target:', req.method, req.url);
+      //       });
+      //       proxy.on('proxyRes', (proxyRes, req, _res) => {
+      //         console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+      //       });
+      //     },
+      //   },
+      // },
+    }
+  };
 });
 
 // server/vite.ts
@@ -9938,7 +13558,7 @@ async function setupVite(app2, server) {
         "client",
         "index.html"
       );
-      let template = await fs2.promises.readFile(clientTemplate, "utf-8");
+      let template = await fs3.promises.readFile(clientTemplate, "utf-8");
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`
@@ -9953,12 +13573,12 @@ async function setupVite(app2, server) {
 }
 function serveStatic(app2) {
   const distPath = path6.resolve(import.meta.dirname, "public");
-  if (!fs2.existsSync(distPath)) {
+  if (!fs3.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
     );
   }
-  app2.use(express.static(distPath));
+  app2.use(express2.static(distPath));
   app2.use("*", (_req, res) => {
     res.sendFile(path6.resolve(distPath, "index.html"));
   });
@@ -9972,17 +13592,48 @@ console.log("Loading .env file from:", envPath3);
 var result = dotenv3.config({ path: envPath3 });
 console.log("Dotenv result:", result);
 console.log("DATABASE_URL:", process.env.DATABASE_URL);
-var app = express2();
+var app = express3();
 if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = "development";
 }
-app.use(express2.json());
-app.use(express2.urlencoded({ extended: false }));
+app.use(express3.json({ limit: "10mb" }));
+app.use(express3.urlencoded({ extended: false, limit: "10mb" }));
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  const allowedOrigins = [
+    "https://staging.servicepanda.com.au",
+    "https://servicepanda.com.au",
+    "https://www.servicepanda.com.au",
+    "https://api.servicepanda.com.au",
+    "http://localhost:4000",
+    "http://localhost:3000",
+    "http://127.0.0.1:4000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    // Vite dev server
+    "http://127.0.0.1:5173"
+  ];
+  const origin = req.headers.origin;
+  console.log("CORS request from origin:", origin);
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    console.log("CORS: Allowed origin:", origin);
+  } else if (process.env.NODE_ENV === "development" || origin && origin.includes("servicepanda.com.au")) {
+    if (origin) {
+      res.header("Access-Control-Allow-Origin", origin);
+      console.log("CORS: Allowed servicepanda domain or development mode:", origin);
+    } else {
+      res.header("Access-Control-Allow-Origin", "*");
+      console.log("CORS: No origin header - allowing all in development");
+    }
+  } else {
+    console.log("CORS: Blocked origin:", origin);
+    return res.status(403).json({ message: "CORS: Origin not allowed" });
+  }
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-provider-id, x-admin-token");
+  res.header("Access-Control-Allow-Credentials", "true");
   if (req.method === "OPTIONS") {
+    console.log("CORS: Handling preflight request");
     res.sendStatus(200);
   } else {
     next();
@@ -10014,7 +13665,6 @@ app.use((req, res, next) => {
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "\u2026";
       }
-      log(logLine);
     }
   });
   next();
@@ -10047,13 +13697,23 @@ app.use((req, res, next) => {
     } catch (error) {
       console.error("Error in expired lead checker:", error);
     }
-  }, 3e5);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true
-  }, () => {
-    log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
-    log("Lead and offer expiration checker started - checking every minute");
-  });
+  }, 6e4);
+  const { initializeEmailCron: initializeEmailCron2 } = await Promise.resolve().then(() => (init_emailCronService(), emailCronService_exports));
+  initializeEmailCron2(2);
+  const isWindows = process.platform === "win32";
+  if (isWindows) {
+    server.listen(port, "localhost", () => {
+      log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
+      log("Lead and offer expiration checker started - checking every 5 minutes");
+    });
+  } else {
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true
+    }, () => {
+      log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
+      log("Lead and offer expiration checker started - checking every 5 minutes");
+    });
+  }
 })();

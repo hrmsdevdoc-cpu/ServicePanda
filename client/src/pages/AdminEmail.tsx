@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { adminApiRequest } from "@/lib/adminAuth";
 import { useQuery } from "@tanstack/react-query";
+import { emailTemplates as defaultTemplates } from "@/lib/emailTemplates";
+import { getEmailSignature, formatSignatureForDisplay } from "@/lib/emailSignatures";
 import {
   Search,
   Filter,
@@ -67,6 +69,7 @@ import {
   HelpCircle,
   Palette,
   Highlighter,
+  Loader2,
 } from "lucide-react";
 
 interface Email {
@@ -90,11 +93,16 @@ export default function AdminEmail() {
   const [, navigate] = useLocation();
   
   // Get current logged-in user
-  const { data: currentUser } = useQuery({
+  const { data: currentUser, isLoading: isLoadingUser } = useQuery({
     queryKey: ['adminUser'],
     queryFn: async () => {
       const response = await adminApiRequest("GET", "/api/admin/current-user");
-      return response.json();
+      if (!response.ok) {
+        throw new Error('Failed to fetch current user');
+      }
+      const userData = await response.json();
+      console.log('Fetched current user:', userData);
+      return userData;
     },
   });
 
@@ -105,7 +113,7 @@ export default function AdminEmail() {
   const initialTo = (typeof window !== 'undefined' && localStorage.getItem('adminEmail.toDate')) || '';
 
   const [emails, setEmails] = useState<Email[]>([]);
-  const [users, setUsers] = useState<{ id: string; firstName: string; lastName: string }[]>([]);
+  const [users, setUsers] = useState<{ id: string; numericId?: number; username?: string; firstName: string; lastName: string }[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>(initialSelectedUser);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [fromDate, setFromDate] = useState(initialFrom);
@@ -114,6 +122,10 @@ export default function AdminEmail() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isComposeDialogOpen, setIsComposeDialogOpen] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
+  const [emailTemplates, setEmailTemplates] = useState<{ id: number; name: string; subject: string; body: string }[]>(defaultTemplates);
+  const [isFetchingEmails, setIsFetchingEmails] = useState(false);
+  const [fetchEmailDialogOpen, setFetchEmailDialogOpen] = useState(false);
+  const [fetchEmailData, setFetchEmailData] = useState({ email: '', password: '', fetchAll: true });
   const [composeData, setComposeData] = useState({
     to: "",
     cc: "",
@@ -124,6 +136,7 @@ export default function AdminEmail() {
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [tabCounts, setTabCounts] = useState<Record<string, number>>({
     inbox: 0,
     sent: 0,
@@ -182,9 +195,33 @@ export default function AdminEmail() {
       const res = await adminApiRequest('GET', '/api/admin/users');
       if (!res.ok) return;
       const list = await res.json();
-      const mapped = list.map((u: any) => ({ id: u.id, firstName: u.firstName || u.username || 'User', lastName: u.lastName || '' }));
+      // Use numeric ID as the id (emails are stored with numeric IDs)
+      const mapped = list.map((u: any) => ({ 
+        id: u.id.toString(), // Convert to string for consistency
+        numericId: u.id,
+        username: u.username,
+        firstName: u.firstName || u.username || 'User', 
+        lastName: u.lastName || '' 
+      }));
       setUsers(mapped);
     } catch {}
+  };
+
+  // Check if database has templates, otherwise use file templates
+  const fetchEmailTemplates = async () => {
+    try {
+      const res = await adminApiRequest('GET', '/api/admin/email-templates');
+      if (res.ok) {
+        const templates = await res.json();
+        // If database has templates, use them; otherwise keep default file templates
+        if (templates && templates.length > 0) {
+          setEmailTemplates(templates);
+        }
+      }
+    } catch (error) {
+      // Use default file templates (already set in state)
+      console.log('Using default email templates from file');
+    }
   };
 
   // Fetch emails based on current filters
@@ -227,21 +264,70 @@ export default function AdminEmail() {
     } catch {}
   };
 
+  // Track previous user to detect user changes (logout/login)
+  const prevUsernameRef = useRef<string | undefined>(undefined);
+
   useEffect(() => {
     fetchUsers();
+    // Try to fetch templates from database, but use defaults if not available
+    fetchEmailTemplates();
   }, []);
 
-  // Set selectedUser to current user when currentUser is loaded
+  // Clear email data when user changes (logout/login with different user)
   useEffect(() => {
-    if (currentUser?.username && selectedUser === 'admin') {
-      setSelectedUser(currentUser.username);
-    }
-  }, [currentUser, selectedUser]);
+    const currentUsername = currentUser?.username;
+    const prevUsername = prevUsernameRef.current;
 
+    // If user changed (different user logged in), clear all email-related data
+    if (prevUsername && currentUsername && prevUsername !== currentUsername) {
+      console.log('User changed from', prevUsername, 'to', currentUsername, '- clearing email data');
+      // Clear localStorage
+      localStorage.removeItem('adminEmail.selectedUser');
+      localStorage.removeItem('adminEmail.activeTab');
+      localStorage.removeItem('adminEmail.searchTerm');
+      localStorage.removeItem('adminEmail.fromDate');
+      localStorage.removeItem('adminEmail.toDate');
+      // Clear state
+      setEmails([]);
+      setSelectedIds([]);
+      setTabCounts({});
+      setSearchTerm('');
+      setFromDate('');
+      setToDate('');
+      setActiveTab('inbox');
+      setSelectedUser('admin'); // Reset to default, will be set below
+    }
+
+    // Update ref to current username
+    prevUsernameRef.current = currentUsername;
+  }, [currentUser?.username]);
+
+  // Set selectedUser to current user's numeric ID when they log in
   useEffect(() => {
-    fetchEmails();
-    fetchCounts();
-  }, [activeTab, selectedUser, searchTerm, fromDate, toDate]);
+    if (currentUser?.username && users.length > 0) {
+      // Find the user in the users list to get their numeric ID
+      const currentUserInList = users.find(u => u.username === currentUser.username);
+      if (currentUserInList) {
+        // Use numeric ID (emails are stored with numeric IDs)
+        // Only update if different to avoid unnecessary re-renders
+        if (selectedUser !== currentUserInList.id) {
+          setSelectedUser(currentUserInList.id);
+          console.log('Setting selectedUser to current user ID:', currentUserInList.id, 'for user:', currentUser.username);
+        }
+      } else {
+        console.log('Current user not found in users list');
+      }
+    }
+  }, [currentUser?.username, users]);
+
+  // Fetch emails when filters change, but only if selectedUser is set and currentUser is loaded
+  useEffect(() => {
+    if (selectedUser && selectedUser !== '' && selectedUser !== 'admin' && currentUser?.username) {
+      console.log('Fetching emails for user:', selectedUser, 'tab:', activeTab);
+      fetchEmails();
+      fetchCounts();
+    }
+  }, [activeTab, selectedUser, searchTerm, fromDate, toDate, currentUser?.username]);
 
   const getTabCount = (tab: string) => tabCounts[tab] || 0;
   const getUnreadCount = () => tabCounts['unread'] || 0;
@@ -254,6 +340,66 @@ export default function AdminEmail() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const extractEmail = (emailString: string) => {
+    if (!emailString) return '';
+    // Check if it's in format "Name" <email@domain.com>
+    const match = emailString.match(/<([^>]+)>/);
+    if (match) {
+      return match[1];
+    }
+    // If it's already just an email, return it
+    return emailString;
+  };
+
+  // Fetch emails from IMAP
+  const handleFetchEmails = async () => {
+    if (!fetchEmailData.email || !fetchEmailData.password) {
+      toast({
+        title: 'Error',
+        description: 'Please enter email and password',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsFetchingEmails(true);
+    try {
+      const res = await adminApiRequest('POST', '/api/admin/emails/fetch-imap', {
+        email: fetchEmailData.email,
+        password: fetchEmailData.password,
+        fetchAll: fetchEmailData.fetchAll,
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to fetch emails');
+      }
+
+      const result = await res.json();
+      toast({
+        title: 'Success',
+        description: `Fetched ${result.count} emails from ${fetchEmailData.email}`,
+      });
+
+      // Refresh email list
+      await fetchEmails();
+      await fetchCounts();
+
+      // Close dialog and reset form
+      setFetchEmailDialogOpen(false);
+      setFetchEmailData({ email: '', password: '', fetchAll: true });
+    } catch (error: any) {
+      console.error('Error fetching emails:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to fetch emails from IMAP',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsFetchingEmails(false);
+    }
   };
 
   const handleViewEmail = async (email: Email) => {
@@ -452,6 +598,7 @@ export default function AdminEmail() {
       return;
     }
 
+    setIsSendingEmail(true);
     try {
       // Get admin token for authentication
       const adminToken = localStorage.getItem('adminToken');
@@ -459,6 +606,7 @@ export default function AdminEmail() {
       console.log('Admin token value:', adminToken);
       
       if (!adminToken) {
+        setIsSendingEmail(false);
         toast({
           title: "Authentication required",
           description: "Please log in as admin to send emails.",
@@ -491,6 +639,9 @@ export default function AdminEmail() {
         setIsComposeDialogOpen(false);
         setComposeData({ to: "", cc: "", bcc: "", subject: "", body: "", template: "none" });
         setSelectedFiles([]);
+        // Refresh email list and counts to show the sent email immediately
+        await fetchEmails();
+        await fetchCounts();
       } else {
         let errorMessage = 'Unknown error occurred';
         try {
@@ -518,6 +669,8 @@ export default function AdminEmail() {
         description: `Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -550,6 +703,9 @@ export default function AdminEmail() {
           title: "Draft saved",
           description: "Your email has been saved as a draft.",
         });
+        // Refresh email list and counts to show the draft immediately
+        await fetchEmails();
+        await fetchCounts();
         // Don't close the compose dialog for drafts
       } else {
         const error = await response.json();
@@ -600,6 +756,9 @@ export default function AdminEmail() {
           title: "Email scheduled",
           description: "Your email has been scheduled for later delivery.",
         });
+        // Refresh email list and counts to show the scheduled email immediately
+        await fetchEmails();
+        await fetchCounts();
         // Don't close the compose dialog for scheduled emails
       } else {
         const error = await response.json();
@@ -708,10 +867,22 @@ export default function AdminEmail() {
       {/* Sidebar */}
       <div className="relative z-20">
         <AdminSidebar 
-          onLogout={() => navigate('/admin-login')} 
+          onLogout={() => {
+            // Clear all email-related localStorage before logout
+            localStorage.removeItem('adminEmail.selectedUser');
+            localStorage.removeItem('adminEmail.activeTab');
+            localStorage.removeItem('adminEmail.searchTerm');
+            localStorage.removeItem('adminEmail.fromDate');
+            localStorage.removeItem('adminEmail.toDate');
+            // Clear admin token
+            localStorage.removeItem('adminToken');
+            // Reload page to ensure fresh state
+            window.location.href = '/admin-login';
+          }} 
           adminUser={currentUser ? {
             firstName: currentUser.firstName || currentUser.username,
-            lastName: currentUser.lastName || ''
+            lastName: currentUser.lastName || '',
+            username: currentUser.username || 'admin'
           } : undefined}
         />
       </div>
@@ -787,6 +958,16 @@ export default function AdminEmail() {
               </Button>
               <Button variant="outline" size="sm">
                 Reset
+              </Button>
+              
+              {/* Fetch Emails from IMAP Button */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setFetchEmailDialogOpen(true)}
+                disabled={isFetchingEmails}
+              >
+                {isFetchingEmails ? 'Fetching...' : 'Fetch Emails'}
               </Button>
 
               {selectedIds.length > 0 && (
@@ -1019,14 +1200,14 @@ export default function AdminEmail() {
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-16">
                       #
                     </th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider max-w-[300px]">
+                      SUBJECT
+                    </th>
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       NAME
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       TO
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      SUBJECT
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       DATE
@@ -1079,16 +1260,16 @@ export default function AdminEmail() {
                         <td className="px-3 py-3">
                           <span className="font-semibold text-gray-600">{index + 1}</span>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-3 max-w-[250px]">
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg shadow-blue-500/30 flex-shrink-0">
                               {email.from.charAt(0).toUpperCase()}
                             </div>
-                            <span className="text-sm font-medium text-gray-900 truncate">{email.from}</span>
+                            <span className="text-sm font-medium text-gray-900 truncate max-w-[350px]">{email.subject}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-sm text-gray-900 truncate max-w-[200px]">{email.to}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900 max-w-xs truncate">{email.subject}</td>
+                        <td className="px-3 py-3 text-sm text-gray-900 max-w-xs truncate">{email.body}</td>
+                        <td className="px-3 py-3 text-sm text-gray-900 truncate max-w-[200px]">{extractEmail(email.to)}</td>
                         <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(email.createdAt)}</td>
                         <td className="px-3 py-3">
                                                  <DropdownMenu>
@@ -1159,16 +1340,6 @@ export default function AdminEmail() {
               <div className="border-b border-gray-200 pb-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold">{selectedEmail.subject}</h3>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm">
-                      <Archive className="h-4 w-4 mr-2" />
-                      Archive
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Trash
-                    </Button>
-                  </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1246,15 +1417,35 @@ export default function AdminEmail() {
               
               <div>
                 <Label htmlFor="template">Template</Label>
-                <Select value={composeData.template} onValueChange={(value) => setComposeData({ ...composeData, template: value })}>
+                <Select 
+                  value={composeData.template} 
+                  onValueChange={(value) => {
+                    if (value === "none") {
+                      setComposeData({ ...composeData, template: "none", subject: "", body: "" });
+                    } else {
+                      const templateId = parseInt(value);
+                      const selectedTemplate = emailTemplates.find(t => t.id === templateId);
+                      if (selectedTemplate) {
+                        setComposeData({ 
+                          ...composeData, 
+                          template: value, 
+                          subject: selectedTemplate.subject,
+                          body: selectedTemplate.body
+                        });
+                      }
+                    }
+                  }}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select" />
+                    <SelectValue placeholder="Select template" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No template</SelectItem>
-                    <SelectItem value="welcome">Welcome Email</SelectItem>
-                    <SelectItem value="notification">Notification</SelectItem>
-                    <SelectItem value="reminder">Reminder</SelectItem>
+                    {emailTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id.toString()}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1423,10 +1614,63 @@ export default function AdminEmail() {
                 className="font-mono text-sm"
               />
               <div className="mt-2 p-3 bg-gray-50 rounded border text-sm text-gray-600">
-                <div>Jay Dixini | Support Team</div>
-                <div>Office Number: 1300 556 121 | Intl Number: +61 7 5613 2440</div>
-                <div>Email: <a href="mailto:jay@business2sell.com.au" className="text-blue-600 hover:underline">jay@business2sell.com.au</a></div>
-                <div>Website: <a href="http://www.business2sell.com.au" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">www.business2sell.com.au</a></div>
+                {(() => {
+                  // Get identifier from currentUser - try username first, then email
+                  const identifier = currentUser?.username || currentUser?.email;
+                  
+                  // Debug logging
+                  console.log('🔍 Signature Debug:', {
+                    currentUser,
+                    identifier,
+                    username: currentUser?.username,
+                    email: currentUser?.email,
+                    hasCurrentUser: !!currentUser
+                  });
+                  
+                  // Get signature
+                  const signature = getEmailSignature(identifier);
+                  
+                  console.log('📝 Signature lookup result:', signature);
+                  
+                  // If signature found, display it
+                  if (signature && signature.name) {
+                    // Format email with capital first letter for display
+                    const displayEmail = signature.email.charAt(0).toUpperCase() + signature.email.slice(1);
+                    
+                    return (
+                      <>
+                        <div className="font-medium text-gray-900">
+                          {signature.name} | {signature.role}
+                          {identifier && (
+                            <span className="text-xs text-gray-400 ml-2"></span>
+                          )}
+                        </div>
+                        {signature.directNumber ? (
+                          <div>Direct Number: {signature.directNumber} | Intl Number: {signature.intlNumber}</div>
+                        ) : (
+                          <div>Intl Number: {signature.intlNumber}</div>
+                        )}
+                        <div>Email: <a href={`mailto:${signature.email}`} className="text-blue-600 hover:underline">{displayEmail}</a></div>
+                        <div>Website: <a href={`https://${signature.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{signature.website}</a></div>
+                      </>
+                    );
+                  }
+                  
+                  // Default signature if no match found or signature is invalid
+                  return (
+                    <>
+                      <div className="font-medium text-gray-900">
+                        ServicePanda Support Team
+                        {identifier && (
+                          <span className="text-xs text-gray-400 ml-2">(User: {identifier})</span>
+                        )}
+                      </div>
+                      <div>Intl Number: +61 7 5606 0808</div>
+                      <div>Email: <a href="mailto:support@servicepanda.com.au" className="text-blue-600 hover:underline">support@servicepanda.com.au</a></div>
+                      <div>Website: <a href="https://www.servicepanda.com.au" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">www.servicepanda.com.au</a></div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
             
@@ -1449,10 +1693,20 @@ export default function AdminEmail() {
               </Button>
               <Button
                 onClick={handleSendEmail}
-                className="bg-blue-600 hover:bg-blue-700"
+                disabled={isSendingEmail}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Send className="h-4 w-4 mr-2" />
-                Send
+                {isSendingEmail ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Send
+                  </>
+                )}
               </Button>
             </div>
                      </div>
@@ -1487,7 +1741,65 @@ export default function AdminEmail() {
              </div>
            </div>
          </DialogContent>
-       </Dialog>
-     </div>
-   );
- }
+      </Dialog>
+
+      {/* Fetch Emails Dialog */}
+      <Dialog open={fetchEmailDialogOpen} onOpenChange={setFetchEmailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Fetch Emails from IMAP</DialogTitle>
+            <DialogDescription>
+              Enter email credentials to fetch emails from mail.servicepanda.com.au
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="fetch-email">Email Address</Label>
+              <Input
+                id="fetch-email"
+                type="email"
+                placeholder="rohan@servicepanda.com.au"
+                value={fetchEmailData.email}
+                onChange={(e) => setFetchEmailData({ ...fetchEmailData, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="fetch-password">Password</Label>
+              <Input
+                id="fetch-password"
+                type="password"
+                placeholder="Email password"
+                value={fetchEmailData.password}
+                onChange={(e) => setFetchEmailData({ ...fetchEmailData, password: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="fetch-all"
+                checked={fetchEmailData.fetchAll}
+                onChange={(e) => setFetchEmailData({ ...fetchEmailData, fetchAll: e.target.checked })}
+                className="rounded"
+              />
+              <Label htmlFor="fetch-all">Fetch all emails (not just unread)</Label>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFetchEmailDialogOpen(false);
+                  setFetchEmailData({ email: '', password: '', fetchAll: true });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleFetchEmails} disabled={isFetchingEmails}>
+                {isFetchingEmails ? 'Fetching...' : 'Fetch Emails'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

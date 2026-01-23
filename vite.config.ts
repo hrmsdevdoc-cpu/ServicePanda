@@ -3,55 +3,56 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-export default defineConfig({
-  plugins: [
+export default defineConfig(async () => {
+  const plugins = [
     react(),
     runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
-      ? [
-          await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer(),
-          ),
-        ]
-      : []),
-  ],
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+  ];
+
+  if (process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined) {
+    const cartographer = await import("@replit/vite-plugin-cartographer");
+    plugins.push(cartographer.cartographer());
+  }
+
+  return {
+    plugins,
+    resolve: {
+      alias: {
+        "@": path.resolve(import.meta.dirname, "client", "src"),
+        "@shared": path.resolve(import.meta.dirname, "shared"),
+        "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      },
     },
-  },
-  root: path.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-  },
-  server: {
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
+    root: path.resolve(import.meta.dirname, "client"),
+    build: {
+      outDir: path.resolve(import.meta.dirname, "dist/public"),
+      emptyOutDir: true,
     },
-    // Proxy disabled - using direct API calls to live server
-    // proxy: {
-    //   '/api': {
-    //     target: 'https://api.servicepanda.com.au',
-    //     changeOrigin: true,
-    //     secure: true,
-    //     ws: true,
-    //     configure: (proxy, _options) => {
-    //       proxy.on('error', (err, _req, _res) => {
-    //         console.log('proxy error', err);
-    //       });
-    //       proxy.on('proxyReq', (proxyReq, req, _res) => {
-    //         console.log('Sending Request to the Target:', req.method, req.url);
-    //       });
-    //       proxy.on('proxyRes', (proxyRes, req, _res) => {
-    //         console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
-    //       });
-    //     },
-    //   },
-    // },
-  },
+    server: {
+      fs: {
+        strict: true,
+        deny: ["**/.*"],
+      },
+      // Proxy disabled - using direct API calls to live server
+      // proxy: {
+      //   '/api': {
+      //     target: 'https://api.servicepanda.com.au',
+      //     changeOrigin: true,
+      //     secure: true,
+      //     ws: true,
+      //     configure: (proxy, _options) => {
+      //       proxy.on('error', (err, _req, _res) => {
+      //         console.log('proxy error', err);
+      //       });
+      //       proxy.on('proxyReq', (proxyReq, req, _res) => {
+      //         console.log('Sending Request to the Target:', req.method, req.url);
+      //       });
+      //       proxy.on('proxyRes', (proxyRes, req, _res) => {
+      //         console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+      //       });
+      //     },
+      //   },
+      // },
+    },
+  };
 });

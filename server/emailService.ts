@@ -7,6 +7,10 @@ interface EmailOptions {
   html: string;
   cc?: string;
   bcc?: string;
+  /** Optional from email address - must be on verified Mailgun domain (e.g. @servicepanda.com.au) */
+  fromEmail?: string;
+  /** Optional from display name */
+  fromName?: string;
 }
 
 /**
@@ -31,7 +35,12 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     
     // Prepare form data for Mailgun API using URLSearchParams (Node.js compatible)
     const formData = new URLSearchParams();
-    formData.append('from', `ServicePanda <team@servicepanda.com.au>`);
+    // Use provided from email if it's on the verified domain, otherwise default to team@servicepanda.com.au
+    const fromEmail = options.fromEmail && options.fromEmail.endsWith('@servicepanda.com.au') 
+      ? options.fromEmail 
+      : 'team@servicepanda.com.au';
+    const fromName = options.fromName || 'ServicePanda';
+    formData.append('from', `${fromName} <${fromEmail}>`);
     formData.append('to', options.to);
     if (options.cc) {
       formData.append('cc', options.cc);

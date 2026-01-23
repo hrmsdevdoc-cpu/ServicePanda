@@ -156,6 +156,10 @@ app.use((req, res, next) => {
     }
   }, 60000); // Check every 1 minute for faster updates
 
+  // Initialize email fetch cron job - runs every 2 minutes
+  const { initializeEmailCron } = await import('./emailCronService');
+  initializeEmailCron(2); // Fetch emails every 2 minutes
+
   // Windows-compatible server configuration
   const isWindows = process.platform === 'win32';
   

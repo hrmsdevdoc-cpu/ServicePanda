@@ -52,6 +52,15 @@ import AdminSmsMenu from "@/pages/AdminSmsMenu";
 import AdminRolePermissions from "@/pages/admin/AdminRolePermissions";
 import RequestService from "@/pages/RequestService";
 import ReviewSubmission from "@/pages/ReviewSubmission";
+import TermsAndConditions from "@/pages/TermsAndConditions";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import CodeOfConduct from "@/pages/CodeOfConduct";
+import FAQs from "@/pages/FAQs";
+import GetSupport from "@/pages/GetSupport";
+import ThankYou from "@/pages/ThankYou";
+import AboutUs from "@/pages/AboutUs";
+import Services from "@/pages/Services";
+import Reviews from "@/pages/Reviews";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -59,7 +68,7 @@ function Router() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+        <div className="text-lg text-gray-600">Loading...</div>
       </div>
     );
   }
@@ -75,6 +84,15 @@ function Router() {
       <Route path="/provider-forgot-password" component={ProviderForgotPassword} />
       <Route path="/provider-reset-password" component={ProviderResetPassword} />
       <Route path="/admin-login" component={AdminLogin} />
+      <Route path="/terms-and-conditions" component={TermsAndConditions} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
+      <Route path="/code-of-conduct" component={CodeOfConduct} />
+      <Route path="/faqs" component={FAQs} />
+      <Route path="/get-support" component={GetSupport} />
+      <Route path="/thank-you" component={ThankYou} />
+      <Route path="/about-us" component={AboutUs} />
+      <Route path="/services" component={Services} />
+      <Route path="/reviews" component={Reviews} />
       
       {/* Provider routes - accessible with provider authentication */}
       <Route path="/provider-dashboard" component={ProviderDashboard} />

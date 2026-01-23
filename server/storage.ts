@@ -289,6 +289,20 @@ export interface IStorage {
   createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
   getEmailTemplates(): Promise<EmailTemplate[]>;
   logSentEmail(email: InsertSentEmail): Promise<SentEmail>;
+  getEmails(filters: {
+    tab: string;
+    userId: string;
+    search: string;
+    fromDate: string;
+    toDate: string;
+    isAdmin: boolean;
+  }): Promise<Email[]>;
+  getEmailByMessageId(messageId: string): Promise<Email | undefined>;
+  getEmailByUniqueFields(from: string, to: string, subject: string, sentAt: Date, userId: string): Promise<Email | undefined>;
+  getEmailByContentHash(contentHash: string, userId: string): Promise<Email | undefined>;
+  getEmailByContentSimilarity(from: string, to: string, subject: string, bodyStart: string, userId: string): Promise<Email | undefined>;
+  getEmailBySubjectAndUser(subject: string, userId: string): Promise<Email | undefined>;
+  createEmail(emailData: Partial<InsertEmail>): Promise<Email>;
 
   // Activity logging
   logUserActivity(log: InsertUserActivityLog): Promise<UserActivityLog>;
@@ -6514,6 +6528,177 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error creating email:', error);
       throw error;
+    }
+  }
+
+  async getEmailByMessageId(messageId: string): Promise<Email | undefined> {
+    try {
+      if (!messageId || !messageId.trim()) return undefined;
+      const trimmedMessageId = messageId.trim();
+      // Check threadId field for messageId (we store messageId in threadId)
+      // Also check if messageId is contained in threadId (for cases where multiple IDs are stored)
+      const [email] = await db.select()
+        .from(emails)
+        .where(
+          or(
+            eq(emails.threadId, trimmedMessageId),
+            sql`${emails.threadId} = ${trimmedMessageId}`,
+            sql`${emails.threadId} LIKE ${'%' + trimmedMessageId + '%'}`
+          )
+        )
+        .limit(1);
+      return email;
+    } catch (error) {
+      console.error('Error getting email by messageId:', error);
+      return undefined;
+    }
+  }
+
+  async getEmailByUniqueFields(
+    from: string,
+    to: string,
+    subject: string,
+    sentAt: Date,
+    userId: string
+  ): Promise<Email | undefined> {
+    try {
+      // Normalize inputs for comparison
+      const normalizedFrom = from.trim().toLowerCase();
+      const normalizedTo = to.trim().toLowerCase();
+      const normalizedSubject = subject.trim();
+      
+      // Extract email addresses from "Name <email>" format
+      const extractEmail = (addr: string): string => {
+        const match = addr.match(/<([^>]+)>/);
+        return match ? match[1].toLowerCase().trim() : addr.toLowerCase().trim();
+      };
+      
+      const fromEmail = extractEmail(normalizedFrom);
+      const toEmail = extractEmail(normalizedTo);
+      
+      // Check for duplicate by from, to, subject, userId, and sentAt (within 10 minutes)
+      // Use a wider time window to catch duplicates
+      const sentAtStart = new Date(sentAt.getTime() - 10 * 60 * 1000); // 10 minutes before
+      const sentAtEnd = new Date(sentAt.getTime() + 10 * 60 * 1000); // 10 minutes after
+      
+      // First, try exact match with normalized email addresses
+      let [email] = await db.select()
+        .from(emails)
+        .where(
+          and(
+            or(
+              sql`LOWER(TRIM(${emails.from})) = ${normalizedFrom}`,
+              sql`LOWER(TRIM(${emails.from})) LIKE ${'%' + fromEmail + '%'}`
+            ),
+            or(
+              sql`LOWER(TRIM(${emails.to})) = ${normalizedTo}`,
+              sql`LOWER(TRIM(${emails.to})) LIKE ${'%' + toEmail + '%'}`
+            ),
+            eq(emails.subject, normalizedSubject),
+            eq(emails.userId, userId),
+            gte(emails.sentAt, sentAtStart),
+            lte(emails.sentAt, sentAtEnd)
+          )
+        )
+        .limit(1);
+      
+      // If not found, try a broader check: same subject + userId + same day (for same email thread)
+      if (!email) {
+        const dayStart = new Date(sentAt);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(sentAt);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        [email] = await db.select()
+          .from(emails)
+          .where(
+            and(
+              eq(emails.subject, normalizedSubject),
+              eq(emails.userId, userId),
+              gte(emails.sentAt, dayStart),
+              lte(emails.sentAt, dayEnd)
+            )
+          )
+          .limit(1);
+      }
+      
+      return email;
+    } catch (error) {
+      console.error('Error getting email by unique fields:', error);
+      return undefined;
+    }
+  }
+
+  async getEmailByContentHash(contentHash: string, userId: string): Promise<Email | undefined> {
+    try {
+      // This method is kept for interface compatibility but not used
+      // Use getEmailByContentSimilarity instead
+      return undefined;
+    } catch (error) {
+      console.error('Error getting email by content hash:', error);
+      return undefined;
+    }
+  }
+
+  async getEmailByContentSimilarity(
+    from: string,
+    to: string,
+    subject: string,
+    bodyStart: string,
+    userId: string
+  ): Promise<Email | undefined> {
+    try {
+      if (!bodyStart || bodyStart.length < 20) return undefined; // Need at least 20 chars for reliable match
+      
+      // Extract email addresses from "Name <email>" format
+      const extractEmail = (addr: string): string => {
+        const match = addr.match(/<([^>]+)>/);
+        return match ? match[1].toLowerCase().trim() : addr.toLowerCase().trim();
+      };
+      
+      const fromEmail = extractEmail(from);
+      const toEmail = extractEmail(to);
+      const bodyPattern = bodyStart.substring(0, 100).trim();
+      
+      // Check for duplicate by subject + body start + userId (more aggressive)
+      // This catches emails that are identical in content regardless of from/to formatting
+      const [email] = await db.select()
+        .from(emails)
+        .where(
+          and(
+            eq(emails.subject, subject),
+            eq(emails.userId, userId),
+            sql`SUBSTRING(${emails.body}, 1, 100) = ${bodyPattern}`
+          )
+        )
+        .limit(1);
+      
+      return email;
+    } catch (error) {
+      console.error('Error getting email by content similarity:', error);
+      return undefined;
+    }
+  }
+
+  async getEmailBySubjectAndUser(subject: string, userId: string): Promise<Email | undefined> {
+    try {
+      // Check for duplicate by subject + userId (very aggressive check)
+      // This catches emails with the same subject for the same user
+      const [email] = await db.select()
+        .from(emails)
+        .where(
+          and(
+            eq(emails.subject, subject.trim()),
+            eq(emails.userId, userId)
+          )
+        )
+        .orderBy(desc(emails.sentAt))
+        .limit(1);
+      
+      return email;
+    } catch (error) {
+      console.error('Error getting email by subject and user:', error);
+      return undefined;
     }
   }
 

@@ -55,7 +55,7 @@ export default function ProviderSignup() {
   // Check for existing provider and determine current step
   useEffect(() => {
     const checkProviderProgress = async () => {
-      setIsCheckingProgress(true);
+    setIsCheckingProgress(true);
       
       try {
         // Check if provider is logged in via API
@@ -209,9 +209,26 @@ export default function ProviderSignup() {
     return storedId ? parseInt(storedId) : null;
   });
 
-  const { data: categories = [] as any[] } = useQuery({
+  const { data: categories = [] as any[], isLoading: isLoadingCategories, error: categoriesError, refetch: refetchCategories } = useQuery({
     queryKey: ["/api/service-categories"],
   });
+
+  // Debug logging for categories and refetch when step 2 is shown
+  useEffect(() => {
+    if (currentStep === 2) {
+      console.log('Step 2 - Categories state:', {
+        isLoading: isLoadingCategories,
+        error: categoriesError,
+        categoriesCount: categories.length,
+        categories: categories
+      });
+      // Refetch categories when step 2 is shown to ensure fresh data
+      if (!isLoadingCategories && categories.length === 0 && !categoriesError) {
+        console.log('Refetching categories...');
+        refetchCategories();
+      }
+    }
+  }, [currentStep, isLoadingCategories, categoriesError, categories, refetchCategories]);
 
   const { data: states = [] as any[] } = useQuery({
     queryKey: ["/api/australian-states"],
@@ -822,6 +839,39 @@ export default function ProviderSignup() {
                 </div>
               )}
 
+              {/* Loading state */}
+              {isLoadingCategories && (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading services...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Error state */}
+              {categoriesError && !isLoadingCategories && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                  <p className="text-red-600 text-sm font-medium">
+                    Failed to load services. Please refresh the page or try again later.
+                  </p>
+                  <p className="text-red-500 text-xs mt-2">
+                    {categoriesError instanceof Error ? categoriesError.message : "Unknown error"}
+                  </p>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!isLoadingCategories && !categoriesError && categories.length === 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                  <p className="text-yellow-800 text-sm font-medium">
+                    No services available. Please contact support.
+                  </p>
+                </div>
+              )}
+
+              {/* Services grid */}
+              {!isLoadingCategories && !categoriesError && categories.length > 0 && (
               <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                 {categories.map((category: any) => {
                   const IconComponent = serviceIcons[category.name as keyof typeof serviceIcons] || Home;
@@ -859,6 +909,7 @@ export default function ProviderSignup() {
                   );
                 })}
               </div>
+              )}
 
               {/* Selected services summary */}
               {formData.selectedServices.length > 0 && (
