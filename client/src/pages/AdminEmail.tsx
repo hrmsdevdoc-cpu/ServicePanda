@@ -913,8 +913,11 @@ export default function AdminEmail() {
                   <SelectContent>
                     {users
                       .filter((user) => {
-                        // Super admin can see all users
-                        if (currentUser?.role === 'super_admin') {
+                        // Super admin or Administrator can see all users
+                        const canSeeAllUsers = currentUser?.role === 'super_admin' 
+                          || currentUser?.role === 'Administrator' 
+                          || currentUser?.username === 'admin';
+                        if (canSeeAllUsers) {
                           return true;
                         }
                         // Regular users can only see their own emails
@@ -1008,8 +1011,11 @@ export default function AdminEmail() {
           <div className="flex items-center space-x-2 overflow-x-auto">
             {users
               .filter((user) => {
-                // Super admin can see all users
-                if (currentUser?.role === 'super_admin') {
+                // Super admin or Administrator can see all users
+                const canSeeAllUsers = currentUser?.role === 'super_admin' 
+                  || currentUser?.role === 'Administrator' 
+                  || currentUser?.username === 'admin';
+                if (canSeeAllUsers) {
                   return true;
                 }
                 // Regular users can only see their own emails

@@ -2942,8 +2942,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const users = await storage.getAllAdminUsers();
 
-      // Filter out super_admin users if current user is not super_admin
-      const filteredUsers = currentAdminUser?.username === 'admin' 
+      // Check if current user is super admin or Administrator (can see all users)
+      const canSeeAllUsers = currentAdminUser?.username === 'admin' 
+        || currentAdminUser?.role === 'super_admin' 
+        || currentAdminUser?.role === 'Administrator';
+      
+      // Filter out super_admin users if current user is not super_admin/Administrator
+      const filteredUsers = canSeeAllUsers
         ? users 
         : users.filter(user => user.role !== 'super_admin' && user.username !== 'admin');
 

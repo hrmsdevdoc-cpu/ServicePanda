@@ -16,7 +16,7 @@ export async function sendContactFormEmail(formData: ContactFormData): Promise<b
   try {
     console.log('sendContactFormEmail called with:', formData);
     const { name, email, phone, message } = formData;
-    const supportEmail = 'hrms.devdoc@gmail.com';
+    const supportEmail = 'support@servicepanda.com.au';
     const subject = `New Contact Form Submission from ${name}`;
     
     const textContent = `

@@ -9027,7 +9027,7 @@ async function sendContactFormEmail(formData) {
   try {
     console.log("sendContactFormEmail called with:", formData);
     const { name, email, phone, message } = formData;
-    const supportEmail = "hrms.devdoc@gmail.com";
+    const supportEmail = "support@servicepanda.com.au";
     const subject = `New Contact Form Submission from ${name}`;
     const textContent = `
 New Contact Form Submission
@@ -11723,7 +11723,8 @@ async function registerRoutes(app2) {
       const decoded = jwt2.verify(token, process.env.ADMIN_JWT_SECRET || "admin-jwt-secret-key");
       const currentAdminUser = await storage.getAdminUserByUsername(decoded.username);
       const users2 = await storage.getAllAdminUsers();
-      const filteredUsers = currentAdminUser?.username === "admin" ? users2 : users2.filter((user) => user.role !== "super_admin" && user.username !== "admin");
+      const canSeeAllUsers = currentAdminUser?.username === "admin" || currentAdminUser?.role === "super_admin" || currentAdminUser?.role === "Administrator";
+      const filteredUsers = canSeeAllUsers ? users2 : users2.filter((user) => user.role !== "super_admin" && user.username !== "admin");
       const usersWithDepartments = await Promise.all(
         filteredUsers.map(async (user) => {
           const departments = await storage.getUserDepartments(user.id);
