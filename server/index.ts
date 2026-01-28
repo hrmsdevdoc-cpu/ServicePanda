@@ -14,8 +14,20 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'development';
 }
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+// Skip body parsing for multipart/form-data (let multer handle it)
+// Apply JSON and URL-encoded parsers only for non-multipart requests
+app.use((req, res, next) => {
+  const contentType = req.headers['content-type'] || '';
+  if (contentType.includes('multipart/form-data')) {
+    // Skip body parsing for multipart - multer will handle it
+    return next();
+  }
+  // For other content types, apply the parsers
+  express.json({ limit: '10mb' })(req, res, (err) => {
+    if (err) return next(err);
+    express.urlencoded({ extended: false, limit: '10mb' })(req, res, next);
+  });
+});
 
 // CORS middleware for development and production
 app.use((req, res, next) => {

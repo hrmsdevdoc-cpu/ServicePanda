@@ -97,6 +97,8 @@ interface PotentialProvider {
   assignedTo?: string;
   assignedAdminName?: string;
   taskTitle?: string;
+  taskAssignedTo?: string | null;
+  taskAssignedToName?: string;
   notes?: string;
   nextFollowUpDate?: string;
   lastContactDate?: string;
@@ -137,6 +139,9 @@ interface PendingImport {
   id: string;
   importName: string;
   providers: PotentialProvider[];
+  fieldMapping?: { [csvHeader: string]: string };
+  csvHeaders?: string[];
+  unmappedHeaders?: string[];
   createdAt: Date;
 }
 
@@ -161,6 +166,7 @@ export default function AdminPotentialProviders() {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [assignedToFilter, setAssignedToFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [serviceTypeFilter, setServiceTypeFilter] = useState("all");
   const [kanbanColumns, setKanbanColumns] = useState(KANBAN_COLUMNS);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -181,6 +187,11 @@ export default function AdminPotentialProviders() {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isManager, setIsManager] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState('admin');
+
+  // New Members bulk assign (checkboxes + create tasks)
+  const [selectedNewMemberIds, setSelectedNewMemberIds] = useState<Set<number>>(new Set());
+  const [bulkAssignedTo, setBulkAssignedTo] = useState("");
+  const [bulkTaskType, setBulkTaskType] = useState("follow_up");
   
   // Toast hook
   const { toast } = useToast();
@@ -204,6 +215,11 @@ export default function AdminPotentialProviders() {
   const kanbanRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
+
+  // List view table horizontal scroll
+  const listViewTableRef = useRef<HTMLDivElement>(null);
+  const [showListViewLeftArrow, setShowListViewLeftArrow] = useState(false);
+  const [showListViewRightArrow, setShowListViewRightArrow] = useState(true);
 
   // New state for member confirmation and pagination
   const [pendingImports, setPendingImports] = useState<PendingImport[]>([]);
@@ -234,6 +250,8 @@ export default function AdminPotentialProviders() {
     importName: "",
     csvData: "",
   });
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [fieldMapping, setFieldMapping] = useState<{ [csvHeader: string]: string } | null>(null);
 
   const [taskData, setTaskData] = useState({
     taskType: "general",
@@ -274,15 +292,28 @@ export default function AdminPotentialProviders() {
     },
   });
 
-  // Update taskData when currentAdminUser is loaded
+  // Update taskData when currentAdminUser is loaded and also update super admin status
   useEffect(() => {
     if (currentAdminUser?.username) {
       console.log('=== DEBUG: Current admin user loaded ===');
       console.log('Current admin user:', currentAdminUser);
+      console.log('Current admin user role:', currentAdminUser.role);
+      
       setTaskData(prev => ({
         ...prev,
-        assignedTo: currentAdminUser.username
+        assignedTo: currentAdminUser.id != null ? String(currentAdminUser.id) : currentAdminUser.username
       }));
+      
+      // Also check role from currentAdminUser (from API) - more reliable than token
+      if (currentAdminUser.role) {
+        const roleLower = (currentAdminUser.role || '').toLowerCase();
+        const isSuperAdminRole = roleLower === 'administrator' || 
+                                 roleLower === 'super_admin' || 
+                                 currentAdminUser.role === 'Administrator' ||
+                                 currentAdminUser.role === 'Super Admin';
+        setIsSuperAdmin(isSuperAdminRole);
+        console.log('Updated isSuperAdmin from currentAdminUser.role:', isSuperAdminRole);
+      }
     }
   }, [currentAdminUser]);
 
@@ -351,12 +382,19 @@ export default function AdminPotentialProviders() {
       const tokenPayload = JSON.parse(atob(adminToken.split('.')[1]));
       const role = tokenPayload.role;
       setCurrentUserRole(role);
-      setIsSuperAdmin(role === 'administrator' || role === 'super_admin');
-      setIsManager(role === 'manager');
+      // Check for super admin - case insensitive, also check for "Administrator"
+      const roleLower = (role || '').toLowerCase();
+      const isSuperAdminRole = roleLower === 'administrator' || 
+                               roleLower === 'super_admin' || 
+                               role === 'Administrator' ||
+                               role === 'Super Admin';
+      setIsSuperAdmin(isSuperAdminRole);
+      setIsManager(roleLower === 'manager');
       
       console.log('=== DEBUG: User role loaded ===');
       console.log('User role:', role);
-      console.log('Is super admin:', role === 'administrator' || role === 'super_admin');
+      console.log('Role (lowercase):', roleLower);
+      console.log('Is super admin:', isSuperAdminRole);
       
       // If team member is on member-list view, redirect to list view
       if (currentAdminUser?.role === 'Team Member' && viewMode === 'member-list') {
@@ -369,6 +407,11 @@ export default function AdminPotentialProviders() {
       setCurrentUserRole('admin');
     }
   }, [navigate, viewMode]);
+
+  // Clear New Members selection when leaving the view
+  useEffect(() => {
+    if (viewMode !== 'member-list') setSelectedNewMemberIds(new Set());
+  }, [viewMode]);
 
   // Dummy data for development/testing - DISABLED (using dynamic data from database)
   // All dummy data has been removed to use real database data
@@ -386,12 +429,34 @@ export default function AdminPotentialProviders() {
           id: data[0].id,
           name: `${data[0].firstName} ${data[0].lastName}`,
           assignedTo: data[0].assignedTo,
-          taskTitle: data[0].taskTitle
+          taskTitle: data[0].taskTitle,
+          status: data[0].status
         });
+        // Log status distribution
+        const statusCounts = data.reduce((acc: any, p: any) => {
+          acc[p.status] = (acc[p.status] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('Status distribution:', statusCounts);
+        console.log('Providers with tasks:', data.filter((p: any) => p.taskTitle).length);
+        console.log('Providers without tasks:', data.filter((p: any) => !p.taskTitle).length);
+      } else {
+        console.log('⚠️ WARNING: API returned empty array!');
       }
       return data;
     },
     staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch service types (categories) from database for filter dropdown
+  const { data: serviceCategories = [] } = useQuery({
+    queryKey: ['/api/admin/service-categories'],
+    queryFn: async () => {
+      const response = await adminApiRequest('GET', '/api/admin/service-categories');
+      const data = await response.json();
+      return data;
+    },
+    staleTime: 10 * 60 * 1000,
   });
 
   // Fetch team tasks for Kanban view
@@ -468,23 +533,47 @@ export default function AdminPotentialProviders() {
     },
   });
 
-  // Import providers mutation
+  // Import providers mutation - NOW DIRECTLY INSERTS INTO DATABASE
   const importProvidersMutation = useMutation({
     mutationFn: async (importData: any) => {
       const response = await adminApiRequest('POST', '/api/admin/potential-providers/import', importData);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to import CSV' }));
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
       return response.json();
     },
-    onSuccess: (data) => {
-      // Instead of immediately adding to the list, add to pending imports
-      const pendingImport: PendingImport = {
-        id: `pending_${Date.now()}`,
-        importName: importData.importName,
-        providers: data.providers || [],
-        createdAt: new Date(),
-      };
-      setPendingImports(prev => [...prev, pendingImport]);
+    onSuccess: (data, variables) => {
+      const inserted = data.inserted || 0;
+      const skipped = data.skipped || 0;
+      const message = data.message || '';
+      
+      // Refresh the providers list immediately since data is now in database
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
+      
       setIsImportDialogOpen(false);
       setImportData({ importName: "", csvData: "" });
+      setCsvFile(null);
+      setFieldMapping(null);
+      
+      // Show success message with insertion details - use server message if available
+      const toastMessage = message || (inserted > 0 
+        ? `✅ Successfully inserted ${inserted} potential providers into database!${skipped > 0 ? ` ${skipped} providers were skipped.` : ''}`
+        : `⚠️ No providers were inserted. ${skipped} providers were skipped due to missing required fields.`);
+      
+      toast({
+        title: inserted > 0 ? "Import Successful" : "Import Partially Successful",
+        description: toastMessage,
+        variant: inserted > 0 ? "default" : "default",
+      });
+    },
+    onError: (error: any) => {
+      console.error('Import error:', error);
+      toast({
+        title: "Import Failed",
+        description: error.message || "Failed to import CSV. Please check your CSV data and try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -499,11 +588,37 @@ export default function AdminPotentialProviders() {
       return response.json();
     },
     onSuccess: (data, pendingImport) => {
+      const inserted = data.inserted || data.count || 0;
+      const skipped = data.skipped || 0;
+      const errors = data.errors || [];
+
       // Remove from pending imports and refresh the main list
       setPendingImports(prev => prev.filter(imp => imp.id !== pendingImport.id));
       queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
       setIsConfirmationDialogOpen(false);
       setSelectedPendingImport(null);
+
+      // Show success/error message
+      if (skipped > 0 || errors.length > 0) {
+        toast({
+          title: "Import Partially Successful",
+          description: `Inserted ${inserted} providers. ${skipped} providers were skipped due to missing required fields (firstName, lastName, email, phone, address, city, state, postcode).`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Import Successful",
+          description: `Successfully imported ${inserted} potential providers`,
+          variant: "default",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Import Failed",
+        description: error.message || "Failed to import potential providers. Please check that all required fields (firstName, lastName, email, phone, address, city, state, postcode) are provided.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -551,6 +666,54 @@ export default function AdminPotentialProviders() {
         customerType: "all",
         comments: "",
         taskOwner: "admin"
+      });
+    },
+  });
+
+  // Bulk create tasks for selected New Members (Assigned To + Task type)
+  const bulkCreateTasksMutation = useMutation({
+    mutationFn: async ({
+      providerIds,
+      assignedTo,
+      taskType,
+      providersById,
+    }: {
+      providerIds: number[];
+      assignedTo: string;
+      taskType: string;
+      providersById: Map<number, PotentialProvider>;
+    }) => {
+      const results = [];
+      for (const id of providerIds) {
+        const p = providersById.get(id);
+        const title = p
+          ? `${taskType.replace(/_/g, ' ')} - ${p.firstName} ${p.lastName}${p.businessName ? ` (${p.businessName})` : ''}`
+          : `Task for provider #${id}`;
+        const res = await adminApiRequest('POST', '/api/admin/potential-providers/tasks', {
+          potentialProviderId: id,
+          title,
+          description: p ? `Contact ${p.firstName} ${p.lastName} regarding their potential provider application.` : '',
+          taskType,
+          assignedTo: assignedTo || null,
+        });
+        results.push(await res.json());
+      }
+      return results;
+    },
+    onSuccess: (_, variables) => {
+      setSelectedNewMemberIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/potential-providers'] });
+      setToastMessage({
+        type: 'success',
+        title: 'Tasks created',
+        description: `Created ${variables.providerIds.length} task(s) and assigned to selected admin.`,
+      });
+    },
+    onError: (error: Error) => {
+      setToastMessage({
+        type: 'error',
+        title: 'Bulk create failed',
+        description: error?.message || 'Failed to create tasks.',
       });
     },
   });
@@ -672,6 +835,17 @@ export default function AdminPotentialProviders() {
       console.log('Total providers:', potentialProviders.length);
       
       // Apply the same filtering logic as getFilteredProviders but for kanban view
+      const selectedCategoryKanban = serviceTypeFilter === "all" ? null : (serviceCategories as { id: number; name: string }[]).find((c: { id: number; name: string }) => String(c.id) === serviceTypeFilter);
+      const parseServiceCategories = (raw: string | undefined): string[] => {
+        const s = raw?.trim();
+        if (!s) return [];
+        try {
+          const parsed = JSON.parse(s);
+          return Array.isArray(parsed) ? parsed.map((x: any) => String(x).trim()) : s.split(',').map((x: string) => x.trim());
+        } catch {
+          return s.split(',').map((x: string) => x.trim());
+        }
+      };
       const filtered = potentialProviders.filter((provider: PotentialProvider) => {
         const matchesSearch = searchTerm === "" || 
           provider.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -686,9 +860,12 @@ export default function AdminPotentialProviders() {
           (statusFilter === "sms_2nd" && (provider as any).smsDeliveryStatus === "2nd_sent");
         const matchesPriority = priorityFilter === "all" || provider.priority === priorityFilter;
         const matchesAssignedTo = assignedToFilter === "all" || 
-          (assignedToFilter === "unassigned" && (!provider.assignedTo || provider.assignedTo === "")) ||
-          provider.assignedTo === assignedToFilter;
+          (assignedToFilter === "unassigned" && (!provider.taskAssignedTo || provider.taskAssignedTo === "")) ||
+          provider.taskAssignedTo === assignedToFilter ||
+          (adminUsers.find((u: any) => String(u.id) === assignedToFilter)?.username === provider.taskAssignedTo);
         const matchesSource = sourceFilter === "all" || provider.source === sourceFilter;
+        const providerCats = parseServiceCategories(provider.serviceCategories);
+        const matchesServiceType = !selectedCategoryKanban || providerCats.some((item: string) => item.toLowerCase() === selectedCategoryKanban.name.toLowerCase() || item.toLowerCase().includes(selectedCategoryKanban.name.toLowerCase()));
         
         // Exclude won, lost, and new providers from kanban view, and only show providers with tasks
         const isNotWonOrLost = provider.status !== 'won' && provider.status !== 'lost' && provider.status !== 'new';
@@ -696,9 +873,10 @@ export default function AdminPotentialProviders() {
         
         // For non-super-admin users, show providers assigned to them OR unassigned (null)
         const isAssignedToCurrentUser = isSuperAdmin || !currentAdminUser?.username || 
-          provider.assignedTo === currentAdminUser.username || 
-          provider.assignedTo === null || 
-          provider.assignedTo === '';
+          provider.taskAssignedTo === currentAdminUser.username || 
+          provider.taskAssignedTo === null || 
+          provider.taskAssignedTo === '' ||
+          (currentAdminUser.id != null && String(provider.taskAssignedTo) === String(currentAdminUser.id));
 
         // Debug filtering for first few providers
         if (potentialProviders.indexOf(provider) < 3) {
@@ -708,18 +886,21 @@ export default function AdminPotentialProviders() {
             matchesPriority,
             matchesAssignedTo,
             matchesSource,
+            matchesServiceType,
             isNotWonOrLost,
             hasTask: !!hasTask,
             taskTitle: provider.taskTitle,
+            taskAssignedTo: provider.taskAssignedTo,
+            taskAssignedToName: provider.taskAssignedToName,
             isAssignedToCurrentUser,
             assignedTo: provider.assignedTo,
             currentUser: currentAdminUser?.username,
             status: provider.status,
-            PASSES: matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && isNotWonOrLost && hasTask && isAssignedToCurrentUser
+            PASSES: matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && matchesServiceType && isNotWonOrLost && hasTask && isAssignedToCurrentUser
           });
         }
 
-        return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && isNotWonOrLost && hasTask && isAssignedToCurrentUser;
+        return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && matchesServiceType && isNotWonOrLost && hasTask && isAssignedToCurrentUser;
       });
       
       console.log('Filtered providers for Kanban:', filtered.length);
@@ -727,7 +908,9 @@ export default function AdminPotentialProviders() {
         console.log('First filtered provider:', {
           name: `${filtered[0].firstName} ${filtered[0].lastName}`,
           assignedTo: filtered[0].assignedTo,
-          taskTitle: filtered[0].taskTitle
+          taskTitle: filtered[0].taskTitle,
+          taskAssignedTo: filtered[0].taskAssignedTo,
+          taskAssignedToName: filtered[0].taskAssignedToName
         });
       }
 
@@ -781,7 +964,7 @@ export default function AdminPotentialProviders() {
         updateArrowVisibility();
       }, 100);
     }
-  }, [potentialProviders, searchTerm, statusFilter, priorityFilter, assignedToFilter, sourceFilter, isSuperAdmin, currentAdminUser]);
+  }, [potentialProviders, searchTerm, statusFilter, priorityFilter, assignedToFilter, sourceFilter, serviceTypeFilter, serviceCategories, isSuperAdmin, currentAdminUser]);
 
   // Update arrow visibility based on scroll position
   const updateArrowVisibility = () => {
@@ -822,6 +1005,53 @@ export default function AdminPotentialProviders() {
     };
   }, [viewMode, kanbanColumns]);
 
+  // List view: the Table component renders an inner div (relative w-full overflow-auto) - that's the actual scroll container
+  const getListViewScrollEl = (): HTMLElement | null => {
+    const container = listViewTableRef.current;
+    if (!container) return null;
+    const inner = container.firstElementChild as HTMLElement | null;
+    return inner ?? container;
+  };
+
+  const updateListViewArrowVisibility = () => {
+    const el = getListViewScrollEl();
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    const isAtStart = scrollLeft <= 0;
+    const isAtEnd = scrollLeft >= scrollWidth - clientWidth - 1;
+    setShowListViewLeftArrow(!isAtStart);
+    setShowListViewRightArrow(!isAtEnd);
+  };
+
+  const scrollListView = (delta: number) => {
+    const el = getListViewScrollEl();
+    if (el) {
+      el.scrollBy({ left: delta, behavior: 'smooth' });
+      // Update arrow visibility after scroll (smooth scroll may not fire 'scroll' in time)
+      requestAnimationFrame(() => updateListViewArrowVisibility());
+      setTimeout(updateListViewArrowVisibility, 150);
+      setTimeout(updateListViewArrowVisibility, 400);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode !== 'list') return;
+    const el = getListViewScrollEl();
+    if (!el) {
+      const t = setTimeout(updateListViewArrowVisibility, 100);
+      return () => clearTimeout(t);
+    }
+    const handleScroll = () => updateListViewArrowVisibility();
+    el.addEventListener('scroll', handleScroll);
+    updateListViewArrowVisibility();
+    const resizeObserver = new ResizeObserver(() => updateListViewArrowVisibility());
+    resizeObserver.observe(el);
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      resizeObserver.disconnect();
+    };
+  }, [viewMode]);
+
   // Handle drag and drop
 
   const handleLogout = () => {
@@ -836,7 +1066,40 @@ export default function AdminPotentialProviders() {
     });
   };
 
+  const handleCsvFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCsvFile(file);
+    
+    // Read file content
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      setImportData(prev => ({ ...prev, csvData: text }));
+      // Field mapping will be shown in confirmation dialog after import
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCsvDataChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setImportData(prev => ({ ...prev, csvData: text }));
+    // Clear field mapping when data changes - will be shown after import
+    if (!text.trim()) {
+      setFieldMapping(null);
+    }
+  };
+
   const handleImportProviders = () => {
+    if (!importData.csvData.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide CSV data or upload a CSV file",
+        variant: "destructive"
+      });
+      return;
+    }
     importProvidersMutation.mutate({
       ...importData,
       defaultStatus: 'new' // Ensure imported providers start in member list
@@ -1044,16 +1307,82 @@ export default function AdminPotentialProviders() {
     return kanbanColumns.find(col => col.id === status)?.providers.length || 0;
   };
 
-  // Get team member name from username
-  const getTeamMemberName = (username: string) => {
-    const user = adminUsers.find((user: any) => user.username === username);
-    return user ? `${user.firstName} ${user.lastName}` : username;
+  // Get team member by username or by id (when assignedTo stores admin user id as number or string "1")
+  const getTeamMemberByAssignedTo = (assignedTo: string | number | undefined | null): { firstName: string; lastName: string } | undefined => {
+    if (assignedTo === undefined || assignedTo === null) return undefined;
+    const s = String(assignedTo).trim();
+    if (!s) return undefined;
+    const first = (u: any) => u?.firstName ?? u?.first_name ?? '';
+    const last = (u: any) => u?.lastName ?? u?.last_name ?? '';
+    // If it looks like a numeric id, try finding by id first (loose equality: 1 == "1")
+    if (/^\d+$/.test(s)) {
+      const numId = parseInt(s, 10);
+      const byId = adminUsers.find((u: any) => u?.id != null && (Number(u.id) === numId || String(u.id) === s));
+      if (byId) return { firstName: first(byId), lastName: last(byId) };
+    }
+    // Otherwise try by username
+    const byUsername = adminUsers.find((u: any) => u?.username === s);
+    return byUsername ? { firstName: first(byUsername), lastName: last(byUsername) } : undefined;
   };
 
-  // Get team member object from username
-  const getTeamMember = (username: string) => {
-    return adminUsers.find((user: any) => user.username === username);
+  // Get team member name from username or id
+  const getTeamMemberName = (usernameOrId: string | number) => {
+    const user = getTeamMemberByAssignedTo(usernameOrId);
+    return user ? `${user.firstName} ${user.lastName}` : String(usernameOrId);
   };
+
+  // Get team member object from username or id
+  const getTeamMember = (usernameOrId: string | number | undefined | null) => {
+    if (usernameOrId === undefined || usernameOrId === null) return undefined;
+    const s = String(usernameOrId).trim();
+    if (!s) return undefined;
+    if (/^\d+$/.test(s)) {
+      const numId = parseInt(s, 10);
+      const byId = adminUsers.find((u: any) => u?.id != null && (Number(u.id) === numId || String(u.id) === s));
+      if (byId) return byId;
+    }
+    return adminUsers.find((u: any) => u?.username === s);
+  };
+
+  // Resolve assigned-to display name: API assignedAdminName (skip if it's just an id like "1"), or lookup from adminUsers by assignedTo (id or username), or 'Unassigned'
+  const getAssignedDisplayName = (provider: { assignedAdminName?: string; assignedTo?: string | number | null }) => {
+    const fromApi = provider.assignedAdminName != null ? String(provider.assignedAdminName).trim() : '';
+    // Don't use API value if it looks like a numeric id (e.g. "1" or 1)
+    if (fromApi && !/^\d+$/.test(fromApi)) return fromApi;
+    const to = provider.assignedTo;
+    if (to !== undefined && to !== null && String(to).trim() !== '') return getTeamMemberName(to);
+    return 'Unassigned';
+  };
+
+  // Initials for assigned-to avatar (2 chars max)
+  const getAssignedInitials = (provider: { assignedAdminName?: string; assignedTo?: string | null }) => {
+    const displayName = getAssignedDisplayName(provider);
+    if (displayName === 'Unassigned') return '?';
+    const parts = displayName.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    return displayName.slice(0, 2).toUpperCase() || '?';
+  };
+
+  const hasAssignedUser = (provider: { assignedAdminName?: string; assignedTo?: string | number | null }) =>
+    (provider.assignedAdminName && provider.assignedAdminName.trim() !== '') || (provider.assignedTo !== undefined && provider.assignedTo !== null && String(provider.assignedTo).trim() !== '');
+
+  // Task assignee (from potential_provider_tasks) — use this for display/filter instead of provider-level assignedTo
+  const getTaskAssignedDisplayName = (provider: { taskAssignedToName?: string; taskAssignedTo?: string | null }) => {
+    const name = provider.taskAssignedToName != null ? String(provider.taskAssignedToName).trim() : '';
+    if (name) return name;
+    const to = provider.taskAssignedTo;
+    if (to !== undefined && to !== null && String(to).trim() !== '') return getTeamMemberName(to);
+    return 'Unassigned';
+  };
+  const getTaskAssignedInitials = (provider: { taskAssignedToName?: string; taskAssignedTo?: string | null }) => {
+    const displayName = getTaskAssignedDisplayName(provider);
+    if (displayName === 'Unassigned') return '?';
+    const parts = displayName.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    return displayName.slice(0, 2).toUpperCase() || '?';
+  };
+  const hasTaskAssignedUser = (provider: { taskAssignedToName?: string; taskAssignedTo?: string | null }) =>
+    (provider.taskAssignedToName && provider.taskAssignedToName.trim() !== '') || (provider.taskAssignedTo !== undefined && provider.taskAssignedTo !== null && String(provider.taskAssignedTo).trim() !== '');
 
   const totalProviders = potentialProviders?.length || 0;
   const filteredCount = kanbanColumns.reduce((sum, col) => sum + col.providers.length, 0);
@@ -1062,9 +1391,26 @@ export default function AdminPotentialProviders() {
   const activeProviders = potentialProviders?.filter((p: PotentialProvider) => p.status !== 'won' && p.status !== 'lost') || [];
   const newProviders = potentialProviders?.filter((p: PotentialProvider) => p.status === 'new') || [];
 
+  // Helper: parse provider serviceCategories (JSON array or comma-separated) and check if it includes the given category name
+  const providerMatchesServiceType = (provider: PotentialProvider, categoryName: string): boolean => {
+    const raw = provider.serviceCategories?.trim();
+    if (!raw) return false;
+    let items: string[] = [];
+    try {
+      const parsed = JSON.parse(raw);
+      items = Array.isArray(parsed) ? parsed.map((x: any) => String(x).trim()) : raw.split(',').map((s: string) => s.trim());
+    } catch {
+      items = raw.split(',').map((s: string) => s.trim());
+    }
+    const nameLower = categoryName.toLowerCase();
+    return items.some((item: string) => item.toLowerCase() === nameLower || item.toLowerCase().includes(nameLower));
+  };
+
   // Filter providers based on current view
   const getFilteredProviders = () => {
     if (!potentialProviders) return [];
+    
+    const selectedCategory = serviceTypeFilter === "all" ? null : (serviceCategories as { id: number; name: string }[]).find((c: { id: number; name: string }) => String(c.id) === serviceTypeFilter);
     
     const filtered = potentialProviders.filter((provider: PotentialProvider) => {
       const matchesSearch = searchTerm === "" || 
@@ -1080,11 +1426,13 @@ export default function AdminPotentialProviders() {
         (statusFilter === "sms_2nd" && (provider as any).smsDeliveryStatus === "2nd_sent");
       const matchesPriority = priorityFilter === "all" || provider.priority === priorityFilter;
       const matchesAssignedTo = assignedToFilter === "all" || 
-        (assignedToFilter === "unassigned" && (!provider.assignedTo || provider.assignedTo === "")) ||
-        provider.assignedTo === assignedToFilter;
+        (assignedToFilter === "unassigned" && (!provider.taskAssignedTo || provider.taskAssignedTo === "")) ||
+        provider.taskAssignedTo === assignedToFilter ||
+        (adminUsers.find((u: any) => String(u.id) === assignedToFilter)?.username === provider.taskAssignedTo);
       const matchesSource = sourceFilter === "all" || provider.source === sourceFilter;
+      const matchesServiceType = !selectedCategory || providerMatchesServiceType(provider, selectedCategory.name);
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource;
+      return matchesSearch && matchesStatus && matchesPriority && matchesAssignedTo && matchesSource && matchesServiceType;
     });
 
     // Debug: Log current state
@@ -1107,10 +1455,11 @@ export default function AdminPotentialProviders() {
       }
       
       // Show if assigned to current user OR if not assigned to anyone (null/empty)
-      const isAssignedToCurrentUser = provider.assignedTo === currentAdminUser.username || 
-        provider.assignedTo === null || 
-        provider.assignedTo === '';
-      console.log('Provider assignedTo:', provider.assignedTo, 'Current user:', currentAdminUser?.username, 'Is super admin:', isSuperAdmin, 'Show:', isAssignedToCurrentUser);
+      const isAssignedToCurrentUser = provider.taskAssignedTo === currentAdminUser.username || 
+        provider.taskAssignedTo === null || 
+        provider.taskAssignedTo === '' ||
+        (currentAdminUser.id != null && String(provider.taskAssignedTo) === String(currentAdminUser.id));
+      console.log('Provider taskAssignedTo:', provider.taskAssignedTo, 'Current user:', currentAdminUser?.username, 'Is super admin:', isSuperAdmin, 'Show:', isAssignedToCurrentUser);
       return isAssignedToCurrentUser;
     });
     
@@ -1129,6 +1478,7 @@ export default function AdminPotentialProviders() {
     }
     
     if (viewMode === 'kanban') {
+      // Kanban view: providers with tasks (excluding new), same assignment rules as list
       return userFiltered.filter((p: PotentialProvider) => 
         p.status !== 'won' && 
         p.status !== 'lost' && 
@@ -1138,6 +1488,8 @@ export default function AdminPotentialProviders() {
       );
     }
     
+    // List view: same list as kanban - providers with tasks only (excluding new).
+    // Assigned users see their assigned providers; administrators see all.
     return userFiltered.filter((p: PotentialProvider) => 
       p.status !== 'won' && 
       p.status !== 'lost' && 
@@ -1150,21 +1502,38 @@ export default function AdminPotentialProviders() {
   const filteredProviders = getFilteredProviders();
   
   // Debug: Log filtered providers
-  console.log('=== DEBUG: Filtered providers for List View ===');
+  console.log('=== DEBUG: Filtered providers ===');
   console.log('View mode:', viewMode);
+  console.log('Total providers from API:', potentialProviders?.length || 0);
   console.log('Total filtered providers:', filteredProviders.length);
   console.log('Current page:', currentPage);
   console.log('Items per page:', itemsPerPage);
+  if (potentialProviders && potentialProviders.length > 0) {
+    const statusCounts = potentialProviders.reduce((acc: any, p: any) => {
+      acc[p.status] = (acc[p.status] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('Status distribution in API data:', statusCounts);
+    console.log('New providers:', newProviders.length);
+    console.log('Active providers (not won/lost):', activeProviders.length);
+  }
   if (filteredProviders.length > 0) {
     console.log('First filtered provider:', {
       id: filteredProviders[0].id,
       name: `${filteredProviders[0].firstName} ${filteredProviders[0].lastName}`,
       assignedTo: filteredProviders[0].assignedTo,
       taskTitle: filteredProviders[0].taskTitle,
+      taskAssignedTo: filteredProviders[0].taskAssignedTo,
+      taskAssignedToName: filteredProviders[0].taskAssignedToName,
       status: filteredProviders[0].status
     });
   } else {
-    console.log('No filtered providers found!');
+    console.log('⚠️ No filtered providers found!');
+    console.log('Potential reasons:');
+    console.log('- View mode filters:', viewMode);
+    console.log('- Status filter:', statusFilter);
+    console.log('- Search term:', searchTerm);
+    console.log('- Assigned filter:', assignedToFilter);
   }
 
   // Pagination logic
@@ -1428,6 +1797,20 @@ export default function AdminPotentialProviders() {
                 </SelectContent>
               </Select>
 
+              <Select value={serviceTypeFilter} onValueChange={setServiceTypeFilter}>
+                <SelectTrigger className="w-40 h-10">
+                  <SelectValue placeholder="All Service Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Service Types</SelectItem>
+                  {(serviceCategories as { id: number; name: string }[]).map((cat) => (
+                    <SelectItem key={cat.id} value={String(cat.id)}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <Select value={assignedToFilter} onValueChange={setAssignedToFilter}>
                 <SelectTrigger className="w-40 h-10">
                   <SelectValue placeholder="All Assigned" />
@@ -1436,7 +1819,7 @@ export default function AdminPotentialProviders() {
                   <SelectItem value="all">All Assigned</SelectItem>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
                   {adminUsers.map((user: any) => (
-                    <SelectItem key={user.id} value={user.username}>
+                    <SelectItem key={user.id} value={String(user.id)}>
                       {user.firstName} {user.lastName}
                     </SelectItem>
                   ))}
@@ -1565,6 +1948,70 @@ export default function AdminPotentialProviders() {
                       <p className="text-sm text-gray-500 mt-1">
                         Review new potential providers and create tasks for follow-up
                       </p>
+                      {/* Bulk assign bar when at least one member selected */}
+                      {selectedNewMemberIds.size > 0 && (
+                        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 flex flex-wrap items-center gap-4">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {selectedNewMemberIds.size} selected
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Assigned To</label>
+                            <Select value={bulkAssignedTo} onValueChange={setBulkAssignedTo}>
+                              <SelectTrigger className="w-44 h-9">
+                                <SelectValue placeholder="Select admin" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {adminUsers.map((user: any) => (
+                                  <SelectItem key={user.id} value={String(user.id)}>
+                                    {user.firstName} {user.lastName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Task type</label>
+                            <Select value={bulkTaskType} onValueChange={setBulkTaskType}>
+                              <SelectTrigger className="w-36 h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="follow_up">Follow up</SelectItem>
+                                <SelectItem value="call">Call</SelectItem>
+                                <SelectItem value="email">Email</SelectItem>
+                                <SelectItem value="sms">SMS</SelectItem>
+                                <SelectItem value="note">Note</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button
+                            onClick={() => {
+                              if (!bulkAssignedTo?.trim()) {
+                                setToastMessage({ type: 'error', title: 'Select admin', description: 'Please select an admin for Assigned To.' });
+                                return;
+                              }
+                              const ids = Array.from(selectedNewMemberIds);
+                              const providersById = new Map<number, PotentialProvider>(
+                                (potentialProviders || []).map((p: PotentialProvider) => [p.id, p] as [number, PotentialProvider])
+                              );
+                              bulkCreateTasksMutation.mutate({
+                                providerIds: ids,
+                                assignedTo: bulkAssignedTo,
+                                taskType: bulkTaskType,
+                                providersById,
+                              });
+                            }}
+                            disabled={bulkCreateTasksMutation.isPending || !bulkAssignedTo?.trim()}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            size="sm"
+                          >
+                            {bulkCreateTasksMutation.isPending ? 'Creating...' : `Create tasks for ${selectedNewMemberIds.size} members`}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedNewMemberIds(new Set())}>
+                            Clear selection
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <div className="p-6">
                       {filteredProviders.length === 0 ? (
@@ -1574,79 +2021,109 @@ export default function AdminPotentialProviders() {
                           <p className="text-gray-500">All new potential providers have been processed.</p>
                         </div>
                       ) : (
-                        <div className="grid gap-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                            <Checkbox
+                              id="new-members-select-all"
+                              checked={paginatedProviders.length > 0 && paginatedProviders.every((p: PotentialProvider) => selectedNewMemberIds.has(p.id))}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedNewMemberIds((prev) => new Set([...Array.from(prev), ...paginatedProviders.map((p: PotentialProvider) => p.id)]));
+                                } else {
+                                  const pageIds = new Set(paginatedProviders.map((p: PotentialProvider) => p.id));
+                                  setSelectedNewMemberIds((prev) => new Set(Array.from(prev).filter((id) => !pageIds.has(id))));
+                                }
+                              }}
+                            />
+                            <label htmlFor="new-members-select-all" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                              Select all on this page
+                            </label>
+                          </div>
+                          <div className="grid gap-3">
                           {paginatedProviders.map((provider: PotentialProvider) => (
-                            <div key={provider.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-3 mb-2">
-                                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                                      <span className="text-blue-600 dark:text-blue-400 font-medium">
-                                        {provider.firstName.charAt(0)}{provider.lastName.charAt(0)}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <h3 className="font-medium text-gray-900 dark:text-white">
-                                        {provider.firstName} {provider.lastName}
-                                      </h3>
-                                      <p className="text-sm text-gray-500">{provider.email}</p>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                      <span className="font-medium text-gray-700 dark:text-gray-300">Phone:</span>
-                                      <span className="ml-2 text-gray-600 dark:text-gray-400">{provider.phone}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-700 dark:text-gray-300">Business:</span>
-                                      <span className="ml-2 text-gray-600 dark:text-gray-400">{provider.businessName || 'N/A'}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-700 dark:text-gray-300">Location:</span>
-                                      <span className="ml-2 text-gray-600 dark:text-gray-400">{provider.city}, {provider.state} {provider.postcode}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-700 dark:text-gray-300">Services:</span>
-                                      <span className="ml-2 text-gray-600 dark:text-gray-400">{provider.serviceCategories || 'N/A'}</span>
-                                    </div>
-                                  </div>
-                                  
-                                  {provider.notes && (
-                                    <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded">
-                                      <span className="font-medium text-gray-700 dark:text-gray-300">Notes:</span>
-                                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{provider.notes}</p>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                <div className="flex flex-col space-y-2 ml-4">
-                                  <Button
-                                    onClick={() => {
-                                      setSelectedProvider(provider);
-                                      setTaskData({
-                                        taskType: "follow_up",
-                                        title: `Follow up with ${provider.firstName} ${provider.lastName}`,
-                                        description: `Contact ${provider.firstName} ${provider.lastName} regarding their potential provider application.`,
-                                        scheduledDate: "",
-                                        assignedTo: "",
-                                        priority: "P3",
-                                        customerType: "potential_provider",
-                                        comments: "",
-                                        taskOwner: "admin"
-                                      });
-                                      setIsTaskDialogOpen(true);
-                                    }}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                                    size="sm"
-                                  >
-                                    <Calendar className="h-4 w-4 mr-1" />
-                                    Create Task
-                                  </Button>
-                                </div>
+                            <div
+                              key={provider.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
+                                setSelectedProvider(provider);
+                                setIsViewDetailsDialogOpen(true);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  setSelectedProvider(provider);
+                                  setIsViewDetailsDialogOpen(true);
+                                }
+                              }}
+                              className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all flex items-start gap-3 cursor-pointer"
+                            >
+                              <div className="pt-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  id={`new-member-${provider.id}`}
+                                  checked={selectedNewMemberIds.has(provider.id)}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedNewMemberIds((prev) => {
+                                      const next = new Set(prev);
+                                      if (checked) next.add(provider.id);
+                                      else next.delete(provider.id);
+                                      return next;
+                                    });
+                                  }}
+                                />
                               </div>
+                              <div className="w-9 h-9 flex-shrink-0 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                                <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">
+                                  {provider.firstName.charAt(0)}{provider.lastName.charAt(0)}
+                                </span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-medium text-gray-900 dark:text-white text-sm">
+                                    {provider.firstName} {provider.lastName}
+                                  </h3>
+                                  <span className="text-gray-500 dark:text-gray-400 text-xs truncate max-w-[200px]" title={provider.email}>
+                                    {provider.email}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-0 text-xs text-gray-600 dark:text-gray-400">
+                                  <span>Phone: {provider.phone}</span>
+                                  <span>Business: {(provider.businessName || 'N/A')}</span>
+                                  <span>{provider.city}, {provider.state} {provider.postcode}</span>
+                                  <span>Services: {provider.serviceCategories || 'N/A'}</span>
+                                </div>
+                                {provider.notes && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate max-w-full" title={provider.notes}>
+                                    Notes: {provider.notes}
+                                  </p>
+                                )}
+                              </div>
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedProvider(provider);
+                                  setTaskData({
+                                    taskType: "follow_up",
+                                    title: `Follow up with ${provider.firstName} ${provider.lastName}`,
+                                    description: `Contact ${provider.firstName} ${provider.lastName} regarding their potential provider application.`,
+                                    scheduledDate: "",
+                                    assignedTo: "",
+                                    priority: "P3",
+                                    customerType: "potential_provider",
+                                    comments: "",
+                                    taskOwner: "admin"
+                                  });
+                                  setIsTaskDialogOpen(true);
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0"
+                                size="sm"
+                              >
+                                <Calendar className="h-4 w-4 mr-1" />
+                                Create Task
+                              </Button>
                             </div>
                           ))}
+                          </div>
                           
                           {/* Pagination Controls */}
                           {totalPages > 1 && (
@@ -1700,56 +2177,129 @@ export default function AdminPotentialProviders() {
               )}
 
               {viewMode === 'list' && (
-                <div className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg">
+                <div className="relative">
+                  {/* Fixed scroll arrows - always visible when scrolling the page */}
+                  {showListViewLeftArrow && (
+                    <button
+                      type="button"
+                      onClick={() => scrollListView(-300)}
+                      className="fixed left-[18rem] top-1/2 -translate-y-1/2 z-30 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full p-2.5 shadow-lg transition-all duration-200 hover:shadow-xl"
+                      title="Scroll left"
+                    >
+                      <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                    </button>
+                  )}
+                  {showListViewRightArrow && (
+                    <button
+                      type="button"
+                      onClick={() => scrollListView(300)}
+                      className="fixed right-4 top-1/2 -translate-y-1/2 z-30 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full p-2.5 shadow-lg transition-all duration-200 hover:shadow-xl"
+                      title="Scroll right"
+                    >
+                      <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                    </button>
+                  )}
+                  <div ref={listViewTableRef} className="bg-white/90 backdrop-blur-sm border-slate-200/50 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300 dark:bg-gray-800 rounded-lg overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>#</TableHead>
-                        <TableHead>Task</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Location</TableHead>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead className="min-w-[200px]">Task</TableHead>
+                        <TableHead className="min-w-[140px]">First Name</TableHead>
+                        {/* <TableHead>Last Name</TableHead> */}
+                        <TableHead>Email</TableHead>
+                        <TableHead>Service Categories</TableHead>
+                        <TableHead>Business Name</TableHead>
+                        {/* <TableHead>Suburb</TableHead>
+                        <TableHead>State</TableHead>
+                        <TableHead>Postcode</TableHead> */}
+                        <TableHead>Address</TableHead>
+                        <TableHead className="min-w-[130px]">Phone</TableHead>
+                        {/* <TableHead>Notes</TableHead> */}
                         <TableHead>Status</TableHead>
-                        <TableHead>Priority</TableHead>
+                        {/* <TableHead>Priority</TableHead> */}
                         <TableHead>Assigned To</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginatedProviders.map((provider: PotentialProvider, index: number) => (
-                        <TableRow key={provider.id}>
+                        <TableRow
+                          key={provider.id}
+                          className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                          onClick={() => {
+                            setSelectedProvider(provider);
+                            setIsViewDetailsDialogOpen(true);
+                          }}
+                        >
                           <TableCell>
                             <div className="text-sm font-medium text-gray-500">
                               {(currentPage - 1) * itemsPerPage + index + 1}
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="min-w-[200px]">
                             <div className="font-bold text-sm">
                               {provider.taskTitle || '-'}
                             </div>
                           </TableCell>
+                          <TableCell className="min-w-[140px]">
+                            <div className="text-sm">
+                              {provider.firstName || '-'}
+                            </div>
+                          </TableCell>
+                          {/* <TableCell>
+                            <div className="text-sm">
+                              {provider.lastName || '-'}
+                            </div>
+                          </TableCell> */}
                           <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                {provider.firstName} {provider.lastName}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {provider.email}
-                              </div>
+                            <div className="text-sm max-w-[200px] truncate" title={provider.email || ''}>
+                              {provider.email || '-'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm max-w-xs truncate" title={provider.serviceCategories || ''}>
+                              {provider.serviceCategories || '-'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm max-w-[180px] truncate" title={provider.businessName || ''}>
+                              {provider.businessName || '-'}
+                            </div>
+                          </TableCell>
+                          {/* <TableCell>
+                            <div className="text-sm">
+                              {provider.city || '-'}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              <div>{provider.phone}</div>
-                              <div className="text-gray-500">{provider.email}</div>
+                            {provider.address || '-'}  {provider.state || '-'} {provider.city || '-'} {provider.postcode || '-'}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              <div>{provider.city}, {provider.state}</div>
-                              <div className="text-gray-500">{provider.postcode}</div>
+                              {provider.postcode || '-'}
+                            </div>
+                          </TableCell> */}
+                        <TableCell>
+                          <div className="text-sm max-w-xs truncate">
+                            {[provider.address, provider.city, provider.state, provider.postcode]
+                              .filter(Boolean)
+                              .join(', ')}
+                          </div>
+                        </TableCell>
+
+                          <TableCell className="min-w-[130px]">
+                            <div className="text-sm">
+                              {provider.phone || '-'}
                             </div>
                           </TableCell>
+                          {/* <TableCell>
+                            <div className="text-sm max-w-xs truncate">
+                              {provider.notes || '-'}
+                            </div>
+                          </TableCell> */}
                           <TableCell>
                             <Badge className={`${getStatusColor(
                               (provider as any).smsDeliveryStatus === '1st_sent' ? 'sms_1st' :
@@ -1759,25 +2309,25 @@ export default function AdminPotentialProviders() {
                               {getStatusLabel(provider)}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          {/* <TableCell>
                             <Badge className={`${getPriorityColor(provider.priority)} text-white`}>
                               {provider.priority}
                             </Badge>
-                          </TableCell>
+                          </TableCell> */}
                           <TableCell>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2 min-w-0">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Avatar className="h-8 w-8">
-                                      {provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? (
+                                    <Avatar className="h-8 w-8 flex-shrink-0">
+                                      {hasTaskAssignedUser(provider) ? (
                                         <>
                                           <AvatarImage 
-                                            src={getTeamMember(provider.assignedTo)?.profileImage || ''} 
-                                            alt={provider.assignedAdminName}
+                                            src={getTeamMember(provider.taskAssignedTo)?.profileImage ?? ''} 
+                                            alt={getTaskAssignedDisplayName(provider)}
                                           />
                                           <AvatarFallback className="bg-blue-500 text-white text-sm">
-                                            {provider.assignedAdminName.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+                                            {getTaskAssignedInitials(provider)}
                                           </AvatarFallback>
                                         </>
                                       ) : (
@@ -1788,13 +2338,14 @@ export default function AdminPotentialProviders() {
                                     </Avatar>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <p>{provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? provider.assignedAdminName : 'Unassigned'}</p>
+                                    <p>{getTaskAssignedDisplayName(provider)}</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
+                              <span className="text-sm truncate">{getTaskAssignedDisplayName(provider)}</span>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -1908,6 +2459,7 @@ export default function AdminPotentialProviders() {
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
               )}
 
@@ -1984,10 +2536,23 @@ export default function AdminPotentialProviders() {
                               {columnProviders.map((provider: PotentialProvider) => (
                                 <div
                                   key={provider.id}
-                                  className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200 group cursor-move"
+                                  role="button"
+                                  tabIndex={0}
+                                  className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200 group cursor-pointer"
                                   draggable
                                   onDragStart={(e) => {
                                     e.dataTransfer.setData('text/plain', provider.id.toString());
+                                  }}
+                                  onClick={() => {
+                                    setSelectedProvider(provider);
+                                    setIsViewDetailsDialogOpen(true);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      setSelectedProvider(provider);
+                                      setIsViewDetailsDialogOpen(true);
+                                    }
                                   }}
                                 >
                                   <div className="flex items-start justify-between mb-3">
@@ -2060,7 +2625,7 @@ export default function AdminPotentialProviders() {
                                              <MoreVertical className="h-4 w-4" />
                                            </Button>
                                          </DropdownMenuTrigger>
-                                         <DropdownMenuContent align="end">
+                                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                            <DropdownMenuItem onClick={() => {
                                              // Update status to "First Call" before opening phone
                                              updateProviderMutation.mutate({
@@ -2140,15 +2705,15 @@ export default function AdminPotentialProviders() {
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger asChild>
-                                            <Avatar className="h-6 w-6 mr-2">
-                                              {provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? (
+                                            <Avatar className="h-6 w-6 mr-2 flex-shrink-0">
+                                              {hasTaskAssignedUser(provider) ? (
                                                 <>
                                                   <AvatarImage 
-                                                    src={getTeamMember(provider.assignedTo)?.profileImage || ''} 
-                                                    alt={provider.assignedAdminName}
+                                                    src={getTeamMember(provider.taskAssignedTo)?.profileImage ?? ''} 
+                                                    alt={getTaskAssignedDisplayName(provider)}
                                                   />
                                                   <AvatarFallback className="bg-blue-500 text-white text-xs">
-                                                    {provider.assignedAdminName.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+                                                    {getTaskAssignedInitials(provider)}
                                                   </AvatarFallback>
                                                 </>
                                               ) : (
@@ -2159,10 +2724,11 @@ export default function AdminPotentialProviders() {
                                             </Avatar>
                                           </TooltipTrigger>
                                           <TooltipContent>
-                                            <p>{provider.assignedAdminName && provider.assignedAdminName.trim() !== '' ? provider.assignedAdminName : 'Unassigned'}</p>
+                                            <p>{getTaskAssignedDisplayName(provider)}</p>
                                           </TooltipContent>
                                         </Tooltip>
                                       </TooltipProvider>
+                                      <span className="truncate">{getTaskAssignedDisplayName(provider)}</span>
                                     </div>
                                     
                                     <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 dark:border-gray-600">
@@ -2692,11 +3258,11 @@ export default function AdminPotentialProviders() {
 
       {/* Import Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Import Potential Providers</DialogTitle>
             <DialogDescription>
-              Import potential providers from a CSV file. The CSV should have columns: firstName, lastName, email, phone, businessName, address, city, state, postcode, serviceCategories
+              Import potential providers from a CSV file. Upload a file or paste CSV data. The system will automatically map CSV columns to database fields.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -2708,21 +3274,90 @@ export default function AdminPotentialProviders() {
                 placeholder="e.g., Gold Coast Import"
               />
             </div>
+            
             <div>
-              <label className="text-sm font-medium">CSV Data</label>
+              <label className="text-sm font-medium mb-2 block">Upload CSV File</label>
+              <Input
+                type="file"
+                accept=".csv"
+                onChange={handleCsvFileChange}
+                className="cursor-pointer"
+              />
+              {csvFile && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Selected: {csvFile.name}
+                </p>
+              )}
+            </div>
+
+            <div className="text-sm text-gray-600 dark:text-gray-400 text-center">OR</div>
+
+            {/* Expected CSV Fields - Show before textarea */}
+            <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20">
+              <h4 className="font-medium text-sm mb-3 text-blue-900 dark:text-blue-100">
+                📋 Expected CSV Fields (Your CSV should include these columns):
+              </h4>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs font-semibold text-blue-800 dark:text-blue-200 mb-1">Required Fields:</p>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">firstName</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">lastName</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">email</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">phone</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">address</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">city</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">state</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">postcode</Badge>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-blue-800 dark:text-blue-200 mb-1">Optional Fields:</p>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">serviceCategories</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">businessName</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">businessAbn</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">notes</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">priority</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">status</Badge>
+                    <Badge variant="outline" className="text-xs bg-white dark:bg-gray-800">assignedTo</Badge>
+                  </div>
+                </div>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                  💡 <strong>Note:</strong> Column names are matched automatically (case-insensitive). Variations like "First Name", "first_name", "firstName" all work.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Paste CSV Data</label>
               <Textarea
                 value={importData.csvData}
-                onChange={(e) => setImportData({...importData, csvData: e.target.value})}
-                placeholder="Paste CSV data here..."
-                rows={10}
+                onChange={handleCsvDataChange}
+                placeholder="Paste CSV data here (with headers in first row). Example: firstName,lastName,email,phone,address,city,state,postcode..."
+                rows={8}
               />
             </div>
+
+            {/* Info about field mapping */}
+            {importData.csvData.trim() && (
+              <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
+                <p className="text-sm text-green-900 dark:text-green-100">
+                  <strong>✓ CSV Data Detected:</strong> After clicking "Import Providers", you'll see a field mapping showing which CSV columns were matched to database fields. 
+                  Fields not found in CSV will be set to empty/null.
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsImportDialogOpen(false);
+              setCsvFile(null);
+              setFieldMapping(null);
+            }}>
               Cancel
             </Button>
-            <Button onClick={handleImportProviders} disabled={importProvidersMutation.isPending}>
+            <Button onClick={handleImportProviders} disabled={importProvidersMutation.isPending || !importData.csvData.trim()}>
               {importProvidersMutation.isPending ? "Importing..." : "Import Providers"}
             </Button>
           </DialogFooter>
@@ -2841,7 +3476,7 @@ export default function AdminPotentialProviders() {
                   </SelectTrigger>
                   <SelectContent>
                     {adminUsers.map((user: any) => (
-                      <SelectItem key={user.id} value={user.username}>
+                      <SelectItem key={user.id} value={String(user.id)}>
                         {user.firstName} {user.lastName} ({user.username})
                       </SelectItem>
                     ))}
@@ -3064,26 +3699,124 @@ export default function AdminPotentialProviders() {
                     <p><strong>Imported:</strong> {selectedPendingImport.createdAt.toLocaleString()}</p>
                   </div>
                 </div>
+
+                {/* CSV Headers and Field Mapping Display */}
+                <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20 mb-4">
+                  <h4 className="font-medium text-sm mb-2 text-blue-900 dark:text-blue-100">
+                    CSV Headers Found
+                  </h4>
+                  {selectedPendingImport.csvHeaders && selectedPendingImport.csvHeaders.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {selectedPendingImport.csvHeaders.map((header, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {header}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-600 dark:text-gray-400">No headers found in CSV</p>
+                  )}
+                  
+                  {selectedPendingImport.unmappedHeaders && selectedPendingImport.unmappedHeaders.length > 0 && (
+                    <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700">
+                      <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
+                        ⚠️ Unmapped Headers (not recognized):
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedPendingImport.unmappedHeaders.map((header, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs bg-yellow-100">
+                            {header}
+                          </Badge>
+                        ))}
+                      </div>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-2">
+                        These columns were not matched to any database fields. Consider renaming them to match expected field names.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Field Mapping Display */}
+                {selectedPendingImport.fieldMapping && Object.keys(selectedPendingImport.fieldMapping).length > 0 && (
+                  <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20 mb-4">
+                    <h4 className="font-medium text-sm mb-3 text-green-900 dark:text-green-100">
+                      Field Mapping Used (CSV Column → Database Field)
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                      {Object.entries(selectedPendingImport.fieldMapping).map(([csvHeader, dbField]) => (
+                        <div key={csvHeader} className="flex items-center gap-2">
+                          <span className="font-medium text-gray-700 dark:text-gray-300">{csvHeader}</span>
+                          <ArrowRight className="h-4 w-4 text-gray-500" />
+                          <span className="text-green-700 dark:text-green-300 font-semibold">{dbField}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-700">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                        Fields not found in CSV were set to empty/null. You can rename your CSV columns to match these field names for future imports.
+                      </p>
+                      {selectedPendingImport.providers.length > 0 && (
+                        <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700">
+                          <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200 mb-1">⚠️ Sample Data Check:</p>
+                          <div className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+                            <p><strong>First Provider Sample:</strong></p>
+                            <p><strong>First Name:</strong> {selectedPendingImport.providers[0].firstName || '(empty)'}</p>
+                            <p><strong>Last Name:</strong> {selectedPendingImport.providers[0].lastName || '(empty)'}</p>
+                            <p><strong>Email:</strong> {selectedPendingImport.providers[0].email || '(empty)'}</p>
+                            <p><strong>Phone:</strong> {selectedPendingImport.providers[0].phone || '(empty)'}</p>
+                            <p><strong>Service Categories:</strong> {selectedPendingImport.providers[0].serviceCategories || '(empty)'}</p>
+                            <p><strong>Business Name:</strong> {selectedPendingImport.providers[0].businessName || '(empty)'}</p>
+                            <p><strong>Suburb:</strong> {selectedPendingImport.providers[0].city || '(empty)'}</p>
+                            <p><strong>State:</strong> {selectedPendingImport.providers[0].state || '(empty)'}</p>
+                            <p><strong>Postcode:</strong> {selectedPendingImport.providers[0].postcode || '(empty)'}</p>
+                            <p><strong>Address:</strong> {selectedPendingImport.providers[0].address || '(empty)'}</p>
+                            <p><strong>Notes:</strong> {selectedPendingImport.providers[0].notes || '(empty)'}</p>
+                            {(!selectedPendingImport.providers[0].email || !selectedPendingImport.providers[0].email.includes('@')) && (
+                              <p className="text-red-600 dark:text-red-400 font-semibold">⚠️ Email doesn't look valid - check your CSV column mapping!</p>
+                            )}
+                            {(!selectedPendingImport.providers[0].phone || selectedPendingImport.providers[0].phone.length < 5) && (
+                              <p className="text-red-600 dark:text-red-400 font-semibold">⚠️ Phone doesn't look valid - check your CSV column mapping!</p>
+                            )}
+                            {(!selectedPendingImport.providers[0].firstName || selectedPendingImport.providers[0].firstName.length < 2) && (
+                              <p className="text-red-600 dark:text-red-400 font-semibold">⚠️ First name doesn't look valid - check your CSV column mapping!</p>
+                            )}
+                            {(!selectedPendingImport.providers[0].lastName || selectedPendingImport.providers[0].lastName.length < 2) && (
+                              <p className="text-red-600 dark:text-red-400 font-semibold">⚠️ Last name doesn't look valid - check your CSV column mapping!</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="max-h-96 overflow-y-auto">
                   <h4 className="font-medium text-gray-900 dark:text-white mb-3">Imported Providers</h4>
                   <div className="space-y-2">
                     {selectedPendingImport.providers.map((provider, index) => (
                       <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <div>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
                             <p className="font-medium text-gray-900 dark:text-white">
                               {provider.firstName} {provider.lastName}
                             </p>
-                            <p className="text-sm text-gray-500">{provider.email}</p>
-                            <p className="text-sm text-gray-500">{provider.phone}</p>
-                            {provider.businessName && (
-                              <p className="text-sm text-gray-500">{provider.businessName}</p>
+                            <Badge variant="outline" className="text-xs">
+                              {provider.city}, {provider.state} {provider.postcode}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-400">
+                            <p><strong>Email:</strong> {provider.email || '-'}</p>
+                            <p><strong>Phone:</strong> {provider.phone || '-'}</p>
+                            <p><strong>Service Categories:</strong> {provider.serviceCategories || '-'}</p>
+                            <p><strong>Business Name:</strong> {provider.businessName || '-'}</p>
+                            <p><strong>Suburb:</strong> {provider.city || '-'}</p>
+                            <p><strong>State:</strong> {provider.state || '-'}</p>
+                            <p><strong>Postcode:</strong> {provider.postcode || '-'}</p>
+                            <p><strong>Address:</strong> {provider.address || '-'}</p>
+                            {provider.notes && (
+                              <p className="col-span-2"><strong>Notes:</strong> {provider.notes}</p>
                             )}
                           </div>
-                          <Badge variant="outline" className="text-xs">
-                            {provider.city}, {provider.state}
-                          </Badge>
                         </div>
                       </div>
                     ))}
@@ -3323,21 +4056,21 @@ export default function AdminPotentialProviders() {
               <div className="space-y-4">
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Additional Information</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Assigned To</p>
+                    <div>
+                    <p className="text-sm text-gray-500">Assigned To (Task)</p>
                     <div className="flex items-center space-x-2 mt-1">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Avatar className="h-8 w-8">
-                              {selectedProvider.assignedAdminName && selectedProvider.assignedAdminName.trim() !== '' ? (
+                              {hasTaskAssignedUser(selectedProvider) ? (
                                 <>
                                   <AvatarImage 
-                                    src={getTeamMember(selectedProvider.assignedTo)?.profileImage || ''} 
-                                    alt={selectedProvider.assignedAdminName}
+                                    src={getTeamMember(selectedProvider.taskAssignedTo)?.profileImage ?? ''} 
+                                    alt={getTaskAssignedDisplayName(selectedProvider)}
                                   />
                                   <AvatarFallback className="bg-blue-500 text-white text-sm">
-                                    {selectedProvider.assignedAdminName.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+                                    {getTaskAssignedInitials(selectedProvider)}
                                   </AvatarFallback>
                                 </>
                               ) : (
@@ -3348,10 +4081,13 @@ export default function AdminPotentialProviders() {
                             </Avatar>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{selectedProvider.assignedAdminName && selectedProvider.assignedAdminName.trim() !== '' ? selectedProvider.assignedAdminName : 'Unassigned'}</p>
+                            <p>{getTaskAssignedDisplayName(selectedProvider)}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {getTaskAssignedDisplayName(selectedProvider)}
+                      </p>
                     </div>
                   </div>
                   <div>

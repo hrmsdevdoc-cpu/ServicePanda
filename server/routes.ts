@@ -4268,10 +4268,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the admin username and role from the authenticated user
       const adminUsername = (req as any).admin?.username;
       const adminRole = (req as any).admin?.role;
-      const isSuperAdmin = adminRole === 'administrator' || adminRole === 'super_admin';
+      // Check for administrator role (case-insensitive)
+      const roleLower = adminRole?.toLowerCase() || '';
+      const isSuperAdmin = roleLower === 'administrator' || roleLower === 'super_admin';
       
       console.log('Admin username from request:', adminUsername);
       console.log('Admin role:', adminRole);
+      console.log('Admin role (lowercase):', roleLower);
       console.log('Is super admin:', isSuperAdmin);
       
       const providers = await storage.getAllPotentialProviders(adminUsername, isSuperAdmin);
@@ -4301,12 +4304,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Import name is required' });
       }
 
+      if (!csvData || typeof csvData !== 'string' || csvData.trim() === '') {
+        return res.status(400).json({ message: 'CSV data is required' });
+      }
 
       const result = await storage.importPotentialProviders(csvData, importName);
       res.json(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error importing potential providers:', error);
-      res.status(500).json({ message: 'Failed to import potential providers' });
+      const errorMessage = error?.message || 'Failed to import potential providers';
+      res.status(500).json({ message: errorMessage });
     }
   });
 

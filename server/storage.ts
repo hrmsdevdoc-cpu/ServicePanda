@@ -512,7 +512,7 @@ export interface IStorage {
   // Potential Providers operations
   getAllPotentialProviders(): Promise<PotentialProvider[]>;
   createPotentialProvider(providerData: any): Promise<PotentialProvider>;
-  importPotentialProviders(csvData: string, importName: string): Promise<{ count: number, providers: any[] }>;
+  importPotentialProviders(csvData: string, importName: string): Promise<{ count: number, providers: any[], fieldMapping: any, csvHeaders?: string[], unmappedHeaders?: string[] }>;
   confirmPotentialProvidersImport(providers: any[]): Promise<{ count: number }>;
   updatePotentialProvider(id: number, updates: any): Promise<PotentialProvider>;
   updatePotentialProviderSmsStatus(providerId: number, status: '1st_sent' | '2nd_sent'): Promise<void>;
@@ -5964,6 +5964,10 @@ export class DatabaseStorage implements IStorage {
       console.log('Is super admin:', isSuperAdmin);
       console.log('Will apply filtering:', adminUsername && !isSuperAdmin);
 
+      // First, get a count of all providers in the database (for debugging)
+      const totalCount = await db.select({ count: sql<number>`count(*)` }).from(potentialProviders);
+      console.log('=== DEBUG: Total providers in database:', totalCount[0]?.count || 0);
+
       let query = db
         .select({
           id: potentialProviders.id,
@@ -5984,8 +5988,22 @@ export class DatabaseStorage implements IStorage {
           status: potentialProviders.status,
           priority: potentialProviders.priority,
           assignedTo: potentialProviders.assignedTo,
-          assignedAdminName: sql<string>`CONCAT(${adminUsers.firstName}, ' ', ${adminUsers.lastName})`.as('assignedAdminName'),
-          taskTitle: sql<string>`${potentialProviderTasks.title}`.as('taskTitle'),
+          assignedAdminName: sql<string>`COALESCE(NULLIF(TRIM(CONCAT(${adminUsers.firstName}, ' ', ${adminUsers.lastName})), ''), ${potentialProviders.assignedTo})`.as('assignedAdminName'),
+          // Get latest task title and assigned_to using subqueries
+          taskTitle: sql<string>`(
+            SELECT title 
+            FROM potential_provider_tasks 
+            WHERE potential_provider_id = ${potentialProviders.id}
+            ORDER BY created_at DESC 
+            LIMIT 1
+          )`.as('taskTitle'),
+          taskAssignedTo: sql<string | null>`(
+            SELECT assigned_to 
+            FROM potential_provider_tasks 
+            WHERE potential_provider_id = ${potentialProviders.id}
+            ORDER BY created_at DESC 
+            LIMIT 1
+          )`.as('taskAssignedTo'),
           smsDeliveryStatus: potentialProviders.smsDeliveryStatus,
           firstSmsSentAt: potentialProviders.firstSmsSentAt,
           secondSmsSentAt: potentialProviders.secondSmsSentAt,
@@ -5997,30 +6015,111 @@ export class DatabaseStorage implements IStorage {
           updatedAt: potentialProviders.updatedAt,
         })
         .from(potentialProviders)
-        .leftJoin(potentialProviderTasks, eq(potentialProviders.id, potentialProviderTasks.potentialProviderId))
-        .leftJoin(adminUsers, eq(potentialProviderTasks.assignedTo, adminUsers.username));
+        .leftJoin(adminUsers, eq(potentialProviders.assignedTo, adminUsers.username));
 
       // Add filtering based on admin username (unless super admin)
+      // Non-super-admins should see: providers assigned to them OR unassigned providers (NULL)
       if (adminUsername && !isSuperAdmin) {
-        query = query.where(eq(potentialProviderTasks.assignedTo, adminUsername));
-        console.log('Filtering by assigned admin:', adminUsername);
+        query = query.where(
+          or(
+            eq(potentialProviders.assignedTo, adminUsername),
+            isNull(potentialProviders.assignedTo)
+          )
+        );
+        console.log('Filtering by assigned admin or unassigned:', adminUsername);
       } else if (isSuperAdmin) {
-        console.log('Super admin - showing all tasks');
+        console.log('Super admin - showing all providers');
       }
 
-      const providers = await query.orderBy(desc(potentialProviders.createdAt));
+      let providers = await query.orderBy(desc(potentialProviders.createdAt));
+
+      // When assignedTo stores admin user ID (numeric), join on username fails — resolve name by ID
+      const numericAssignedIds = Array.from(new Set(
+        providers
+          .filter((p: any) => p.assignedTo != null && String(p.assignedTo).trim() !== '' && /^\d+$/.test(String(p.assignedTo)))
+          .map((p: any) => parseInt(String(p.assignedTo), 10))
+      )) as number[];
+      if (numericAssignedIds.length > 0) {
+        const adminById = await db.select().from(adminUsers).where(inArray(adminUsers.id, numericAssignedIds));
+        const idToName = Object.fromEntries(adminById.map((u: any) => [u.id, `${u.firstName} ${u.lastName}`.trim()]));
+        providers = providers.map((p: any) => {
+          const to = p.assignedTo;
+          const isNumericId = to != null && /^\d+$/.test(String(to));
+          const missingOrNumericName = !p.assignedAdminName || /^\d+$/.test(String(p.assignedAdminName).trim());
+          if (isNumericId && missingOrNumericName) {
+            const id = parseInt(String(to), 10);
+            const name = idToName[id];
+            if (name) return { ...p, assignedAdminName: name };
+          }
+          return p;
+        });
+      }
+
+      // Resolve task assignee name (from potential_provider_tasks.assigned_to) by id or username
+      const taskAssignedToValues = Array.from(new Set(
+        providers
+          .filter((p: any) => p.taskAssignedTo != null && String(p.taskAssignedTo).trim() !== '')
+          .map((p: any) => String(p.taskAssignedTo).trim())
+      ));
+      if (taskAssignedToValues.length > 0) {
+        const taskNumericIds = taskAssignedToValues.filter((v) => /^\d+$/.test(v)).map((v) => parseInt(v, 10));
+        const taskUsernames = taskAssignedToValues.filter((v) => !/^\d+$/.test(v));
+        const taskIdToName: Record<number, string> = {};
+        const taskUsernameToName: Record<string, string> = {};
+        if (taskNumericIds.length > 0) {
+          const taskAdminsById = await db.select().from(adminUsers).where(inArray(adminUsers.id, taskNumericIds));
+          taskAdminsById.forEach((u: any) => { taskIdToName[u.id] = `${u.firstName} ${u.lastName}`.trim(); });
+        }
+        if (taskUsernames.length > 0) {
+          const taskAdminsByUsername = await db.select().from(adminUsers).where(inArray(adminUsers.username, taskUsernames));
+          taskAdminsByUsername.forEach((u: any) => { taskUsernameToName[u.username] = `${u.firstName} ${u.lastName}`.trim(); });
+        }
+        providers = providers.map((p: any) => {
+          const to = p.taskAssignedTo;
+          if (to == null || String(to).trim() === '') return p;
+          const s = String(to).trim();
+          const name = /^\d+$/.test(s) ? taskIdToName[parseInt(s, 10)] : taskUsernameToName[s];
+          return { ...p, taskAssignedToName: name || s };
+        });
+      }
 
       console.log('=== DEBUG: Query result ===');
       console.log('Total providers found:', providers.length);
+      
+      // Log sample of providers to debug
       if (providers.length > 0) {
-        console.log('First provider:', {
-          id: providers[0].id,
-          name: `${providers[0].firstName} ${providers[0].lastName}`,
-          status: providers[0].status,
-          assignedTo: providers[0].assignedTo,
-          assignedAdminName: providers[0].assignedAdminName,
-          taskTitle: providers[0].taskTitle
+        console.log('Sample providers (first 3):');
+        providers.slice(0, 3).forEach((p: any, idx: number) => {
+          console.log(`  Provider ${idx + 1}:`, {
+            id: p.id,
+            name: `${p.firstName} ${p.lastName}`,
+            status: p.status,
+            assignedTo: p.assignedTo,
+            assignedAdminName: p.assignedAdminName,
+            taskTitle: p.taskTitle,
+            taskAssignedTo: p.taskAssignedTo,
+            taskAssignedToName: p.taskAssignedToName,
+            createdAt: p.createdAt
+          });
         });
+      } else {
+        console.log('⚠️ WARNING: No providers found!');
+        // Check if there are any providers at all (without filters)
+        const allProviders = await db.select({ count: sql<number>`count(*)` }).from(potentialProviders);
+        console.log('Total providers in database (no filters):', allProviders[0]?.count || 0);
+        
+        // Check providers with assignedTo
+        if (adminUsername && !isSuperAdmin) {
+          const assignedProviders = await db.select({ count: sql<number>`count(*)` })
+            .from(potentialProviders)
+            .where(eq(potentialProviders.assignedTo, adminUsername));
+          console.log(`Providers assigned to ${adminUsername}:`, assignedProviders[0]?.count || 0);
+          
+          const unassignedProviders = await db.select({ count: sql<number>`count(*)` })
+            .from(potentialProviders)
+            .where(isNull(potentialProviders.assignedTo));
+          console.log(`Unassigned providers (NULL):`, unassignedProviders[0]?.count || 0);
+        }
       }
 
       // Debug: Check potential_provider_tasks table
@@ -6075,61 +6174,402 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async importPotentialProviders(csvData: string, importName: string): Promise<{ count: number, providers: any[] }> {
+  async importPotentialProviders(csvData: string, importName: string): Promise<{ count: number, providers: any[], fieldMapping: any, csvHeaders?: string[], unmappedHeaders?: string[] }> {
     try {
+      // Helper function to normalize header names for matching
+      const normalizeHeader = (header: string): string => {
+        return header.toLowerCase().trim().replace(/[_\s-]/g, '').replace(/['"]/g, '');
+      };
 
-      // Parse CSV data
-      const lines = csvData.trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
-      const data = lines.slice(1);
+      // Define field mappings with common variations
+      const fieldMappings: { [key: string]: string[] } = {
+        firstName: ['firstname', 'first_name', 'fname', 'givenname', 'given_name', 'first', 'first name'],
+        lastName: ['lastname', 'last_name', 'lname', 'surname', 'familyname', 'family_name', 'last', 'last name'],
+        email: ['email', 'e-mail', 'emailaddress', 'email_address', 'mail', 'e mail'],
+        phone: ['phone', 'phonenumber', 'phone_number', 'mobile', 'mobilenumber', 'mobile_number', 'tel', 'telephone', 'contact', 'phone number'],
+        businessName: ['businessname', 'business_name', 'company', 'companyname', 'company_name', 'business', 'org', 'organization', 'business name'],
+        businessAbn: ['businessabn', 'business_abn', 'abn', 'abnnumber', 'abn_number', 'business abn'],
+        address: ['address', 'street', 'streetaddress', 'street_address', 'location', 'fulladdress', 'full_address', 'street address'],
+        city: ['city', 'suburb', 'town', 'locality'],
+        state: ['state', 'province', 'region'],
+        postcode: ['postcode', 'post_code', 'zip', 'zipcode', 'zip_code', 'postalcode', 'postal_code', 'post code'],
+        serviceCategories: ['servicecategories', 'service_categories', 'services', 'categories', 'service', 'category', 'service categories', 'servicecategory'],
+        notes: ['notes', 'note', 'comments', 'comment', 'remarks', 'remark'],
+        priority: ['priority', 'prio', 'importance'],
+        status: ['status', 'stage'],
+        assignedTo: ['assignedto', 'assigned_to', 'assignee', 'assigned', 'owner', 'assigned to'],
+      };
+
+      // Function to find matching field for a CSV header
+      const findMatchingField = (csvHeader: string): string | null => {
+        const normalized = normalizeHeader(csvHeader);
+        for (const [dbField, variations] of Object.entries(fieldMappings)) {
+          if (variations.some(v => normalizeHeader(v) === normalized) || normalizeHeader(dbField) === normalized) {
+            return dbField;
+          }
+        }
+        return null;
+      };
+
+      // Parse CSV data - handle quoted fields and commas within quotes
+      const parseCSVLine = (line: string): string[] => {
+        const result: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        result.push(current.trim());
+        return result;
+      };
+
+      const lines = csvData.trim().split('\n').filter(line => line.trim());
+      if (lines.length === 0) {
+        throw new Error('CSV data is empty');
+      }
+
+      // Helper to check if a value looks like a header (not data)
+      const looksLikeHeader = (value: string): boolean => {
+        const normalized = value.toLowerCase().trim();
+        // Headers are usually short, don't contain numbers (except in field names), don't look like emails/phones
+        const hasEmail = normalized.includes('@');
+        const hasPhonePattern = /[\d\s\-\(\)]{8,}/.test(normalized);
+        const hasUrl = normalized.includes('http') || normalized.includes('www.');
+        const isLongData = normalized.length > 50;
+        
+        // If it looks like actual data, it's probably not a header
+        if (hasEmail || hasPhonePattern || hasUrl || isLongData) {
+          return false;
+        }
+        
+        // Check if it matches common header patterns
+        const commonHeaderWords = ['name', 'first', 'last', 'email', 'phone', 'address', 'city', 'state', 'postcode', 'business', 'service', 'category', 'abn'];
+        return commonHeaderWords.some(word => normalized.includes(word));
+      };
+
+      // Check if first row looks like headers
+      const firstRow = parseCSVLine(lines[0]);
+      const firstRowLooksLikeHeaders = firstRow.some(cell => looksLikeHeader(cell));
+      
+      // Also check second row to compare
+      let headers: string[];
+      let data: string[];
+      let skipFirstRow = false;
+      
+      if (lines.length > 1) {
+        const secondRow = parseCSVLine(lines[1]);
+        const secondRowLooksLikeData = secondRow.some(cell => {
+          const normalized = cell.toLowerCase().trim();
+          return normalized.includes('@') || /[\d\s\-\(\)]{8,}/.test(normalized) || normalized.includes('http');
+        });
+        
+        // If first row doesn't look like headers but second row looks like data, first row might be data
+        if (!firstRowLooksLikeHeaders && secondRowLooksLikeData) {
+          console.warn('WARNING: First row does not appear to be headers. Treating as data row.');
+          // Try to detect if there are actual headers by checking if any row looks like headers
+          let foundHeaderRow = -1;
+          for (let i = 0; i < Math.min(3, lines.length); i++) {
+            const row = parseCSVLine(lines[i]);
+            if (row.some(cell => looksLikeHeader(cell))) {
+              foundHeaderRow = i;
+              break;
+            }
+          }
+          
+          if (foundHeaderRow >= 0) {
+            headers = parseCSVLine(lines[foundHeaderRow]);
+            data = lines.slice(foundHeaderRow + 1);
+            console.log(`Found headers at row ${foundHeaderRow + 1}`);
+          } else {
+            // No headers found, use first row as headers anyway but warn
+            headers = firstRow;
+            data = lines.slice(1);
+            console.warn('No header row detected. Using first row as headers.');
+          }
+        } else {
+          headers = firstRow;
+          data = lines.slice(1);
+        }
+      } else {
+        headers = firstRow;
+        data = [];
+      }
+
+      // Log headers for debugging
+      console.log('=== CSV Import Debug ===');
+      console.log('CSV Headers found:', headers);
+      console.log('Number of headers:', headers.length);
+      console.log('First row looks like headers:', firstRowLooksLikeHeaders);
+
+      // Create field mapping: CSV header index -> database field name
+      const fieldMapping: { [csvHeader: string]: string } = {};
+      const headerToIndex: { [dbField: string]: number } = {};
+
+      headers.forEach((header, index) => {
+        const dbField = findMatchingField(header);
+        if (dbField) {
+          fieldMapping[header] = dbField;
+          headerToIndex[dbField] = index;
+          console.log(`Matched: "${header}" -> ${dbField} (index ${index})`);
+        } else {
+          console.log(`No match found for header: "${header}" (index ${index})`);
+        }
+      });
+
+      console.log('Field mapping result:', fieldMapping);
+      console.log('Header to index mapping:', headerToIndex);
+
+      // Validate that we have at least some required fields mapped
+      const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'state', 'city', 'postcode'];
+      const mappedRequiredFields = requiredFields.filter(field => headerToIndex[field] !== undefined);
+      
+      if (mappedRequiredFields.length === 0) {
+        console.warn('WARNING: No required fields were matched from CSV headers!');
+        console.warn('Available headers:', headers);
+        console.warn('This may result in invalid data being imported.');
+        throw new Error(`No valid headers found in CSV. Found headers: ${headers.join(', ')}. Please ensure your CSV has a header row with column names like: firstName, lastName, email, phone, address, city, state, postcode`);
+      } else {
+        console.log(`Matched ${mappedRequiredFields.length} out of ${requiredFields.length} required fields:`, mappedRequiredFields);
+      }
 
       const importId = `import_${Date.now()}`;
       const providers = [];
 
-      for (const line of data) {
-        const values = line.split(',').map(v => v.trim());
+      for (let lineIndex = 0; lineIndex < data.length; lineIndex++) {
+        const line = data[lineIndex];
+        if (!line.trim()) continue; // Skip empty lines
+        
+        const values = parseCSVLine(line);
+        
+        // Log first row for debugging
+        if (lineIndex === 0) {
+          console.log('=== First data row sample ===');
+          console.log('Values:', values);
+          console.log('Number of values:', values.length);
+        }
+        
+        // Get value for a field, return empty string or null based on field type
+        const getFieldValue = (fieldName: string): any => {
+          const index = headerToIndex[fieldName];
+          if (index === undefined || index >= values.length) {
+            // Return appropriate default based on field
+            if (fieldName === 'businessName' || fieldName === 'businessAbn' || fieldName === 'serviceCategories' || fieldName === 'notes') {
+              return null;
+            }
+            return '';
+          }
+          const value = values[index]?.trim() || '';
+          return value || (fieldName === 'businessName' || fieldName === 'businessAbn' || fieldName === 'serviceCategories' || fieldName === 'notes' ? null : '');
+        };
+
         const provider = {
-          firstName: values[0] || '',
-          lastName: values[1] || '',
-          email: values[2] || '',
-          phone: values[3] || '',
-          businessName: values[4] || null,
-          businessAbn: values[5] || null,
-          address: values[6] || '',
-          city: values[7] || '',
-          state: values[8] || '',
-          postcode: values[9] || '',
-          serviceCategories: values[10] || null,
+          firstName: getFieldValue('firstName') || '',
+          lastName: getFieldValue('lastName') || '',
+          email: getFieldValue('email') || '',
+          phone: getFieldValue('phone') || '',
+          businessName: getFieldValue('businessName') || null,
+          businessAbn: getFieldValue('businessAbn') || null,
+          address: getFieldValue('address') || '',
+          city: getFieldValue('city') || '',
+          state: getFieldValue('state') || '',
+          postcode: getFieldValue('postcode') || '',
+          serviceCategories: getFieldValue('serviceCategories') || null,
+          notes: getFieldValue('notes') || null,
+          priority: getFieldValue('priority') || 'medium',
+          status: getFieldValue('status') || 'new',
+          assignedTo: getFieldValue('assignedTo') || null,
           source: 'import',
           importId,
           importName,
-          priority: 'medium',
-          status: 'new',
           createdAt: new Date(),
           updatedAt: new Date(),
         };
 
+        // Log first provider for debugging
+        if (lineIndex === 0) {
+          console.log('=== First provider parsed ===');
+          console.log('Provider data:', JSON.stringify(provider, null, 2));
+        }
+
         providers.push(provider);
       }
 
-      console.log(`Parsed ${providers.length} potential providers for confirmation`);
-      return { count: providers.length, providers };
+      console.log(`Parsed ${providers.length} potential providers`);
+      console.log('Field mapping:', fieldMapping);
+      
+      // Process ALL providers - NO skipping, allow empty values for every field
+      const validProviders: any[] = [];
+
+      for (let i = 0; i < providers.length; i++) {
+        const provider = providers[i];
+
+        // Use businessName as fallback for firstName/lastName if empty
+        const firstName = (provider.firstName || '').trim() || (provider.businessName || '').trim() || '';
+        const lastName = (provider.lastName || '').trim() || '';
+        // Placeholder email only if completely empty
+        const email = (provider.email || '').trim() || 
+          `${(provider.businessName || 'provider').toLowerCase().replace(/\s+/g, '')}_${Date.now()}_${i}@import.local`;
+
+        // Add EVERY provider - empty strings allowed for all fields
+        validProviders.push({
+          ...provider,
+          firstName: firstName || '',
+          lastName: lastName || '',
+          email: email,
+          phone: (provider.phone || '').trim(),
+          address: (provider.address || '').trim(),
+          city: (provider.city || '').trim(),
+          state: (provider.state || '').trim(),
+          postcode: (provider.postcode || '').trim(),
+        });
+      }
+
+      console.log(`Processing ${validProviders.length} providers - ALL will be inserted (no skipping)`);
+
+      // DIRECTLY INSERT ALL PROVIDERS INTO DATABASE (no skipping)
+      let insertedCount = 0;
+      let insertError: string | null = null;
+      
+      if (validProviders.length > 0) {
+        try {
+          await db.insert(potentialProviders).values(validProviders);
+          insertedCount = validProviders.length;
+          console.log(`✅ Successfully inserted ${insertedCount} potential providers directly into database`);
+        } catch (dbError: any) {
+          console.error('❌ Database error inserting providers:', dbError);
+          insertError = dbError.message || 'Failed to insert providers';
+          // Don't throw - return error in response instead
+        }
+      }
+      
+      const response: any = { 
+        count: providers.length,
+        inserted: insertedCount,
+        skipped: 0, // No skipping anymore
+        errors: [], // No errors from validation
+        providers: validProviders, // Return all providers
+        fieldMapping, // Return mapping so frontend can display it
+        csvHeaders: headers, // Return CSV headers for debugging/display
+        unmappedHeaders: headers.filter(h => !fieldMapping[h]), // Headers that weren't mapped
+        message: insertError 
+          ? `Error: ${insertError}. ${insertedCount} providers inserted.`
+          : `✅ Successfully inserted ${insertedCount} providers into database. All records imported (empty values allowed).`
+      };
+      
+      return response;
     } catch (error) {
       console.error('Error importing potential providers:', error);
       throw error;
     }
   }
 
-  async confirmPotentialProvidersImport(providers: any[]): Promise<{ count: number }> {
+  async confirmPotentialProvidersImport(providers: any[]): Promise<{ count: number, inserted: number, skipped: number, errors: any[] }> {
     try {
       console.log('Confirming import of potential providers');
+      console.log(`Total providers to confirm: ${providers.length}`);
 
-      if (providers.length > 0) {
-        await db.insert(potentialProviders).values(providers);
+      if (providers.length === 0) {
+        return { count: 0, inserted: 0, skipped: 0, errors: [] };
       }
 
-      console.log(`Confirmed import of ${providers.length} potential providers`);
-      return { count: providers.length };
+      // Filter out providers with missing required fields
+      const validProviders: any[] = [];
+      const skippedProviders: any[] = [];
+      const errors: any[] = [];
+
+      for (let i = 0; i < providers.length; i++) {
+        const provider = providers[i];
+        const missingFields: string[] = [];
+
+        // Check required fields (NOT NULL in database)
+        if (!provider.firstName || provider.firstName.trim() === '') {
+          missingFields.push('firstName');
+        }
+        if (!provider.lastName || provider.lastName.trim() === '') {
+          missingFields.push('lastName');
+        }
+        if (!provider.email || provider.email.trim() === '') {
+          missingFields.push('email');
+        }
+        if (!provider.phone || provider.phone.trim() === '') {
+          missingFields.push('phone');
+        }
+        if (!provider.address || provider.address.trim() === '') {
+          missingFields.push('address');
+        }
+        if (!provider.city || provider.city.trim() === '') {
+          missingFields.push('city');
+        }
+        if (!provider.state || provider.state.trim() === '') {
+          missingFields.push('state');
+        }
+        if (!provider.postcode || provider.postcode.trim() === '') {
+          missingFields.push('postcode');
+        }
+
+        if (missingFields.length > 0) {
+          skippedProviders.push({
+            index: i,
+            provider,
+            missingFields
+          });
+          errors.push({
+            row: i + 1,
+            reason: `Missing required fields: ${missingFields.join(', ')}`,
+            data: provider
+          });
+        } else {
+          // Ensure all required fields are not empty strings
+          validProviders.push({
+            ...provider,
+            firstName: provider.firstName.trim(),
+            lastName: provider.lastName.trim(),
+            email: provider.email.trim(),
+            phone: provider.phone.trim(),
+            address: provider.address.trim(),
+            city: provider.city.trim(),
+            state: provider.state.trim(),
+            postcode: provider.postcode.trim(),
+          });
+        }
+      }
+
+      console.log(`Valid providers: ${validProviders.length}, Skipped: ${skippedProviders.length}`);
+
+      let insertedCount = 0;
+      if (validProviders.length > 0) {
+        try {
+          await db.insert(potentialProviders).values(validProviders);
+          insertedCount = validProviders.length;
+          console.log(`✅ Successfully inserted ${insertedCount} potential providers`);
+        } catch (dbError: any) {
+          console.error('❌ Database error inserting providers:', dbError);
+          throw new Error(`Database error: ${dbError.message || 'Failed to insert providers'}`);
+        }
+      }
+
+      if (skippedProviders.length > 0) {
+        console.warn(`⚠️ Skipped ${skippedProviders.length} providers due to missing required fields`);
+        skippedProviders.forEach((skipped, idx) => {
+          console.warn(`  Row ${skipped.index + 1}: Missing ${skipped.missingFields.join(', ')}`);
+        });
+      }
+
+      return { 
+        count: providers.length, 
+        inserted: insertedCount,
+        skipped: skippedProviders.length,
+        errors: errors
+      };
     } catch (error) {
       console.error('Error confirming potential providers import:', error);
       throw error;
@@ -6149,6 +6589,39 @@ export class DatabaseStorage implements IStorage {
       return provider;
     } catch (error) {
       console.error('Error updating potential provider:', error);
+      throw error;
+    }
+  }
+
+  /** Bulk assign potential providers (and their latest task) to an admin. Updates potential_providers.assignedTo and latest potential_provider_tasks.assigned_to. */
+  async bulkAssignPotentialProviders(providerIds: number[], assignedTo: string): Promise<{ updated: number }> {
+    if (!providerIds?.length || assignedTo == null || String(assignedTo).trim() === '') {
+      return { updated: 0 };
+    }
+    const assignValue = String(assignedTo).trim();
+    try {
+      // Update potential_providers.assignedTo for all selected
+      await db.update(potentialProviders)
+        .set({ assignedTo: assignValue, updatedAt: new Date() })
+        .where(inArray(potentialProviders.id, providerIds));
+
+      // Update latest task's assigned_to for each provider (PostgreSQL: latest per potential_provider_id)
+      const latestTaskIds = await db.execute(sql<{ id: number }>`
+        SELECT id FROM (
+          SELECT id, ROW_NUMBER() OVER (PARTITION BY potential_provider_id ORDER BY created_at DESC) as rn
+          FROM potential_provider_tasks
+          WHERE potential_provider_id = ANY(${providerIds})
+        ) sub WHERE rn = 1
+      `);
+      const ids = (latestTaskIds.rows || []).map((r: any) => r.id);
+      if (ids.length > 0) {
+        await db.update(potentialProviderTasks)
+          .set({ assignedTo: assignValue, updatedAt: new Date() })
+          .where(inArray(potentialProviderTasks.id, ids));
+      }
+      return { updated: providerIds.length };
+    } catch (error) {
+      console.error('Error bulk assigning potential providers:', error);
       throw error;
     }
   }
