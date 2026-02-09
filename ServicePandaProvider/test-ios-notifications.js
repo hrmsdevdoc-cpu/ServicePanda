@@ -68,13 +68,13 @@ try {
     console.log('❌ Remote notifications not enabled in Info.plist');
   }
   
-  if (infoPlistContent.includes('background-processing')) {
+  if (infoPlistContent.includes('processing')) {
     console.log('✅ Background processing enabled in Info.plist');
   } else {
     console.log('❌ Background processing not enabled in Info.plist');
   }
   
-  if (infoPlistContent.includes('background-fetch')) {
+  if (infoPlistContent.includes('fetch')) {
     console.log('✅ Background fetch enabled in Info.plist');
   } else {
     console.log('❌ Background fetch not enabled in Info.plist');
@@ -145,7 +145,7 @@ console.log('\n🎯 Next Steps:');
 console.log('1. Open ServicePandaProvider.xcworkspace in Xcode');
 console.log('2. Enable Push Notifications capability');
 console.log('3. Enable Background Modes capability');
-console.log('4. Enable Background processing, Remote notifications, and Background fetch');
+console.log('4. Enable Remote notifications (optionally Background fetch / Background processing if you use them)');
 console.log('5. Configure APNs certificate in OneSignal dashboard');
 console.log('6. Build and run on a physical iOS device');
 console.log('7. Test notification permissions and delivery');

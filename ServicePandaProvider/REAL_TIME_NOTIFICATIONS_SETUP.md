@@ -56,7 +56,10 @@ Add to `ios/ServicePandaProvider/Info.plist`:
 <key>UIBackgroundModes</key>
 <array>
     <string>remote-notification</string>
-    <string>background-processing</string>
+    <!-- Optional: only include if you actually use BGTaskScheduler -->
+    <!-- <string>processing</string> -->
+    <!-- Optional: only include if you implement background fetch -->
+    <!-- <string>fetch</string> -->
 </array>
 ```
 

@@ -1644,8 +1644,8 @@ export default function Landing() {
                 © 2025 ServicePanda. All rights reserved. ABN: XX XXX XXX XXX
               </p>
               <div className="flex flex-wrap justify-center gap-6 text-sm">
-                <a href="#" className="text-gray-400 hover:text-primary transition-colors">Privacy Policy</a>
-                <a href="#" className="text-gray-400 hover:text-primary transition-colors">Terms of Service</a>
+                <a href="/privacy-policy" className="text-gray-400 hover:text-primary transition-colors">Privacy Policy</a>
+                <a href="/terms" className="text-gray-400 hover:text-primary transition-colors">Terms of Service</a>
                 <a href="#" className="text-gray-400 hover:text-primary transition-colors">Cookie Policy</a>
                 <a href="#" className="text-gray-400 hover:text-primary transition-colors">Sitemap</a>
               </div>

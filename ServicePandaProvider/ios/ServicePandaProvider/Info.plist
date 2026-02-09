@@ -29,15 +29,21 @@
 		<key>NSAppTransportSecurity</key>
 		<dict/>
 		<key>NSCameraUsageDescription</key>
-		<string>This app needs access to camera to take photos for service documentation.</string>
+		<string>ServicePanda Provider needs access to your camera so you can take before/after photos and document work for jobs.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
-		<string>This app needs access to location when open to show nearby service requests.</string>
+		<string>ServicePanda Provider uses your location while the app is in use to show nearby leads and service requests, and to display distances.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>This app needs access to photo library to select images for service documentation.</string>
+		<string>ServicePanda Provider needs access to your photo library so you can select and upload images for job documentation.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>ServicePanda Provider can save images to your photo library only when you choose to download or save them.</string>
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>remote-notification</string>
 		</array>
+		<key>NSUserNotificationsUsageDescription</key>
+		<string>Allow notifications so we can alert you about new leads, job updates, and time-sensitive messages.</string>
+		<key>NSRemoteNotificationUsageDescription</key>
+		<string>We use push notifications to deliver new lead alerts and important job updates.</string>
 		<key>UIUserNotificationSettings</key>
 		<dict>
 			<key>UIUserNotificationTypes</key>
@@ -95,6 +101,8 @@
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
+		<false/>
+		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 	</dict>
 </plist>

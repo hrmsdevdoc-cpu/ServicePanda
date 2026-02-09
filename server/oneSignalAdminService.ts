@@ -43,15 +43,18 @@ class OneSignalAdminService {
     try {
       console.log(`📤 Sending OneSignal push notification to provider ${providerId}`);
 
-      // BROADCAST: Send to all users (no external ID needed)
-      console.log(`📢 Sending broadcast notification to all users`);
+      // TARGETED: Send only to this provider via external user id
+      // Provider app sets external id as: provider-{providerId}
+      const externalUserIds = this.getExternalUserIds(providerId);
+      console.log(`🎯 Targeting OneSignal external user ids:`, externalUserIds);
 
-      // Create payload with BROADCAST delivery (no external ID needed)
+      // Create payload with external user id targeting
       const payload = {
         app_id: this.appId,
 
-        // BROADCAST STRATEGY: Send to subscribed users only (recommended)
-        included_segments: ['Subscribed Users'],
+        // Target by external user id (stable per provider)
+        include_external_user_ids: externalUserIds,
+        channel_for_external_user_ids: 'push',
 
         headings: { en: notification.title },
         contents: { en: notification.message },

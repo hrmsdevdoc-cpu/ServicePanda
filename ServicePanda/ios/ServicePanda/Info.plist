@@ -42,11 +42,13 @@
 			</dict>
 		</dict>
 		<key>NSCameraUsageDescription</key>
-		<string>This app needs access to camera to take photos for service documentation.</string>
+		<string>We use your camera to let you take photos for service requests and documentation you submit.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
-		<string>This app needs access to location when open to show nearby service requests.</string>
+		<string>We use your location while you use the app to help match services and show relevant requests near you.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>This app needs access to photo library to select images for service documentation.</string>
+		<string>We use your photo library so you can choose images to attach to service requests and documentation.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>We save selected images to your photo library only when you choose to download or save an image from the app.</string>
 		<key>UIAppFonts</key>
 		<array>
 			<string>AntDesign.ttf</string>
@@ -80,11 +82,12 @@
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>remote-notification</string>
-			<string>background-processing</string>
 		</array>
 		<key>NSUserNotificationsUsageDescription</key>
 		<string>This app needs permission to send you push notifications about service requests and updates.</string>
 		<key>NSRemoteNotificationUsageDescription</key>
 		<string>This app needs permission to receive push notifications about new service requests and important updates.</string>
+		<key>ITSAppUsesNonExemptEncryption</key>
+		<false/>
 	</dict>
 </plist>
