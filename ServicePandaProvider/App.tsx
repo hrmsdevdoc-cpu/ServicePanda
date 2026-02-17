@@ -17,7 +17,6 @@ const OnboardingFlow = require('./src/screens/onboarding/OnboardingFlow');
 const LoginScreen = require('./src/screens/auth/LoginScreen');
 const ForgotPasswordScreen = require('./src/screens/auth/ForgotPasswordScreen');
 const ProviderRegistrationScreen = require('./src/screens/auth/ProviderRegistrationScreen');
-const ForgotPasswordScreen = require('./src/screens/auth/ForgotPasswordScreen');
 const DashboardScreen = require('./src/screens/dashboard/DashboardScreen');
 const ActiveLeadsScreen = require('./src/screens/leads/ActiveLeadsScreen');
 const ClosedLeadsScreen = require('./src/screens/leads/ClosedLeadsScreen');

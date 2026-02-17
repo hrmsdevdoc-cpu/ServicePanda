@@ -75,11 +75,25 @@ class ApiService {
 
       const status = response.status;
       const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      const makeHttpError = (message: string) => {
+        const err: any = new Error(message);
+        err.status = status;
+        err.url = url;
+        err.endpoint = endpoint;
+        return err;
+      };
 
       // Handle non-2xx responses
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ API Error: ${status} - ${errorText}`);
+        const errorSnippet = (errorText || '').slice(0, 500);
+        // Avoid spamming LogBox overlays for transient gateway errors in dev:
+        // log these as normal logs while still retaining details in Metro.
+        if ([502, 503, 504].includes(status)) {
+          console.log(`❌ API Error: ${status} - ${errorSnippet}`);
+        } else {
+          console.error(`❌ API Error: ${status} - ${errorSnippet}`);
+        }
 
         // Retry transient server errors
         if (attempt < 3 && [502, 503, 504].includes(status)) {
@@ -88,7 +102,22 @@ class ApiService {
           return this.makeRequest<T>(endpoint, options, attempt + 1);
         }
 
-        throw new Error(`${status}: ${errorText || response.statusText}`);
+        // Prefer friendly messages over dumping HTML/nginx pages to the UI.
+        const isHtml = contentType.includes('text/html') || /^\s*<(!doctype|html)\b/i.test(errorText || '');
+        if ([502, 503, 504].includes(status)) {
+          throw makeHttpError(ERROR_MESSAGES.SERVER_ERROR);
+        }
+        if (status === 401) {
+          throw makeHttpError('Session expired. Please log in again.');
+        }
+        if (status === 403) {
+          throw makeHttpError('Access denied. Please contact support if this persists.');
+        }
+        if (isHtml) {
+          throw makeHttpError(`Server returned an unexpected response (HTTP ${status}). Please try again later.`);
+        }
+
+        throw makeHttpError(`${status}: ${errorText || response.statusText}`);
       }
 
       // No content
@@ -110,19 +139,27 @@ class ApiService {
         const snippet = rawText.slice(0, 200);
         throw new Error(`Unexpected non-JSON response (content-type: ${contentType || 'unknown'}): ${snippet}`);
       }
-    } catch (error) {
-      console.error(`💥 API Request Failed:`, error);
+    } catch (error: any) {
+      // Keep failures visible in Metro, but don't force LogBox overlays for common transient failures.
+      console.log(`💥 API Request Failed:`, error);
 
       // Handle timeout errors specifically
-      if (error.name === 'AbortError') {
+      if (error?.name === 'AbortError') {
+        // Retry a couple times: production can be slow on cold starts
+        if (attempt < 3) {
+          const backoffMs = 500 * Math.pow(2, attempt - 1);
+          await new Promise(r => setTimeout(r, backoffMs));
+          return this.makeRequest<T>(endpoint, options, attempt + 1);
+        }
         throw new Error('Request timeout - please check your connection');
       }
 
       // Retry on network errors for first 2 attempts
-      const isNetworkError = typeof error.message === 'string' && (
-        error.message.includes('Network request failed') ||
-        error.message.includes('Could not connect to the server') ||
-        error.message.includes('The Internet connection appears to be offline')
+      const message = typeof error?.message === 'string' ? error.message : '';
+      const isNetworkError = (
+        message.includes('Network request failed') ||
+        message.includes('Could not connect to the server') ||
+        message.includes('The Internet connection appears to be offline')
       );
       if (attempt < 3 && isNetworkError) {
         const backoffMs = 250 * Math.pow(2, attempt - 1);
@@ -152,9 +189,19 @@ class ApiService {
   async getCurrentUser(): Promise<User | null> {
     try {
       return await this.makeRequest<User>(API_ENDPOINTS.GET_CURRENT_USER);
-    } catch (error) {
-      console.log('No authenticated user found');
-      return null;
+    } catch (error: any) {
+      const status = error?.status;
+      const msg = typeof error?.message === 'string' ? error.message : '';
+
+      // Only treat explicit unauthorized as "logged out".
+      // For network/server issues (502/timeout/etc), throw so callers can decide
+      // whether to fall back to cached local auth (offline mode).
+      if (status === 401 || msg.toLowerCase().includes('session expired')) {
+        console.log('No authenticated user found');
+        return null;
+      }
+
+      throw error;
     }
   }
 

@@ -19,11 +19,11 @@
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
-		<string>1.1</string>
+		<string>1.1.1</string>
 		<key>CFBundleSignature</key>
 		<string>????</string>
 		<key>CFBundleVersion</key>
-		<string>2</string>
+		<string>4</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>NSAppTransportSecurity</key>
@@ -82,6 +82,11 @@
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>remote-notification</string>
+		</array>
+		<key>NSUserActivityTypes</key>
+		<array>
+			<string>INSendMessageIntent</string>
+			<string>INStartCallIntent</string>
 		</array>
 		<key>NSUserNotificationsUsageDescription</key>
 		<string>This app needs permission to send you push notifications about service requests and updates.</string>

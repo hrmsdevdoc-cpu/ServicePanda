@@ -322,6 +322,8 @@ const CustomerSignupScreen = ({ onNavigate, onLoginSuccess }: { onNavigate: (scr
         id: user.id,
         email: user.email,
         name: `${user.firstName} ${user.lastName}`,
+        firstName: user.firstName,
+        lastName: user.lastName,
         phone: user.phoneNumber
       }));
       

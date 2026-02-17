@@ -1,10 +1,8 @@
-rootProject.name = 'android'
+rootProject.name = 'ServicePandaProvider'
+
+apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
+
 include ':app'
-includeBuild("../node_modules/react-native-gradle-plugin")
-include ':@react-native-async-storage_async-storage'
-project(':@react-native-async-storage_async-storage').projectDir = new File(rootProject.projectDir, '../node_modules/@react-native-async-storage/async-storage/android')
-include ':react-native-image-crop-picker'
-project(':react-native-image-crop-picker').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-image-crop-picker/android')
-// OneSignal manual linking for React Native 0.74.7
-include ':react-native-onesignal'
-project(':react-native-onesignal').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-onesignal/android')
+
+// React Native 0.74+ Gradle Plugin
+includeBuild('../node_modules/@react-native/gradle-plugin')

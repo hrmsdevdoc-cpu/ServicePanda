@@ -1,4 +1,4 @@
-import { Platform, Linking } from 'react-native';
+import { Platform, Linking, NativeModules, PermissionsAndroid } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { OneSignal } from 'react-native-onesignal';
 import NotificationWillDisplayEvent from 'react-native-onesignal/dist/events/NotificationWillDisplayEvent';
@@ -16,6 +16,7 @@ interface OneSignalConfig {
 class OneSignalService {
     private isInitialized = false;
     private handlersRegistered = false;
+    private nativeAvailable = false;
     private notificationClickListener?: (event: NotificationClickEvent) => void;
     private notificationWillDisplayListener?: (event: NotificationWillDisplayEvent) => void;
     private userChangedListener?: (event: UserChangedState) => void;
@@ -35,6 +36,18 @@ class OneSignalService {
                 return true;
             }
             this.config = config;
+
+            // Guard: make sure native module is actually present.
+            // If it's missing, OneSignal JS may still exist but will log
+            // "Could not load RNOneSignal native module" and no-op.
+            this.nativeAvailable = !!(NativeModules as any)?.RNOneSignal;
+            if (!this.nativeAvailable) {
+                console.log(
+                    'OneSignal native module not loaded (NativeModules.RNOneSignal missing). ' +
+                    'Rebuild native dependencies (iOS: pod install + rebuild; Android: clean rebuild).'
+                );
+                return false;
+            }
 
             // Initialize via JS for all platforms
             {
@@ -59,21 +72,9 @@ class OneSignalService {
             // Ensure handlers are registered exactly once
             this.setupNotificationHandlers();
 
-            // Mark initialized as soon as SDK is ready, before prompting permissions
+            // Mark initialized as soon as SDK is ready (permission prompting handled separately)
             this.isInitialized = true;
             console.log('OneSignal initialized successfully');
-
-            // Request permission for notifications (non-blocking for init)
-            if (OneSignal?.Notifications?.requestPermission) {
-                const permission = await OneSignal.Notifications.requestPermission(true);
-                console.log('OneSignal: permission granted:', permission);
-            }
-
-            // Ensure we have permission (non-blocking)
-            try {
-                const permission = await this.ensurePermission();
-                console.log('OneSignal: permission ensured on init:', permission);
-            } catch { }
 
             // Auto-create an anonymous identity so the user shows up in OneSignal even before login
             try {
@@ -501,6 +502,49 @@ class OneSignalService {
             return await this.requestPermission();
         } catch (error) {
             console.error('OneSignal: error ensuring notification permission:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Ask/check notification permission when the app launches.
+     * This is intentionally separate from initialize() so init isn't treated as "failed"
+     * just because the user hasn't accepted permission yet.
+     */
+    async checkAndRequestPermissionOnLaunch(): Promise<boolean> {
+        try {
+            // Android 13+ requires POST_NOTIFICATIONS runtime permission.
+            if (Platform.OS === 'android') {
+                const apiLevel =
+                    typeof Platform.Version === 'number'
+                        ? Platform.Version
+                        : parseInt(String(Platform.Version), 10);
+
+                if (apiLevel >= 33) {
+                    const granted = await PermissionsAndroid.request(
+                        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+                    );
+                    const ok = granted === PermissionsAndroid.RESULTS.GRANTED;
+                    console.log('Android POST_NOTIFICATIONS granted:', ok);
+                    return ok;
+                }
+
+                // Pre-Android 13: no runtime permission prompt for notifications
+                return true;
+            }
+
+            // iOS prompt requires OneSignal native module to be initialized/available.
+            if (!this.isInitialized) {
+                console.log('OneSignal not initialized; cannot request iOS notification permission yet');
+                return false;
+            }
+
+            // iOS: show the native prompt via OneSignal (if it can).
+            const granted = await this.ensurePermission();
+            console.log('iOS notifications permission granted:', granted);
+            return granted;
+        } catch (e) {
+            console.error('Notification permission (launch) failed:', e);
             return false;
         }
     }

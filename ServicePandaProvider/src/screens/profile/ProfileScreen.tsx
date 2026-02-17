@@ -6,6 +6,7 @@ const { useQuery, useQueryClient } = require('@tanstack/react-query');
 const apiService = require('../../services/api');
 const { useAuth } = require('../../contexts/AuthContext');
 const { colors } = require('../../utils/theme');
+const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 // Import vector icons
 const Icon = require('react-native-vector-icons/MaterialIcons').default;
 
@@ -20,6 +21,7 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
   // const navigation = useNavigation(); // Temporarily commented out
   const queryClient = useQueryClient();
   const { logout } = useAuth();
+  const DEACTIVATION_KEY = 'providerAccountDeactivation';
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -73,6 +75,81 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
               console.error('❌ Profile screen logout failed:', error);
             }
           }
+        },
+      ]
+    );
+  };
+
+  const setDeactivation = async (mode: 'temporary' | 'permanent') => {
+    await AsyncStorage.setItem(
+      DEACTIVATION_KEY,
+      JSON.stringify({
+        mode,
+        at: new Date().toISOString(),
+      })
+    );
+  };
+
+  const handleDeactivatePress = () => {
+    Alert.alert(
+      'Deactivate account',
+      'Choose how you want to deactivate your account on this device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Temporary',
+          onPress: () => {
+            Alert.alert(
+              'Temporarily deactivate?',
+              'This will sign you out and pause your account until you reactivate it from the login screen.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Deactivate',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await setDeactivation('temporary');
+                    } catch (e) {
+                      console.log('Deactivate (temporary) failed to persist flag:', e);
+                    }
+                    try {
+                      queryClient.clear();
+                    } catch {}
+                    await logout();
+                  },
+                },
+              ]
+            );
+          },
+        },
+        {
+          text: 'Permanent',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Permanently deactivate?',
+              'This will sign you out and prevent login on this device. You can contact support to restore access if needed.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Deactivate permanently',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await setDeactivation('permanent');
+                    } catch (e) {
+                      console.log('Deactivate (permanent) failed to persist flag:', e);
+                    }
+                    try {
+                      queryClient.clear();
+                    } catch {}
+                    await logout();
+                  },
+                },
+              ]
+            );
+          },
         },
       ]
     );
@@ -382,6 +459,23 @@ function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
               <View style={styles.modernActionContent}>
                 <Text style={styles.modernActionTitle}>Notification Settings</Text>
                 <Text style={styles.modernActionSubtitle}>Manage your notification preferences</Text>
+              </View>
+              <Text style={styles.modernActionArrow}>›</Text>
+            </TouchableOpacity>
+
+            <View style={styles.modernActionDivider} />
+
+            <TouchableOpacity 
+              style={styles.modernActionButton}
+              onPress={handleDeactivatePress}
+              activeOpacity={0.7}
+            >
+              <View style={styles.modernActionIcon}>
+                <Icon name="person-off" size={20} color="#EF4444" style={styles.modernActionEmoji} />
+              </View>
+              <View style={styles.modernActionContent}>
+                <Text style={styles.modernActionTitle}>Deactivate Account</Text>
+                <Text style={styles.modernActionSubtitle}>Temporary or permanent deactivation</Text>
               </View>
               <Text style={styles.modernActionArrow}>›</Text>
             </TouchableOpacity>

@@ -2,38 +2,31 @@
 
 buildscript {
     ext {
-        buildToolsVersion = "33.0.0"
+        buildToolsVersion = "35.0.0"
         minSdkVersion = 23
-        compileSdkVersion = 33
-        targetSdkVersion = 33
-        ndkVersion = "25.1.8937393"
-        kotlinVersion = "1.6.0"
+        compileSdkVersion = 35
+        targetSdkVersion = 35
+        // NDK r28+ is required for 16KB page-size alignment by default
+        ndkVersion = "28.0.13004108"
+        // Stripe Android 22.7.x is built with Kotlin 2.0+ metadata.
+        // Kotlin 2.0.x is currently required to compile @stripe/stripe-react-native 0.58.0 on Android.
+        kotlinVersion = "2.0.21"
+        // Keep in sync with node_modules/@stripe/stripe-react-native/android/gradle.properties
+        stripeVersion = "22.7.+"
     }
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://www.jitpack.io' }
-        maven { url "$rootDir/../node_modules/react-native/android" }
-        flatDir {
-            dirs "$rootDir/../node_modules/react-native/android"
-        }
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:7.4.2")
+        // AGP 8.5.1+ is required for 16KB page-size packaging support
+        classpath("com.android.tools.build:gradle:8.6.1")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-        classpath("com.facebook.react:react-native-gradle-plugin:0.71.19")
-        classpath 'com.google.gms:google-services:4.3.15' // or latest
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("com.google.gms:google-services:4.4.2")
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://www.jitpack.io' }
-        maven { url "$rootDir/../node_modules/react-native/android" }
-        flatDir {
-            dirs "$rootDir/../node_modules/react-native/android"
-        }
-    }
-}
+apply plugin: "com.facebook.react.rootproject"
+
+// (No extra Kotlin compiler flags needed.)

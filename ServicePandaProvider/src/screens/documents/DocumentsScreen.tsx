@@ -1,21 +1,24 @@
 const React = require('react');
 const { useState, useEffect } = require('react');
-const { View, StyleSheet, TouchableOpacity, Text, Alert, ScrollView, ActivityIndicator, Linking, Image } = require('react-native');
+const { View, StyleSheet, TouchableOpacity, Text, Alert, ScrollView, ActivityIndicator, Linking, Image, Platform, PermissionsAndroid } = require('react-native');
 const { Title, Paragraph, Card, Button } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
-// Import image crop picker with proper error handling and fallback
-let ImagePicker = null;
+// Import image picker with proper error handling and fallback (uses system photo picker on Android)
+let launchImageLibraryFn = null;
+let launchCameraFn = null;
 
 try {
-  ImagePicker = require('react-native-image-crop-picker');
-  console.log('✅ Image crop picker imported successfully');
+  const { launchImageLibrary, launchCamera } = require('react-native-image-picker');
+  launchImageLibraryFn = launchImageLibrary;
+  launchCameraFn = launchCamera;
+  console.log('✅ Image picker imported successfully');
 } catch (error) {
-  console.error('❌ Failed to import image crop picker:', error);
+  console.error('❌ Failed to import image picker:', error);
 }
 
 // Function to check if image picker is available
 const isImagePickerAvailable = () => {
-  return ImagePicker !== null;
+  return !!(launchImageLibraryFn && launchCameraFn);
 };
 const ApiService = require('../../services/api');
 
@@ -290,10 +293,10 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
       
       // Check if image picker functions are available
       if (!isImagePickerAvailable()) {
-        console.error('❌ Image crop picker not available');
+        console.error('❌ Image picker not available');
         Alert.alert(
           'Image Picker Not Available', 
-          'The image picker module is not properly installed. Please:\n\n1. Restart the app\n2. Check if react-native-image-crop-picker is installed\n3. Try running: npx react-native run-android',
+          'The image picker module is not properly installed. Please:\n\n1. Restart the app\n2. Check if react-native-image-picker is installed\n3. Try running: npx react-native run-android',
           [
             { text: 'OK' },
             { 
@@ -301,8 +304,10 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
               onPress: () => {
                 // Try to re-import the image picker
                 try {
-                  ImagePicker = require('react-native-image-crop-picker');
-                  console.log('✅ Image crop picker re-imported successfully');
+                  const { launchImageLibrary, launchCamera } = require('react-native-image-picker');
+                  launchImageLibraryFn = launchImageLibrary;
+                  launchCameraFn = launchCamera;
+                  console.log('✅ Image picker re-imported successfully');
                   // Retry the document pick
                   handleDocumentSelect(documentType, source);
                 } catch (retryError) {
@@ -315,42 +320,50 @@ const DocumentsScreen = ({ onNavigate, onBack }) => {
         return;
       }
       
-      let result;
-      
-      if (source === 'camera') {
-        result = await ImagePicker.openCamera({
-          width: 300,
-          height: 400,
-          cropping: false, // Disable cropping initially to avoid crashes
-          quality: 0.8,
-          includeBase64: false,
-          mediaType: 'photo',
-        });
-      } else {
-        result = await ImagePicker.openPicker({
-          width: 300,
-          height: 400,
-          cropping: false, // Disable cropping initially to avoid crashes
-          quality: 0.8,
-          includeBase64: false,
-          mediaType: 'photo',
-        });
+      if (source === 'camera' && Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert('Permission Required', 'Camera permission is required to take a photo.');
+          return;
+        }
       }
 
-      console.log('Image picker result:', result);
+      const options = {
+        mediaType: 'photo',
+        selectionLimit: 1,
+        quality: 0.8,
+        includeBase64: false,
+        includeExtra: false,
+        saveToPhotos: false,
+      };
 
-      if (!result || !result.path) {
+      const response = await new Promise((resolve) => {
+        const fn = source === 'camera' ? launchCameraFn : launchImageLibraryFn;
+        fn(options, (r) => resolve(r));
+      });
+
+      console.log('Image picker response:', response);
+
+      if (!response || response.didCancel) {
+        console.log('User cancelled image selection');
+        return;
+      }
+      if (response.errorCode) {
+        throw new Error(response.errorMessage || response.errorCode);
+      }
+
+      const asset = response.assets && response.assets[0];
+      if (!asset || !asset.uri) {
         console.log('User cancelled image selection or no image selected');
         return;
       }
 
       // Create a file object compatible with FormData
-      // For react-native-image-crop-picker, result has different structure
       const fileObj = {
-        uri: result.path,
-        type: result.mime || 'image/jpeg',
-        name: result.filename || `document_${Date.now()}.jpg`,
-        size: result.size || 0,
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: asset.fileName || `document_${Date.now()}.jpg`,
+        size: asset.fileSize || 0,
       };
 
       console.log('Created file object:', fileObj);

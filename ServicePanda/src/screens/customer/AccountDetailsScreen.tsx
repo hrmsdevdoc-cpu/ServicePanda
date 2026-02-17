@@ -16,6 +16,7 @@ const {
 } = require('react-native');
 const { colors } = require('../../utils/theme');
 const { apiService } = require('../../services/api');
+const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 
 const { width, height } = Dimensions.get('window');
 
@@ -62,6 +63,35 @@ const AccountDetailsScreen = ({ onNavigate, onBack }) => {
   const fetchUserData = async () => {
     try {
       setLoading(true);
+      // Load cached user data first so UI shows correct details even if API is slow
+      try {
+        const stored = await AsyncStorage.getItem('customerData');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const name = String(parsed?.name || '').trim();
+          const parts = name ? name.split(/\s+/) : [];
+          const cachedFirst = parsed?.firstName || parts[0] || '';
+          const cachedLast = parsed?.lastName || parts.slice(1).join(' ') || '';
+          const cachedPhone = parsed?.phone || parsed?.phoneNumber || '';
+          const cachedEmail = parsed?.email || '';
+
+          setUserData({
+            firstName: cachedFirst,
+            lastName: cachedLast,
+            phoneNumber: cachedPhone,
+            email: cachedEmail,
+          });
+          setFormData({
+            firstName: cachedFirst,
+            lastName: cachedLast,
+            phoneNumber: cachedPhone,
+          });
+        }
+      } catch (e) {
+        console.log('AccountDetails: failed to read cached customerData:', e);
+      }
+
+      // Refresh from server (optional)
       const user = await apiService.getCurrentUser();
       if (user) {
         setUserData({
@@ -75,10 +105,27 @@ const AccountDetailsScreen = ({ onNavigate, onBack }) => {
           lastName: user.lastName || '',
           phoneNumber: user.phoneNumber || ''
         });
+
+        // Keep cache in sync
+        try {
+          const existing = await AsyncStorage.getItem('customerData');
+          const existingParsed = existing ? JSON.parse(existing) : {};
+          await AsyncStorage.setItem('customerData', JSON.stringify({
+            ...existingParsed,
+            id: user.id,
+            email: user.email,
+            name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            phone: user.phoneNumber || '',
+          }));
+        } catch (cacheErr) {
+          console.log('AccountDetails: failed to update cached customerData:', cacheErr);
+        }
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
-      Alert.alert('Error', 'Failed to load profile data');
+      Alert.alert('Error', 'Failed to refresh profile data. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -111,6 +158,21 @@ const AccountDetailsScreen = ({ onNavigate, onBack }) => {
       }));
 
       Alert.alert('Success', 'Profile updated successfully');
+
+      // Keep cached data in sync so Profile menu shows correct values
+      try {
+        const existing = await AsyncStorage.getItem('customerData');
+        const existingParsed = existing ? JSON.parse(existing) : {};
+        await AsyncStorage.setItem('customerData', JSON.stringify({
+          ...existingParsed,
+          name: `${firstName} ${lastName}`.trim(),
+          firstName,
+          lastName,
+          phone: phoneNumber,
+        }));
+      } catch (cacheErr) {
+        console.log('AccountDetails: failed to update cached customerData after update:', cacheErr);
+      }
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');

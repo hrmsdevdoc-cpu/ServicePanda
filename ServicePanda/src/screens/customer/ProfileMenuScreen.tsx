@@ -11,14 +11,158 @@ const {
   Animated
 } = require('react-native');
 const Icon = require('react-native-vector-icons/MaterialIcons').default;
-const { colors } = require('../../utils/theme');
 const { useTheme } = require('../../contexts/ThemeContext');
+const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+const { apiService } = require('../../services/api');
 
 const { width, height } = Dimensions.get('window');
 
 const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
   // Theme context
   const { colors, isDarkMode, toggleTheme } = useTheme();
+
+  const [userInfo, setUserInfo] = React.useState({
+    name: '',
+    email: '',
+    initials: '??',
+  });
+
+  const getInitials = (name: string) => {
+    const parts = String(name || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    const first = (parts[0] || '').charAt(0).toUpperCase();
+    const second = (parts[1] || parts[0] || '').charAt(0).toUpperCase();
+    const initials = (first + second).trim();
+    return initials || '??';
+  };
+
+  const loadUserInfo = async () => {
+    // 1) Load cached user info immediately
+    try {
+      const stored = await AsyncStorage.getItem('customerData');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const name = parsed?.name || '';
+        const email = parsed?.email || '';
+        setUserInfo({
+          name,
+          email,
+          initials: getInitials(name),
+        });
+      }
+    } catch (e) {
+      console.log('ProfileMenu: failed to read cached customerData:', e);
+    }
+
+    // 2) Refresh from server when available (don’t block UI)
+    try {
+      const user = await apiService.getCurrentUser();
+      if (user) {
+        const name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        const email = user.email || '';
+        setUserInfo({
+          name,
+          email,
+          initials: getInitials(name),
+        });
+
+        // Keep cache in sync for next app launch/offline mode
+        try {
+          const existing = await AsyncStorage.getItem('customerData');
+          const existingParsed = existing ? JSON.parse(existing) : {};
+          await AsyncStorage.setItem(
+            'customerData',
+            JSON.stringify({
+              ...existingParsed,
+              id: user.id,
+              email,
+              name,
+              firstName: user.firstName || existingParsed?.firstName,
+              lastName: user.lastName || existingParsed?.lastName,
+              phone: user.phoneNumber || existingParsed?.phone,
+            })
+          );
+        } catch (cacheErr) {
+          console.log('ProfileMenu: failed to update cached customerData:', cacheErr);
+        }
+      }
+    } catch (e) {
+      // ignore network issues; cached values still shown
+    }
+  };
+
+  const DEACTIVATION_KEY = 'customerAccountDeactivation';
+
+  const setDeactivation = async (mode: 'temporary' | 'permanent') => {
+    await AsyncStorage.setItem(
+      DEACTIVATION_KEY,
+      JSON.stringify({
+        mode,
+        at: new Date().toISOString(),
+      })
+    );
+  };
+
+  const handleDeactivatePress = () => {
+    Alert.alert(
+      'Deactivate account',
+      'Choose how you want to deactivate your account.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Temporary',
+          onPress: () => {
+            Alert.alert(
+              'Temporarily deactivate?',
+              'This will sign you out and pause your account until you reactivate it from the login screen.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Deactivate',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await setDeactivation('temporary');
+                    } catch (e) {
+                      console.log('Deactivate (temporary) failed to persist flag:', e);
+                    }
+                    onLogout?.();
+                  },
+                },
+              ]
+            );
+          },
+        },
+        {
+          text: 'Permanent',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Permanently deactivate?',
+              'This will sign you out and prevent login on this device. You can contact support to restore access if needed.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Deactivate permanently',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await setDeactivation('permanent');
+                    } catch (e) {
+                      console.log('Deactivate (permanent) failed to persist flag:', e);
+                    }
+                    onLogout?.();
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
   
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -66,6 +210,11 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
     ]).start();
   }, []);
 
+  // Load user info (cached → refresh)
+  React.useEffect(() => {
+    loadUserInfo();
+  }, []);
+
   const menuSections = [
     {
       title: 'Account',
@@ -95,6 +244,14 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
           hasToggle: true,
           toggleValue: notificationsEnabled,
           onToggle: () => setNotificationsEnabled(!notificationsEnabled)
+        },
+        {
+          id: 'deactivate_account',
+          title: 'Deactivate Account',
+          subtitle: 'Temporary or permanent deactivation',
+          icon: 'person-off',
+          iconColor: '#EF4444',
+          onPress: handleDeactivatePress,
         }
       ]
     },
@@ -230,11 +387,11 @@ const ProfileMenuScreen = ({ onNavigate, onLogout }) => {
       ]}
     >
       <View style={styles.userAvatar}>
-        <Text style={styles.userAvatarText}>AB</Text>
+        <Text style={styles.userAvatarText}>{userInfo.initials}</Text>
       </View>
       <View style={styles.userDetails}>
-        <Text style={styles.userName}>Alice B Thompson</Text>
-        <Text style={styles.userEmail}>customer1@example.com</Text>
+        <Text style={styles.userName}>{userInfo.name || 'My Account'}</Text>
+        <Text style={styles.userEmail}>{userInfo.email || ''}</Text>
       </View>
     </Animated.View>
   );

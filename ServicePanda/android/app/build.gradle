@@ -1,18 +1,34 @@
 apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+/**
+ * React Native Gradle Plugin configuration.
+ * Required for autolinking on RN 0.75+ (incl. 0.77.x).
+ */
+react {
+    autolinkLibrariesWithApp()
+}
+
+
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
 
 android {
     ndkVersion rootProject.ext.ndkVersion
-    compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.servicepandacustomer"
     defaultConfig {
         applicationId "com.servicepandacustomer"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.1"
+        versionCode 9
+        versionName "1.1.1"
         multiDexEnabled true
     }
 
@@ -23,6 +39,14 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
     }
     
     buildTypes {
@@ -30,7 +54,7 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
@@ -75,13 +99,26 @@ android {
     }
 }
 
+afterEvaluate {
+    def wantsRelease = gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") }
+    if (wantsRelease && !keystorePropertiesFile.exists()) {
+        throw new GradleException(
+                "Missing release signing config. Create 'ServicePanda/android/keystore.properties' " +
+                "(see 'ServicePanda/android/keystore.properties.example')."
+        )
+    }
+}
+
 dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
-    implementation("com.facebook.react:react-native:+")
-    implementation("com.facebook.react:hermes-android")
-    implementation project(':@react-native-async-storage_async-storage')
-    implementation project(':react-native-image-crop-picker')
+    // The version of React Native is set by the React Native Gradle Plugin
+    implementation("com.facebook.react:react-android")
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation("org.webkit:android-jsc:+")
+    }
     implementation 'androidx.multidex:multidex:2.0.1'
     
     // Fix for react-native-image-picker resource conflicts
@@ -104,4 +141,6 @@ configurations.all {
         force 'androidx.annotation:annotation-experimental:1.3.0'
     }
 }
-apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
+

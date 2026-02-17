@@ -4,7 +4,7 @@
 const API_CONFIG = {
   development: {
     // Try these URLs in order - the first one that works will be used
-    urls: [ 
+    urls: [
       'http://10.0.2.2:3000',            // Android emulator (primary)
       'http://localhost:3000',            // Local development server
       'http://127.0.0.1:3000',           // Localhost alternative
@@ -36,27 +36,27 @@ export const API_ENDPOINTS = {
   REGISTER: '/api/register',
   LOGOUT: '/api/logout',
   GET_CURRENT_USER: '/api/auth/user',
-  
+
   // Provider Authentication
   PROVIDER_LOGIN: '/api/provider/login',
   PROVIDER_REGISTER: '/api/provider/register',
-  
+
   // Service Requests
   SERVICE_REQUESTS: '/api/service-requests',
   CREATE_SERVICE_REQUEST: '/api/service-requests',
   MY_SERVICE_REQUESTS: '/api/service-requests/my-requests',
-  
+
   // Service Categories
   SERVICE_CATEGORIES: '/api/service-categories',
-  
+
   // User Profile
   UPDATE_PROFILE: '/api/profile',
   CHANGE_PASSWORD: '/api/change-password',
-  
+
   // Notifications
   NOTIFICATIONS: '/api/notifications',
   MARK_NOTIFICATION_READ: '/api/notifications/:id/read',
-  
+
   // Reviews
   MY_REVIEWS: '/api/reviews/my-reviews',
   SUBMIT_REVIEW: '/api/reviews',
@@ -64,7 +64,7 @@ export const API_ENDPOINTS = {
 };
 
 // Request timeout (in milliseconds)
-export const REQUEST_TIMEOUT = 10000; // 10 seconds
+export const REQUEST_TIMEOUT = 30000; // 30 seconds (prod can be slow on cold starts)
 
 // Retry configuration
 export const RETRY_CONFIG = {

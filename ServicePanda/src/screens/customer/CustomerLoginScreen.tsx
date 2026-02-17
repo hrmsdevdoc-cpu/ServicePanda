@@ -3,6 +3,7 @@ const { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoi
 const { TextInput: PaperTextInput } = require('react-native-paper');
 const { colors } = require('../../utils/theme');
 const { apiService } = require('../../services/api');
+const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 
 const { width, height } = Dimensions.get('window');
 
@@ -13,6 +14,8 @@ const CustomerLoginScreen = ({ onNavigate, onLoginSuccess }: { onNavigate: (scre
   const [showPassword, setShowPassword] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('login');
   const [rememberMe, setRememberMe] = React.useState(false);
+  const [deactivationMode, setDeactivationMode] = React.useState<null | 'temporary' | 'permanent'>(null);
+  const DEACTIVATION_KEY = 'customerAccountDeactivation';
   
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -25,7 +28,6 @@ const CustomerLoginScreen = ({ onNavigate, onLoginSuccess }: { onNavigate: (scre
   React.useEffect(() => {
     const loadSavedCredentials = async () => {
       try {
-        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
         const savedEmail = await AsyncStorage.getItem('rememberedEmail');
         const savedPassword = await AsyncStorage.getItem('rememberedPassword');
         const rememberMeStatus = await AsyncStorage.getItem('rememberMe');
@@ -42,6 +44,31 @@ const CustomerLoginScreen = ({ onNavigate, onLoginSuccess }: { onNavigate: (scre
 
     loadSavedCredentials();
   }, []);
+
+  // Load account deactivation status
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(DEACTIVATION_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        const mode = parsed?.mode;
+        if (mode === 'temporary' || mode === 'permanent') {
+          setDeactivationMode(mode);
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, []);
+
+  const clearDeactivation = async () => {
+    try {
+      await AsyncStorage.removeItem(DEACTIVATION_KEY);
+    } finally {
+      setDeactivationMode(null);
+    }
+  };
 
   // Start animations on component mount
   React.useEffect(() => {
@@ -74,6 +101,31 @@ const CustomerLoginScreen = ({ onNavigate, onLoginSuccess }: { onNavigate: (scre
   }, []);
 
   const handleLogin = async () => {
+    if (deactivationMode === 'permanent') {
+      Alert.alert(
+        'Account deactivated',
+        'This account is permanently deactivated on this device. Please contact support if you want to restore access.'
+      );
+      return;
+    }
+
+    if (deactivationMode === 'temporary') {
+      Alert.alert(
+        'Account temporarily deactivated',
+        'Reactivate your account to sign in again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Reactivate',
+            onPress: () => {
+              clearDeactivation();
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Please enter both email and password.');
       return;
@@ -104,14 +156,21 @@ const CustomerLoginScreen = ({ onNavigate, onLoginSuccess }: { onNavigate: (scre
       console.log('✅ Customer login successful:', user);
       
       // Store customer data in AsyncStorage
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       await AsyncStorage.setItem('customerId', user.id.toString());
       await AsyncStorage.setItem('customerData', JSON.stringify({
         id: user.id,
         email: user.email,
         name: `${user.firstName} ${user.lastName}`,
+        firstName: user.firstName,
+        lastName: user.lastName,
         phone: user.phoneNumber
       }));
+
+      // If the user managed to login, clear any previous deactivation flag (safety)
+      try {
+        await AsyncStorage.removeItem(DEACTIVATION_KEY);
+        setDeactivationMode(null);
+      } catch {}
 
       // Save credentials if Remember Me is checked
       if (rememberMe) {

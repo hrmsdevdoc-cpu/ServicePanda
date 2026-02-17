@@ -21,18 +21,45 @@ const AsyncStorage = require('@react-native-async-storage/async-storage').defaul
 
 const { width, height } = Dimensions.get('window');
 
-const LoginScreen = ({ onNavigate }) => {
+const LoginScreen = ({ onNavigate }: { onNavigate: (screen: string, subScreen?: string | null) => void }) => {
   console.log('🔍 LoginScreen rendered with onNavigate:', !!onNavigate, onNavigate);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [deactivationMode, setDeactivationMode] = React.useState(null);
+  const DEACTIVATION_KEY = 'providerAccountDeactivation';
   const { login } = useAuth();
 
   // Load saved credentials on component mount
   useEffect(() => {
     loadSavedCredentials();
   }, []);
+
+  // Load account deactivation status (temporary/permanent) for this device
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(DEACTIVATION_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        const mode = parsed?.mode;
+        if (mode === 'temporary' || mode === 'permanent') {
+          setDeactivationMode(mode);
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, []);
+
+  const clearDeactivation = async () => {
+    try {
+      await AsyncStorage.removeItem(DEACTIVATION_KEY);
+    } finally {
+      setDeactivationMode(null);
+    }
+  };
 
   const loadSavedCredentials = async () => {
     try {
@@ -51,7 +78,7 @@ const LoginScreen = ({ onNavigate }) => {
   };
 
   const loginMutation = useMutation({
-    mutationFn: async (credentials) => {
+    mutationFn: async (credentials: { email: string; password: string; rememberMe: boolean }) => {
       console.log('🚀 Starting login process...');
       console.log('📧 Email:', credentials.email);
       console.log('🔗 API Endpoint: /api/provider/login');
@@ -65,13 +92,21 @@ const LoginScreen = ({ onNavigate }) => {
         throw error;
       }
     },
-    onSuccess: async (provider) => {
+    onSuccess: async (provider: any) => {
       console.log('🎉 Login success, provider data:', provider);
       console.log('📊 Profile completion check:');
       console.log('  - documentsUploaded:', provider.documentsUploaded);
       console.log('  - termsAccepted:', provider.termsAccepted);
       console.log('  - status:', provider.status);
       console.log('  - providerStatus:', provider.providerStatus);
+
+      // If the user managed to login, clear any previous deactivation flag (safety)
+      try {
+        await AsyncStorage.removeItem(DEACTIVATION_KEY);
+        setDeactivationMode(null);
+      } catch (e) {
+        // ignore
+      }
       
       // Check if provider needs to complete signup steps
       // Only check these fields if they exist in the response
@@ -95,7 +130,7 @@ const LoginScreen = ({ onNavigate }) => {
         // User will be automatically redirected to dashboard by the auth context
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('💥 Login error:', error);
       Alert.alert(
         "Login Failed",
@@ -105,6 +140,26 @@ const LoginScreen = ({ onNavigate }) => {
   });
 
   const handleSubmit = async () => {
+    if (deactivationMode === 'permanent') {
+      Alert.alert(
+        'Account deactivated',
+        'This account is permanently deactivated on this device. Please contact support if you want to restore access.'
+      );
+      return;
+    }
+
+    if (deactivationMode === 'temporary') {
+      Alert.alert(
+        'Account temporarily deactivated',
+        'Reactivate your account to sign in again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Reactivate', onPress: () => clearDeactivation() },
+        ]
+      );
+      return;
+    }
+
     if (!email.trim() || !password.trim()) {
       Alert.alert("Missing Information", "Please enter both email and password.");
       return;
@@ -274,44 +329,8 @@ const LoginScreen = ({ onNavigate }) => {
                   >
                     {loginMutation.isPending ? "Signing in..." : "Sign In"}
                   </Button>
-
-            {/* Links - matching web design */}
-            <View style={styles.links}>
-                             <Button
-                 mode="text"
-                 onPress={() => {
-                   console.log('🔍 Forgot password clicked! Navigating to ForgotPassword');
-                   onNavigate('ForgotPassword');
-                 }}
-                 style={styles.linkButton}
-                 textColor={colors.primary}
-               >
-                 Forgot your password?
-               </Button>
-              
-              <View style={styles.divider} />
-              
-              <View style={styles.registerContainer}>
-                <Text style={styles.registerText}>
-                  Don't have a provider account?{' '}
-                </Text>
-                                                   <Button
-                    mode="text"
-                    onPress={() => {
-                      console.log('🔍 Button clicked! onNavigate exists:', !!onNavigate);
-                      if (onNavigate) {
-                        console.log('🔍 Calling onNavigate with ProviderRegistration');
-                        onNavigate('ProviderRegistration');
-                      } else {
-                        console.log('❌ onNavigate is undefined!');
-                      }
-                    }}
-                    style={styles.linkButton}
-                    textColor={colors.primary}
-                  >
-                    Join us as a Partner
-                  </Button>
-              </View>
+                </Card.Content>
+              </Card>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -391,14 +410,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, // Add horizontal padding for better text wrapping
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFFFF', // Pure white background matching web
     borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF', // Pure white background matching web
     borderWidth: 0, // Remove any borders
     marginTop: 2, // Reduced from 4
   },
@@ -422,10 +439,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20, // Reduced from 24
-    fontSize: 18, // Reduced from 20
-    color: '#111827', // Dark gray matching web
   },
   inputContainer: {
+    position: 'relative',
     marginBottom: 20, // Reduced from 24
   },
   inputLabel: {
@@ -436,9 +452,6 @@ const styles = StyleSheet.create({
   },
   required: {
     color: colors.error,
-  },
-  inputContainer: {
-    position: 'relative',
   },
   input: {
     backgroundColor: '#FFFFFF', // Pure white input background

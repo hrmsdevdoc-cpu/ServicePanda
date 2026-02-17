@@ -22,6 +22,12 @@ ServicePanda/android/.gradle/
 ServicePanda/android/build/
 ServicePanda/android/app/build/
 
+# Signing keys / local secrets (do NOT commit)
+**/android/keystore.properties
+**/android/keystore.properties.local
+**/*release*.jks
+**/*.p12
+
 # iOS specific
 ServicePandaProvider/ios/Pods/
 ServicePandaProvider/ios/Podfile.lock

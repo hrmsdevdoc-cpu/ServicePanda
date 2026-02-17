@@ -9,6 +9,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [providerData, setProviderData] = useState(null);
+  const DEACTIVATION_KEY = 'providerAccountDeactivation';
 
   // Check authentication status on app startup
   useEffect(() => {
@@ -18,6 +19,25 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const checkAuthStatus = async () => {
     try {
       console.log('🔍 Checking authentication status...');
+
+      // Respect account deactivation (temporary/permanent) on this device
+      try {
+        const raw = await AsyncStorage.getItem(DEACTIVATION_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const mode = parsed?.mode;
+          if (mode === 'temporary' || mode === 'permanent') {
+            // Ensure we don't restore an existing session while deactivated
+            await AsyncStorage.removeItem('providerId');
+            await AsyncStorage.removeItem('providerData');
+            setIsAuthenticated(false);
+            setProviderData(null);
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore parse/storage errors
+      }
       
       // Check if we have stored authentication data
       const providerId = await AsyncStorage.getItem('providerId');

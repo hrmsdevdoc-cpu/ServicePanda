@@ -58,13 +58,14 @@ class NotificationService {
 
   async getNotifications(): Promise<Notification[]> {
     try {
-      // First try to get real notifications from the API
-      const response = await apiService.get('/api/provider/notifications');
+      // Customer app: fetch customer notifications (NOT provider endpoints)
+      const response = await apiService.getNotifications();
       if (response && response.length > 0) {
         return response;
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      // Keep in Metro console, but avoid red overlay noise for transient outages
+      console.log('Error fetching notifications:', error);
     }
 
     // If no real notifications, try to get service requests as activity data
@@ -72,7 +73,8 @@ class NotificationService {
       const activities = await apiService.getMyServiceRequests();
       return this.convertActivitiesToNotifications(activities);
     } catch (error) {
-      console.error('Error fetching activities for notifications:', error);
+      // Keep in Metro console, but avoid red overlay noise for transient outages
+      console.log('Error fetching activities for notifications:', error);
       // Fallback to mock data
       return this.getMockNotifications();
     }
@@ -91,7 +93,7 @@ class NotificationService {
 
       // Try to mark as read on server (this might fail for activity-based notifications)
       try {
-        await apiService.put(`/api/provider/notifications/${notificationId}/read`);
+        await apiService.markNotificationAsRead(notificationId);
       } catch (serverError) {
         // If server call fails, we still mark it as read locally
         console.log('Server notification marking failed, using local tracking only');
@@ -120,7 +122,7 @@ class NotificationService {
 
       // Try to mark all as read on server
       try {
-        await apiService.put('/api/provider/notifications/read-all');
+        await apiService.markAllNotificationsAsRead();
       } catch (serverError) {
         // If server call fails, we still mark them as read locally
       }
@@ -134,8 +136,8 @@ class NotificationService {
 
   async getUnreadCount(): Promise<number> {
     try {
-      const response = await apiService.get('/api/provider/notifications/unread-count');
-      return response.data?.count || 0;
+      const response = await apiService.getUnreadNotificationCount();
+      return response?.count || 0;
     } catch (error) {
       console.error('Error fetching unread count:', error);
       return 0;

@@ -69,6 +69,21 @@ if (Platform.OS === 'android') {
   Text.defaultProps = Text.defaultProps || {};
   Text.defaultProps.allowFontScaling = false;
 }
+
+// Hide noisy network/native-module logs from in-app LogBox overlays (keep them in Metro console).
+try {
+  const { LogBox } = require('react-native');
+  if (typeof __DEV__ !== 'undefined' && __DEV__ && LogBox?.ignoreLogs) {
+    LogBox.ignoreLogs([
+      '❌ API Error:', // our API layer logs (e.g. 502/503/504 HTML)
+      '💥 API Request Failed:',
+      'Error fetching notifications:',
+      'Error fetching activities for notifications:',
+      'OneSignal native module not loaded',
+      'Could not load RNOneSignal native module',
+    ]);
+  }
+} catch { /* ignore */ }
 const { colors } = require('./src/utils/theme');
 const { ThemeProvider, useTheme } = require('./src/contexts/ThemeContext');
 
@@ -98,8 +113,19 @@ const AppContent = () => {
 
   // Check authentication status on app start
   useEffect(() => {
-    initializeOneSignal();
-    checkAuthStatus();
+    (async () => {
+      // Ask notification permission as early as possible (before login/auth flow).
+      // iOS prompt requires OneSignal native module to be present.
+      await initializeOneSignal();
+      try {
+        await oneSignalService.checkAndRequestPermissionOnLaunch();
+      } catch (e) {
+        console.log('⚠️ Notification permission (launch) check failed:', e);
+      }
+
+      // Continue with auth flow
+      checkAuthStatus();
+    })();
   }, []);
 
   // Initialize OneSignal
@@ -119,7 +145,6 @@ const AppContent = () => {
         console.log('⚠️ OneSignal initialize returned false (native module not ready).');
         return;
       }
-      // Permissions are handled inside the service during initialize/ensureStartupRegistration
 
       // Ensure startup registration always (anonymous id), then optional debug
       try {
@@ -156,6 +181,24 @@ const AppContent = () => {
         setIsLoading(false);
         return;
       }
+
+      // Respect account deactivation (temporary/permanent)
+      try {
+        const raw = await AsyncStorage.getItem('customerAccountDeactivation');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const mode = parsed?.mode;
+          if (mode === 'temporary' || mode === 'permanent') {
+            setIsAuthenticated(false);
+            setCurrentScreen('login');
+            setNavigationHistory(['login']);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // ignore parse errors
+      }
       
       // First check if we have stored data
       const customerId = await AsyncStorage.getItem('customerId');
@@ -177,13 +220,17 @@ const AppContent = () => {
             // Ensure OneSignal is associated with restored user session
             try {
               if (currentUser.id) {
-                await oneSignalService.setExternalUserId(currentUser.id.toString());
-                await oneSignalService.setUserTags(getUserTags({
-                  user_id: currentUser.id.toString(),
-                  email: currentUser.email || '',
-                  name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim()
-                }));
-                console.log('✅ OneSignal user identification set (restored session)');
+                if (oneSignalService.isServiceInitialized && oneSignalService.isServiceInitialized()) {
+                  await oneSignalService.setExternalUserId(currentUser.id.toString());
+                  await oneSignalService.setUserTags(getUserTags({
+                    user_id: currentUser.id.toString(),
+                    email: currentUser.email || '',
+                    name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim()
+                  }));
+                  console.log('✅ OneSignal user identification set (restored session)');
+                } else {
+                  console.log('⚠️ OneSignal not initialized; skipping user identification (restored session)');
+                }
               }
             } catch (e) {
               console.log('⚠️ OneSignal user identification failed (restored):', e);
@@ -263,8 +310,17 @@ const AppContent = () => {
     console.log('🔍 Onboarding completed');
     await AsyncStorage.setItem('hasSeenOnboarding', 'true');
     setShowOnboarding(false);
-    // Continue with normal auth check
-    checkAuthStatus();
+    // Avoid immediately re-checking auth after onboarding, which can
+    // incorrectly clear just-saved login state if the server/session
+    // verification is momentarily unavailable.
+    if (!isAuthenticated) {
+      checkAuthStatus();
+      return;
+    }
+
+    // If the user is already logged in, just continue into the app.
+    setCurrentScreen('dashboard');
+    setNavigationHistory(['dashboard']);
   };
 
   // Handle login success
@@ -277,16 +333,20 @@ const AppContent = () => {
       
       // Set OneSignal external user ID for push notifications
       if (customerData.id) {
-        await oneSignalService.setExternalUserId(customerData.id.toString());
-        
-        // Set user tags for better targeting
-        await oneSignalService.setUserTags(getUserTags({
-          user_id: customerData.id.toString(),
-          email: customerData.email || '',
-          name: customerData.name || customerData.firstName || ''
-        }));
-        
-        console.log('✅ OneSignal user identification set');
+        if (oneSignalService.isServiceInitialized && oneSignalService.isServiceInitialized()) {
+          await oneSignalService.setExternalUserId(customerData.id.toString());
+          
+          // Set user tags for better targeting
+          await oneSignalService.setUserTags(getUserTags({
+            user_id: customerData.id.toString(),
+            email: customerData.email || '',
+            name: customerData.name || customerData.firstName || ''
+          }));
+          
+          console.log('✅ OneSignal user identification set');
+        } else {
+          console.log('⚠️ OneSignal not initialized; skipping user identification');
+        }
       }
     } catch (error) {
       console.error('❌ Error setting OneSignal user identification:', error);

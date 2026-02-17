@@ -40,6 +40,11 @@
 		<array>
 			<string>remote-notification</string>
 		</array>
+		<key>NSUserActivityTypes</key>
+		<array>
+			<string>INSendMessageIntent</string>
+			<string>INStartCallIntent</string>
+		</array>
 		<key>NSUserNotificationsUsageDescription</key>
 		<string>Allow notifications so we can alert you about new leads, job updates, and time-sensitive messages.</string>
 		<key>NSRemoteNotificationUsageDescription</key>

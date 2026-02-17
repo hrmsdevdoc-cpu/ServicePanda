@@ -15,7 +15,8 @@ const {
   Linking,
 } = require('react-native');
 const { colors } = require('../../utils/theme');
-const { PermissionsAndroid, Permission } = require('react-native');
+const { PermissionsAndroid } = require('react-native');
+const { launchCamera, launchImageLibrary } = require('react-native-image-picker');
 
 const { width } = Dimensions.get('window');
 
@@ -59,37 +60,41 @@ const DocumentUploadStep = ({
     console.log('🔍 Document upload interface enabled');
   }, []);
 
-  const requestPermissions = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-          PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
-        ]);
-        
-        const cameraGranted = granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
-        const storageGranted = granted[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED;
-        const mediaGranted = granted[PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES] === PermissionsAndroid.RESULTS.GRANTED;
-        
-        if (!cameraGranted || (!storageGranted && !mediaGranted)) {
-          Alert.alert(
-            'Permissions Required',
-            'This app needs camera and photo library access to upload documents. Please grant permissions in Settings.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => Linking.openSettings() }
-            ]
-          );
-          return false;
-        }
-        return true;
-      } catch (err) {
-        console.warn('Permission request error:', err);
-        return false;
-      }
+  const requestCameraPermissionIfNeeded = async () => {
+    if (Platform.OS !== 'android') return true;
+    try {
+      const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) return true;
+
+      Alert.alert(
+        'Camera Permission Required',
+        'Camera permission is required to take a photo. You can still upload from your photo library.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
+      return false;
+    } catch (err) {
+      console.warn('Camera permission request error:', err);
+      return false;
     }
-    return true; // iOS handles permissions automatically
+  };
+
+  const pickImage = async (source = 'library') => {
+    const options = {
+      mediaType: 'photo',
+      selectionLimit: 1,
+      quality: 0.3,
+      includeBase64: false,
+      includeExtra: false,
+      saveToPhotos: false,
+    };
+
+    return await new Promise((resolve) => {
+      const fn = source === 'camera' ? launchCamera : launchImageLibrary;
+      fn(options, (response) => resolve(response));
+    });
   };
 
   const pickDocument = async (documentType, source = 'library') => {
@@ -98,61 +103,45 @@ const DocumentUploadStep = ({
       
       console.log('🔍 Starting REAL document pick for:', documentType);
       
-      // Request permissions first
-      const hasPermissions = await requestPermissions();
-      if (!hasPermissions) {
-        setUploadingDocument(null);
-        return;
-      }
-      
-      // Use React Native's ImagePicker
-      const ImagePicker = require('react-native-image-crop-picker');
-      
-      console.log('✅ Image picker functions available');
-      
-      let result;
-      
       if (source === 'camera') {
-        result = await ImagePicker.openCamera({
-          width: 300,
-          height: 400,
-          cropping: false, // Disable cropping initially to avoid crashes
-          quality: 0.3, // Much lower quality to reduce file size
-          includeBase64: false,
-          mediaType: 'photo',
-        });
-      } else {
-        result = await ImagePicker.openPicker({
-          width: 300,
-          height: 400,
-          cropping: false, // Disable cropping initially to avoid crashes
-          quality: 0.3, // Much lower quality to reduce file size
-          includeBase64: false,
-          mediaType: 'photo',
-        });
+        const hasCameraPermission = await requestCameraPermissionIfNeeded();
+        if (!hasCameraPermission) {
+          setUploadingDocument(null);
+          return;
+        }
       }
 
-      console.log('🔍 Image picker result:', result);
+      const response = await pickImage(source);
+      console.log('🔍 Image picker response:', response);
 
-      if (!result || !result.path) {
-        console.log('User cancelled image selection or no image selected');
+      if (!response || response.didCancel) {
+        console.log('User cancelled image selection');
+        return;
+      }
+      if (response.errorCode) {
+        throw new Error(response.errorMessage || response.errorCode);
+      }
+
+      const asset = response.assets && response.assets[0];
+      if (!asset || !asset.uri) {
+        console.log('No asset selected');
         return;
       }
 
-      console.log('🔍 Selected file:', result);
+      console.log('🔍 Selected asset:', asset);
       
       // Check file size (10MB limit for server compatibility)
-      if (result.size && result.size > 10 * 1024 * 1024) {
+      if (asset.fileSize && asset.fileSize > 10 * 1024 * 1024) {
         Alert.alert('Error', 'File size must be less than 10MB. Please choose a smaller file or compress the image.');
         return;
       }
 
       // Create a file object compatible with FormData
       const fileObj = {
-        uri: result.path,
-        type: result.mime || 'image/jpeg',
-        name: result.filename || `${documentType}_${Date.now()}.jpg`,
-        size: result.size || 0,
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: asset.fileName || `${documentType}_${Date.now()}.jpg`,
+        size: asset.fileSize || 0,
       };
 
       console.log('🔍 Created file object:', fileObj);

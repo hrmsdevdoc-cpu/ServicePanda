@@ -1,0 +1,529 @@
+diff --git a/node_modules/@stripe/stripe-react-native/android/build.gradle b/node_modules/@stripe/stripe-react-native/android/build.gradle
+index e893653..bdbfb81 100644
+--- a/node_modules/@stripe/stripe-react-native/android/build.gradle
++++ b/node_modules/@stripe/stripe-react-native/android/build.gradle
+@@ -12,7 +12,7 @@ buildscript {
+   }
+ 
+   dependencies {
+-    classpath "com.android.tools.build:gradle:7.2.2"
++    classpath "com.android.tools.build:gradle:8.6.1"
+     // noinspection DifferentKotlinGradleVersion
+     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+     classpath "com.diffplug.spotless:spotless-plugin-gradle:6.25.0"
+@@ -126,6 +126,11 @@ android {
+     compose true
+   }
+ 
++  // Stripe enables Compose; explicitly set a compiler extension compatible with Kotlin 1.9.x
++  composeOptions {
++    kotlinCompilerExtensionVersion = "1.5.8"
++  }
++
+   sourceSets.main {
+     java {
+       if (!isNewArchitectureEnabled()) {
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/generated/source/buildConfig/release/com/reactnativestripesdk/BuildConfig.java b/node_modules/@stripe/stripe-react-native/android/build/generated/source/buildConfig/release/com/reactnativestripesdk/BuildConfig.java
+new file mode 100644
+index 0000000..7a0c89a
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/generated/source/buildConfig/release/com/reactnativestripesdk/BuildConfig.java
+@@ -0,0 +1,14 @@
++/**
++ * Automatically generated file. DO NOT MODIFY
++ */
++package com.reactnativestripesdk;
++
++public final class BuildConfig {
++  public static final boolean DEBUG = false;
++  public static final String LIBRARY_PACKAGE_NAME = "com.reactnativestripesdk";
++  public static final String BUILD_TYPE = "release";
++  // Field from default config.
++  public static final boolean IS_NEW_ARCHITECTURE_ENABLED = false;
++  // Field from default config.
++  public static final boolean IS_ONRAMP_INCLUDED = false;
++}
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/AndroidManifest.xml b/node_modules/@stripe/stripe-react-native/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/AndroidManifest.xml
+new file mode 100644
+index 0000000..b5af7b6
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/AndroidManifest.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.reactnativestripesdk" >
++
++    <uses-sdk android:minSdkVersion="23" />
++
++    <application>
++        <activity
++            android:name="com.reactnativestripesdk.CustomPaymentMethodActivity"
++            android:excludeFromRecents="true"
++            android:exported="false"
++            android:launchMode="singleTop"
++            android:noHistory="true"
++            android:theme="@style/Theme.StripeReactNative.Transparent" />
++    </application>
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/output-metadata.json b/node_modules/@stripe/stripe-react-native/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/output-metadata.json
+new file mode 100644
+index 0000000..45f42de
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/output-metadata.json
+@@ -0,0 +1,18 @@
++{
++  "version": 3,
++  "artifactType": {
++    "type": "AAPT_FRIENDLY_MERGED_MANIFESTS",
++    "kind": "Directory"
++  },
++  "applicationId": "com.reactnativestripesdk",
++  "variantName": "release",
++  "elements": [
++    {
++      "type": "SINGLE",
++      "filters": [],
++      "attributes": [],
++      "outputFile": "AndroidManifest.xml"
++    }
++  ],
++  "elementType": "File"
++}
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/aar_metadata/release/writeReleaseAarMetadata/aar-metadata.properties b/node_modules/@stripe/stripe-react-native/android/build/intermediates/aar_metadata/release/writeReleaseAarMetadata/aar-metadata.properties
+new file mode 100644
+index 0000000..1211b1e
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/aar_metadata/release/writeReleaseAarMetadata/aar-metadata.properties
+@@ -0,0 +1,6 @@
++aarFormatVersion=1.0
++aarMetadataVersion=1.0
++minCompileSdk=1
++minCompileSdkExtension=0
++minAndroidGradlePluginVersion=1.0.0
++coreLibraryDesugaringEnabled=false
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/annotation_processor_list/release/javaPreCompileRelease/annotationProcessors.json b/node_modules/@stripe/stripe-react-native/android/build/intermediates/annotation_processor_list/release/javaPreCompileRelease/annotationProcessors.json
+new file mode 100644
+index 0000000..9e26dfe
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/annotation_processor_list/release/javaPreCompileRelease/annotationProcessors.json
+@@ -0,0 +1 @@
++{}
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar b/node_modules/@stripe/stripe-react-native/android/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar
+new file mode 100644
+index 0000000..ed94e91
+Binary files /dev/null and b/node_modules/@stripe/stripe-react-native/android/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar differ
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/compile_symbol_list/release/generateReleaseRFile/R.txt b/node_modules/@stripe/stripe-react-native/android/build/intermediates/compile_symbol_list/release/generateReleaseRFile/R.txt
+new file mode 100644
+index 0000000..aa49e7f
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/compile_symbol_list/release/generateReleaseRFile/R.txt
+@@ -0,0 +1 @@
++int style Theme_StripeReactNative_Transparent 0x0
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/data_binding_base_class_log_artifact/release/dataBindingGenBaseClassesRelease/out/com.reactnativestripesdk-binding_classes.json b/node_modules/@stripe/stripe-react-native/android/build/intermediates/data_binding_base_class_log_artifact/release/dataBindingGenBaseClassesRelease/out/com.reactnativestripesdk-binding_classes.json
+new file mode 100644
+index 0000000..2bea446
+Binary files /dev/null and b/node_modules/@stripe/stripe-react-native/android/build/intermediates/data_binding_base_class_log_artifact/release/dataBindingGenBaseClassesRelease/out/com.reactnativestripesdk-binding_classes.json differ
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/dataBindingGenBaseClassesRelease/base_builder_log.json b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/dataBindingGenBaseClassesRelease/base_builder_log.json
+new file mode 100644
+index 0000000..dca24b2
+Binary files /dev/null and b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/dataBindingGenBaseClassesRelease/base_builder_log.json differ
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/mergeReleaseJniLibFolders/merger.xml b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/mergeReleaseJniLibFolders/merger.xml
+new file mode 100644
+index 0000000..89251d2
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/mergeReleaseJniLibFolders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/jniLibs"/></dataSet><dataSet config="release" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/release/jniLibs"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/mergeReleaseShaders/merger.xml b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/mergeReleaseShaders/merger.xml
+new file mode 100644
+index 0000000..a98ec9b
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/mergeReleaseShaders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/shaders"/></dataSet><dataSet config="release" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/release/shaders"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/packageReleaseAssets/merger.xml b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/packageReleaseAssets/merger.xml
+new file mode 100644
+index 0000000..cc665e1
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/packageReleaseAssets/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/assets"/></dataSet><dataSet config="release" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/release/assets"/></dataSet><dataSet config="generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/build/intermediates/shader_assets/release/compileReleaseShaders/out"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/release/packageReleaseResources/compile-file-map.properties b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/release/packageReleaseResources/compile-file-map.properties
+new file mode 100644
+index 0000000..4006c56
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/release/packageReleaseResources/compile-file-map.properties
+@@ -0,0 +1 @@
++#Mon Feb 16 12:13:42 IST 2026
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/release/packageReleaseResources/merged.dir/values/values.xml b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/release/packageReleaseResources/merged.dir/values/values.xml
+new file mode 100644
+index 0000000..45e029e
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/release/packageReleaseResources/merged.dir/values/values.xml
+@@ -0,0 +1,27 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <style name="Theme.StripeReactNative.Transparent" parent="Theme.AppCompat.Light.NoActionBar">
++        
++        <item name="android:windowIsTranslucent">true</item>
++        <item name="android:windowBackground">@android:color/transparent</item>
++        <item name="android:windowContentOverlay">@null</item>
++        <item name="android:windowNoTitle">true</item>
++        <item name="android:windowIsFloating">false</item>
++        <item name="android:backgroundDimEnabled">false</item>
++        <item name="android:windowAnimationStyle">@null</item>
++        
++        
++        <item name="android:windowCloseOnTouchOutside">false</item>
++        <item name="android:windowEnableSplitTouch">false</item>
++        <item name="android:windowDrawsSystemBarBackgrounds">false</item>
++        <item name="android:statusBarColor">@android:color/transparent</item>
++        <item name="android:navigationBarColor">@android:color/transparent</item>
++        
++        
++        <item name="android:windowDisablePreview">true</item>
++        
++        
++        <item name="android:windowShowWallpaper">false</item>
++        <item name="android:windowFullscreen">false</item>
++    </style>
++</resources>
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/release/packageReleaseResources/merger.xml b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/release/packageReleaseResources/merger.xml
+new file mode 100644
+index 0000000..7868c65
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/incremental/release/packageReleaseResources/merger.xml
+@@ -0,0 +1,25 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/res"><file path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/res/values/styles.xml" qualifiers=""><style name="Theme.StripeReactNative.Transparent" parent="Theme.AppCompat.Light.NoActionBar">
++        
++        <item name="android:windowIsTranslucent">true</item>
++        <item name="android:windowBackground">@android:color/transparent</item>
++        <item name="android:windowContentOverlay">@null</item>
++        <item name="android:windowNoTitle">true</item>
++        <item name="android:windowIsFloating">false</item>
++        <item name="android:backgroundDimEnabled">false</item>
++        <item name="android:windowAnimationStyle">@null</item>
++        
++        
++        <item name="android:windowCloseOnTouchOutside">false</item>
++        <item name="android:windowEnableSplitTouch">false</item>
++        <item name="android:windowDrawsSystemBarBackgrounds">false</item>
++        <item name="android:statusBarColor">@android:color/transparent</item>
++        <item name="android:navigationBarColor">@android:color/transparent</item>
++        
++        
++        <item name="android:windowDisablePreview">true</item>
++        
++        
++        <item name="android:windowShowWallpaper">false</item>
++        <item name="android:windowFullscreen">false</item>
++    </style></file></source></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="release$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/release/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="release" generated-set="release$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/release/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/build/generated/res/resValues/release"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/build/generated/res/resValues/release"/></dataSet><mergedItems/></merger>
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/local_only_symbol_list/release/parseReleaseLocalResources/R-def.txt b/node_modules/@stripe/stripe-react-native/android/build/intermediates/local_only_symbol_list/release/parseReleaseLocalResources/R-def.txt
+new file mode 100644
+index 0000000..e3ede2c
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/local_only_symbol_list/release/parseReleaseLocalResources/R-def.txt
+@@ -0,0 +1,3 @@
++R_DEF: Internal format may change without notice
++local
++style Theme.StripeReactNative.Transparent
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/manifest_merge_blame_file/release/processReleaseManifest/manifest-merger-blame-release-report.txt b/node_modules/@stripe/stripe-react-native/android/build/intermediates/manifest_merge_blame_file/release/processReleaseManifest/manifest-merger-blame-release-report.txt
+new file mode 100644
+index 0000000..f05e1e8
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/manifest_merge_blame_file/release/processReleaseManifest/manifest-merger-blame-release-report.txt
+@@ -0,0 +1,25 @@
++1<?xml version="1.0" encoding="utf-8"?>
++2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++3    package="com.reactnativestripesdk" >
++4
++5    <uses-sdk android:minSdkVersion="23" />
++6
++7    <application>
++7-->/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:4:5-12:19
++8        <activity
++8-->/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:5:9-11:40
++9            android:name="com.reactnativestripesdk.CustomPaymentMethodActivity"
++9-->/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:6:13-56
++10            android:excludeFromRecents="true"
++10-->/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:10:13-46
++11            android:exported="false"
++11-->/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:8:13-37
++12            android:launchMode="singleTop"
++12-->/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:9:13-43
++13            android:noHistory="true"
++13-->/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:11:13-37
++14            android:theme="@style/Theme.StripeReactNative.Transparent" />
++14-->/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:7:13-71
++15    </application>
++16
++17</manifest>
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/merged_manifest/release/processReleaseManifest/AndroidManifest.xml b/node_modules/@stripe/stripe-react-native/android/build/intermediates/merged_manifest/release/processReleaseManifest/AndroidManifest.xml
+new file mode 100644
+index 0000000..b5af7b6
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/merged_manifest/release/processReleaseManifest/AndroidManifest.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.reactnativestripesdk" >
++
++    <uses-sdk android:minSdkVersion="23" />
++
++    <application>
++        <activity
++            android:name="com.reactnativestripesdk.CustomPaymentMethodActivity"
++            android:excludeFromRecents="true"
++            android:exported="false"
++            android:launchMode="singleTop"
++            android:noHistory="true"
++            android:theme="@style/Theme.StripeReactNative.Transparent" />
++    </application>
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/navigation_json/release/extractDeepLinksRelease/navigation.json b/node_modules/@stripe/stripe-react-native/android/build/intermediates/navigation_json/release/extractDeepLinksRelease/navigation.json
+new file mode 100644
+index 0000000..0637a08
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/navigation_json/release/extractDeepLinksRelease/navigation.json
+@@ -0,0 +1 @@
++[]
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/nested_resources_validation_report/release/generateReleaseResources/nestedResourcesValidationReport.txt b/node_modules/@stripe/stripe-react-native/android/build/intermediates/nested_resources_validation_report/release/generateReleaseResources/nestedResourcesValidationReport.txt
+new file mode 100644
+index 0000000..08f4ebe
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/nested_resources_validation_report/release/generateReleaseResources/nestedResourcesValidationReport.txt
+@@ -0,0 +1 @@
++0 Warning/Error
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/packaged_res/release/packageReleaseResources/values/values.xml b/node_modules/@stripe/stripe-react-native/android/build/intermediates/packaged_res/release/packageReleaseResources/values/values.xml
+new file mode 100644
+index 0000000..45e029e
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/packaged_res/release/packageReleaseResources/values/values.xml
+@@ -0,0 +1,27 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <style name="Theme.StripeReactNative.Transparent" parent="Theme.AppCompat.Light.NoActionBar">
++        
++        <item name="android:windowIsTranslucent">true</item>
++        <item name="android:windowBackground">@android:color/transparent</item>
++        <item name="android:windowContentOverlay">@null</item>
++        <item name="android:windowNoTitle">true</item>
++        <item name="android:windowIsFloating">false</item>
++        <item name="android:backgroundDimEnabled">false</item>
++        <item name="android:windowAnimationStyle">@null</item>
++        
++        
++        <item name="android:windowCloseOnTouchOutside">false</item>
++        <item name="android:windowEnableSplitTouch">false</item>
++        <item name="android:windowDrawsSystemBarBackgrounds">false</item>
++        <item name="android:statusBarColor">@android:color/transparent</item>
++        <item name="android:navigationBarColor">@android:color/transparent</item>
++        
++        
++        <item name="android:windowDisablePreview">true</item>
++        
++        
++        <item name="android:windowShowWallpaper">false</item>
++        <item name="android:windowFullscreen">false</item>
++    </style>
++</resources>
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt b/node_modules/@stripe/stripe-react-native/android/build/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt
+new file mode 100644
+index 0000000..3309c7a
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt
+@@ -0,0 +1,2 @@
++com.reactnativestripesdk
++style Theme_StripeReactNative_Transparent
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/kotlin/compileReleaseKotlin/cacheable/dirty-sources.txt b/node_modules/@stripe/stripe-react-native/android/build/kotlin/compileReleaseKotlin/cacheable/dirty-sources.txt
+new file mode 100644
+index 0000000..b840cc4
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/kotlin/compileReleaseKotlin/cacheable/dirty-sources.txt
+@@ -0,0 +1,54 @@
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/FakeOnrampSdkModule.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardFocusChangeEvent.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/PaymentSheetManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/PaymentOptionDisplayDataMapper.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/StripeSdkModule.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/GooglePayButtonView.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/addresssheet/AddressSheetView.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/utils/KeepJsAwakeTask.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/pushprovisioning/AddToWalletButtonManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardFieldView.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CustomPaymentMethodActivity.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/EmbeddedPaymentElementViewManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/PaymentMethodCreateParamsFactory.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/NavigationBarManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/GooglePayLauncherManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/customersheet/ReactNativeCustomerSessionProvider.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardFormView.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardFieldViewManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/pushprovisioning/AddToWalletButtonView.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/addresssheet/AddressSheetEvent.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/AuBECSDebitFormView.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/NavigationBarView.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/pushprovisioning/TapAndPayProxy.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/pushprovisioning/AddToWalletCompleteEvent.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/addresssheet/AddressLauncherManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/pushprovisioning/EphemeralKeyProvider.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/customersheet/CustomerSheetManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardFormCompleteEvent.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardChangeEvent.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/FormCompleteEvent.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/StripeContainerView.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/utils/PostalCodeUtilities.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/PaymentElementConfig.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/pushprovisioning/PushProvisioningProxy.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/PaymentSheetAppearance.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/customersheet/ReactNativeCustomerAdapter.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/utils/StripeUIManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/EventEmitterCompat.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/GooglePayButtonManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/addresssheet/AddressSheetViewManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/PaymentLauncherManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/utils/Mappers.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/FinancialConnectionsSheetManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/GooglePayPaymentMethodLauncherManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CollectBankAccountLauncherManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/GooglePayRequestHelper.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/EmbeddedPaymentElementView.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/AuBECSDebitFormViewManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/StripeSdkPackage.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/utils/Errors.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardFormViewManager.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/utils/Extensions.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/StripeAbstractComposeView.kt
++/Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/StripeContainerManager.kt
+\ No newline at end of file
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/kotlin/compileReleaseKotlin/local-state/build-history.bin b/node_modules/@stripe/stripe-react-native/android/build/kotlin/compileReleaseKotlin/local-state/build-history.bin
+new file mode 100644
+index 0000000..5b276d9
+Binary files /dev/null and b/node_modules/@stripe/stripe-react-native/android/build/kotlin/compileReleaseKotlin/local-state/build-history.bin differ
+diff --git a/node_modules/@stripe/stripe-react-native/android/build/outputs/logs/manifest-merger-release-report.txt b/node_modules/@stripe/stripe-react-native/android/build/outputs/logs/manifest-merger-release-report.txt
+new file mode 100644
+index 0000000..8cba4b1
+--- /dev/null
++++ b/node_modules/@stripe/stripe-react-native/android/build/outputs/logs/manifest-merger-release-report.txt
+@@ -0,0 +1,33 @@
++-- Merging decision tree log ---
++manifest
++ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:1:1-13:12
++INJECTED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:1:1-13:12
++	package
++		ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:2:11-45
++		INJECTED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml
++	xmlns:android
++		ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:1:11-69
++application
++ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:4:5-12:19
++activity#com.reactnativestripesdk.CustomPaymentMethodActivity
++ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:5:9-11:40
++	android:excludeFromRecents
++		ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:10:13-46
++	android:launchMode
++		ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:9:13-43
++	android:noHistory
++		ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:11:13-37
++	android:exported
++		ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:8:13-37
++	android:theme
++		ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:7:13-71
++	android:name
++		ADDED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml:6:13-56
++uses-sdk
++INJECTED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
++INJECTED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml
++INJECTED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml
++	android:targetSdkVersion
++		INJECTED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml
++	android:minSdkVersion
++		INJECTED from /Users/cdp/Desktop/ServicePanda/ServicePandaProvider/node_modules/@stripe/stripe-react-native/android/src/main/AndroidManifest.xml
+diff --git a/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/pushprovisioning/AddToWalletButtonView.kt b/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/pushprovisioning/AddToWalletButtonView.kt
+index a0be342..ddd6344 100644
+--- a/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/pushprovisioning/AddToWalletButtonView.kt
++++ b/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/pushprovisioning/AddToWalletButtonView.kt
+@@ -143,9 +143,7 @@ class AddToWalletButtonView(
+   }
+ 
+   private fun loadImageFromDrawable(resourceName: String) {
+-    // Instance is deprecated, but have to use until we drop support for RN 0.79
+-    @Suppress("DEPRECATION")
+-    val drawable = ResourceDrawableIdHelper.instance.getResourceDrawable(context, resourceName)
++    val drawable = ResourceDrawableIdHelper.getInstance().getResourceDrawable(context, resourceName)
+     if (drawable != null) {
+       setImageWithRipple(drawable)
+     } else {
+diff --git a/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/utils/Mappers.kt b/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/utils/Mappers.kt
+index c373d2e..9795d89 100644
+--- a/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/utils/Mappers.kt
++++ b/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/utils/Mappers.kt
+@@ -1161,7 +1161,8 @@ fun readableMapOf(vararg pairs: Pair<String, Any?>): ReadableMap =
+         is Double -> putDouble(key, value)
+         is Float -> putDouble(key, value.toDouble())
+         is Int -> putInt(key, value)
+-        is Long -> putLong(key, value)
++        // RN 0.74's WritableMap doesn't have putLong; encode as Double.
++        is Long -> putDouble(key, value.toDouble())
+         is ReadableMap -> putMap(key, value)
+         is ReadableArray -> putArray(key, value)
+         else -> {
+diff --git a/node_modules/@stripe/stripe-react-native/lib/typescript/src/specs/NativeOnrampSdkModule.d.ts b/node_modules/@stripe/stripe-react-native/lib/typescript/src/specs/NativeOnrampSdkModule.d.ts
+index 4a733c1..5c16af4 100644
+--- a/node_modules/@stripe/stripe-react-native/lib/typescript/src/specs/NativeOnrampSdkModule.d.ts
++++ b/node_modules/@stripe/stripe-react-native/lib/typescript/src/specs/NativeOnrampSdkModule.d.ts
+@@ -1,5 +1,4 @@
+ import type { TurboModule } from 'react-native/Libraries/TurboModule/RCTExport';
+-import type { EventEmitter } from 'react-native/Libraries/Types/CodegenTypes';
+ import type { Address, InitialiseParams, Onramp } from '../types';
+ import type { UnsafeObject } from './utils';
+ export interface Spec extends TurboModule {
+@@ -16,7 +15,7 @@ export interface Spec extends TurboModule {
+     verifyIdentity(): Promise<Onramp.VoidResult>;
+     collectPaymentMethod(paymentMethod: string, platformPayParams: UnsafeObject<any>): Promise<Onramp.CollectPaymentMethodResult>;
+     provideCheckoutClientSecret(clientSecret: string | null): void;
+-    onCheckoutClientSecretRequested: EventEmitter<UnsafeObject<any>>;
++    onCheckoutClientSecretRequested(handler: (event: UnsafeObject<any>) => void): void;
+     createCryptoPaymentToken(): Promise<Onramp.CreateCryptoPaymentTokenResult>;
+     performCheckout(onrampSessionId: string): Promise<Onramp.VoidResult>;
+     onrampAuthorize(linkAuthIntentId: string): Promise<Onramp.AuthorizeResult>;
+diff --git a/node_modules/@stripe/stripe-react-native/src/specs/NativeOnrampSdkModule.ts b/node_modules/@stripe/stripe-react-native/src/specs/NativeOnrampSdkModule.ts
+index a9bb5f8..d757b8b 100644
+--- a/node_modules/@stripe/stripe-react-native/src/specs/NativeOnrampSdkModule.ts
++++ b/node_modules/@stripe/stripe-react-native/src/specs/NativeOnrampSdkModule.ts
+@@ -1,6 +1,5 @@
+ import { TurboModuleRegistry } from 'react-native';
+ import type { TurboModule } from 'react-native/Libraries/TurboModule/RCTExport';
+-import type { EventEmitter } from 'react-native/Libraries/Types/CodegenTypes';
+ import type { Address, InitialiseParams, Onramp } from '../types';
+ import type { UnsafeObject } from './utils';
+ 
+@@ -34,7 +33,9 @@ export interface Spec extends TurboModule {
+     platformPayParams: UnsafeObject<any>
+   ): Promise<Onramp.CollectPaymentMethodResult>;
+   provideCheckoutClientSecret(clientSecret: string | null): void;
+-  onCheckoutClientSecretRequested: EventEmitter<UnsafeObject<any>>;
++  onCheckoutClientSecretRequested(
++    handler: (event: UnsafeObject<any>) => void
++  ): void;
+   createCryptoPaymentToken(): Promise<Onramp.CreateCryptoPaymentTokenResult>;
+   performCheckout(onrampSessionId: string): Promise<Onramp.VoidResult>;
+   onrampAuthorize(linkAuthIntentId: string): Promise<Onramp.AuthorizeResult>;
